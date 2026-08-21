@@ -20,5 +20,8 @@ Repository established. Scaffolding, governance, and CI only — no engine code.
 - Two guard tests that make promises mechanical rather than remembered — the README build stamp
   matching the package version, and R33's empty core dependency list.
 - CI across Python 3.11–3.13 running `pytest`, `ruff`, and `mypy --strict`.
-- The plan's eleven outstanding questions and four deferred scope items filed as issues, per the
-  rule that a plan's deferrals are filed before they can be forgotten.
+- The plan's ten outstanding questions, its attribution dependency, and its four deferred scope
+  items filed as issues, per the rule that a plan's deferrals are filed before they can be
+  forgotten. Each is annotated with its issue number in the plan itself.
+- Seven coverage epics filed against v1.0, one per SRD subsystem, plus the effect-shape inventory
+  that makes "full coverage" falsifiable at all.

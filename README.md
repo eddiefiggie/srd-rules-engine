@@ -94,14 +94,26 @@ carries 36 requirements, 4 flows, 5 acceptance examples, and 10 settled design d
 `ce-doc-review` rounds applied 24 findings; round 2 found none.
 
 Open work lives in **[GitHub Issues](https://github.com/eddiefiggie/srd-rules-engine/issues)** —
-the single source of truth. The plan's eleven deferred questions and four deferred scope items
-are filed there rather than left as prose. Design questions that gate implementation carry the
-[`gate`](https://github.com/eddiefiggie/srd-rules-engine/issues?q=is%3Aissue+is%3Aopen+label%3Agate)
-label; self-deferred work carries [`backlog`](https://github.com/eddiefiggie/srd-rules-engine/issues?q=is%3Aissue+is%3Aopen+label%3Abacklog).
+the single source of truth. The plan's ten outstanding questions, its attribution dependency, and
+its four deferred scope items are all filed there rather than left as prose, and the plan itself
+carries the issue number beside each one.
 
-**Next up:** settle the gate issues — the seed dataset and its per-entry verification record,
-the agent-invocation seam, and whether a ledger append precedes returning a Ruling — then
-`/ce-plan` to turn the requirements artifact into an implementation plan.
+| Milestone | What closes it |
+|---|---|
+| **M0 — Design gates settled** | Every [`gate`](https://github.com/eddiefiggie/srd-rules-engine/issues?q=is%3Aissue+is%3Aopen+label%3Agate) question answered and folded back into the plan. Nothing is implemented until this closes, because each open gate would otherwise be settled by whoever writes the code first. |
+| **M1 — Playable vertical slice** | One character, one encounter, end to end. A development milestone, not a release. |
+| **v1.0 — Full SRD 5.2 coverage** | Every entry in the effect-shape inventory ([#14](https://github.com/eddiefiggie/srd-rules-engine/issues/14)) resolves. Partial coverage is an incomplete release, not a smaller one. |
+
+**Next up:** the three gates that shape the public contract — the agent-invocation seam
+([#4](https://github.com/eddiefiggie/srd-rules-engine/issues/4)), whether a ledger append
+precedes returning a Ruling ([#5](https://github.com/eddiefiggie/srd-rules-engine/issues/5)), and
+the seed dataset with its per-entry verification record
+([#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6)) — then `/ce-plan` to turn the
+requirements artifact into an implementation plan.
+
+M1's machinery issues are deliberately **not** filed yet: the adjudication core, ledger, and memory
+port would all be reshaped by the gates above, so filing them now would file the wrong work. The
+coverage epics are filed, because the SRD defines those regardless of how the gates land.
 
 ## Development
 
