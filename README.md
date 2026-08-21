@@ -122,7 +122,7 @@ coverage epics are filed, because the SRD defines those regardless of how the ga
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e '.[dev]'
-pytest && ruff check . && mypy
+pytest && ruff check . && ruff format --check . && mypy
 ```
 
 CI runs that same gate on every pull request across Python 3.11–3.13. See

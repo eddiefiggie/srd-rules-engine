@@ -47,7 +47,7 @@ entry point is not a feature this project wants, regardless of how convenient it
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e '.[dev]'
-pytest && ruff check . && mypy
+pytest && ruff check . && ruff format --check . && mypy
 ```
 
 CI runs exactly that on every PR, across Python 3.11–3.13. Branch off `main`; `main` is

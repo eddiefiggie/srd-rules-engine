@@ -14,7 +14,7 @@ Closes #
 
 ## Checklist
 
-- [ ] `pytest && ruff check . && mypy` passes locally
+- [ ] `pytest && ruff check . && ruff format --check . && mypy` passes locally (the full CI gate)
 - [ ] New tests were proven to fail against the pre-change tree (or this adds none)
 - [ ] Any new guard was seen red before being trusted
 - [ ] No rule value was inferred — everything traces to the SRD 5.2 document

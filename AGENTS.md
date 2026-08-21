@@ -139,7 +139,10 @@ not a new issue.
 - Branch off `main`; `main` is protected and takes changes through pull requests.
 - Conventional-commit subjects (`feat:`, `fix:`, `docs:`, `test:`, `chore:`, `refactor:`), with
   the issue number in the body or subject and a closing keyword when it resolves one.
-- The full gate is `pytest && ruff check . && mypy`. CI runs it on every PR across 3.11–3.13.
+- The full gate is `pytest && ruff check . && ruff format --check . && mypy`. CI runs exactly
+  that on every PR across 3.11–3.13. Run all four — a subset passing locally and CI failing on
+  the one you skipped has already happened. Note `ruff format` also formats fenced Python in
+  Markdown, so documentation with code samples is subject to it too.
 - Requirements traceability is load-bearing: when code implements a numbered requirement, name it
   (`R14`) in the docstring or the PR body. Full coverage is the definition of done for v1, and an
   untraceable implementation can't be counted toward it.

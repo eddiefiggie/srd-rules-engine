@@ -63,10 +63,10 @@ TurnLoop = Generator[AgentRequest, AgentResponse, TurnOutcome]
 # What the loop asks for
 NeedDeclaration(actor, legal_actions, reason, challenge=None, attempt=1)
 NeedNarration(actor, ruling, bounds)
-NeedFact(fact)                    # R22 blocked — often a human question, not a model one
+NeedFact(fact)  # R22 blocked — often a human question, not a model one
 
 # What the driver sends back
-Declared(test | None, reason)     # test=None is an explicit no-test claim (R2)
+Declared(test | None, reason)  # test=None is an explicit no-test claim (R2)
 Narrated(text)
 FactProvided(value)
 ```
@@ -74,7 +74,7 @@ FactProvided(value)
 Drivers are user code and carry no rules logic:
 
 ```python
-def drive(loop, answer):                    # synchronous
+def drive(loop, answer):  # synchronous
     try:
         request = next(loop)
         while True:
@@ -82,7 +82,8 @@ def drive(loop, answer):                    # synchronous
     except StopIteration as done:
         return done.value
 
-async def drive_async(loop, answer):        # identical, one `await`
+
+async def drive_async(loop, answer):  # identical, one `await`
     ...
 ```
 
