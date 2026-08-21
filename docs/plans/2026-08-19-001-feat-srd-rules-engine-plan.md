@@ -55,6 +55,8 @@ The cost is that no state in the campaign can be trusted, which makes continuity
 
 - **MCP is a delivery surface, not the foundation.** MCP exists to expose tools to an agent that decides when to call them, which is the seam being closed. The core is a plain typed library with no LLM dependency; MCP, HTTP, and CLI are adapters over the same contract. Open-sourcing makes this load-bearing rather than merely tidy, since consumers will want different transports. (session-settled: user-approved — chosen over building on MCP from the start: an adapter over a clean library is cheap to add, while a protocol-first core bakes in the model's discretion.)
 
+- **Nothing escapes the engine before its record is durable.** A Ruling, challenge, or rejection is not returned until its ledger entry is committed — one synchronising write per adjudication, at the escape boundary rather than at the roll. An outcome that never left the engine is not lost; the only bad state is one that reached the caller with no durable trace, which is the original defect arriving through the back door. This costs nothing over the unsafe option: R5 already requires the Ruling to carry seed, resolved facts and target derivation, which is exactly R28's replay input set, so one record buys both the outcome and its verifiability. Entries are hash-chained — not to defend a solo campaign against its own owner, but because a torn tail record is genuinely reachable and because #10 may make this the session interchange format, where retrofitting a chain is expensive. (session-settled: user-approved — chosen over append-after and over writing determinants separately before the roll; see `docs/decisions/0002-ledger-durability.md`.)
+
 - **Rulings bound what the narrator may claim.** A Ruling states not only what happened but what the caller may and may not assert happened, so unresolved consequences must be declared separately rather than appended to a successful roll. (session-settled: user-approved — chosen over returning outcome data alone: without bounds, free-associated consequences reproduce the original defect downstream of a correct roll.)
 
 - **Mechanics are seeded from a community dataset and verified against the official SRD before they are trusted.** Unverified entries are excluded and the exclusion disclosed rather than silently shipped. This buys fast seeding without inheriting somebody else's errors, at the cost of still needing the official document as a verification reference. (session-settled: user-directed — chosen over bulk transcription, per-subsystem transcription, and user-supplied text: verification is cheaper than transcription when a dataset exists.)
@@ -127,11 +129,11 @@ flowchart TB
 
 **Ledger and auditability**
 
-- R26. Every declaration, challenge, rejection, ruling, and fact write appends to an append-only ledger.
+- R26. Every declaration, challenge, rejection, ruling, and fact write appends to an append-only ledger. A Ruling, challenge, or rejection is not returned until its ledger entry is durable — one synchronising write per adjudication, at the boundary where the outcome escapes the engine. Entries carry a monotonic sequence number, a checksum, and the previous entry's digest. A failed append raises rather than returning a status, because infrastructure failure is not a rules outcome. Specified in `docs/decisions/0002-ledger-durability.md` (#5).
 - R27. A ruling influenced by a memory-supplied fact cites both the governing SRD rule and the fact with its provenance.
 - R28. Any ruling entry replays to an identical outcome from its recorded seed, inputs, and resolved fact values, without re-querying the memory port.
 - R29. The narration produced under a Ruling is submitted back to the engine and appended to the ledger against that Ruling and the bounds it was issued under. The turn loop refuses the next declaration for an actor until that narration is submitted, and a turn that advances without one carries an explicit missing-narration marker.
-- R30. A session-review report is generated from the ledger listing, per turn, the declaration, the alternatives offered, the Ruling, and the submitted narration, and flagging turns carrying a narration with no Ruling, a Ruling with no narration, or a challenge never re-adjudicated.
+- R30. A session-review report is generated from the ledger listing, per turn, the declaration, the alternatives offered, the Ruling, and the submitted narration, and flagging turns carrying a narration with no Ruling, a Ruling with no narration, or a challenge never re-adjudicated. Report generation first verifies ledger sequence and chain integrity, so a corrupted ledger is reported as corrupted rather than silently summarised.
 
 **Data provenance**
 
@@ -270,7 +272,7 @@ flowchart TB
 - (#13) Python packaging, module layout, and schema versioning mechanics. Packaging settled in build `08212026.1`; module layout and schema versioning remain open.
 - (#12) Whether the reference memory implementation is flat-file or embedded database.
 - ~~(#4) How the turn loop invokes an arbitrary agent without coupling to a specific LLM or framework, and whether v1 ships a reference binding for that seam the way it ships one for the memory port.~~ **SETTLED 2026-08-21** — generator of typed requests, with an object adapter and two non-LLM reference drivers. See `docs/decisions/0001-agent-seam.md`.
-- (#5) Whether a successful ledger append is a precondition of returning a Ruling, challenge, or rejection, and what durability and append-only integrity the ledger is assumed to provide.
+- ~~(#5) Whether a successful ledger append is a precondition of returning a Ruling, challenge, or rejection, and what durability and append-only integrity the ledger is assumed to provide.~~ **SETTLED 2026-08-21** — yes, at the escape boundary; one sync per adjudication; hash-chained entries; a failed append raises. See `docs/decisions/0002-ledger-durability.md`.
 - (#8) How the alternatives recorded on a declaration are verified, given that the read surface may not record what it offered.
 
 ### Sources / Research
