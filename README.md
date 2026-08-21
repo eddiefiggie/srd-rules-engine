@@ -7,11 +7,9 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08212026.1` — scaffolding and governance. No engine code yet.
-`tests/test_build_stamp.py` fails CI when this line drifts from `src/srd_rules_engine/__init__.py`,
-so it cannot go stale silently.
-
-**Category:** Personal
+**Current build:** `08212026.2` — scaffolding and governance, plus a guard that keeps local-machine
+details out of the repository. No engine code yet. `tests/test_build_stamp.py` fails CI when this
+line drifts from `src/srd_rules_engine/__init__.py`, so it cannot go stale silently.
 
 ---
 
@@ -94,14 +92,26 @@ carries 36 requirements, 4 flows, 5 acceptance examples, and 10 settled design d
 `ce-doc-review` rounds applied 24 findings; round 2 found none.
 
 Open work lives in **[GitHub Issues](https://github.com/eddiefiggie/srd-rules-engine/issues)** —
-the single source of truth. The plan's eleven deferred questions and four deferred scope items
-are filed there rather than left as prose. Design questions that gate implementation carry the
-[`gate`](https://github.com/eddiefiggie/srd-rules-engine/issues?q=is%3Aissue+is%3Aopen+label%3Agate)
-label; self-deferred work carries [`backlog`](https://github.com/eddiefiggie/srd-rules-engine/issues?q=is%3Aissue+is%3Aopen+label%3Abacklog).
+the single source of truth. The plan's ten outstanding questions, its attribution dependency, and
+its four deferred scope items are all filed there rather than left as prose, and the plan itself
+carries the issue number beside each one.
 
-**Next up:** settle the gate issues — the seed dataset and its per-entry verification record,
-the agent-invocation seam, and whether a ledger append precedes returning a Ruling — then
-`/ce-plan` to turn the requirements artifact into an implementation plan.
+| Milestone | What closes it |
+|---|---|
+| **M0 — Design gates settled** | Every [`gate`](https://github.com/eddiefiggie/srd-rules-engine/issues?q=is%3Aissue+is%3Aopen+label%3Agate) question answered and folded back into the plan. Nothing is implemented until this closes, because each open gate would otherwise be settled by whoever writes the code first. |
+| **M1 — Playable vertical slice** | One character, one encounter, end to end. A development milestone, not a release. |
+| **v1.0 — Full SRD 5.2 coverage** | Every entry in the effect-shape inventory ([#14](https://github.com/eddiefiggie/srd-rules-engine/issues/14)) resolves. Partial coverage is an incomplete release, not a smaller one. |
+
+**Next up:** the three gates that shape the public contract — the agent-invocation seam
+([#4](https://github.com/eddiefiggie/srd-rules-engine/issues/4)), whether a ledger append
+precedes returning a Ruling ([#5](https://github.com/eddiefiggie/srd-rules-engine/issues/5)), and
+the seed dataset with its per-entry verification record
+([#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6)) — then `/ce-plan` to turn the
+requirements artifact into an implementation plan.
+
+M1's machinery issues are deliberately **not** filed yet: the adjudication core, ledger, and memory
+port would all be reshaped by the gates above, so filing them now would file the wrong work. The
+coverage epics are filed, because the SRD defines those regardless of how the gates land.
 
 ## Development
 
@@ -127,8 +137,8 @@ against the published document before the first entry lands.
 
 ## Resume prompt
 
-> I'm resuming the **SRD 5.2 Rules Engine** at `~/ClaudeGarage/personal/srd-rules-engine/`
-> (public repo: `eddiefiggie/srd-rules-engine`). It's an open-source Python library
+> I'm resuming the **SRD 5.2 Rules Engine** (`eddiefiggie/srd-rules-engine`). It's an
+> open-source Python library
 > implementing D&D SRD 5.2 (2024) mechanics in full, where an LLM agent holds interpretation
 > and the code holds outcome authority — the agent decides *that* a rule applies and *which*,
 > never *how it turns out*.
