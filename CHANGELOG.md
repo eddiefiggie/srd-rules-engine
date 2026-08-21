@@ -6,6 +6,17 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-21
+
+Design only; no build stamp change, because nothing a consumer runs was altered.
+
+- **Gate #4 settled**: the agent seam is a generator of typed requests, with an object-shaped
+  adapter for the common case and two non-LLM reference drivers (scripted, human CLI). Recorded
+  in `docs/decisions/0001-agent-seam.md`; R8 amended and the plan's Key Decisions updated.
+- `docs/decisions/` established as the store for settled design decisions, so a closed gate leaves
+  behind what was chosen, what was rejected, and the evidence — rather than only an issue nobody
+  will reread.
+
 ## 08212026.2 — 2026-08-21
 
 Keep local-machine details out of a public repository.

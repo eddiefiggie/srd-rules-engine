@@ -102,9 +102,13 @@ carries the issue number beside each one.
 | **M1 — Playable vertical slice** | One character, one encounter, end to end. A development milestone, not a release. |
 | **v1.0 — Full SRD 5.2 coverage** | Every entry in the effect-shape inventory ([#14](https://github.com/eddiefiggie/srd-rules-engine/issues/14)) resolves. Partial coverage is an incomplete release, not a smaller one. |
 
-**Next up:** the three gates that shape the public contract — the agent-invocation seam
-([#4](https://github.com/eddiefiggie/srd-rules-engine/issues/4)), whether a ledger append
-precedes returning a Ruling ([#5](https://github.com/eddiefiggie/srd-rules-engine/issues/5)), and
+Settled design decisions live in [`docs/decisions/`](docs/decisions/). A gate closes by
+producing one, and the plan is amended to match — the first is
+[the agent seam](docs/decisions/0001-agent-seam.md), which settled
+[#4](https://github.com/eddiefiggie/srd-rules-engine/issues/4).
+
+**Next up:** the two remaining gates that shape the public contract — whether a ledger append
+precedes returning a Ruling ([#5](https://github.com/eddiefiggie/srd-rules-engine/issues/5)) and
 the seed dataset with its per-entry verification record
 ([#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6)) — then `/ce-plan` to turn the
 requirements artifact into an implementation plan.

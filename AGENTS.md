@@ -7,6 +7,11 @@ player character. The core is a plain typed library; MCP, HTTP, and CLI are adap
 See `README.md` for what it does, `NOTICE.md` for the two-licence situation, and
 `docs/plans/` for the requirements artifact behind each milestone.
 
+**`docs/decisions/` holds settled design decisions.** Read the relevant record before reopening a
+question in the area it covers — each one states what was chosen, what was rejected, and the
+evidence, so a decision does not get re-litigated from scratch by whoever arrives next. A gate
+issue closes by producing one of these, and the plan is amended to match.
+
 ## The invariant everything else serves
 
 **The agent decides *that* a rule applies and *which* one. It can never decide *how it turns
