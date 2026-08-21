@@ -6,6 +6,24 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## 08212026.2 — 2026-08-21
+
+Keep local-machine details out of a public repository.
+
+- `tests/test_no_local_leakage.py` scans every tracked text file and fails CI on an absolute or
+  home-relative filesystem path, a private project-collection name, a credential shape (GitHub,
+  AWS, OpenAI, Anthropic, bearer headers), or a private contact address. Proven red against eight
+  planted leaks across all four categories, with a green control — and it refuses to pass
+  vacuously if the file scan ever returns nothing.
+- Scrubbed what was already public: a home-relative working path in the README's resume prompt,
+  the local taxonomy line, and four references to the private project collection this repo is
+  maintained from (`AGENTS.md` ×2, the plan ×2). The sibling project they cited is public, so
+  they now cite it by URL, which is strictly more useful to a reader anyway.
+- Local-only metadata moved to a gitignored `GARAGE.md`, so it has somewhere to live rather than
+  drifting back into tracked prose.
+- Commits are now authored with a GitHub noreply address instead of a mail relay.
+- Standing rule added to `AGENTS.md`: describe the project, not the machine it is built on.
+
 ## 08212026.1 — 2026-08-21
 
 Repository established. Scaffolding, governance, and CI only — no engine code.

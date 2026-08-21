@@ -53,7 +53,7 @@ Two exceptions, both meaning **do not file**:
 **A PR that resolves an issue closes it with a keyword — `Closes #N`, not a bare `#N`.** GitHub
 only auto-closes on `Closes` / `Fixes` / `Resolves`. A bare `#N` links the issue and leaves it
 open, so closing then depends on somebody remembering days later. That dependency has already
-failed elsewhere in this garage: a single sweep found five issues fixed, shipped, and still open.
+failed in a sibling project of mine: a single sweep found five issues fixed, shipped, and still open.
 
 **An issue resolved as already-correct still gets closed, with the evidence.** Some
 investigations end in "no code change." That is a result, not the absence of one — record it and
@@ -73,8 +73,8 @@ still a guess, and Product Identity outside the SRD must not enter this reposito
 
 **Seeded is not verified.** A community dataset is a seed, never a source. Each entry carries its
 own verification state against the official document, and unverified entries do not reach the
-engine. The closest prior art in this garage — `ddo-loadout-optimizer` — found that rules fidelity
-lives or dies on data provenance rather than on the solver.
+engine. The closest prior art I have — [`ddo-loadout-optimizer`](https://github.com/eddiefiggie/ddo-loadout-optimizer)
+— found that rules fidelity lives or dies on data provenance rather than on the solver.
 
 **Prove a guard fails before trusting it.** Corrupt the input a new gate exists to reject and
 confirm it goes red, then restore. A guard that has never been seen red is a guard that might be
@@ -89,6 +89,15 @@ carries `__version__` in `mmddyyyy.x` form (see the `build-versioning` skill). R
 `**Current build:**` line must match it, and must say what actually shipped.
 `tests/test_build_stamp.py` fails CI on drift, so the two cannot separate silently — but the test
 only checks that they *match*, not that the prose is honest. That part is on you.
+
+**Nothing about the local machine reaches this repository.** No absolute or home-relative
+filesystem paths, no private project-collection names, no personal contact addresses, and
+obviously no credentials. This is a public repo maintained from a private working tree, and the
+confusion is easy to make in *prose* rather than in code — a path that reads naturally in a local
+note becomes a disclosure once pushed. Describe the project, not the machine; if a path is
+genuinely needed, make it relative to the repository root. `tests/test_no_local_leakage.py`
+scans every tracked text file and fails CI on a hit. Local-only metadata belongs in the
+gitignored `GARAGE.md`.
 
 **Narration bounds are advisory to the caller** (R7). The engine states what may and may not be
 asserted; it does not enforce it. Do not add enforcement machinery that implies otherwise, and do

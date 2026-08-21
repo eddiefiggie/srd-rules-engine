@@ -7,11 +7,9 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08212026.1` — scaffolding and governance. No engine code yet.
-`tests/test_build_stamp.py` fails CI when this line drifts from `src/srd_rules_engine/__init__.py`,
-so it cannot go stale silently.
-
-**Category:** Personal
+**Current build:** `08212026.2` — scaffolding and governance, plus a guard that keeps local-machine
+details out of the repository. No engine code yet. `tests/test_build_stamp.py` fails CI when this
+line drifts from `src/srd_rules_engine/__init__.py`, so it cannot go stale silently.
 
 ---
 
@@ -139,8 +137,8 @@ against the published document before the first entry lands.
 
 ## Resume prompt
 
-> I'm resuming the **SRD 5.2 Rules Engine** at `~/ClaudeGarage/personal/srd-rules-engine/`
-> (public repo: `eddiefiggie/srd-rules-engine`). It's an open-source Python library
+> I'm resuming the **SRD 5.2 Rules Engine** (`eddiefiggie/srd-rules-engine`). It's an
+> open-source Python library
 > implementing D&D SRD 5.2 (2024) mechanics in full, where an LLM agent holds interpretation
 > and the code holds outcome authority — the agent decides *that* a rule applies and *which*,
 > never *how it turns out*.
