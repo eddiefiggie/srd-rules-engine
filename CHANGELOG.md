@@ -23,5 +23,6 @@ Repository established. Scaffolding, governance, and CI only — no engine code.
 - The plan's ten outstanding questions, its attribution dependency, and its four deferred scope
   items filed as issues, per the rule that a plan's deferrals are filed before they can be
   forgotten. Each is annotated with its issue number in the plan itself.
-- Seven coverage epics filed against v1.0, one per SRD subsystem, plus the effect-shape inventory
-  that makes "full coverage" falsifiable at all.
+- Six coverage epics filed against v1.0, one per SRD subsystem, plus the effect-shape inventory
+  (#14) that makes "full coverage" falsifiable at all — filed against M0 instead, because the
+  other six are unscoreable until it exists.
