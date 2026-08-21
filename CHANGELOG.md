@@ -18,6 +18,11 @@ Design only; no build stamp change, because nothing a consumer runs was altered.
   roll. Entries are hash-chained; a failed append raises rather than returning a rules status.
   Recorded in `docs/decisions/0002-ledger-durability.md`; R26 and R30 amended. #10 inherits three
   format constraints, recorded on that issue.
+- `docs/decisions/README.md` explains the convention — why the records exist, that a gate closes
+  by producing one, that they are numbered and superseded rather than edited, and the section
+  format. Someone browsing the directory previously had to infer all of it. Removed two empty
+  scaffold directories that were never used and a reference to a learnings store that does not
+  exist yet.
 - Corrected the documented local gate, which listed three of the four checks CI runs. `ruff format`
   also formats fenced Python in Markdown, so documentation with code samples is subject to it.
 - `docs/decisions/` established as the store for settled design decisions, so a closed gate leaves
