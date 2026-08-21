@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/eddiefiggie/srd-rules-engine/security/advisories/new
+    about: Report privately. A rule modelled wrongly is NOT a security issue — use the SRD fidelity template.
+  - name: Non-goals — read before requesting a feature
+    url: https://github.com/eddiefiggie/srd-rules-engine/blob/main/AGENTS.md#non-goals
+    about: Multiplayer, a UI, narrative generation, and enforced narration bounds were considered and declined.

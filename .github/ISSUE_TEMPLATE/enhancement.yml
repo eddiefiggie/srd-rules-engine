@@ -1,0 +1,33 @@
+name: Enhancement
+description: A new capability or an improvement to an existing one.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please check the [non-goals](https://github.com/eddiefiggie/srd-rules-engine/blob/main/AGENTS.md#non-goals)
+        first. Multiplayer, a UI, narrative generation, framework coupling, grid movement by
+        default, and enforced narration bounds were considered and declined — they're decisions,
+        not oversights.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What's hard or impossible today. Describe the situation, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you'd like
+    validations:
+      required: true
+  - type: checkboxes
+    id: invariant
+    attributes:
+      label: The invariant
+      options:
+        - label: This doesn't give any caller a path to an outcome outside the single adjudication entry point.
+          required: true
+        - label: This doesn't require the engine to read prose.
+          required: true

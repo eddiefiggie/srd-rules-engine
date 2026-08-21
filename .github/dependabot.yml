@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # The core has no runtime dependencies by design (R33), so this watches the dev
+  # toolchain and the actions — which is exactly where a supply-chain problem would
+  # reach an offline library.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps):"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "chore(ci):"

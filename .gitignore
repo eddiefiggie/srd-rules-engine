@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.DS_Store
+
+# Session ledgers and reference-memory files written during play are local
+# campaign state, not source. The formats are versioned; the contents are not.
+/ledgers/
+/campaigns/

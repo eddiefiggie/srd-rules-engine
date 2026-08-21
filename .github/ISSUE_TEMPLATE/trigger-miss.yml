@@ -1,0 +1,42 @@
+name: Trigger catalogue miss
+description: A no-test claim that should have been challenged, and wasn't (or was challenged and shouldn't have been).
+labels: ["trigger-catalogue"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The trigger catalogue is **known-incomplete by construction** — the SRD supplies explicit
+        triggers only for forced saves, attacks, and stated hazards, and the rest is
+        project-authored. A missed skip leaves no trace in the ledger, so catalogue recall can't
+        be measured from play. A report is one of the few real signals available.
+  - type: dropdown
+    id: direction
+    attributes:
+      label: Which way did it go wrong?
+      options:
+        - Missed — a skip that should have been challenged went through
+        - False positive — a challenge fired where no test was warranted
+    validations:
+      required: true
+  - type: textarea
+    id: situation
+    attributes:
+      label: The situation and the declaration
+      description: What the character was attempting, and the no-test reason the agent gave.
+    validations:
+      required: true
+  - type: textarea
+    id: grounding
+    attributes:
+      label: Why a test was (or wasn't) warranted
+      description: >
+        SRD grounding if there is any. Project-authored triggers are grounded in rather than
+        cited from the SRD, so judgment is expected here — say what yours is.
+  - type: textarea
+    id: state
+    attributes:
+      label: Was the relevant state recorded?
+      description: >
+        A trigger can only fire against situational state the agent actually wrote to the port.
+        A hazard nobody recorded can't collide with anything — that's a known limit, and it's
+        worth checking before this is treated as a catalogue gap.

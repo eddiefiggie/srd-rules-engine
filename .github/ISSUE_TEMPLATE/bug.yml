@@ -1,0 +1,32 @@
+name: Bug
+description: Something breaks, crashes, or behaves incorrectly outside the rules themselves.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Include the seed if a ruling is involved — rulings replay from their seed.
+    validations:
+      required: true
+  - type: input
+    id: build
+    attributes:
+      label: Build stamp
+      description: The `**Current build:**` value from the README, or `__version__`.
+  - type: input
+    id: python
+    attributes:
+      label: Python version

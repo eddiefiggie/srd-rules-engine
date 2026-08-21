@@ -1,0 +1,43 @@
+name: SRD fidelity defect
+description: A rule is modelled wrongly, or a mechanic resolves against the SRD incorrectly.
+labels: ["srd-fidelity"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the most serious defect class in the project. A wrong ruling is
+        indistinguishable from a right one once it's inside a finished session, so these
+        outrank everything except a crash.
+  - type: textarea
+    id: mechanic
+    attributes:
+      label: The mechanic
+      description: Which rule, and what the engine currently does with it.
+    validations:
+      required: true
+  - type: textarea
+    id: srd
+    attributes:
+      label: What the SRD 5.2 says
+      description: >
+        Cite the section. Paraphrase rather than pasting large blocks — this repo is careful
+        about how much SRD text it carries. "Widely known 5e behaviour" is not a citation:
+        if the SRD doesn't state it, the correct outcome is exclusion, not a different guess.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to see it
+      description: A declaration and the Ruling it produced, ideally with the seed so it replays.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Which layer is wrong?
+      options:
+        - Mechanic — the rule's logic
+        - Data — a seeded value that failed to match the document
+        - Citation — the ruling cites the wrong SRD section
+        - Not sure
+    validations:
+      required: true
