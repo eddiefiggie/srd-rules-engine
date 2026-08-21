@@ -7,6 +7,11 @@ player character. The core is a plain typed library; MCP, HTTP, and CLI are adap
 See `README.md` for what it does, `NOTICE.md` for the two-licence situation, and
 `docs/plans/` for the requirements artifact behind each milestone.
 
+**`docs/decisions/` holds settled design decisions.** Read the relevant record before reopening a
+question in the area it covers — each one states what was chosen, what was rejected, and the
+evidence, so a decision does not get re-litigated from scratch by whoever arrives next. A gate
+issue closes by producing one of these, and the plan is amended to match.
+
 ## The invariant everything else serves
 
 **The agent decides *that* a rule applies and *which* one. It can never decide *how it turns
@@ -134,7 +139,10 @@ not a new issue.
 - Branch off `main`; `main` is protected and takes changes through pull requests.
 - Conventional-commit subjects (`feat:`, `fix:`, `docs:`, `test:`, `chore:`, `refactor:`), with
   the issue number in the body or subject and a closing keyword when it resolves one.
-- The full gate is `pytest && ruff check . && mypy`. CI runs it on every PR across 3.11–3.13.
+- The full gate is `pytest && ruff check . && ruff format --check . && mypy`. CI runs exactly
+  that on every PR across 3.11–3.13. Run all four — a subset passing locally and CI failing on
+  the one you skipped has already happened. Note `ruff format` also formats fenced Python in
+  Markdown, so documentation with code samples is subject to it too.
 - Requirements traceability is load-bearing: when code implements a numbered requirement, name it
   (`R14`) in the docstring or the PR body. Full coverage is the definition of done for v1, and an
   untraceable implementation can't be counted toward it.
