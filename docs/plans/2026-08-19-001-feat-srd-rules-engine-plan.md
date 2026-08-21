@@ -229,10 +229,10 @@ flowchart TB
 
 **Deferred for later**
 
-- The narrative memory system itself — session history, relationships, NPC recall — beyond the reference implementation behind the port.
-- A rules-text query endpoint serving SRD prose on demand. Citations travel in every Ruling; CC BY 4.0 would permit text, so this stays open rather than closed.
-- Content population. The engine defines and consumes stat blocks and spell definitions; filling in the SRD bestiary and spell list is a parallel data track and not a blocker on the mechanics code. The line between them is the effect vocabulary: mechanical coverage is complete when every distinct SRD effect shape resolves, and content population is per-entry data written entirely in that vocabulary.
-- Grid-based tactical movement. Movement resolves in feet, with the grid as the optional variant the SRD publishes it as.
+- (#23) The narrative memory system itself — session history, relationships, NPC recall — beyond the reference implementation behind the port.
+- (#22) A rules-text query endpoint serving SRD prose on demand. Citations travel in every Ruling; CC BY 4.0 would permit text, so this stays open rather than closed.
+- (#21) Content population. The engine defines and consumes stat blocks and spell definitions; filling in the SRD bestiary and spell list is a parallel data track and not a blocker on the mechanics code. The line between them is the effect vocabulary: mechanical coverage is complete when every distinct SRD effect shape resolves, and content population is per-entry data written entirely in that vocabulary.
+- (#24) Grid-based tactical movement. Movement resolves in feet, with the grid as the optional variant the SRD publishes it as.
 
 **Outside this product's identity**
 
@@ -243,9 +243,9 @@ flowchart TB
 
 ### Dependencies / Assumptions
 
-- SRD 5.2 (2024 rules) is published under CC BY 4.0, which permits redistribution with attribution. Confirm the exact licence and attribution wording against the published document before release.
+- (#3) SRD 5.2 (2024 rules) is published under CC BY 4.0, which permits redistribution with attribution. Confirm the exact licence and attribution wording against the published document before release.
 - A machine-readable community SRD 5.2 dataset is assumed to exist and is the intended seed. Its existence and quality are unverified; if no usable dataset is found, mechanics fall back to transcription and the data track grows accordingly.
-- The official SRD 5.2 document is required as the verification reference for every sourced entry. It gates the data track, not the mechanics code.
+- (#3, #6) The official SRD 5.2 document is required as the verification reference for every sourced entry. It gates the data track, not the mechanics code.
 - The SRD publishes movement and range in feet and treats the grid as an optional variant; the engine follows the published default.
 - The player is solo with one character, so no concurrency, turn arbitration between humans, or shared-session state is assumed anywhere in the design.
 - Conditions, attitudes, and similar states are mechanically typed in the SRD, which is what makes a typed memory port possible rather than a prose interface.
@@ -254,21 +254,25 @@ flowchart TB
 
 ### Outstanding Questions
 
+> Every entry below is filed as a GitHub issue and carries its number. GitHub Issues is the
+> single source of truth for open work — this list is a pointer, not a queue. Progress lives
+> in the issues and in git, never in this document.
+
 **Deferred to planning**
 
-- Which community SRD 5.2 dataset is used as the seed, and how its per-entry verification state is recorded.
-- How the namespaced extension channel on the memory port is expressed and versioned.
-- Ledger storage format and whether it doubles as the interchange format for sharing sessions.
-- How SRD-derived triggers are catalogued and expressed, and how the catalogue grows from observed misses.
-- Retry bounds for challenged and rejected declarations.
-- Python packaging, module layout, and schema versioning mechanics.
-- Whether the reference memory implementation is flat-file or embedded database.
-- How the turn loop invokes an arbitrary agent without coupling to a specific LLM or framework, and whether v1 ships a reference binding for that seam the way it ships one for the memory port.
-- Whether a successful ledger append is a precondition of returning a Ruling, challenge, or rejection, and what durability and append-only integrity the ledger is assumed to provide.
-- How the alternatives recorded on a declaration are verified, given that the read surface may not record what it offered.
+- (#6) Which community SRD 5.2 dataset is used as the seed, and how its per-entry verification state is recorded.
+- (#9) How the namespaced extension channel on the memory port is expressed and versioned.
+- (#10) Ledger storage format and whether it doubles as the interchange format for sharing sessions.
+- (#7) How SRD-derived triggers are catalogued and expressed, and how the catalogue grows from observed misses.
+- (#11) Retry bounds for challenged and rejected declarations.
+- (#13) Python packaging, module layout, and schema versioning mechanics. Packaging settled in build `08212026.1`; module layout and schema versioning remain open.
+- (#12) Whether the reference memory implementation is flat-file or embedded database.
+- (#4) How the turn loop invokes an arbitrary agent without coupling to a specific LLM or framework, and whether v1 ships a reference binding for that seam the way it ships one for the memory port.
+- (#5) Whether a successful ledger append is a precondition of returning a Ruling, challenge, or rejection, and what durability and append-only integrity the ledger is assumed to provide.
+- (#8) How the alternatives recorded on a declaration are verified, given that the read surface may not record what it offered.
 
 ### Sources / Research
 
 - SRD 5.2 (2024 rules), Wizards of the Coast, CC BY 4.0 — the authoritative source for every mechanic in this contract.
-- `ddo-loadout-optimizer` in this garage is the closest prior art in method rather than domain: an authoritative external source turned into a rules-accurate engine, with exclude-until-verified data gating and per-result receipts. Its lesson — that rules fidelity lives or dies on data provenance rather than on the solver — is why R22 and R27 exist.
-- No tabletop D&D or SRD prior art exists in this garage; every other D&D-named project targets Dungeons & Dragons Online, a different ruleset.
+- [`ddo-loadout-optimizer`](https://github.com/eddiefiggie/ddo-loadout-optimizer) is the closest prior art in method rather than domain: an authoritative external source turned into a rules-accurate engine, with exclude-until-verified data gating and per-result receipts. Its lesson — that rules fidelity lives or dies on data provenance rather than on the solver — is why R22 and R27 exist.
+- No tabletop D&D or SRD prior art exists in my other projects; every other D&D-named one targets Dungeons & Dragons Online, a different ruleset.
