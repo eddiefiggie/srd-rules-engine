@@ -13,6 +13,13 @@ Design only; no build stamp change, because nothing a consumer runs was altered.
 - **Gate #4 settled**: the agent seam is a generator of typed requests, with an object-shaped
   adapter for the common case and two non-LLM reference drivers (scripted, human CLI). Recorded
   in `docs/decisions/0001-agent-seam.md`; R8 amended and the plan's Key Decisions updated.
+- **Gate #5 settled**: a Ruling, challenge, or rejection is not returned until its ledger entry is
+  durable — one synchronising write per adjudication, at the escape boundary rather than at the
+  roll. Entries are hash-chained; a failed append raises rather than returning a rules status.
+  Recorded in `docs/decisions/0002-ledger-durability.md`; R26 and R30 amended. #10 inherits three
+  format constraints, recorded on that issue.
+- Corrected the documented local gate, which listed three of the four checks CI runs. `ruff format`
+  also formats fenced Python in Markdown, so documentation with code samples is subject to it.
 - `docs/decisions/` established as the store for settled design decisions, so a closed gate leaves
   behind what was chosen, what was rejected, and the evidence — rather than only an issue nobody
   will reread.

@@ -102,15 +102,18 @@ carries the issue number beside each one.
 | **M1 — Playable vertical slice** | One character, one encounter, end to end. A development milestone, not a release. |
 | **v1.0 — Full SRD 5.2 coverage** | Every entry in the effect-shape inventory ([#14](https://github.com/eddiefiggie/srd-rules-engine/issues/14)) resolves. Partial coverage is an incomplete release, not a smaller one. |
 
-Settled design decisions live in [`docs/decisions/`](docs/decisions/). A gate closes by
-producing one, and the plan is amended to match — the first is
-[the agent seam](docs/decisions/0001-agent-seam.md), which settled
-[#4](https://github.com/eddiefiggie/srd-rules-engine/issues/4).
+Settled design decisions live in [`docs/decisions/`](docs/decisions/). A gate closes by producing
+one, and the plan is amended to match:
 
-**Next up:** the two remaining gates that shape the public contract — whether a ledger append
-precedes returning a Ruling ([#5](https://github.com/eddiefiggie/srd-rules-engine/issues/5)) and
-the seed dataset with its per-entry verification record
-([#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6)) — then `/ce-plan` to turn the
+- [0001 — the agent seam](docs/decisions/0001-agent-seam.md) — the turn loop yields typed requests
+  rather than calling the agent (closed [#4](https://github.com/eddiefiggie/srd-rules-engine/issues/4))
+- [0002 — ledger durability](docs/decisions/0002-ledger-durability.md) — nothing escapes the engine
+  before its record is durable (closed [#5](https://github.com/eddiefiggie/srd-rules-engine/issues/5))
+
+**Next up:** [#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6), the seed dataset and
+its per-entry verification record — the last gate that shapes the public contract, and the one
+that gates all SRD-derived data behind
+[#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3). Then `/ce-plan` to turn the
 requirements artifact into an implementation plan.
 
 M1's machinery issues are deliberately **not** filed yet: the adjudication core, ledger, and memory
