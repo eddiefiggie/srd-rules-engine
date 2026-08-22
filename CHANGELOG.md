@@ -6,6 +6,33 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 — build `08222026.6`
+
+U6 — the memory port and the flat-JSON reference store.
+
+- **"Typed values only, never prose" is structural: there is no free-text fact kind.** A core fact
+  is an integer, a boolean, or a choice from a set its type declares. Prose cannot be stored as a
+  core fact because no type can hold it — the same move as the trigger matcher never receiving the
+  declaration's label.
+- **R22's three default kinds are distinguishable in the resolution**, so a Ruling can say it
+  defaulted *and* say which kind: `srd-prescribed`, `engine-chosen`, or `absent`. A type classified
+  as having no default may not then supply one, and a declared default must satisfy its own type.
+- **A namespace is what makes a type an extension** (R24), so the distinction costs no lookup and
+  cannot drift out of step with a list. Extension values round-trip unchanged including unknown
+  namespaces and absent or malformed versions — the engine has no basis for an opinion about a
+  namespace it does not interpret. They must still be ledger-representable: not interpreted is not
+  unconstrained.
+- **`LedgerBackedPort` makes R25 structural.** A put that skipped the ledger would break the rebuild
+  quietly — the store would hold a value the rebuild could not produce — so recording is not left to
+  the implementer to remember.
+- **The store is a projection, and the rebuild proves it.** A deleted store is recoverable from the
+  ledger, replay applies writes in order so the latest wins, and **a rebuild discards anything the
+  ledger does not account for** — a stray value that survived would be a fact with no recorded
+  provenance, which is the shape of an outcome nothing ruled. A write whose `compat` floor the
+  reader cannot meet refuses the rebuild rather than being skipped.
+- Sixteen mutations proven caught. One needed a new test (the discard property above); one anchor
+  missed on indentation and was re-run.
+
 ## Unreleased — 2026-08-22 — build `08222026.5`
 
 U5 — mechanical state, the read surface, and the read token.
