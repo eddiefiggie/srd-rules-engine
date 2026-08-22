@@ -18,5 +18,28 @@ See `docs/decisions/0011-module-layout-and-versioning.md`.
 from __future__ import annotations
 
 from srd_rules_engine.core.canonical import CanonicalizationError, canonicalize, digest
+from srd_rules_engine.core.ledger import Ledger, LedgerUnavailable
+from srd_rules_engine.core.ledger_reader import (
+    READER_VERSION,
+    Entry,
+    Finding,
+    LedgerReport,
+    read_ledger,
+    repair_truncated_tail,
+    summarize,
+)
 
-__all__ = ["CanonicalizationError", "canonicalize", "digest"]
+__all__ = [
+    "READER_VERSION",
+    "CanonicalizationError",
+    "Entry",
+    "Finding",
+    "Ledger",
+    "LedgerReport",
+    "LedgerUnavailable",
+    "canonicalize",
+    "digest",
+    "read_ledger",
+    "repair_truncated_tail",
+    "summarize",
+]

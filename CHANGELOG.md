@@ -6,6 +6,34 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 — build `08222026.4`
+
+U4 — the ledger reader, which is the supported way to consume a ledger. The on-disk format is not
+public API; this is, and `core` now re-exports it.
+
+- **Three tiers, not two.** The envelope is fixed, so chain verification, sequence checking, and
+  listing work across every payload version ever written and never need a known `v`. Interpreting a
+  payload is separate: the reader compares its own version against the payload's `compat` floor. At
+  or above it, interpret; below it, the entry is **unauditable** — reported and still listed, never
+  silently skipped. `v` is deliberately never consulted, so a payload from a future schema is
+  interpretable whenever its floor says an older reader can read it correctly.
+- **Four corruptions named distinctly**, because the distinction is what tells an operator whether
+  truncation would help: `torn-tail`, `checksum-mismatch`, `chain-break`, `sequence-gap` (plus
+  `malformed-entry` and `missing-compat`). A malformed line in the *middle* is deliberately not a
+  torn tail — truncation repairs one and not the other.
+- **The chain compares against the true digest, not the recorded one.** That is what catches an
+  edit whose checksum was recomputed: the entry is internally consistent and its successor still
+  names the original digest. A stale-checksum edit therefore fires both findings, exactly as
+  `0002`'s corruption table predicted.
+- **Nothing is repaired on the way past**, and the reader never refuses to open a damaged file — a
+  crashed session must stay reopenable. `repair_truncated_tail` is explicit, removes only the torn
+  line, **refuses when the damage is anywhere else** (truncating past a deleted middle entry would
+  discard sound records to hide it), and does not rewrite a file it has nothing to repair.
+- A float smuggled in by hand is reported rather than crashed on — the reader must survive a file
+  the writer would never have produced.
+- Ten mutations proven caught. One needed a new test: repair would have silently rewritten an
+  intact file, which byte equality is the only assertion that sees.
+
 ## Unreleased — 2026-08-22 — build `08222026.3`
 
 U3 — the append-only ledger writer.
