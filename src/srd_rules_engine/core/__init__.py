@@ -31,7 +31,12 @@ from srd_rules_engine.core.adjudicate import (
     Ruling,
     Status,
 )
-from srd_rules_engine.core.canonical import CanonicalizationError, canonicalize, digest
+from srd_rules_engine.core.canonical import (
+    MAX_SAFE_INTEGER,
+    CanonicalizationError,
+    canonicalize,
+    digest,
+)
 from srd_rules_engine.core.combat import Weapon, attack_resolver, initiative_order
 from srd_rules_engine.core.d20 import (
     DAMAGE_OFFSET,
@@ -122,6 +127,7 @@ __all__ = [
     "DIE_SIDES",
     "END_TURN",
     "FACT_WRITE",
+    "MAX_SAFE_INTEGER",
     "READER_VERSION",
     "Adjudicator",
     "Advantage",
