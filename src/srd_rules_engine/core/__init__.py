@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from srd_rules_engine.core.adjudicate import (
     Adjudicator,
+    DamageDice,
     Declaration,
     Effect,
     EffectKind,
@@ -31,7 +32,9 @@ from srd_rules_engine.core.adjudicate import (
     Status,
 )
 from srd_rules_engine.core.canonical import CanonicalizationError, canonicalize, digest
+from srd_rules_engine.core.combat import Weapon, attack_resolver, initiative_order
 from srd_rules_engine.core.d20 import (
+    DAMAGE_OFFSET,
     DIE_SIDES,
     Advantage,
     D20Result,
@@ -68,9 +71,13 @@ from srd_rules_engine.core.memory_port import (
     resolve,
 )
 from srd_rules_engine.core.read_surface import (
+    ATTACK,
+    END_TURN,
     LegalAction,
     ReadResult,
     Verdict,
+    attack_key,
+    attack_target,
     issue_token,
     legal_actions,
     read,
@@ -98,7 +105,10 @@ from srd_rules_engine.core.triggers import (
 )
 
 __all__ = [
+    "ATTACK",
+    "DAMAGE_OFFSET",
     "DIE_SIDES",
+    "END_TURN",
     "FACT_WRITE",
     "READER_VERSION",
     "Adjudicator",
@@ -109,6 +119,7 @@ __all__ = [
     "Condition",
     "D20Result",
     "D20Test",
+    "DamageDice",
     "Declaration",
     "DefaultKind",
     "Effect",
@@ -150,12 +161,17 @@ __all__ = [
     "Verdict",
     "Verification",
     "VerificationState",
+    "Weapon",
     "Writer",
+    "attack_key",
+    "attack_resolver",
+    "attack_target",
     "canonicalize",
     "check_storable",
     "digest",
     "fact_from_payload",
     "fact_write_payload",
+    "initiative_order",
     "is_extension",
     "issue_token",
     "legal_actions",

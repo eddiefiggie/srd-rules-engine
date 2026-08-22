@@ -36,8 +36,9 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Protocol
 
-from srd_rules_engine.core.d20 import D20Result, D20Test
+from srd_rules_engine.core.d20 import DAMAGE_OFFSET, D20Result, D20Test
 from srd_rules_engine.core.d20 import resolve as roll_d20
+from srd_rules_engine.core.d20 import roll as dice
 from srd_rules_engine.core.ledger import COMPAT, Ledger
 from srd_rules_engine.core.memory_port import (
     DefaultKind,
@@ -97,6 +98,34 @@ class Effect:
 
 
 @dataclass(frozen=True)
+class DamageDice:
+    """Damage a resolver **declares** and the engine rolls. Never a total.
+
+    A resolver returning `Effect(amount=7)` for a longsword would be a caller supplying a
+    roll, which R4 exists to make impossible. So a proposal states the dice and the engine
+    rolls them — from the same seed as the attack, at `DAMAGE_OFFSET`, which is what makes
+    a replay reproduce the damage as well as the hit.
+
+    A fixed `Effect` is still legitimate in a branch: some rules deal a stated amount. The
+    distinction is whether the number came from dice, and dice belong to the engine.
+    """
+
+    target_id: str
+    count: int
+    sides: int
+    modifier: int = 0
+    source: str = "damage"
+
+    def __post_init__(self) -> None:
+        if self.count < 0 or self.sides < 1:
+            raise ValueError(f"{self.count}d{self.sides} is not a damage expression")
+
+
+#: What a proposal may put in a branch: a stated effect, or dice for the engine to roll.
+Declared = Effect | DamageDice
+
+
+@dataclass(frozen=True)
 class Intent:
     """R2. Structured, or explicitly improvised — the label is carried and never matched on."""
 
@@ -149,8 +178,8 @@ class Proposal:
 
     test: D20Test
     citations: tuple[str, ...] = ()
-    on_success: tuple[Effect, ...] = ()
-    on_failure: tuple[Effect, ...] = ()
+    on_success: tuple[Declared, ...] = ()
+    on_failure: tuple[Declared, ...] = ()
     may_claim: tuple[str, ...] = ()
     may_not_claim: tuple[str, ...] = ()
 
@@ -335,8 +364,10 @@ class Adjudicator:
         proposal = self._resolvers[rule.id](
             state=state, declaration=declaration, facts={r.type_name: r for r in resolutions}
         )
-        result = roll_d20(proposal.test, seed=self._seed_source())
-        effects = proposal.on_success if result.succeeded else proposal.on_failure
+        seed = self._seed_source()
+        result = roll_d20(proposal.test, seed=seed)
+        branch = proposal.on_success if result.succeeded else proposal.on_failure
+        effects = _roll_declared(branch, seed=seed)
         next_state = _apply(state, effects)
 
         return (
@@ -494,6 +525,41 @@ def _bounds(proposal: Proposal, result: D20Result) -> NarrationBounds:
             *proposal.may_not_claim,
         ),
     )
+
+
+def _roll_declared(branch: Sequence[Declared], *, seed: int) -> tuple[Effect, ...]:
+    """Turn a branch into settled effects, rolling any dice the resolver declared.
+
+    Each expression consumes its own stretch of the seed's index space, so two damage
+    dice in one branch cannot silently share a die and report the same number twice.
+    """
+    settled: list[Effect] = []
+    offset = DAMAGE_OFFSET
+    for declared in branch:
+        if isinstance(declared, Effect):
+            settled.append(declared)
+            continue
+        faces = dice(seed, count=declared.count, sides=declared.sides, offset=offset)
+        offset += declared.count
+        total = max(0, sum(faces) + declared.modifier)
+        settled.append(
+            Effect(
+                kind=EffectKind.DAMAGE,
+                target_id=declared.target_id,
+                amount=total,
+                description=(
+                    f"{declared.source}: {declared.count}d{declared.sides}"
+                    f"{_signed(declared.modifier)} -> "
+                    f"{' + '.join(str(f) for f in faces) or '0'}"
+                    f"{_signed(declared.modifier)} = {total}"
+                ),
+            )
+        )
+    return tuple(settled)
+
+
+def _signed(modifier: int) -> str:
+    return "" if modifier == 0 else f" {'+' if modifier > 0 else '-'} {abs(modifier)}"
 
 
 def _apply(state: EncounterState, effects: Sequence[Effect]) -> EncounterState:
