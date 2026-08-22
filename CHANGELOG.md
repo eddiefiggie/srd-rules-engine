@@ -6,6 +6,33 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 — build `08222026.3`
+
+U3 — the append-only ledger writer.
+
+- **The fixed envelope**: `seq`, `type`, `v`, `prev`, `sum`, `payload`. `sum` is the digest of the
+  entry with `sum` itself omitted, and `prev` is the predecessor's `sum` — so the chain catches the
+  one corruption a checksum alone cannot, an edited value whose checksum was recomputed. The first
+  entry's `prev` is **absent** rather than null: there is no predecessor to name.
+- **The buffer/commit split makes "nothing escapes ahead of its record" structural.** Entries buffer;
+  one synchronising write covers all of them at the escape boundary. An `escape_boundary()` context
+  manager commits on the way out and **discards the buffer on the way out by exception** — nobody
+  saw the outcome, so nothing was lost, and on restart the agent re-declares.
+- **A session entry at `seq` 0** carrying the format, engine, and trigger-catalogue versions.
+  Reopening under a *different* engine version appends a new session entry rather than continuing
+  the old one, so every entry's governing engine version is the nearest preceding session entry.
+- **A failed append raises `LedgerUnavailable`.** A caller can fix a missing fact by supplying it;
+  it cannot fix a full disk by re-declaring.
+- **Refused at write time**: a payload with no `compat` key, a `compat` floor above its own payload
+  version (no reader of that version could interpret it, including the writer's own), a non-integer
+  `compat`, an unknown entry type, and a float anywhere in a payload — the canonical form's refusal
+  reaches through the writer, which is R25's no-float rule arriving where it matters.
+- **A torn tail refuses the writer** and points at the reader's repair path rather than guessing.
+- Eleven mutations proven caught. The first pass found a real hole: **nothing tested that `commit`
+  actually calls `fsync`**, so the durability contract could have been deleted with the suite still
+  green. Two tests now hold it — one synchronising write per commit regardless of entries buffered,
+  and none at all for an empty buffer.
+
 ## Unreleased — 2026-08-22 — build `08222026.2`
 
 U2 — the canonical form, and the refusal that makes the ledger's chain mean something.
