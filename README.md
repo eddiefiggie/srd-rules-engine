@@ -7,12 +7,15 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08222026.12` — everything above plus **combat**: initiative, attacks against a
-target's armour class, damage, and dropping to 0 hit points. The read surface now offers an attack
-per opponent still standing, and stops offering one the moment a target falls. A resolver *declares*
-damage dice and the engine rolls them from the same seed as the attack, so a replay reproduces the
-damage as well as the hit — a resolver cannot hand back a number it chose. Replay and the
-session-review report remain. `tests/test_build_stamp.py` fails CI when this
+**Current build:** `08222026.13` — everything above plus **replay and the session-review report**.
+Any ruling replays from its recorded seed by re-deriving the dice, not by restating them, so a
+change to the derivation is caught rather than reproduced. A mismatch under a *different* engine
+version reconciles — naming both versions and both outcomes — because a rules fix is not
+corruption; a mismatch under the *same* one is an integrity failure. A record too thin to
+reconstruct is reported unreplayable rather than replayed under an assumption. The report verifies
+chain integrity first and refuses to summarise a corrupted ledger, then lists each turn with its
+declaration, alternatives, Ruling, and narration, flagging the five conditions R30 names. The
+fixture encounter remains. `tests/test_build_stamp.py` fails CI when this
 line drifts from `src/srd_rules_engine/__init__.py`, so it cannot go stale silently.
 
 ---

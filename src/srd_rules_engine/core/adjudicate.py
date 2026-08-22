@@ -55,8 +55,12 @@ from srd_rules_engine.core.state import EncounterState
 from srd_rules_engine.core.triggers import Catalogue, MatchContext, Trigger, challenge_text
 
 DECLARATION_VERSION = 1
-RULING_VERSION = 1
+#: 2 records the advantage the test was declared under. A v1 roll cannot be reconstructed
+#: — a reader would build a test with neither flag set, roll one die where two were rolled,
+#: and report a mismatch that looks like drift. Replay refuses those rather than guessing.
+RULING_VERSION = 2
 NARRATION_VERSION = 1
+TERMINATION_VERSION = 1
 
 
 class Status(StrEnum):
@@ -303,6 +307,37 @@ class Adjudicator:
                         "may": list(ruling.bounds.may),
                         "may_not": list(ruling.bounds.may_not),
                     },
+                },
+            )
+
+    def record_termination(self, actor_id: str, reason: str, refusals: Sequence[Ruling]) -> None:
+        """A declaration slot that ended without a Ruling, recorded as the event it is.
+
+        R30's report is generated from the ledger, so a turn that terminated leaves no
+        trace unless something writes one — and a run of refusals followed by silence is
+        indistinguishable from a session that simply stopped. Naming the reason is what
+        lets triage tell an over-broad catalogue row from a confused agent.
+
+        Its own escape boundary, for the same reason a narration has one: exhaustion is
+        not an outcome, so it is not covered by an adjudication's sync.
+        """
+        with self._ledger.escape_boundary():
+            self._ledger.append(
+                "exhaustion",
+                v=TERMINATION_VERSION,
+                payload={
+                    COMPAT: TERMINATION_VERSION,
+                    "actor": actor_id,
+                    "reason": reason,
+                    "refusals": [
+                        {
+                            "status": str(r.status),
+                            "reason_code": str(r.reason_code) if r.reason_code else None,
+                            "reason_subject": r.reason_subject,
+                            "fired": [t.id for t in r.fired],
+                        }
+                        for r in refusals
+                    ],
                 },
             )
 
@@ -643,6 +678,11 @@ def _ruling_payload(ruling: Ruling) -> Mapping[str, object]:
         else {
             "kind": str(result.kind),
             "seed": result.seed,
+            # Without these the recorded dice cannot be re-derived: the count, and which
+            # of them was used, both depend on the advantage the test was declared under.
+            "declared_advantage": result.declared_advantage,
+            "declared_disadvantage": result.declared_disadvantage,
+            "effective_advantage": str(result.effective),
             "dice": list(result.dice),
             "used": result.used,
             "target": result.target,
