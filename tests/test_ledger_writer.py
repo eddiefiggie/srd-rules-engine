@@ -9,6 +9,7 @@ supplying it and cannot fix a full disk by re-declaring.
 
 from __future__ import annotations
 
+import itertools
 import json
 import os
 from collections.abc import Mapping
@@ -96,7 +97,7 @@ def test_each_entry_chains_to_its_predecessor(tmp_path: Path) -> None:
 
     written = entries(path)
     assert [e["seq"] for e in written] == [0, 1, 2]
-    for previous, current in zip(written[:-1], written[1:], strict=True):
+    for previous, current in itertools.pairwise(written):
         assert current["prev"] == previous["sum"]
 
 
