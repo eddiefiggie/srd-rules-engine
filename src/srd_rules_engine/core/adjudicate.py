@@ -55,6 +55,7 @@ from srd_rules_engine.core.triggers import Catalogue, MatchContext, Trigger, cha
 
 DECLARATION_VERSION = 1
 RULING_VERSION = 1
+NARRATION_VERSION = 1
 
 
 class Status(StrEnum):
@@ -65,6 +66,19 @@ class Status(StrEnum):
     CHALLENGED = "challenged"
     REJECTED = "rejected"
     BLOCKED = "blocked"
+
+
+class RejectionCode(StrEnum):
+    """Why a declaration was refused, as a code rather than a sentence.
+
+    The retry bound compares refusals structurally — never by message text, which is
+    templated on situational values and would make two identical refusals look different.
+    """
+
+    UNKNOWN_ACTOR = "unknown-actor"
+    ACTION_NOT_LEGAL = "action-not-legal"
+    UNKNOWN_RULE = "unknown-rule"
+    UNDECLARED_FACT = "undeclared-fact"
 
 
 class EffectKind(StrEnum):
@@ -177,8 +191,19 @@ class Ruling:
     citations: tuple[str, ...] = ()
     bounds: NarrationBounds = field(default_factory=NarrationBounds)
     reason: str | None = None
+    reason_code: RejectionCode | None = None
+    reason_subject: str | None = None
     unresolved: tuple[str, ...] = ()
     fired: tuple[Trigger, ...] = ()
+
+    @property
+    def signature(self) -> tuple[str, ...]:
+        """Structural identity, for telling one refusal from a repeat of the same one."""
+        if self.status is Status.CHALLENGED:
+            return tuple(trigger.id for trigger in self.fired)
+        if self.status is Status.REJECTED:
+            return (str(self.reason_code), self.reason_subject or "")
+        return ()
 
     @property
     def is_outcome(self) -> bool:
@@ -225,6 +250,33 @@ class Adjudicator:
         self._catalogue = catalogue or Catalogue(version=1)
         self._seed_source = seed_source
 
+    @property
+    def port(self) -> MemoryPort:
+        """The memory port, so a driver's supplied facts reach the same store."""
+        return self._port
+
+    def record_narration(self, ruling: Ruling, text: str) -> None:
+        """R29. The narration is appended against the Ruling and the bounds it was issued under.
+
+        Its own escape boundary: a narration is not an outcome, so it is not covered by the
+        adjudication's sync, and R29 already provides for one that never arrives.
+        """
+        with self._ledger.escape_boundary():
+            self._ledger.append(
+                "narration",
+                v=NARRATION_VERSION,
+                payload={
+                    COMPAT: NARRATION_VERSION,
+                    "actor": ruling.declaration.actor_id,
+                    "rule_id": ruling.rule_id,
+                    "text": text,
+                    "bounds": {
+                        "may": list(ruling.bounds.may),
+                        "may_not": list(ruling.bounds.may_not),
+                    },
+                },
+            )
+
     def adjudicate(
         self,
         state: EncounterState,
@@ -257,7 +309,7 @@ class Adjudicator:
 
         refusal = self._validate(state, declaration)
         if refusal is not None:
-            return _refused(declaration, verdict, refusal), state
+            return _refused(declaration, verdict, *refusal), state
 
         if declaration.claims_no_test:
             # R6. The matcher sees a projection with no field for the free-text label,
@@ -305,37 +357,66 @@ class Adjudicator:
     def _verdict(self, state: EncounterState, declaration: Declaration) -> Verdict:
         return verify(declaration.read_token, declaration.alternatives, state.generation)
 
-    def _validate(self, state: EncounterState, declaration: Declaration) -> str | None:
-        """R3, against the same derivation the read surface enumerates with."""
+    def _validate(
+        self, state: EncounterState, declaration: Declaration
+    ) -> tuple[str, RejectionCode, str] | None:
+        """R3, against the same derivation the read surface enumerates with.
+
+        Returns the sentence, the code, and the specific subject — the last two are what
+        the retry bound compares, because message text is templated and would make two
+        identical refusals look different.
+        """
         if not state.has(declaration.actor_id):
-            return f"no combatant {declaration.actor_id!r} in this encounter"
+            return (
+                f"no combatant {declaration.actor_id!r} in this encounter",
+                RejectionCode.UNKNOWN_ACTOR,
+                declaration.actor_id,
+            )
 
         offered = legal_actions(state, declaration.actor_id)
         key = declaration.intent.action_key
         if key is not None and key not in {action.key for action in offered}:
             return (
                 f"{key!r} is not legal for {declaration.actor_id!r} right now; "
-                f"the read surface offers {', '.join(a.key for a in offered) or 'nothing'}"
+                f"the read surface offers {', '.join(a.key for a in offered) or 'nothing'}",
+                RejectionCode.ACTION_NOT_LEGAL,
+                key,
             )
 
         if declaration.rule_id is not None:
             if declaration.rule_id not in self._ruleset:
-                return f"no rule {declaration.rule_id!r} in this ruleset"
+                return (
+                    f"no rule {declaration.rule_id!r} in this ruleset",
+                    RejectionCode.UNKNOWN_RULE,
+                    declaration.rule_id,
+                )
             for fact_type in self._ruleset.rule(declaration.rule_id).consumes:
                 if fact_type not in self._fact_types:
-                    return f"rule {declaration.rule_id!r} consumes undeclared fact {fact_type!r}"
+                    return (
+                        f"rule {declaration.rule_id!r} consumes undeclared fact {fact_type!r}",
+                        RejectionCode.UNDECLARED_FACT,
+                        fact_type,
+                    )
         return None
 
 
 # --- Ruling constructors ------------------------------------------------------------
 
 
-def _refused(declaration: Declaration, verdict: Verdict, reason: str) -> Ruling:
+def _refused(
+    declaration: Declaration,
+    verdict: Verdict,
+    reason: str,
+    code: RejectionCode,
+    subject: str,
+) -> Ruling:
     return Ruling(
         status=Status.REJECTED,
         declaration=declaration,
         alternatives_verdict=verdict,
         reason=reason,
+        reason_code=code,
+        reason_subject=subject,
         bounds=NarrationBounds(may_not=("that anything happened — no outcome was produced",)),
     )
 
@@ -463,6 +544,8 @@ def _ruling_payload(ruling: Ruling) -> Mapping[str, object]:
         "rule_id": ruling.rule_id,
         "alternatives_verdict": str(ruling.alternatives_verdict),
         "reason": ruling.reason,
+        "reason_code": str(ruling.reason_code) if ruling.reason_code else None,
+        "reason_subject": ruling.reason_subject,
         "unresolved": list(ruling.unresolved),
         "fired": [
             {"id": t.id, "grounding": str(t.grounding), "basis": t.reference or t.rationale}

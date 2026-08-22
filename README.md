@@ -7,12 +7,11 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08222026.10` — everything above plus **the challenge mechanism**. A no-test claim
-that collides with a trigger comes back `challenged`, naming every row that fired and its grounding,
-and producing no outcome. The catalogue is declarative rows over a closed operator set, and the
-matcher is handed a projection with **no field for the declaration's free-text label** — so R6's
-prohibition holds because prose is out of scope, not because a reviewer checked. The turn loop is
-next. `tests/test_build_stamp.py` fails CI when this
+**Current build:** `08222026.11` — everything above plus **the turn loop and its two reference
+drivers**. The loop yields typed requests and a driver answers them, so one rules implementation
+serves any driver shape. Refusals share a budget and terminate early on a repeat; a block is a
+suspension that resumes the same declaration; a Ruling's narration gates the next declaration. The
+slice is now playable with **no model and no network** — combat, replay, and the report remain. `tests/test_build_stamp.py` fails CI when this
 line drifts from `src/srd_rules_engine/__init__.py`, so it cannot go stale silently.
 
 ---
@@ -203,4 +202,4 @@ against the published document before the first entry lands.
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-22 — build `08222026.10`._
+_Last updated: 2026-08-22 — build `08222026.11`._

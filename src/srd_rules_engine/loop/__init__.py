@@ -8,4 +8,44 @@ See `docs/decisions/0001-agent-seam.md` and `docs/decisions/0005-retry-bounds.md
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from srd_rules_engine.loop.drivers import (
+    DriverExhausted,
+    HumanCliDriver,
+    ScriptedDriver,
+    drive,
+)
+from srd_rules_engine.loop.turn import (
+    DEFAULT_BUDGET,
+    BlockedFactRequest,
+    DeclarationRequest,
+    Declared,
+    FactsSupplied,
+    Narrated,
+    NarrationOwed,
+    NarrationRequest,
+    Request,
+    Response,
+    TerminalReason,
+    TurnLoop,
+    TurnOutcome,
+)
+
+__all__ = [
+    "DEFAULT_BUDGET",
+    "BlockedFactRequest",
+    "DeclarationRequest",
+    "Declared",
+    "DriverExhausted",
+    "FactsSupplied",
+    "HumanCliDriver",
+    "Narrated",
+    "NarrationOwed",
+    "NarrationRequest",
+    "Request",
+    "Response",
+    "ScriptedDriver",
+    "TerminalReason",
+    "TurnLoop",
+    "TurnOutcome",
+    "drive",
+]

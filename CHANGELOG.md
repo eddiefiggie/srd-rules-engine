@@ -6,6 +6,35 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 — build `08222026.11`
+
+U11 — the turn loop, the retry bound, the blocked loop, and the two reference drivers.
+
+- **A generator yielding typed requests**, not a callback. Control inversion means one rules
+  implementation serves synchronous, asynchronous, scripted, and human drivers, and the seam is
+  also the session transcript.
+- **Three loops, and only one is the agent's fault.** Refusals share a budget because a challenge
+  answered with an illegal test produces a rejection. A **block is a suspension**: it resumes the
+  same declaration, the agent is not asked again, and the budget is not charged — charging it would
+  spend an agent's retries on a driver's omission. Narration is R29's gate.
+- **Two structurally identical refusals terminate at once**, ahead of the budget. Identity is the
+  trigger id set, or the **rejection code and its subject** — never message text, which is templated
+  on situational values. Rejections gained codes for exactly this.
+- **The blocked loop needs no count bound.** Fact dependencies are static, so the unresolved set can
+  only shrink; a round that fails to shrink it ends the turn as `fact-unavailable`.
+- **The engine never breaks a loop by choosing a test.** A terminal outcome carries the reason, the
+  refusals, and the alternatives that were offered — disclosing what would have been accepted
+  without picking among it.
+- **Two reference drivers, neither an LLM.** A scripted driver for tests and a human CLI driver
+  whose input and output are injected callables — an adapter embedding the loop needs the same seam,
+  and a driver that reaches for the process's streams cannot be embedded twice. **The slice is now
+  playable by hand with no model and no network.**
+- Twenty-one mutations proven caught. Two needed new tests: nothing asserted `challenge-churn`
+  specifically, and the "different text, same signature" test used challenges — whose `reason` is
+  `None` on both sides, so a text comparison could not be distinguished from a structural one.
+  A third mutation **hung** rather than failing, which is what a broken shrinking-set invariant
+  looks like; the mutation harness now bounds each run and treats a hang as a failure.
+
 ## Unreleased — 2026-08-22 — build `08222026.10`
 
 U10 — the trigger catalogue, the matcher, and the projection. This is the challenge mechanism: the
