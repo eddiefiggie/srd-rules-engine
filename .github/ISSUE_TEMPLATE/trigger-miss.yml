@@ -1,6 +1,8 @@
 name: Trigger catalogue miss
 description: A no-test claim that should have been challenged, and wasn't (or was challenged and shouldn't have been).
 labels: ["trigger-catalogue"]
+# A false positive is also `srd-fidelity` — the engine rolled for something the SRD never
+# called for. Add that label when triaging a report filed in that direction.
 body:
   - type: markdown
     attributes:
@@ -9,6 +11,13 @@ body:
         triggers only for forced saves, attacks, and stated hazards, and the rest is
         project-authored. A missed skip leaves no trace in the ledger, so catalogue recall can't
         be measured from play. A report is one of the few real signals available.
+
+        **Both directions are equally serious.** A missed skip produces an outcome with no ruling
+        behind it; a false positive makes the engine roll for something the SRD never called for,
+        which is a ruling with no rule behind it. The second is labelled `srd-fidelity` on triage.
+
+        A report is admitted by being **proven red first** — see
+        `docs/decisions/0004-trigger-catalogue.md`. That is what the last field is for.
   - type: dropdown
     id: direction
     attributes:
@@ -39,4 +48,18 @@ body:
       description: >
         A trigger can only fire against situational state the agent actually wrote to the port.
         A hazard nobody recorded can't collide with anything — that's a known limit, and it's
-        worth checking before this is treated as a catalogue gap.
+        worth checking before this is treated as a catalogue gap. Note also that an improvised
+        intent is matched on situational state alone, since it carries no structured intent
+        value.
+  - type: textarea
+    id: fixture
+    attributes:
+      label: The situation as structured state and a declaration
+      description: >
+        What the matcher would actually see: the situational state in force, the structured
+        intent (or that it was improvised), and the no-test claim. This becomes the failing
+        fixture — a miss must be shown *not* to challenge today, and a false positive must be
+        shown to challenge today — before any catalogue row is written or narrowed. Rough is
+        fine; it does not have to be runnable.
+    validations:
+      required: true

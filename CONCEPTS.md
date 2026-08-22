@@ -68,10 +68,30 @@ declaration, the alternatives offered, the Ruling, and the submitted narration �
 carrying a narration with no Ruling, a Ruling with no narration, or a challenge never
 re-adjudicated. This is the instrument the primary success criterion is measured with.
 
-**Trigger catalogue** — the set of conditions that cause a no-test claim to be challenged. The
-SRD supplies explicit triggers only for forced saves, attacks, and stated hazards; the rest is
-project-authored and grounded in rather than cited from the SRD. **Known-incomplete by
+**Trigger catalogue** (R6) — the set of conditions that cause a no-test claim to be challenged.
+The SRD supplies explicit triggers only for forced saves, attacks, and stated hazards; the rest
+is project-authored and grounded in rather than cited from the SRD. **Known-incomplete by
 construction**, and disclosed as such.
+
+It is **data, not code**: a trigger is a declarative row over a closed operator set, and the
+matcher that interprets it is handed a projection of the declaration *excluding* the free-text
+label — so R6's prohibition holds by construction. A row is a conjunction; a disjunction is
+separate rows, so each alternative stays separately citable and separately narrowable. Grounding
+is two-valued, `cited` or `authored`. The catalogue is versioned, the version is recorded on the
+declaration, and replay uses the recorded one. Specified in
+`docs/decisions/0004-trigger-catalogue.md`.
+
+**Retrospective audit** (R6) — re-running closed ledgers against the *current* trigger catalogue
+to find declarations that today's rules would have challenged. Distinct from replay, and the
+distinction matters: replay asks whether a record is self-consistent and uses the catalogue
+version the session ran under; the audit asks what was missed and deliberately uses a newer one.
+Because a missed skip leaves no trace at the time, this is the only mechanism that measures
+catalogue recall at all.
+
+**Over-fire** (R6) — a challenge that fires where no test was warranted. Not a lesser failure than
+a missed skip but the same one inverted: the agent must resubmit naming a test, so the engine
+rolls for something the SRD never called for, and the resulting Ruling is well-formed and
+unearned. Carries `srd-fidelity`.
 
 **Effect-shape inventory** (R17) — the published inventory of distinct SRD 5.2 effect shapes
 against which coverage is checked. Mechanical coverage is complete when every shape resolves;
