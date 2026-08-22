@@ -6,6 +6,37 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 — build `08222026.10`
+
+U10 — the trigger catalogue, the matcher, and the projection. This is the challenge mechanism: the
+direct answer to the defect the project exists to fix.
+
+- **The matcher is handed a projection with no field for the free-text label.** R6's prohibition
+  holds because prose is out of scope, not because a reviewer checked — and there is a test asserting
+  the *shape* of `MatchContext`, because the guarantee is about what the matcher can see rather than
+  what today's implementation reads. A predicate would have every expressive advantage and one
+  disqualifying property: the label would be one attribute access away, and the failure would be
+  silent, since a catalogue that reads prose behaves *better* on the cases anyone would test.
+- **A trigger is a row, not a function**, over a closed operator set (`equals`, `in`, `present`,
+  `absent`). **Rows are conjunctions and there is no disjunction** — an "or" is a second row, so each
+  alternative stays separately citable in a challenge and separately narrowable when it over-fires.
+- **Every matching row is reported, in identifier order.** Deterministic for replay, and naming all
+  of them is what makes a false-positive report actionable.
+- **Grounding is two-valued.** A `cited` row names its SRD section and may not carry a rationale; an
+  `authored` row states why and may not claim a section it does not have.
+- **A row with no conditions is refused** — it would fire on every declaration, which is over-firing
+  at maximum volume.
+- **`in` may not include `None`.** An unrecorded field reads as `None`, so such a row would fire on a
+  hazard nobody ever wrote — quietly inverting the rule that trigger firing is bounded by the state
+  the agent chose to record.
+- **The catalogue version in force is recorded on the declaration entry**, so replay uses the version
+  the session ran under and a grown catalogue never reports a sound ledger as inconsistent.
+- Covers **AE1**: a skip colliding with a trigger is challenged, naming the row and its grounding,
+  and produces no outcome.
+- Sixteen mutations proven caught. One needed a new guard (the `None`-in-collection case above); one
+  was a malformed mutation of mine that assigned to an unused local and therefore changed nothing —
+  re-run properly, the label leak is caught.
+
 ## Unreleased — 2026-08-22 — build `08222026.9`
 
 U9 — the adjudication entry point and the Ruling. The largest unit in M1, and the one the plan's
