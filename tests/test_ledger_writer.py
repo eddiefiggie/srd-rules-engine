@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from srd_rules_engine.core import digest
-from srd_rules_engine.core.ledger import COMPAT, SESSION, Ledger, LedgerUnavailable
+from srd_rules_engine.core import Ledger, LedgerUnavailable, digest
+from srd_rules_engine.core.ledger import COMPAT, SESSION
 
 ENGINE = "08222026.2"
 CATALOGUE = 1
