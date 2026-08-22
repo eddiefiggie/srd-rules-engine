@@ -73,7 +73,21 @@ the fact.
 
 **Ledger** (R26, R28) — the append-only record of every declaration, challenge, rejection,
 ruling, fact write, and narration. Any ruling entry replays to an identical outcome from its
-recorded seed, inputs, and resolved fact values, *without re-querying the memory port*.
+recorded seed, inputs, and resolved fact values, *without re-querying the memory port* — within a
+matching engine version.
+
+JSONL, one entry per line. Every entry carries a **fixed envelope** — `seq`, `type`, `v`, `prev`,
+`sum`, `payload` — committed for the life of the project, with `v` versioning the payload alone.
+Integrity checking and listing therefore work across every version ever written; only payload
+interpretation needs a version the reader knows. Digests are taken over canonical JSON with
+**floating-point numbers excluded entirely**: the domain needs none, and a record meant to be
+authoritative should not hold values that are approximately what they say. Specified in
+`docs/decisions/0006-ledger-format.md`.
+
+**Ledger reader** (R35) — the shipped API that opens, verifies, iterates, replays, reports,
+audits, and exports a ledger. **It is the supported interface; the on-disk format is not.** A
+consumer that parses the file makes the file an interface whether or not that was intended, so
+the reader exists to give them something stable to depend on instead.
 
 **Session-review report** (R30) — the report generated from the ledger listing, per turn, the
 declaration, the alternatives offered, the Ruling, and the submitted narration — flagging turns
