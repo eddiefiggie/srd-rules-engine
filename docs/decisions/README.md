@@ -61,6 +61,7 @@ rejected options and the reason survive, not the exact headings.
 | [0004](0004-trigger-catalogue.md) | The trigger catalogue is data, and over-firing is a fidelity defect | [#7](https://github.com/eddiefiggie/srd-rules-engine/issues/7) |
 | [0005](0005-retry-bounds.md) | Retry bounds belong to the turn loop, and exhaustion is not a rules outcome | [#11](https://github.com/eddiefiggie/srd-rules-engine/issues/11) |
 | [0006](0006-ledger-format.md) | JSONL with a fixed envelope, and a reader API rather than a public file format | [#10](https://github.com/eddiefiggie/srd-rules-engine/issues/10) |
+| [0007](0007-alternatives-verification.md) | Read tokens make the alternatives claim checkable without touching R19 | [#8](https://github.com/eddiefiggie/srd-rules-engine/issues/8) |
 
 ## What belongs here, and what doesn't
 

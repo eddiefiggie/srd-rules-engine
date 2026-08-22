@@ -121,17 +121,18 @@ one, and the plan is amended to match:
 - [0006 — ledger format](docs/decisions/0006-ledger-format.md) — JSONL with a fixed envelope, and a
   reader API rather than a public file format
   (closed [#10](https://github.com/eddiefiggie/srd-rules-engine/issues/10))
+- [0007 — alternatives verification](docs/decisions/0007-alternatives-verification.md) — read tokens
+  make the agent's claim checkable without relaxing R19
+  (closed [#8](https://github.com/eddiefiggie/srd-rules-engine/issues/8))
 
-**Next up:** [#8](https://github.com/eddiefiggie/srd-rules-engine/issues/8), how a declaration's
-recorded alternatives are verified. [#10](https://github.com/eddiefiggie/srd-rules-engine/issues/10)
-gave it somewhere to put them and
-[#11](https://github.com/eddiefiggie/srd-rules-engine/issues/11) gave it a second case to cover,
-so what remains is the original difficulty: R19 forbids the read surface from recording what it
-offered. Then [#9](https://github.com/eddiefiggie/srd-rules-engine/issues/9) and
-[#12](https://github.com/eddiefiggie/srd-rules-engine/issues/12) as a memory-port pair,
+**Next up:** [#9](https://github.com/eddiefiggie/srd-rules-engine/issues/9) and
+[#12](https://github.com/eddiefiggie/srd-rules-engine/issues/12) as a memory-port pair — how the
+namespaced extension channel is expressed and versioned, and whether the reference implementation
+is flat-file or an embedded database. Then
 [#33](https://github.com/eddiefiggie/srd-rules-engine/issues/33), and
 [#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13) last, since module layout depends
-on what modules turned out to exist.
+on what modules turned out to exist and it now owns versioning for four schemas plus the reader
+API.
 
 [#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3) is not a design gate but an errand:
 it needs the official SRD v5.2.1 PDF and its attribution statement transcribed from the front
