@@ -112,14 +112,22 @@ one, and the plan is amended to match:
 - [0003 — seed and verification](docs/decisions/0003-seed-and-verification.md) — no community
   dataset seeds the mechanics, and the official SRD v5.2.1 is the only verification reference
   (closed [#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6))
+- [0004 — the trigger catalogue](docs/decisions/0004-trigger-catalogue.md) — the catalogue is data,
+  and over-firing is a fidelity defect
+  (closed [#7](https://github.com/eddiefiggie/srd-rules-engine/issues/7))
 
-**Next up:** [#7](https://github.com/eddiefiggie/srd-rules-engine/issues/7), how the trigger
-catalogue is expressed and how it grows from observed misses. It is the challenge mechanism —
-the thing that turns a silent skip into a recorded exchange — so it shapes the core contract more
-than any remaining gate. [#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3) still
-gates all SRD-derived data, and [#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6)
-made its target precise: the wording must come from **SRD v5.2.1** specifically. Then `/ce-plan`
-to turn the requirements artifact into an implementation plan.
+**Next up:** [#11](https://github.com/eddiefiggie/srd-rules-engine/issues/11), retry bounds for
+challenged and rejected declarations — promoted by
+[#7](https://github.com/eddiefiggie/srd-rules-engine/issues/7), which handed it a concrete case:
+an over-firing trigger can produce a challenge the agent cannot satisfy, so retry bounds are what
+stops a challenge loop. Then [#8](https://github.com/eddiefiggie/srd-rules-engine/issues/8),
+[#9](https://github.com/eddiefiggie/srd-rules-engine/issues/9),
+[#10](https://github.com/eddiefiggie/srd-rules-engine/issues/10),
+[#12](https://github.com/eddiefiggie/srd-rules-engine/issues/12), and
+[#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13).
+[#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3) still gates all SRD-derived data,
+and #6 made its target precise: the wording must come from **SRD v5.2.1** specifically. Then
+`/ce-plan` to turn the requirements artifact into an implementation plan.
 
 M1's machinery issues are deliberately **not** filed yet: the adjudication core, ledger, and memory
 port would all be reshaped by the gates above, so filing them now would file the wrong work. The

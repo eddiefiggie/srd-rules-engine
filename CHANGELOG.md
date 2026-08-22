@@ -6,6 +6,41 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 (later)
+
+Design only; no build stamp change, because nothing a consumer runs was altered.
+
+- **Gate #7 settled**: the trigger catalogue is **data, not code**. A trigger is a declarative row
+  over a closed operator set, and the matcher is handed a projection of the declaration that
+  *excludes* its free-text label — so R6's prohibition holds by construction rather than by review.
+  Rows are conjunctions; a disjunction is separate rows, so each alternative stays separately
+  citable and separately narrowable. Grounding is two-valued (`cited` / `authored`), because a tier
+  assigned by judgment at intake stops carrying information. Recorded in
+  `docs/decisions/0004-trigger-catalogue.md`; R6 and R30 amended.
+- **Over-firing is reclassified as an `srd-fidelity` defect, equal in severity to a missed skip.**
+  A wrongly-fired trigger makes the agent resubmit naming a test, so the engine rolls for
+  something the SRD never called for — a ruling with no rule behind it, which is the project's
+  defining defect with the sign flipped. Nothing downstream of the challenge can tell the first
+  step was wrong.
+- **A growing catalogue would have silently invalidated every past session.** The catalogue is an
+  adjudication input, so it is versioned, the version is recorded on the declaration's ledger
+  entry, and R28 replay uses the recorded version rather than the current one. #10 gains that
+  field.
+- **Catalogue growth is now the recall instrument.** A retrospective audit re-runs closed ledgers
+  against the *current* catalogue and names every declaration today's rules would have challenged.
+  A missed skip leaves no trace at the time, but it leaves a declaration — so each new row makes
+  the whole history newly measurable. Distinct from replay, and deliberately so.
+- **Admission is evidence-first in both directions**, extending "prove a guard fails before
+  trusting it" to the one guard whose failures are invisible: a miss must be shown *not* to
+  challenge before a row is written, and a false positive is narrowed by adding a condition rather
+  than deleted. `.github/ISSUE_TEMPLATE/trigger-miss.yml` now requires the fixture and notes the
+  `srd-fidelity` triage.
+- Improvised intents are matched on situational state alone — disclosed as reduced coverage rather
+  than closed, since the two ways to close it either hand classification back to the agent or
+  over-fire by default. The retrospective audit is its delayed detection path.
+- `CONCEPTS.md` gains **Retrospective audit** and **Over-fire**, and the trigger-catalogue entry
+  gains the settled form.
+
 ## Unreleased — 2026-08-22
 
 Design only; no build stamp change, because nothing a consumer runs was altered.
