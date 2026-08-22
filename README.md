@@ -7,8 +7,9 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08212026.2` — scaffolding and governance, plus a guard that keeps local-machine
-details out of the repository. No engine code yet. `tests/test_build_stamp.py` fails CI when this
+**Current build:** `08222026.1` — the layer packages (`core`, `loop`, `memory`) and an import-graph
+guard enforcing that the core imports nothing outward and that nothing outside the core reaches
+past its re-exported surface. Structure and a guard; no engine behaviour yet. `tests/test_build_stamp.py` fails CI when this
 line drifts from `src/srd_rules_engine/__init__.py`, so it cannot go stale silently.
 
 ---
@@ -196,4 +197,4 @@ against the published document before the first entry lands.
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-22 — build `08212026.2`._
+_Last updated: 2026-08-22 — build `08222026.1`._

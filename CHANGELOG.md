@@ -6,6 +6,29 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 — build `08222026.1`
+
+First code. M0 is closed, the plan is implementation-ready, and U1 is the vertical slice's
+foundation.
+
+- **Layer packages established**: `core`, `loop`, `memory`. `adapters` is not created — M1 has no
+  adapters, and the rule below is written to cover it when it arrives.
+- **The layer boundary is a guard test, not a convention.** Two rules over the import graph: nothing
+  in `core` imports from an outer layer (R33), and nothing outside `core` imports a `core` submodule
+  rather than what it re-exports (R34). R33's empty dependency list constrains what the *package*
+  pulls in from outside, not how its own layers depend on each other — a core module importing an
+  adapter that imports an LLM extra adds no third-party dependency at all, so the promise would die
+  while the machine-readable form of it still read empty.
+- **Relative imports are resolved before the rules apply.** `from ..loop import x` inside the core is
+  the same violation as the absolute form, and a naive scan walks past it.
+- **All four guards proven red against the real tree and restored** — core importing outward, an
+  outer layer reaching into a core submodule, the relative form of the first, and the vacuous-scan
+  check with a module removed.
+- **A correction to `0011` and the plan.** Both say a deferred import inside a function body evades a
+  static scan. It does not — `ast.walk` sees the whole tree. Only genuinely dynamic imports escape:
+  `importlib`, `__import__`, and string-driven loaders. The guard's docstring states the narrower
+  limit and the function-body case now has a test.
+
 ## Unreleased — 2026-08-22 (eighth)
 
 Design only; no build stamp change, because nothing a consumer runs was altered. **This closes the
