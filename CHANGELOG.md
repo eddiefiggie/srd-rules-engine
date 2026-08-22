@@ -6,6 +6,35 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 — build `08222026.7`
+
+U7 — rule definitions, verification state, and the two loaders. Implements `0012`, settled as #41
+before this unit opened.
+
+- **Provenance selects the entry point, not a branch.** `load_ruleset` admits SRD-derived rules
+  that are `verified` and refuses a fixture outright; `load_fixture_ruleset` admits fixtures and
+  refuses an SRD-derived rule outright — **even a verified one**. There is no mode flag, so
+  loosening either cannot make an unverified SRD entry admissible, and there is a test asserting
+  exactly that property.
+- **They share everything except the gate** — parsing, shape validation, duplicate-id refusal, and
+  R21's core-fact-type check — so a fixture ruleset exercises the real machinery rather than a
+  construction path production never uses.
+- **R32 discloses rather than drops.** An excluded rule is refused *with its recorded reason
+  surfaced*, and an exclusion carrying no reason is malformed at construction: a silent drop
+  wearing a label.
+- **A verified entry names its SRD v5.2.1 section and the ISO date it was verified on.** Without
+  both, "verified" is a claim with nothing behind it.
+- **A fixture carries a rationale instead of a verification block**, and may not carry both. It has
+  nothing to verify against, so what it is for is the only account of it there is — the same shape
+  `0008` gave `authored` trigger rows.
+- **A rule declaring a namespaced extension fact type fails to load** (R21), as a load-time error
+  rather than a runtime failure: it is a defect in the definition and should be impossible to ship.
+- **A packaging guard asserts no fixture rule is defined anywhere under `src/`**, by AST rather than
+  by grep, with the detector itself proven on a known-positive and a known-negative. That is the
+  half a loader cannot enforce: invented mechanics inside a package about SRD fidelity.
+- Fifteen mutations proven caught. One needed a new test — `is_verified` was only ever asserted
+  positively, so an always-true mutant survived.
+
 ## Unreleased — 2026-08-22 — build `08222026.6`
 
 U6 — the memory port and the flat-JSON reference store.
