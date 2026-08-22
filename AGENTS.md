@@ -70,8 +70,9 @@ default answer. `backlog` is self-deferred work postponed by a plan, not user-re
 
 ## Standing rules
 
-**Never infer a rule value.** Every mechanic traces to the SRD 5.2 document. If the SRD does not
-state it outright, it is excluded and the exclusion disclosed rather than guessed (R31, R32). A
+**Never infer a rule value.** Every mechanic traces to the official SRD v5.2.1 document. If
+the SRD does not state it outright, it is excluded and the exclusion disclosed rather than
+guessed (R31, R32). A
 visible gap beats a confident wrong number, because a wrong number is indistinguishable from a
 right one once it's inside a finished ruling. Widely-known 5e behaviour that isn't in the SRD is
 still a guess, and Product Identity outside the SRD must not enter this repository at all.

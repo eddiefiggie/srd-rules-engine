@@ -17,7 +17,7 @@ Closes #
 - [ ] `pytest && ruff check . && ruff format --check . && mypy` passes locally (the full CI gate)
 - [ ] New tests were proven to fail against the pre-change tree (or this adds none)
 - [ ] Any new guard was seen red before being trusted
-- [ ] No rule value was inferred — everything traces to the SRD 5.2 document
+- [ ] No rule value was inferred — everything traces to the official SRD v5.2.1 document
 - [ ] Deferrals introduced by this PR are filed as issues and linked in the prose
 - [ ] Build stamp bumped in `src/srd_rules_engine/__init__.py`, and README's
       `**Current build:**` line updated to match and to say what shipped

@@ -18,7 +18,7 @@ entry point is not a feature this project wants, regardless of how convenient it
 
 1. **SRD fidelity defects.** A rule modelled wrongly is the worst class of bug here, because a
    wrong ruling is indistinguishable from a right one. Use the *SRD fidelity defect* issue
-   template and cite the SRD 5.2 section.
+   template and cite the SRD v5.2.1 section.
 2. **Trigger catalogue misses.** A no-test claim that *should* have been challenged and wasn't.
    These are close to unmeasurable from play alone — a missed skip leaves no trace — so a
    reported one is genuinely valuable.
@@ -31,8 +31,9 @@ entry point is not a feature this project wants, regardless of how convenient it
 
 - **Open an issue first** for anything beyond a typo. Issues are the single source of truth for
   open work here, and an unlinked PR has nowhere to record why the work was wanted.
-- **Never infer a rule value.** Every mechanic traces to the SRD 5.2 document. If the SRD
-  doesn't state it outright, it's excluded and the exclusion disclosed — not guessed. Widely
+- **Never infer a rule value.** Every mechanic traces to the official SRD v5.2.1 document.
+  If the SRD doesn't state it outright, it's excluded and the exclusion disclosed — not
+  guessed. Widely
   known 5e behaviour that isn't in the SRD is still a guess.
 - **Don't add Product Identity.** Settings, named characters, iconic monsters, and trade dress
   outside the SRD are not licensed here. See [`NOTICE.md`](NOTICE.md).
