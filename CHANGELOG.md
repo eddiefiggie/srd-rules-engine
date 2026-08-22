@@ -6,6 +6,29 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 — build `08222026.2`
+
+U2 — the canonical form, and the refusal that makes the ledger's chain mean something.
+
+- **`core.canonicalize` and `core.digest`.** RFC 8785 (JSON Canonicalization Scheme) restricted to
+  exclude floating-point numbers: UTF-8, object keys sorted by **UTF-16 code unit**, no
+  insignificant whitespace. Every digest goes through `digest()` rather than over bytes a caller
+  assembled, so "the canonical form is the only input to any digest" holds by construction.
+- **A float is refused anywhere in a value, and the error names where it is.** Excluding floats is
+  what makes the restriction implementable without a dependency — JCS's hard requirement is
+  ECMAScript number serialization — but the reason is correctness first: a coerced value is
+  silently wrong in a record meant to be authoritative, and would first surface as a replay
+  mismatch on a different machine.
+- **Two subtleties the plan did not name.** Key ordering is by UTF-16 code unit, not code point,
+  and the two disagree once a key leaves the BMP — `U+FF01` sorts before `U+10000` by code point
+  and after it by UTF-16. And `bool` subclasses `int` in Python, so the boolean branch must be
+  reached before the integer one or `True` serializes as `1`. Both are tested.
+- **Integers outside the ECMAScript safe range are refused** as a judgment call the plan did not
+  specify: beyond 2**53 a conformant reader parses the canonical bytes back as a *different*
+  number, which is the same class of defect as a float.
+- Four mutations proven caught: float rejection removed, the integer branch reached before the
+  boolean one, keys sorted by code point, and the safe-integer bound removed.
+
 ## Unreleased — 2026-08-22 — build `08222026.1`
 
 First code. M0 is closed, the plan is implementation-ready, and U1 is the vertical slice's
