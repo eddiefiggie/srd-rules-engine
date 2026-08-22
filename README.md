@@ -7,9 +7,10 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08222026.2` — the layer packages and their import-graph guard, plus the canonical
-byte form every ledger digest is taken over: RFC 8785 restricted to exclude floating-point numbers,
-which refuses a float anywhere in a value rather than coercing it. No engine behaviour yet. `tests/test_build_stamp.py` fails CI when this
+**Current build:** `08222026.3` — the layer packages and their import-graph guard, the canonical byte
+form every digest is taken over, and the append-only ledger writer: the fixed envelope, the hash
+chain, and one synchronising write per adjudication at the escape boundary. No adjudication yet —
+nothing yet produces an outcome to record. `tests/test_build_stamp.py` fails CI when this
 line drifts from `src/srd_rules_engine/__init__.py`, so it cannot go stale silently.
 
 ---
@@ -197,4 +198,4 @@ against the published document before the first entry lands.
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-22 — build `08222026.2`._
+_Last updated: 2026-08-22 — build `08222026.3`._
