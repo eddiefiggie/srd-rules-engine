@@ -55,6 +55,16 @@ from srd_rules_engine.core.read_surface import (
     read,
     verify,
 )
+from srd_rules_engine.core.rules import (
+    Rule,
+    RuleLoadError,
+    RuleProvenance,
+    Ruleset,
+    Verification,
+    VerificationState,
+    load_fixture_ruleset,
+    load_ruleset,
+)
 from srd_rules_engine.core.state import Combatant, EncounterState
 
 __all__ = [
@@ -78,8 +88,14 @@ __all__ = [
     "Provenance",
     "ReadResult",
     "Resolution",
+    "Rule",
+    "RuleLoadError",
+    "RuleProvenance",
+    "Ruleset",
     "ValueKind",
     "Verdict",
+    "Verification",
+    "VerificationState",
     "Writer",
     "canonicalize",
     "check_storable",
@@ -89,6 +105,8 @@ __all__ = [
     "is_extension",
     "issue_token",
     "legal_actions",
+    "load_fixture_ruleset",
+    "load_ruleset",
     "read",
     "read_ledger",
     "repair_truncated_tail",
