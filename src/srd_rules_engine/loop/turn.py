@@ -188,9 +188,10 @@ class TurnLoop:
 
             ruling, state, unresolved = yield from self._resolve(state, declaration, situation)
             if unresolved is not None:
-                return TurnOutcome(
+                return self._terminated(
+                    actor_id,
+                    TerminalReason.FACT_UNAVAILABLE,
                     state=state,
-                    terminal=TerminalReason.FACT_UNAVAILABLE,
                     refusals=tuple(refusals),
                     offered=offered.actions,
                     unresolved=unresolved,
@@ -200,9 +201,10 @@ class TurnLoop:
                 terminal = self._terminal_for(refusals, ruling)
                 refusals.append(ruling)
                 if terminal is not None:
-                    return TurnOutcome(
+                    return self._terminated(
+                        actor_id,
+                        terminal,
                         state=state,
-                        terminal=terminal,
                         refusals=tuple(refusals),
                         offered=offered.actions,
                     )
@@ -217,6 +219,32 @@ class TurnLoop:
                 narration=narration,
                 missing_narration=narration is None,
             )
+
+    def _terminated(
+        self,
+        actor_id: str,
+        reason: TerminalReason,
+        *,
+        state: EncounterState,
+        refusals: tuple[Ruling, ...],
+        offered: tuple[LegalAction, ...],
+        unresolved: tuple[str, ...] = (),
+    ) -> TurnOutcome:
+        """Record the termination, then return it.
+
+        R30's report is derived from the ledger without the agent's cooperation, so a slot
+        that ended without a Ruling has to leave a trace of its own. Returning the reason
+        to the driver and not writing it down would put the one fact triage needs in the
+        only place a session review cannot reach.
+        """
+        self.adjudicator.record_termination(actor_id, str(reason), refusals)
+        return TurnOutcome(
+            state=state,
+            terminal=reason,
+            refusals=refusals,
+            offered=offered,
+            unresolved=unresolved,
+        )
 
     # --- The three loops -------------------------------------------------------------
 
