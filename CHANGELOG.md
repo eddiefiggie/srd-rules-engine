@@ -6,6 +6,45 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 (fifth)
+
+Design only; no build stamp change, because nothing a consumer runs was altered.
+
+- **Gate #8 settled**: a **read token** makes the alternatives claim checkable without relaxing
+  R19. The read surface returns the legal set plus an opaque token encoding the state generation
+  it was derived from and a digest of the set; the declaration echoes it, and the engine reports
+  `verified-fresh`, `verified-stale`, `unverified`, or `unread`. The read surface still computes
+  and returns without mutating or appending — R19 is unchanged, which was the point. Recorded in
+  `docs/decisions/0007-alternatives-verification.md`; R5, R10, R18, R19, and R30 amended.
+- **The mismatch ambiguity turned out to be an artefact of recording too little.** The issue set
+  re-derivation aside because state may move between the read and the declaration, making a
+  mismatch ambiguous between drift and falsehood. Recording the **state generation** the set was
+  derived from splits it cleanly: same generation with a different set is a false claim; an older
+  generation is an agent deciding from stale information. Adding one counter to state reopened two
+  options that had looked closed.
+- **A stale read should be impossible here, which is exactly why it is worth detecting.** Solo
+  play, one character, a sequential loop — nothing can move state between a read and the
+  declaration that follows it. The realistic cause is an agent **caching a read across turns**,
+  plausible LLM behaviour and otherwise entirely invisible.
+- **No MAC.** 0002's "not defending against its own owner" does *not* extend to the agent, whose
+  unreliability is the premise of the design — but the agent is an LLM, not an adversary with a
+  debugger. A garbled or invented token fails the digest; a replayed genuine one fails the
+  generation check. Only computing a valid digest for a fabricated set is uncovered, and that is
+  cryptographic work from a text generator. The digest `0006` already requires covers the rest.
+- **One derivation of what is legal**, shared by the read surface and the adjudicator, so what is
+  offered and what is accepted cannot drift — an independent cross-check was rejected in favour of
+  making the drift impossible, the fourth time this project has taken that trade. The accepted
+  cost is named: a bug *inside* the shared derivation is invisible to this mechanism.
+- **A failed verification is recorded, not rejected.** The alternatives are metadata about a
+  decision, not the decision, and R3 validates the named test independently. Rejecting would
+  repeat the category error `0002` identified with `blocked`, and under `0005` would burn a retry
+  slot on something no resubmission by a buggy agent fixes.
+- **`unread` is the expected verdict for a caller outside the turn loop**, making the already-known
+  limit — a direct caller gets outcome authority without the skip guarantee — visible per ruling
+  rather than only in prose.
+- `CONCEPTS.md` gains **Read token** and **Alternatives verdict**. `0006`'s envelope/payload split
+  gets its first exercise: declaration entries gain three fields with no envelope change.
+
 ## Unreleased — 2026-08-22 (fourth)
 
 Design only; no build stamp change, because nothing a consumer runs was altered.

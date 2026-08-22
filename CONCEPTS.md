@@ -39,6 +39,18 @@ refusal history, and the alternatives the read surface had offered. The engine n
 loop by selecting a test: that would let an agent reach an outcome by failing. Specified in
 `docs/decisions/0005-retry-bounds.md`.
 
+**Read token** (R10, R18, R19) — the opaque value a read-surface call returns alongside the legal
+set, encoding the state generation the set was derived from and a digest of the set. The
+declaration echoes it, which makes the agent's claim about what it was offered checkable *without*
+the read surface recording anything — so R19 stands. Derived and returned, never stored.
+
+**Alternatives verdict** (R10) — what the engine reports about that claim: `verified-fresh`
+(genuine and current), `verified-stale` (genuine, but the agent decided from state that has since
+changed), `unverified` (not what was offered), or `unread` (no token — the expected verdict for a
+caller outside the turn loop). A failed verification is recorded and flagged in the report, never
+a refusal to adjudicate: the alternatives are metadata about a decision, not the decision.
+Specified in `docs/decisions/0007-alternatives-verification.md`.
+
 **Ruling** (R5) — the only object that constitutes an outcome. Carries status, the test
 performed, raw dice and seed, the target number *and its derivation*, the outcome, applied
 effects, the resolved value and provenance of every memory-port fact consumed, SRD citations,
