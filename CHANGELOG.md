@@ -6,6 +6,45 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 (fourth)
+
+Design only; no build stamp change, because nothing a consumer runs was altered.
+
+- **Gate #10 settled**: the ledger is **JSONL behind a reader API**, and its on-disk format is
+  explicitly **not** public API. R35 already commits the entry schemas, so the open question was
+  only whether the *envelope* was public — and publishing later is cheap where unpublishing is
+  not. A shipped reader gives consumers something stable to depend on, which is the only version
+  of that promise that survives contact with users; export becomes a function of the reader
+  rather than a second near-duplicate format. Recorded in `docs/decisions/0006-ledger-format.md`;
+  R26, R28, R30, and R35 amended.
+- **0002's hash chain was not implementable as written.** It required "a checksum of its own body"
+  without saying how bytes are derived from an entry, and JSON has no canonical form — key order,
+  whitespace, escaping, and number formatting all vary by serializer. Two writers disagreeing
+  would produce a chain that fails to verify on a sound file, reported as *tamper detected*. The
+  canonical form is now RFC 8785, restricted.
+- **No binary floating-point value may appear in a ledger entry.** This is what makes
+  canonicalization implementable without a dependency, since JCS's hard part is ECMAScript number
+  serialization — and the domain turns out to need no floats at all. Dice, damage, DCs, AC, hit
+  points, modifiers, slot levels, and distances in feet are integers; the SRD's fractional
+  quantities (challenge ratings of 1/8, 1/4, 1/2, and item weights) become exact strings or
+  integer subunits. Primarily a correctness decision: `0.1 + 0.2` is `0.30000000000000004`, and a
+  record meant to be authoritative should not hold values that are approximately what they say.
+- **The envelope is fixed for good; only the payload is versioned.** `seq`, `type`, `v`, `prev`,
+  `sum`, `payload`. Integrity checking, sequence checking, and listing therefore work across every
+  version ever written, and the retrospective audit reports payloads it cannot read as
+  **unauditable** rather than skipping them silently.
+- **#7's version-pinning fix was partial — the rules code is an input too.** A bug fix in a rule
+  makes every prior entry that exercised it replay differently, reported as inconsistency. The
+  engine version is now recorded on a `session` entry, a session may not span engine versions, and
+  cross-version replay yields a **reconciliation** result naming both versions and both outcomes —
+  never an integrity verdict, because a rules fix is not corruption.
+- **A torn tail is reported, never silently truncated and never fatal.** 0002 guarantees nothing
+  escaped, so discarding the fragment is safe — but only once a human has been told, and a crashed
+  session must stay reopenable.
+- `CONCEPTS.md` gains **Ledger reader** and an expanded **Ledger**. Schema-versioning *mechanics*
+  stay #13's, and should cover the ledger payload alongside the R35 schemas rather than growing a
+  second scheme.
+
 ## Unreleased — 2026-08-22 (later still)
 
 Design only; no build stamp change, because nothing a consumer runs was altered.

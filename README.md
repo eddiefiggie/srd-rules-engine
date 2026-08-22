@@ -118,20 +118,25 @@ one, and the plan is amended to match:
 - [0005 — retry bounds](docs/decisions/0005-retry-bounds.md) — bounds belong to the turn loop, and
   exhaustion is a terminal outcome rather than a rules status
   (closed [#11](https://github.com/eddiefiggie/srd-rules-engine/issues/11))
+- [0006 — ledger format](docs/decisions/0006-ledger-format.md) — JSONL with a fixed envelope, and a
+  reader API rather than a public file format
+  (closed [#10](https://github.com/eddiefiggie/srd-rules-engine/issues/10))
 
-**Next up:** [#10](https://github.com/eddiefiggie/srd-rules-engine/issues/10), the ledger storage
-format — it has now collected constraints from three settled records
-([0002](docs/decisions/0002-ledger-durability.md),
-[0004](docs/decisions/0004-trigger-catalogue.md),
-[0005](docs/decisions/0005-retry-bounds.md)) and is the last gate shaping a format other things
-read. Then [#8](https://github.com/eddiefiggie/srd-rules-engine/issues/8),
-[#9](https://github.com/eddiefiggie/srd-rules-engine/issues/9),
-[#12](https://github.com/eddiefiggie/srd-rules-engine/issues/12),
-[#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13), and
-[#33](https://github.com/eddiefiggie/srd-rules-engine/issues/33).
-[#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3) still gates all SRD-derived data,
-and #6 made its target precise: the wording must come from **SRD v5.2.1** specifically. Then
-`/ce-plan` to turn the requirements artifact into an implementation plan.
+**Next up:** [#8](https://github.com/eddiefiggie/srd-rules-engine/issues/8), how a declaration's
+recorded alternatives are verified. [#10](https://github.com/eddiefiggie/srd-rules-engine/issues/10)
+gave it somewhere to put them and
+[#11](https://github.com/eddiefiggie/srd-rules-engine/issues/11) gave it a second case to cover,
+so what remains is the original difficulty: R19 forbids the read surface from recording what it
+offered. Then [#9](https://github.com/eddiefiggie/srd-rules-engine/issues/9) and
+[#12](https://github.com/eddiefiggie/srd-rules-engine/issues/12) as a memory-port pair,
+[#33](https://github.com/eddiefiggie/srd-rules-engine/issues/33), and
+[#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13) last, since module layout depends
+on what modules turned out to exist.
+
+[#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3) is not a design gate but an errand:
+it needs the official SRD v5.2.1 PDF and its attribution statement transcribed from the front
+matter. It gates all SRD-derived data and runs parallel to everything above. Then `/ce-plan` to
+turn the requirements artifact into an implementation plan.
 
 M1's machinery issues are deliberately **not** filed yet: the adjudication core, ledger, and memory
 port would all be reshaped by the gates above, so filing them now would file the wrong work. The
