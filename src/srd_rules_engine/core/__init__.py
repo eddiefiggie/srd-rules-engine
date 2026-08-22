@@ -18,6 +18,14 @@ See `docs/decisions/0011-module-layout-and-versioning.md`.
 from __future__ import annotations
 
 from srd_rules_engine.core.canonical import CanonicalizationError, canonicalize, digest
+from srd_rules_engine.core.d20 import (
+    DIE_SIDES,
+    Advantage,
+    D20Result,
+    D20Test,
+    Modifier,
+    TestKind,
+)
 from srd_rules_engine.core.ledger import Ledger, LedgerUnavailable
 from srd_rules_engine.core.ledger_reader import (
     READER_VERSION,
@@ -68,10 +76,14 @@ from srd_rules_engine.core.rules import (
 from srd_rules_engine.core.state import Combatant, EncounterState
 
 __all__ = [
+    "DIE_SIDES",
     "FACT_WRITE",
     "READER_VERSION",
+    "Advantage",
     "CanonicalizationError",
     "Combatant",
+    "D20Result",
+    "D20Test",
     "DefaultKind",
     "EncounterState",
     "Entry",
@@ -85,6 +97,7 @@ __all__ = [
     "LegalAction",
     "MemoryError_",
     "MemoryPort",
+    "Modifier",
     "Provenance",
     "ReadResult",
     "Resolution",
@@ -92,6 +105,7 @@ __all__ = [
     "RuleLoadError",
     "RuleProvenance",
     "Ruleset",
+    "TestKind",
     "ValueKind",
     "Verdict",
     "Verification",

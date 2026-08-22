@@ -43,7 +43,13 @@ packages = ["src/srd_rules_engine"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers -W error::pytest.PytestCollectionWarning"
+# Every test here is a module-level function. Emptying `python_classes` stops pytest's
+# `Test*` heuristic from trying to collect domain types — the SRD calls the primitive a
+# "D20 Test", so `D20Test` and `TestKind` are the right names for the domain and only
+# look like test classes to a collector. Renaming them to appease the heuristic would put
+# the tail in charge of the vocabulary.
+python_classes = []
 
 [tool.ruff]
 line-length = 100
