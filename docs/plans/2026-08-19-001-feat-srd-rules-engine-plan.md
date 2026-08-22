@@ -4,7 +4,7 @@ type: feat
 date: 2026-08-19
 topic: srd-rules-engine
 artifact_contract: ce-unified-plan/v1
-artifact_readiness: requirements-only
+artifact_readiness: implementation-ready
 product_contract_source: ce-brainstorm
 execution: code
 ---
@@ -14,8 +14,12 @@ execution: code
 ## Goal Capsule
 
 - **Objective:** An open-source Python library that implements the SRD 5.2 mechanics in full and holds outcome authority, so that any LLM agent acting as a dungeon master can interpret fiction but cannot invent results.
-- **Product authority:** This Product Contract. The SRD 5.2 (2024 rules), published by Wizards of the Coast under CC BY 4.0, is the authoritative source for every mechanic.
-- **Open blockers:** None blocking planning. The official SRD 5.2 document is required as the verification reference for the sourced dataset; obtaining it is a planning task, not a gate on the mechanics code.
+- **This milestone (M1):** A playable vertical slice — one character, one encounter, end to end — running on invented fixture rules rather than SRD content. It exists to prove the architecture, not to ship coverage.
+- **Product authority:** This Product Contract, then the eleven records in `docs/decisions/`. Where they disagree with a unit below, they win and the unit is wrong. The official SRD v5.2.1 is the authority on every mechanic, and no mechanic may be inferred from memory.
+- **Execution profile:** Small stacked pull requests, roughly one per implementation unit, each green on the full four-command gate before the next begins. `main` stays green throughout.
+- **Stop conditions:** Stop and ask when a unit cannot be built without contradicting a decision record; when a fixture rule would need to state a real SRD value to work; or when a guard test cannot be made to fail against the input it exists to reject.
+- **Tail ownership:** Each unit lands as its own PR with a closing keyword for any issue it resolves. Deferrals discovered mid-unit are filed as issues before that unit's PR merges.
+- **Open blockers:** None. The attribution errand (#3) gates SRD-derived data, and this milestone carries none — the fixture ruleset is invented and labelled as such.
 
 ---
 
@@ -294,3 +298,425 @@ flowchart TB
 - SRD 5.2 (2024 rules), Wizards of the Coast, CC BY 4.0 — the authoritative source for every mechanic in this contract.
 - [`ddo-loadout-optimizer`](https://github.com/eddiefiggie/ddo-loadout-optimizer) is the closest prior art in method rather than domain: an authoritative external source turned into a rules-accurate engine, with exclude-until-verified data gating and per-result receipts. Its lesson — that rules fidelity lives or dies on data provenance rather than on the solver — is why R22 and R27 exist.
 - No tabletop D&D or SRD prior art exists in my other projects; every other D&D-named one targets Dungeons & Dragons Online, a different ruleset.
+
+---
+
+## Planning Contract
+
+**Product Contract preservation:** unchanged. Every requirement, actor, flow, acceptance example, and key decision above is carried verbatim from the requirements artifact and its eleven decision records. This section and everything below it add HOW; nothing above was rewritten.
+
+### Scope of this milestone
+
+M1 is the playable vertical slice. It builds the whole machinery — layers, ledger, read surface, memory port, adjudication, trigger catalogue, turn loop, report — and exactly enough rules coverage to run one fight: the unified d20 test, initiative, attacks against AC, damage, hit points, and dropping to 0. Conditions, movement in feet, spellcasting, range and area, and the effect-shape inventory are the milestones after it, not this one.
+
+The slice runs on a fixture ruleset of invented mechanics. Nothing in M1 states an SRD value, so nothing in M1 is SRD-derived content and the attribution gate is untouched.
+
+### Key Technical Decisions
+
+- KTD1. M1 runs on invented fixture rules, never SRD content. The slice becomes provable today rather than waiting on an errand, and it proves something the real rules cannot — that the engine is not SRD-coupled, because it adjudicates a ruleset the SRD never described. (session-settled: user-approved — chosen over landing real SRD rules as `unverified` and over resolving the attribution errand first: the first makes the milestone's completion depend on work outside the plan, the second spends all momentum on an errand while ~90% of M1 is machinery the errand does not gate.)
+
+- KTD2. A rule entry carries a provenance discriminator, and the loader gate reads it. `provenance: srd` entries must be `verified` against SRD v5.2.1 before they load, per the seed decision. `provenance: fixture` entries load only when the caller asks for a fixture ruleset by name, and a shipped ruleset containing one is a build failure. Without the discriminator the two rules collide: a gate that admits only `verified` entries would reject every fixture, and a gate loosened to admit fixtures would silently admit unverified SRD entries — which is the exact failure the seed decision exists to prevent.
+
+- KTD3. The fixture ruleset is test scaffolding and is not shipped in the installed package. Invented mechanics inside a distribution about SRD fidelity is a bad trade even when clearly labelled, and the guard in KTD2 is what makes the exclusion checkable rather than remembered. (session-settled: user-approved.)
+
+- KTD4. The seed is drawn per adjudication, not per session, and recorded on the Ruling. Replay reproduces one entry from its own record without replaying the entries before it, which is what the replay requirement asks for; a session-level stream would make every replay depend on position in the sequence.
+
+- KTD5. Every guard test lands with the unit whose invariant it protects, and is proven red before that unit's PR opens. The standing repository rule already requires this; naming it here matters because M1 introduces the layer-import guard, the float-rejection guard, the loader provenance gate, and the label-free matcher projection — four guards whose failure mode is silently inspecting nothing.
+
+- KTD6. The session-review report is in the slice rather than deferred. The contract's primary success criterion — that no asserted outcome originated outside a Ruling — is measured from that report, so a slice without it cannot demonstrate the thing the slice exists to demonstrate. (session-settled: user-approved — chosen over deferring it to a later milestone.)
+
+- KTD7. Slice depth stops at the d20 test plus initiative, attacks against AC, damage, and hit points. Conditions and movement would make a more convincing demo and both interact with the d20 test in ways better settled on a foundation that already works end to end. (session-settled: user-approved — chosen over adding conditions and movement, and over a check-only slice with no combat.)
+
+- KTD8. Units land as small stacked pull requests, roughly one per unit. This is how every design gate landed in this repository: one PR, CI green, merge, next. A wrong turn costs one unit rather than the milestone. (session-settled: user-approved — chosen over grouped subsystem PRs and a single milestone PR.)
+
+- KTD9. Adapters stay out of M1. The two reference drivers the agent-seam decision already commits to — scripted and human-CLI — are what make the slice playable without a model or a network; MCP and HTTP are delivery surfaces over a contract that must exist first.
+
+### Open questions carried into implementation
+
+- OQ1. Does the fixture provenance path of KTD2 need its own decision record before U7 lands? The seed decision states that only verified entries reach the engine. A fixture entry is not SRD-derived, so it has nothing to verify against and the verification vocabulary arguably does not apply to it — the same reasoning the extension-channel decision used for authored trigger rows. That reading is defensible and it is still a reading of a merged record, made in a plan rather than in a record. **Deferred, not blocking:** it does not affect U1 through U6, and it resolves before U7 opens, either by confirming the reading in a short record or by narrowing KTD2. Filed as #41.
+
+### Risks & Dependencies
+
+- Fixture rules may bake in shapes the real SRD breaks. The slice proves the machinery, not SRD fidelity, and an invented ruleset can be quietly convenient — a rule whose facts resolve cleanly because the fixture author chose them. Mitigation: the fixture ruleset deliberately includes a rule with an unresolvable fact and a trigger that fires on situational state alone, so the awkward paths are exercised rather than avoided.
+- U9 is the largest unit and cannot be split without creating a half of the single adjudication entry point, which the first requirement forbids. Accepted rather than mitigated; it is the unit most likely to need a second pass in review.
+- The layer-import guard sees static imports only. A deferred import or a string-driven loader evades it, so it is a floor rather than a proof, and the layer boundary still depends on review for anything dynamic.
+- The attribution errand gates no unit here, and it does gate the milestone after this one. If it stays open, the next milestone cannot start on real rules even though this one completes.
+
+### High-Level Technical Design
+
+Four packages, with the import rules the layer decision makes a guard test rather than a convention. Arrows are the only permitted direction of dependency; the guard fails on any arrow drawn the other way, and on any import that reaches past a package's re-exported surface into its submodules.
+
+```mermaid
+flowchart TB
+  AD[adapters — deferred past M1] --> LP[loop]
+  AD --> CO[core]
+  LP --> CO
+  ME[memory — reference store] --> CO
+  CO --> X[no outward imports]
+```
+
+A declaration slot is the unit the retry budget counts, and it has more terminal states than the happy path suggests. Three of the five ways a slot ends produce no Ruling at all, which is why the report has to distinguish them from a Ruling that was never narrated.
+
+```mermaid
+stateDiagram-v2
+  [*] --> Submitted
+  Submitted --> Rejected: test not legal
+  Submitted --> Challenged: no-test hits a trigger
+  Submitted --> Blocked: declared fact unresolved
+  Rejected --> Submitted: resubmit
+  Challenged --> Submitted: resubmit
+  Blocked --> Blocked: facts supplied, set shrank
+  Blocked --> Adjudicated: all facts resolved
+  Submitted --> Adjudicated: accepted
+  Adjudicated --> Narrated: narration submitted
+  Narrated --> [*]
+  Rejected --> Exhausted: budget spent or refusal repeated
+  Challenged --> Exhausted: budget spent or refusal repeated
+  Blocked --> FactUnavailable: round failed to shrink the set
+  Exhausted --> [*]
+  FactUnavailable --> [*]
+```
+
+The build order is dependency-driven rather than subsystem-driven: the ledger exists before anything that must append to it, and the rule loader exists before anything that loads a rule.
+
+```mermaid
+flowchart TB
+  U1[U1 layers and import guard] --> U2[U2 canonical form]
+  U1 --> U5[U5 state, read surface, token]
+  U1 --> U7[U7 rule definitions and loader gate]
+  U2 --> U3[U3 ledger writer]
+  U2 --> U5
+  U3 --> U4[U4 ledger reader]
+  U3 --> U6[U6 memory port and store]
+  U4 --> U6
+  U7 --> U8[U8 d20 test primitive]
+  U5 --> U9[U9 adjudication entry point]
+  U6 --> U9
+  U8 --> U9
+  U3 --> U9
+  U9 --> U10[U10 trigger catalogue]
+  U9 --> U11[U11 turn loop and drivers]
+  U10 --> U11
+  U9 --> U12[U12 combat]
+  U5 --> U12
+  U4 --> U13[U13 replay and session report]
+  U9 --> U13
+  U11 --> U13
+  U11 --> U14[U14 fixture encounter and slice proof]
+  U12 --> U14
+  U13 --> U14
+```
+
+### Assumptions
+
+- The fixture ruleset can express a fight without borrowing an SRD number. Invented ability scores, an invented armour value, an invented damage die, and an invented creature are sufficient, because the machinery under test is indifferent to the values.
+- Python's `secrets`-free, seed-reproducible `random.Random` is adequate for a solo campaign's dice. The requirement is reproducibility from a recorded seed, not unpredictability against an adversary.
+- Canonical JSON can be implemented over the standard library alone once floats are excluded, which is what the ledger-format decision established. If an unforeseen payload needs a real number, that is a design change to escalate rather than a float to admit.
+- No plan unit needs the official SRD document. If one turns out to, that unit is misscoped for M1.
+
+### Sequencing
+
+Units land in the dependency order above, one PR each. Three ordering constraints are not negotiable: the layer guard lands first so every later unit is born inside the boundary it will be held to; the ledger writer precedes anything that appends; and the rule loader precedes anything that loads a rule. Beyond those, adjacent units may be reordered where it helps.
+
+---
+
+## Implementation Units
+
+### Unit index
+
+| U-ID | Unit | Primary files | Depends on |
+|---|---|---|---|
+| U1 | Layer packages and the import guard | `src/srd_rules_engine/{core,loop,memory}/`, `tests/test_layer_boundaries.py` | — |
+| U2 | Canonical form and the no-float guard | `src/srd_rules_engine/core/canonical.py`, `tests/test_canonical_form.py` | U1 |
+| U3 | Ledger writer, envelope, chain, durability | `src/srd_rules_engine/core/ledger.py`, `tests/test_ledger_writer.py` | U1, U2 |
+| U4 | Ledger reader, verification, torn tail | `src/srd_rules_engine/core/ledger_reader.py`, `tests/test_ledger_reader.py` | U3 |
+| U5 | Mechanical state, read surface, read token | `src/srd_rules_engine/core/{state,read_surface}.py`, `tests/test_read_surface.py` | U1, U2 |
+| U6 | Memory port and the reference store | `src/srd_rules_engine/core/memory_port.py`, `src/srd_rules_engine/memory/store.py` | U1, U3, U4 |
+| U7 | Rule definitions, verification state, loader gate | `src/srd_rules_engine/core/rules.py`, `tests/test_rule_loader.py` | U1 |
+| U8 | The unified d20 test primitive | `src/srd_rules_engine/core/d20.py`, `tests/test_d20_test.py` | U1, U7 |
+| U9 | The adjudication entry point and the Ruling | `src/srd_rules_engine/core/adjudicate.py`, `tests/test_adjudication.py` | U3, U5, U6, U7, U8 |
+| U10 | Trigger catalogue, matcher, projection | `src/srd_rules_engine/core/triggers.py`, `tests/test_trigger_matcher.py` | U7, U9 |
+| U11 | Turn loop, retry bounds, blocked loop, drivers | `src/srd_rules_engine/loop/`, `tests/test_turn_loop.py` | U9, U10 |
+| U12 | Combat: initiative, attack, damage, hit points | `src/srd_rules_engine/core/combat.py`, `tests/test_combat.py` | U5, U9 |
+| U13 | Replay and the session-review report | `src/srd_rules_engine/core/report.py`, `tests/test_replay_and_report.py` | U4, U9, U11 |
+| U14 | The fixture encounter and the slice proof | `tests/fixtures/`, `tests/test_vertical_slice.py` | U11, U12, U13 |
+
+### U1. Layer packages and the import guard
+
+- **Goal:** Establish `core`, `loop`, and `memory` as packages, and make the two import rules a test rather than a convention before any code exists to violate them.
+- **Requirements:** R33, R34
+- **Dependencies:** none
+- **Files:** `src/srd_rules_engine/core/__init__.py`, `src/srd_rules_engine/loop/__init__.py`, `src/srd_rules_engine/memory/__init__.py`, `tests/test_layer_boundaries.py`
+- **Approach:** Parse every module under `src/` with `ast`, collect `Import` and `ImportFrom` targets, map each module to its layer by path, and assert two rules: no module in `core` imports from `loop`, `memory`, or `adapters`; and no module outside `core` imports a `core` submodule rather than `core` itself. The `adapters` package is not created — M1 has no adapters, and the rule is written to cover it when it arrives.
+- **Execution note:** Write the guard first and prove it red both ways before the packages have any content — a guard authored after the code it governs tends to be shaped around what the code already does.
+- **Patterns to follow:** `tests/test_core_has_no_runtime_dependencies.py` for the shape of a machine-checked promise; `tests/test_no_local_leakage.py` for walking tracked files and reporting every finding rather than the first.
+- **Test scenarios:**
+  - A core module importing `srd_rules_engine.loop` fails the guard, naming the offending module and its target.
+  - A loop module importing `srd_rules_engine.core.adjudicate` fails the guard; importing `srd_rules_engine.core` passes.
+  - A memory module importing `srd_rules_engine.core` passes.
+  - The guard reports every violation in one run, not just the first.
+  - The guard fails when it finds zero modules to scan, so an empty traversal cannot pass vacuously.
+- **Verification:** Both violations confirmed red, then restored; the four-command gate green.
+
+### U2. Canonical form and the no-float guard
+
+- **Goal:** One canonicalization function whose output is the only input to any digest, and a guard that rejects a float anywhere in a payload.
+- **Requirements:** R26
+- **Dependencies:** U1
+- **Files:** `src/srd_rules_engine/core/canonical.py`, `tests/test_canonical_form.py`
+- **Approach:** RFC 8785 restricted to exclude floating-point numbers — UTF-8, keys sorted, no insignificant whitespace, integers only. Rejecting floats removes the specification's hardest requirement, so this needs no dependency. A float found anywhere in a structure raises rather than being coerced, because a coerced value would be silently wrong in the one record meant to be authoritative.
+- **Patterns to follow:** the existing guard tests' habit of assembling forbidden patterns so the test file does not trip its own scan.
+- **Test scenarios:**
+  - The same mapping with keys in different insertion orders canonicalizes to identical bytes.
+  - Nested structures canonicalize deterministically at every depth.
+  - A float at the top level raises; a float nested inside a list inside a mapping also raises.
+  - A string that looks like a float (`"1.5"`) is preserved unchanged — the rule is about types, not appearances.
+  - Non-ASCII text round-trips byte-identically under repeated canonicalization.
+- **Verification:** Introduce a float into a payload the ledger would write and confirm the guard goes red; restore.
+
+### U3. Ledger writer, envelope, chain, durability
+
+- **Goal:** An append-only JSONL ledger whose entries carry the fixed envelope, chain to their predecessor, and reach durable storage before anything escapes the engine.
+- **Requirements:** R26
+- **Dependencies:** U1, U2
+- **Files:** `src/srd_rules_engine/core/ledger.py`, `tests/test_ledger_writer.py`
+- **Approach:** Each entry carries `seq`, `type`, `v`, `prev`, `sum`, `payload`, with `sum` taken over the canonical form of the entry minus `sum` itself, and `prev` equal to the previous entry's `sum`. Every payload carries its reserved `compat` key. Entry `seq` 0 of a file is a `session` entry naming the format, engine, and trigger-catalogue versions. Several entries may be buffered and covered by one synchronising write at the escape boundary. A failed append raises `LedgerUnavailable`; it never returns a rules status, because infrastructure failure is not a rules outcome.
+- **Test scenarios:**
+  - A session entry is written at `seq` 0 and its `prev` is absent.
+  - Entry N+1's `prev` equals entry N's `sum`.
+  - An entry whose `payload` is mutated after writing fails checksum verification.
+  - Several entries written in one adjudication are all present after a single synchronising write.
+  - A write to an unwritable destination raises `LedgerUnavailable` rather than returning a status object.
+  - Every entry payload carries `compat`, and a payload missing it is refused at write time.
+- **Verification:** Simulate the escape boundary as an early return and assert what reached durable storage in each case.
+
+### U4. Ledger reader, verification, torn tail
+
+- **Goal:** The supported way to consume a ledger — verify, iterate, and report a torn tail without silently repairing it.
+- **Requirements:** R26, R30, R35
+- **Dependencies:** U3
+- **Files:** `src/srd_rules_engine/core/ledger_reader.py`, `tests/test_ledger_reader.py`
+- **Approach:** Envelope reading works across every payload version ever written, so chain verification, sequence checking, and listing never require a known `v`. Payload interpretation compares the reader's version against the payload's `compat` floor: at or above it, interpret; below it, report the entry unauditable rather than skipping it. A trailing line that fails to parse, fails its checksum, breaks sequence, or breaks the chain is reported, with truncation to the last valid entry offered as an explicit operation. The reader never truncates on its own and never refuses to open a file — a crashed session must stay reopenable.
+- **Test scenarios:**
+  - A ledger with a deleted middle entry reports a sequence gap and a broken chain.
+  - An entry edited with its checksum recomputed still breaks the chain.
+  - A file truncated mid-final-line opens, reports a torn tail, and leaves the file unchanged until repair is requested.
+  - A payload declaring a `compat` floor above the reader's version is reported unauditable, and its envelope is still listed.
+  - A payload declaring a floor at or below the reader's version is interpreted even when its `v` is higher than any version the reader knows.
+- **Verification:** Corrupt a ledger four ways — torn tail, deleted entry, edited-with-stale-checksum, edited-with-recomputed-checksum — and confirm each is caught and named distinctly.
+
+### U5. Mechanical state, read surface, read token
+
+- **Goal:** State with a named owner and a monotonic generation, a read surface that answers what is legal, and the opaque token that makes the agent's alternatives claim checkable.
+- **Requirements:** R9, R18, R19, R10
+- **Dependencies:** U1, U2
+- **Files:** `src/srd_rules_engine/core/state.py`, `src/srd_rules_engine/core/read_surface.py`, `tests/test_read_surface.py`
+- **Approach:** The generation increments on every mutation to the state the read surface reports over, and never on a read. Legality has one derivation, used here to enumerate and by adjudication to validate, so what is offered and what is accepted cannot drift. The token encodes the generation and a digest of the offered set over U2's canonical form; it is derived and returned, never stored.
+- **Execution note:** Prove the non-mutation property directly — snapshot the state and the generation, run every read-surface call, and assert both are unchanged.
+- **Test scenarios:**
+  - A read-surface call leaves the state and the generation unchanged, and appends nothing.
+  - Two identical read calls at the same generation return identical tokens.
+  - A mutation increments the generation, and the next read returns a different token.
+  - A token echoed back with the set it was issued for verifies; the same token echoed with one alternative removed does not.
+  - A token from an earlier generation is recognised as genuine but stale, distinctly from a token whose digest does not match.
+  - A declaration carrying no token yields the unread verdict rather than an error.
+
+### U6. Memory port and the reference store
+
+- **Goal:** The typed port and a flat-JSON reference implementation that holds current values and rebuilds from the ledger.
+- **Requirements:** R20, R21, R22, R23, R24, R25
+- **Dependencies:** U1, U3, U4
+- **Files:** `src/srd_rules_engine/core/memory_port.py`, `src/srd_rules_engine/memory/store.py`, `tests/test_memory_port.py`, `tests/test_reference_store.py`
+- **Approach:** The port returns typed values only. Core fact types are unnamespaced; a reverse-DNS namespace is what makes a type an extension, and extensions are stored and returned without interpretation. Every write appends to the ledger with provenance, which is what makes the store a projection rather than a system of record. The store is one JSON file per campaign on a substrate separate from the ledger.
+- **Patterns to follow:** the ledger writer's provenance shape from U3, so a fact write and a ruling entry carry the same provenance vocabulary.
+- **Test scenarios:**
+  - Every core fact type round-trips with its declared type through a process restart.
+  - The store rebuilt by replaying the ledger's fact writes is identical to the live store.
+  - An extension fact in a namespace the store has never seen round-trips unchanged, including its declared version.
+  - An extension fact whose version is absent or malformed round-trips without error.
+  - A read returns provenance sufficient to cite the ruling or out-of-band entry that produced the value.
+  - A float supplied as a fact value is refused, because the write must be ledger-representable.
+- **Verification:** Delete the store file, rebuild from the ledger, and assert an identical state.
+
+### U7. Rule definitions, verification state, loader gate
+
+- **Goal:** The rule entity — what facts it declares, what section it cites, what verification state it carries — and a provenance-aware loader that refuses what must not load.
+- **Requirements:** R21, R31, R32
+- **Dependencies:** U1
+- **Files:** `src/srd_rules_engine/core/rules.py`, `tests/test_rule_loader.py`
+- **Approach:** A rule declares the fact types it consumes, and may declare core types only — a namespaced extension type is a load-time error, not a runtime failure. Each entry carries a verification block: state, reference section, date, and a reason required on an exclusion. The loader is provenance-aware per KTD2: an SRD-provenance entry loads only when verified; a fixture-provenance entry loads only into a ruleset the caller asked for by name; a shipped ruleset containing a fixture entry fails the build.
+- **Execution note:** This unit's guard is the one most likely to be quietly wrong, because a loader that admits everything passes every test that only checks the happy path. Prove all three refusals red.
+- **Test scenarios:**
+  - An SRD-provenance rule marked unverified is refused, and the refusal names the rule and its state.
+  - An SRD-provenance rule marked excluded is refused, and its recorded reason is surfaced rather than dropped.
+  - A fixture-provenance rule loads into a named fixture ruleset and is refused from a shipped ruleset.
+  - A rule declaring a namespaced extension fact type fails to load, naming the offending type.
+  - A rule declaring only core fact types loads.
+  - An entry missing its verification block is malformed, not merely untracked.
+- **Verification:** Flip a verified entry to unverified and confirm the loader goes red; restore.
+
+### U8. The unified d20 test primitive
+
+- **Goal:** One primitive spanning ability checks, saving throws, and attack rolls, with shared advantage, proficiency, and modifier machinery.
+- **Requirements:** R4, R11
+- **Dependencies:** U1, U7
+- **Files:** `src/srd_rules_engine/core/d20.py`, `tests/test_d20_test.py`
+- **Approach:** One function derives a target number, assembles modifiers, resolves advantage state, rolls, and returns the raw dice alongside the result. The seed arrives per invocation from the adjudication boundary per KTD4, so the same seed and inputs always produce the same dice. The three test kinds differ in what supplies the target number, not in how the roll resolves.
+- **Test scenarios:**
+  - The same seed and inputs produce identical dice across repeated invocations and across processes.
+  - Advantage rolls two dice and takes the higher; disadvantage takes the lower; both present cancel to a single roll.
+  - The raw dice are returned alongside the total, so a Ruling can carry both.
+  - A check, a save, and an attack against the same target number and modifiers resolve identically — the kind changes only where the target came from.
+  - Modifiers from separate sources accumulate in a stated order, so the derivation is reconstructable from the record.
+- **Verification:** Replay a recorded seed and inputs and assert identical dice.
+
+### U9. The adjudication entry point and the Ruling
+
+- **Goal:** The single path by which an outcome comes into existence, returning a Ruling that carries everything needed to explain and replay it.
+- **Requirements:** R1, R2, R3, R5, R7, R10, R21, R22, R26, R27
+- **Dependencies:** U3, U5, U6, U7, U8
+- **Files:** `src/srd_rules_engine/core/adjudicate.py`, `tests/test_adjudication.py`
+- **Approach:** One entry point validates the declaration against the same legality derivation the read surface uses, resolves every fact the rule declares through the port, derives the target number, rolls, applies effects, and returns a Ruling. The Ruling carries status, the test performed, the raw dice and seed, the target number and its derivation, applied effects, every resolved fact with its provenance, the recorded alternatives with their verification verdict, citations, and narration bounds. Nothing escapes before its ledger entry is durable. A declared fact with no value and no default of any kind returns blocked naming every unresolved fact, not the first.
+- **Test scenarios:**
+  - A legal declaration produces a Ruling whose recorded target derivation reconstructs the target number.
+  - A declaration naming a test the situation cannot support is rejected with a reason and a citation, and no outcome is produced.
+  - A rule consuming a fact the port does not hold applies the SRD-prescribed default and the Ruling records both that it defaulted and which kind of default applied. Covers AE3.
+  - A rule consuming a fact the port does hold cites the governing rule and the fact with its provenance, and the resolved value moves the target number. Covers AE4 — through an invented fixture rule and fact type, since the SRD's social-interaction rule and attitude fact are not in this milestone.
+  - Two unresolvable facts produce one blocked status naming both.
+  - The Ruling's narration bounds withhold a claim the ruling did not resolve. Covers AE2.
+  - A crash simulated after the roll but before the return leaves no unrecorded outcome, and a crash after the return leaves a durable record.
+  - An alternatives claim that does not match the token's digest is recorded unverified and the adjudication still proceeds.
+
+### U10. Trigger catalogue, matcher, projection
+
+- **Goal:** The challenge mechanism — declarative rows, a fixed matcher, and a projection that structurally cannot see the declaration's free-text label.
+- **Requirements:** R6
+- **Dependencies:** U7, U9
+- **Files:** `src/srd_rules_engine/core/triggers.py`, `tests/test_trigger_matcher.py`
+- **Approach:** A trigger is a data row carrying an identifier, grounding, a reference or rationale, match conditions over a closed operator set, a challenge message, and the catalogue version it first appeared in. Rows are conjunctions; an alternative is a separate row. The matcher receives a projection carrying structured intent and situational state and nothing else — the label is not in scope, so the prohibition holds by construction. Every matching row is reported in identifier order, and the catalogue version in force is recorded on the declaration's ledger entry.
+- **Execution note:** Assert the projection's shape directly rather than asserting that the matcher happens not to use the label — the guarantee is about what the matcher can see, not what it currently does.
+- **Test scenarios:**
+  - The projection handed to the matcher contains no free-text label field at all.
+  - A no-test claim colliding with a fixture trigger returns challenged, naming the row and its grounding, and produces no outcome. Covers AE1.
+  - Two rows matching the same declaration are both reported, in identifier order.
+  - A row whose conditions are all satisfied fires; a row with one condition unsatisfied does not.
+  - An improvised intent is matched on situational state alone and still fires a state-only row.
+  - The catalogue version recorded on the declaration entry is the version in force at adjudication.
+- **Verification:** Add a label field to the projection and confirm the shape assertion goes red; restore.
+
+### U11. Turn loop, retry bounds, blocked loop, drivers
+
+- **Goal:** The loop that owns the turn, yields typed requests, bounds retries, and ships two non-LLM drivers so the slice is playable with no model and no network.
+- **Requirements:** R8, R29
+- **Dependencies:** U9, U10
+- **Files:** `src/srd_rules_engine/loop/turn.py`, `src/srd_rules_engine/loop/drivers.py`, `tests/test_turn_loop.py`, `tests/test_drivers.py`
+- **Approach:** The loop is a generator yielding a declaration request, a narration request, or a blocked-fact request, to which the driver returns a typed response. One budget per declaration slot covers challenges and rejections together, defaulting to three refusals and configurable to unbounded. Two structurally identical refusals terminate immediately — identity is the trigger identifier set or the reason code and citation, never message text. Exhaustion ends the slot with a terminal outcome carrying the reason, the refusal history, and the offered alternatives. A block is a suspension: supplying the facts resumes the same declaration, the agent does not re-declare, and the budget is not charged. The loop refuses the next declaration for an actor until the previous Ruling's narration is submitted.
+- **Test scenarios:**
+  - A challenge answered with a legal test produces a Ruling and never touches the budget.
+  - Three differing refusals exhaust the slot with the churn reason matching what actually differed.
+  - Two structurally identical refusals terminate at once, before the budget is spent, with the no-progress reason.
+  - Two refusals with different message text but the same trigger identifier set count as identical.
+  - An unbounded configuration does not terminate on count, and still terminates on no progress.
+  - A blocked round that shrinks the unresolved set continues; a round that does not ends the turn as fact-unavailable.
+  - A resumed block re-adjudicates the original declaration rather than requesting a new one.
+  - The loop refuses a second declaration for an actor whose previous Ruling has no narration, and a turn advanced without one carries the missing-narration marker.
+  - The scripted driver runs a full turn with no model; the human-CLI driver does the same with scripted input.
+
+### U12. Combat: initiative, attack, damage, hit points
+
+- **Goal:** Enough of the combat requirement to run one fight — turn order, attacks against an armour value, damage, hit points, and dropping to 0.
+- **Requirements:** R12, R9
+- **Dependencies:** U5, U9
+- **Files:** `src/srd_rules_engine/core/combat.py`, `tests/test_combat.py`
+- **Approach:** Initiative orders combatants and the order is state the read surface reports over, so it participates in the generation counter. An attack is the d20 test primitive with the target's armour value as the target number. Damage reduces hit points; reaching 0 is a state transition the read surface reflects. Reactions, opportunity attacks, and the full action economy are named as the next milestone and are not built here.
+- **Test scenarios:**
+  - Initiative produces a deterministic order from a recorded seed.
+  - An attack meeting the armour value hits; one below it misses; both produce a Ruling.
+  - Damage reduces hit points, and the read surface reports the reduced value at the next generation.
+  - A combatant reduced to 0 hit points is reported as such, and the read surface stops offering it actions.
+  - Advancing the turn moves to the next combatant in initiative order and increments the generation.
+  - Applying damage twice from the same Ruling is refused, so an effect cannot be applied more than once.
+
+### U13. Replay and the session-review report
+
+- **Goal:** Replay a ruling entry to an identical outcome, and generate the report the primary success criterion is measured from.
+- **Requirements:** R28, R30
+- **Dependencies:** U4, U9, U11
+- **Files:** `src/srd_rules_engine/core/report.py`, `tests/test_replay_and_report.py`
+- **Approach:** Replay reproduces an outcome from the entry's recorded seed, inputs, and resolved fact values, without re-querying the port, and within a matching engine version. A differing engine version yields a reconciliation result naming both versions and both outcomes, never an integrity verdict. The report verifies sequence and chain integrity first, then lists per turn the declaration, the alternatives offered, the Ruling, and the narration — flagging a narration with no Ruling, a Ruling with no narration, a challenge never re-adjudicated, any alternatives verdict other than verified-fresh, and any turn ending in exhaustion or fact-unavailable. Slots that ended without a Ruling are excluded from the Ruling-with-no-narration check.
+- **Test scenarios:**
+  - A ruling entry replays to an identical outcome. Covers AE5.
+  - Replay does not query the memory port, proven with a port that raises on any call.
+  - An entry whose governing engine version differs yields a reconciliation result, not a corruption verdict.
+  - A ledger with a broken chain is reported as corrupted rather than silently summarised.
+  - A turn with a narration and no Ruling is flagged; a turn that ended in exhaustion is flagged with its reason and is not also flagged as a missing narration.
+  - The report names the engine version and the catalogue version the session ran under.
+
+### U14. The fixture encounter and the slice proof
+
+- **Goal:** One character, one encounter, end to end — the milestone's demonstration, and the acceptance examples the slice can reach.
+- **Requirements:** R1, R6, R7, R8, R26, R28, R29, R30
+- **Dependencies:** U11, U12, U13
+- **Files:** `tests/fixtures/ruleset.py`, `tests/fixtures/encounter.py`, `tests/test_vertical_slice.py`
+- **Approach:** An invented ruleset — invented ability values, an invented armour value, an invented damage die, an invented creature, and a small trigger catalogue — carrying fixture provenance so KTD2's loader gate admits it only here. A scripted driver runs a full encounter from initiative to a combatant reaching 0, and the session-review report over the resulting ledger is the assertion.
+- **Execution note:** The end-to-end assertion is the report, not a sequence of intermediate states. A slice that passes because each step was checked in isolation has not demonstrated the property the milestone exists to demonstrate.
+- **Patterns to follow:** the fixture ruleset never states an SRD value; where a real ruleset would cite a section, the fixture records that it is invented.
+- **Test scenarios:**
+  - A full encounter runs from initiative to a combatant at 0 hit points with no model and no network.
+  - The report over the finished encounter shows no asserted outcome that did not originate in a Ruling.
+  - A no-test claim mid-encounter is challenged and the resubmission is adjudicated, and both appear in the report. Covers AE1.
+  - Every Ruling in the encounter replays to an identical outcome. Covers AE5.
+  - The same seed reruns the entire encounter to an identical ledger, chain digests included.
+  - The fixture ruleset is refused when loaded as a shipped ruleset.
+  - An encounter run with a narration deliberately withheld is reported as a Ruling with no narration.
+  - An encounter run with a challenge deliberately left un-resubmitted is reported as a challenge never re-adjudicated.
+  - An encounter run with a stale read token is reported with an alternatives verdict other than verified-fresh.
+
+---
+
+## Verification Contract
+
+Every unit is verified by the repository's full gate. Running a subset locally and discovering the skipped check in CI has already happened here, so all four commands run before every PR opens.
+
+| Gate | Command | Applies to |
+|---|---|---|
+| Tests | `pytest` | Every unit |
+| Lint | `ruff check .` | Every unit |
+| Format | `ruff format --check .` | Every unit, including fenced Python in Markdown |
+| Types | `mypy` | Every unit — strict, over `src` and `tests` |
+
+CI runs exactly that gate on every pull request across Python 3.11, 3.12, and 3.13, and `main` is protected behind it.
+
+Two proof obligations sit on top of the gate and are not satisfied by a green suite:
+
+- **Every new guard is proven red.** Corrupt the input the guard exists to reject, confirm it fails, restore. The guards this milestone introduces are the layer-import guard (U1), the float rejection (U2), the loader's three refusals (U7), and the matcher projection's absent label (U10). A guard that has never been seen red may be inspecting nothing.
+- **Every new test is proven to fail against the pre-change tree.** Export the base commit to a scratch directory, copy the new tests over it, and run them. Anything still passing covers nothing. Deliberate no-change guards are the exception.
+
+The milestone's own proof is U14's session-review report over a completed fixture encounter, showing no asserted outcome that did not originate in a Ruling.
+
+---
+
+## Definition of Done
+
+**Per unit**
+
+- The unit's test scenarios are implemented and passing, and its guard tests have been proven red and restored.
+- The four-command gate is green locally and in CI across all three Python versions.
+- Code implementing a numbered requirement names it in the docstring or the PR body, so coverage stays countable.
+- The PR closes any issue it resolves with a closing keyword, and any deferral discovered during the unit is filed as an issue before the PR merges.
+- No abandoned experimental code remains in the diff.
+
+**Milestone**
+
+- A scripted driver runs one character through one encounter end to end, with no model and no network in the loop.
+- The session-review report over that encounter accounts for every turn: each declaration with its Ruling or its terminal outcome, and each Ruling with its narration, leaving nothing unaccounted.
+- The report **detects each defect condition when one is deliberately injected** — a narration with no Ruling, a Ruling with no narration, a challenge never re-adjudicated, an alternatives verdict other than verified-fresh, and a slot ending in exhaustion or fact-unavailable. Detection is what a scripted driver can prove; see the note below on what it cannot.
+- The encounter replays from its seed to an identical ledger, chain digests included.
+- The fixture ruleset is refused by a shipped ruleset load, and no SRD value appears anywhere in the milestone's code or fixtures.
+- The layer-import guard, the float rejection, the loader's provenance gate, and the matcher's label-free projection are all present and have each been observed red.
+- `CHANGELOG.md` records what shipped, and the build stamp and README's current-build line are bumped together and say what actually shipped.
+- All five acceptance examples are covered by named tests: the silent-skip refusal, the unrolled-consequence bound, the absent-fact disclosure, the fact that moves a target number visibly, and deterministic replay. The last two are reached through invented fixture fact types rather than the SRD's attitude and social-interaction rules — the mechanism under test is that a resolved fact moves the target number and is cited with its provenance, which is indifferent to which rule consumes it.
+
+**Explicitly not cleared by this milestone.** The contract's primary success criterion is that *a solo session run with a live DM agent* produces no asserted outcome that did not originate in a Ruling. M1 cannot clear it: a scripted driver asserts only what it is told to, so it cannot produce an unprompted silent skip, and the slice therefore proves the report's **detection**, not an agent's **inability to evade it**. That validation needs a live agent and is filed as #42. Reading M1's green suite as having met the contract's bar would be the one misreading this plan most invites.
+
+**Explicitly not required for this milestone:** conditions, movement in feet, spellcasting, weapon and spell range, the effect-shape inventory, MCP and HTTP adapters, and any SRD-derived rule content.
