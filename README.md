@@ -115,16 +115,20 @@ one, and the plan is amended to match:
 - [0004 — the trigger catalogue](docs/decisions/0004-trigger-catalogue.md) — the catalogue is data,
   and over-firing is a fidelity defect
   (closed [#7](https://github.com/eddiefiggie/srd-rules-engine/issues/7))
+- [0005 — retry bounds](docs/decisions/0005-retry-bounds.md) — bounds belong to the turn loop, and
+  exhaustion is a terminal outcome rather than a rules status
+  (closed [#11](https://github.com/eddiefiggie/srd-rules-engine/issues/11))
 
-**Next up:** [#11](https://github.com/eddiefiggie/srd-rules-engine/issues/11), retry bounds for
-challenged and rejected declarations — promoted by
-[#7](https://github.com/eddiefiggie/srd-rules-engine/issues/7), which handed it a concrete case:
-an over-firing trigger can produce a challenge the agent cannot satisfy, so retry bounds are what
-stops a challenge loop. Then [#8](https://github.com/eddiefiggie/srd-rules-engine/issues/8),
+**Next up:** [#10](https://github.com/eddiefiggie/srd-rules-engine/issues/10), the ledger storage
+format — it has now collected constraints from three settled records
+([0002](docs/decisions/0002-ledger-durability.md),
+[0004](docs/decisions/0004-trigger-catalogue.md),
+[0005](docs/decisions/0005-retry-bounds.md)) and is the last gate shaping a format other things
+read. Then [#8](https://github.com/eddiefiggie/srd-rules-engine/issues/8),
 [#9](https://github.com/eddiefiggie/srd-rules-engine/issues/9),
-[#10](https://github.com/eddiefiggie/srd-rules-engine/issues/10),
-[#12](https://github.com/eddiefiggie/srd-rules-engine/issues/12), and
-[#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13).
+[#12](https://github.com/eddiefiggie/srd-rules-engine/issues/12),
+[#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13), and
+[#33](https://github.com/eddiefiggie/srd-rules-engine/issues/33).
 [#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3) still gates all SRD-derived data,
 and #6 made its target precise: the wording must come from **SRD v5.2.1** specifically. Then
 `/ce-plan` to turn the requirements artifact into an implementation plan.
