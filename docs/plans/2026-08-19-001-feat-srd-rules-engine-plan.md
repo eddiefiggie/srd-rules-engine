@@ -155,7 +155,7 @@ flowchart TB
 
 **Data provenance**
 
-- R31. Every mechanic is verified against the official SRD 5.2.1 before it is trusted, and records the section it was verified against, the verification date, and its state.
+- R31. Every **SRD-derived** mechanic is verified against the official SRD 5.2.1 before it is trusted, and records the section it was verified against, the verification date, and its state. Fixture definitions are not SRD-derived and have nothing to verify against; they are admitted only by a separate entry point that refuses SRD-provenance entries outright, never ship, and are guarded against appearing under `src/`. Specified in `docs/decisions/0012-fixture-provenance.md` (#41).
 - R32. Entries that fail verification are excluded from the engine, and the exclusion is disclosed rather than silently dropped.
 
 **Packaging and open source**
@@ -315,7 +315,7 @@ The slice runs on a fixture ruleset of invented mechanics. Nothing in M1 states 
 
 - KTD1. M1 runs on invented fixture rules, never SRD content. The slice becomes provable today rather than waiting on an errand, and it proves something the real rules cannot — that the engine is not SRD-coupled, because it adjudicates a ruleset the SRD never described. (session-settled: user-approved — chosen over landing real SRD rules as `unverified` and over resolving the attribution errand first: the first makes the milestone's completion depend on work outside the plan, the second spends all momentum on an errand while ~90% of M1 is machinery the errand does not gate.)
 
-- KTD2. A rule entry carries a provenance discriminator, and the loader gate reads it. `provenance: srd` entries must be `verified` against SRD v5.2.1 before they load, per the seed decision. `provenance: fixture` entries load only when the caller asks for a fixture ruleset by name, and a shipped ruleset containing one is a build failure. Without the discriminator the two rules collide: a gate that admits only `verified` entries would reject every fixture, and a gate loosened to admit fixtures would silently admit unverified SRD entries — which is the exact failure the seed decision exists to prevent.
+- KTD2. A rule entry carries a provenance discriminator, and **provenance selects the entry point rather than a branch inside one**. `load_ruleset` admits `provenance: srd` entries that are `verified` and refuses any fixture outright; `load_fixture_ruleset` admits fixtures and refuses any SRD entry outright. They share parsing, shape validation, and R21's core-fact-type check, so the slice exercises the real machinery. There is no mode flag, so widening one cannot widen the other — which matters because a single loader with a strict arm and a lenient arm *reads* as an inconsistency, and the natural repair is to loosen it, admitting unverified SRD entries and reproducing the exact failure the seed decision exists to prevent. Specified in `docs/decisions/0012-fixture-provenance.md` (#41).
 
 - KTD3. The fixture ruleset is test scaffolding and is not shipped in the installed package. Invented mechanics inside a distribution about SRD fidelity is a bad trade even when clearly labelled, and the guard in KTD2 is what makes the exclusion checkable rather than remembered. (session-settled: user-approved.)
 
@@ -333,7 +333,7 @@ The slice runs on a fixture ruleset of invented mechanics. Nothing in M1 states 
 
 ### Open questions carried into implementation
 
-- OQ1. Does the fixture provenance path of KTD2 need its own decision record before U7 lands? The seed decision states that only verified entries reach the engine. A fixture entry is not SRD-derived, so it has nothing to verify against and the verification vocabulary arguably does not apply to it — the same reasoning the extension-channel decision used for authored trigger rows. That reading is defensible and it is still a reading of a merged record, made in a plan rather than in a record. **Deferred, not blocking:** it does not affect U1 through U6, and it resolves before U7 opens, either by confirming the reading in a short record or by narrowing KTD2. Filed as #41.
+- ~~OQ1. Does the fixture provenance path of KTD2 need its own decision record before U7 lands?~~ **Settled** — see `docs/decisions/0012-fixture-provenance.md` (#41). Provenance selects the entry point rather than a branch, so 0003 is scoped rather than relaxed and there is no gate to loosen.
 
 ### Risks & Dependencies
 
