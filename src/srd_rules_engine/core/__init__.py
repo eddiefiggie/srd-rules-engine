@@ -47,6 +47,13 @@ from srd_rules_engine.core.d20 import (
     Modifier,
     TestKind,
 )
+from srd_rules_engine.core.inventory import (
+    ENGINE_SHAPES,
+    Inventory,
+    Shape,
+    coverage_report,
+    load_inventory,
+)
 from srd_rules_engine.core.ledger import Ledger, LedgerUnavailable
 from srd_rules_engine.core.ledger_reader import (
     READER_VERSION,
@@ -126,6 +133,7 @@ __all__ = [
     "DAMAGE_OFFSET",
     "DIE_SIDES",
     "END_TURN",
+    "ENGINE_SHAPES",
     "FACT_WRITE",
     "MAX_SAFE_INTEGER",
     "READER_VERSION",
@@ -150,6 +158,7 @@ __all__ = [
     "Flag",
     "Grounding",
     "Intent",
+    "Inventory",
     "Ledger",
     "LedgerBackedPort",
     "LedgerReport",
@@ -175,6 +184,7 @@ __all__ = [
     "Ruleset",
     "Ruling",
     "SessionReport",
+    "Shape",
     "Status",
     "TestKind",
     "Trigger",
@@ -191,6 +201,7 @@ __all__ = [
     "attack_target",
     "canonicalize",
     "check_storable",
+    "coverage_report",
     "digest",
     "fact_from_payload",
     "fact_write_payload",
@@ -199,6 +210,7 @@ __all__ = [
     "issue_token",
     "legal_actions",
     "load_fixture_ruleset",
+    "load_inventory",
     "load_ruleset",
     "read",
     "read_ledger",

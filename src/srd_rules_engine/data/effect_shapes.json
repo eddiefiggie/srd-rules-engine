@@ -1,0 +1,1236 @@
+{
+ "schema_version": 1,
+ "compat": 1,
+ "source": {
+  "document": "System Reference Document 5.2.1",
+  "revision": "5.2.1",
+  "published": "2025-05-01",
+  "section": "Rules Glossary (pp. 176-191)"
+ },
+ "coverage_scope": "Rules Glossary only. The sweeps of Spell Descriptions, Monsters, and Magic Items are tracked separately; until they land this inventory understates what full coverage requires.",
+ "shapes": [
+  {
+   "id": "ability-check",
+   "name": "Ability Check",
+   "tag": null,
+   "reference": "Rules Glossary, p. 176",
+   "kind": "test",
+   "implemented": true
+  },
+  {
+   "id": "ability-score-and-modifier",
+   "name": "Ability Score and Modifier",
+   "tag": null,
+   "reference": "Rules Glossary, p. 176",
+   "kind": "state",
+   "implemented": true
+  },
+  {
+   "id": "action",
+   "name": "Action",
+   "tag": null,
+   "reference": "Rules Glossary, p. 176",
+   "kind": "action",
+   "implemented": true
+  },
+  {
+   "id": "advantage",
+   "name": "Advantage",
+   "tag": null,
+   "reference": "Rules Glossary, p. 176",
+   "kind": "test-modifier",
+   "implemented": true
+  },
+  {
+   "id": "area-of-effect",
+   "name": "Area of Effect",
+   "tag": null,
+   "reference": "Rules Glossary, p. 177",
+   "kind": "targeting",
+   "implemented": false
+  },
+  {
+   "id": "armor-class",
+   "name": "Armor Class",
+   "tag": null,
+   "reference": "Rules Glossary, p. 177",
+   "kind": "state",
+   "implemented": true
+  },
+  {
+   "id": "armor-training",
+   "name": "Armor Training",
+   "tag": null,
+   "reference": "Rules Glossary, p. 177",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "attack",
+   "name": "Attack",
+   "tag": "Action",
+   "reference": "Rules Glossary, p. 177",
+   "kind": "action",
+   "implemented": true
+  },
+  {
+   "id": "attack-roll",
+   "name": "Attack Roll",
+   "tag": null,
+   "reference": "Rules Glossary, p. 177",
+   "kind": "test",
+   "implemented": true
+  },
+  {
+   "id": "attitude",
+   "name": "Attitude",
+   "tag": null,
+   "reference": "Rules Glossary, p. 177",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "attunement",
+   "name": "Attunement",
+   "tag": null,
+   "reference": "Rules Glossary, p. 177",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "blinded",
+   "name": "Blinded",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 177",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "blindsight",
+   "name": "Blindsight",
+   "tag": null,
+   "reference": "Rules Glossary, p. 177",
+   "kind": "sense",
+   "implemented": false
+  },
+  {
+   "id": "bloodied",
+   "name": "Bloodied",
+   "tag": null,
+   "reference": "Rules Glossary, p. 177",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "bonus-action",
+   "name": "Bonus Action",
+   "tag": null,
+   "reference": "Rules Glossary, p. 177",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "breaking-objects",
+   "name": "Breaking Objects",
+   "tag": null,
+   "reference": "Rules Glossary, p. 177",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "bright-light",
+   "name": "Bright Light",
+   "tag": null,
+   "reference": "Rules Glossary, p. 178",
+   "kind": "environment",
+   "implemented": false
+  },
+  {
+   "id": "burning",
+   "name": "Burning",
+   "tag": "Hazard",
+   "reference": "Rules Glossary, p. 178",
+   "kind": "hazard",
+   "implemented": false
+  },
+  {
+   "id": "burrow-speed",
+   "name": "Burrow Speed",
+   "tag": null,
+   "reference": "Rules Glossary, p. 178",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "cantrip",
+   "name": "Cantrip",
+   "tag": null,
+   "reference": "Rules Glossary, p. 178",
+   "kind": "spellcasting",
+   "implemented": false
+  },
+  {
+   "id": "carrying-capacity",
+   "name": "Carrying Capacity",
+   "tag": null,
+   "reference": "Rules Glossary, p. 178",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "charmed",
+   "name": "Charmed",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 178",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "climbing",
+   "name": "Climbing",
+   "tag": null,
+   "reference": "Rules Glossary, p. 178",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "climb-speed",
+   "name": "Climb Speed",
+   "tag": null,
+   "reference": "Rules Glossary, p. 179",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "concentration",
+   "name": "Concentration",
+   "tag": null,
+   "reference": "Rules Glossary, p. 179",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "condition",
+   "name": "Condition",
+   "tag": null,
+   "reference": "Rules Glossary, p. 179",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "cone",
+   "name": "Cone",
+   "tag": "Area of Effect",
+   "reference": "Rules Glossary, p. 179",
+   "kind": "targeting",
+   "implemented": false
+  },
+  {
+   "id": "cover",
+   "name": "Cover",
+   "tag": null,
+   "reference": "Rules Glossary, p. 179",
+   "kind": "targeting",
+   "implemented": false
+  },
+  {
+   "id": "crawling",
+   "name": "Crawling",
+   "tag": null,
+   "reference": "Rules Glossary, p. 179",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "creature-type",
+   "name": "Creature Type",
+   "tag": null,
+   "reference": "Rules Glossary, p. 179",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "critical-hit",
+   "name": "Critical Hit",
+   "tag": null,
+   "reference": "Rules Glossary, p. 179",
+   "kind": "test",
+   "implemented": false
+  },
+  {
+   "id": "cube",
+   "name": "Cube",
+   "tag": "Area of Effect",
+   "reference": "Rules Glossary, p. 179",
+   "kind": "targeting",
+   "implemented": false
+  },
+  {
+   "id": "curses",
+   "name": "Curses",
+   "tag": null,
+   "reference": "Rules Glossary, p. 179",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "cylinder",
+   "name": "Cylinder",
+   "tag": "Area of Effect",
+   "reference": "Rules Glossary, p. 180",
+   "kind": "targeting",
+   "implemented": false
+  },
+  {
+   "id": "d20-test",
+   "name": "D20 Test",
+   "tag": null,
+   "reference": "Rules Glossary, p. 180",
+   "kind": "test",
+   "implemented": true
+  },
+  {
+   "id": "damage",
+   "name": "Damage",
+   "tag": null,
+   "reference": "Rules Glossary, p. 180",
+   "kind": "effect",
+   "implemented": true
+  },
+  {
+   "id": "damage-roll",
+   "name": "Damage Roll",
+   "tag": null,
+   "reference": "Rules Glossary, p. 180",
+   "kind": "test",
+   "implemented": true
+  },
+  {
+   "id": "damage-threshold",
+   "name": "Damage Threshold",
+   "tag": null,
+   "reference": "Rules Glossary, p. 180",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "damage-types",
+   "name": "Damage Types",
+   "tag": null,
+   "reference": "Rules Glossary, p. 180",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "darkness",
+   "name": "Darkness",
+   "tag": null,
+   "reference": "Rules Glossary, p. 180",
+   "kind": "environment",
+   "implemented": false
+  },
+  {
+   "id": "darkvision",
+   "name": "Darkvision",
+   "tag": null,
+   "reference": "Rules Glossary, p. 180",
+   "kind": "sense",
+   "implemented": false
+  },
+  {
+   "id": "dash",
+   "name": "Dash",
+   "tag": "Action",
+   "reference": "Rules Glossary, p. 180",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "dead",
+   "name": "Dead",
+   "tag": null,
+   "reference": "Rules Glossary, p. 180",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "deafened",
+   "name": "Deafened",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 181",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "death-saving-throw",
+   "name": "Death Saving Throw",
+   "tag": null,
+   "reference": "Rules Glossary, p. 181",
+   "kind": "test",
+   "implemented": false
+  },
+  {
+   "id": "dehydration",
+   "name": "Dehydration",
+   "tag": "Hazard",
+   "reference": "Rules Glossary, p. 181",
+   "kind": "hazard",
+   "implemented": false
+  },
+  {
+   "id": "difficult-terrain",
+   "name": "Difficult Terrain",
+   "tag": null,
+   "reference": "Rules Glossary, p. 181",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "difficulty-class",
+   "name": "Difficulty Class",
+   "tag": null,
+   "reference": "Rules Glossary, p. 181",
+   "kind": "test",
+   "implemented": true
+  },
+  {
+   "id": "dim-light",
+   "name": "Dim Light",
+   "tag": null,
+   "reference": "Rules Glossary, p. 181",
+   "kind": "environment",
+   "implemented": false
+  },
+  {
+   "id": "disadvantage",
+   "name": "Disadvantage",
+   "tag": null,
+   "reference": "Rules Glossary, p. 181",
+   "kind": "test-modifier",
+   "implemented": true
+  },
+  {
+   "id": "disengage",
+   "name": "Disengage",
+   "tag": "Action",
+   "reference": "Rules Glossary, p. 181",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "dodge",
+   "name": "Dodge",
+   "tag": "Action",
+   "reference": "Rules Glossary, p. 181",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "emanation",
+   "name": "Emanation",
+   "tag": "Area of Effect",
+   "reference": "Rules Glossary, p. 181",
+   "kind": "targeting",
+   "implemented": false
+  },
+  {
+   "id": "exhaustion",
+   "name": "Exhaustion",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 181",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "expertise",
+   "name": "Expertise",
+   "tag": null,
+   "reference": "Rules Glossary, p. 182",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "falling",
+   "name": "Falling",
+   "tag": "Hazard",
+   "reference": "Rules Glossary, p. 182",
+   "kind": "hazard",
+   "implemented": false
+  },
+  {
+   "id": "flying",
+   "name": "Flying",
+   "tag": null,
+   "reference": "Rules Glossary, p. 182",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "fly-speed",
+   "name": "Fly Speed",
+   "tag": null,
+   "reference": "Rules Glossary, p. 182",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "friendly",
+   "name": "Friendly",
+   "tag": "Attitude",
+   "reference": "Rules Glossary, p. 182",
+   "kind": "attitude",
+   "implemented": false
+  },
+  {
+   "id": "frightened",
+   "name": "Frightened",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 182",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "grappled",
+   "name": "Grappled",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 182",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "grappling",
+   "name": "Grappling",
+   "tag": null,
+   "reference": "Rules Glossary, p. 182",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "hazard",
+   "name": "Hazard",
+   "tag": null,
+   "reference": "Rules Glossary, p. 182",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "healing",
+   "name": "Healing",
+   "tag": null,
+   "reference": "Rules Glossary, p. 182",
+   "kind": "effect",
+   "implemented": true
+  },
+  {
+   "id": "heavily-obscured",
+   "name": "Heavily Obscured",
+   "tag": null,
+   "reference": "Rules Glossary, p. 182",
+   "kind": "environment",
+   "implemented": false
+  },
+  {
+   "id": "help",
+   "name": "Help",
+   "tag": "Action",
+   "reference": "Rules Glossary, p. 182",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "heroic-inspiration",
+   "name": "Heroic Inspiration",
+   "tag": null,
+   "reference": "Rules Glossary, p. 183",
+   "kind": "resource",
+   "implemented": false
+  },
+  {
+   "id": "hide",
+   "name": "Hide",
+   "tag": "Action",
+   "reference": "Rules Glossary, p. 183",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "high-jump",
+   "name": "High Jump",
+   "tag": null,
+   "reference": "Rules Glossary, p. 183",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "hit-point-dice",
+   "name": "Hit Point Dice",
+   "tag": null,
+   "reference": "Rules Glossary, p. 183",
+   "kind": "resource",
+   "implemented": false
+  },
+  {
+   "id": "hit-points",
+   "name": "Hit Points",
+   "tag": null,
+   "reference": "Rules Glossary, p. 183",
+   "kind": "state",
+   "implemented": true
+  },
+  {
+   "id": "hostile",
+   "name": "Hostile",
+   "tag": "Attitude",
+   "reference": "Rules Glossary, p. 183",
+   "kind": "attitude",
+   "implemented": false
+  },
+  {
+   "id": "hover",
+   "name": "Hover",
+   "tag": null,
+   "reference": "Rules Glossary, p. 183",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "illusions",
+   "name": "Illusions",
+   "tag": null,
+   "reference": "Rules Glossary, p. 183",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "immunity",
+   "name": "Immunity",
+   "tag": null,
+   "reference": "Rules Glossary, p. 183",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "improvised-weapons",
+   "name": "Improvised Weapons",
+   "tag": null,
+   "reference": "Rules Glossary, p. 183",
+   "kind": "equipment",
+   "implemented": false
+  },
+  {
+   "id": "incapacitated",
+   "name": "Incapacitated",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 184",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "indifferent",
+   "name": "Indifferent",
+   "tag": "Attitude",
+   "reference": "Rules Glossary, p. 184",
+   "kind": "attitude",
+   "implemented": false
+  },
+  {
+   "id": "influence",
+   "name": "Influence",
+   "tag": "Action",
+   "reference": "Rules Glossary, p. 184",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "initiative",
+   "name": "Initiative",
+   "tag": null,
+   "reference": "Rules Glossary, p. 184",
+   "kind": "test",
+   "implemented": true
+  },
+  {
+   "id": "invisible",
+   "name": "Invisible",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 184",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "jumping",
+   "name": "Jumping",
+   "tag": null,
+   "reference": "Rules Glossary, p. 184",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "knocking-out-a-creature",
+   "name": "Knocking Out a Creature",
+   "tag": null,
+   "reference": "Rules Glossary, p. 184",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "lightly-obscured",
+   "name": "Lightly Obscured",
+   "tag": null,
+   "reference": "Rules Glossary, p. 184",
+   "kind": "environment",
+   "implemented": false
+  },
+  {
+   "id": "line",
+   "name": "Line",
+   "tag": "Area of Effect",
+   "reference": "Rules Glossary, p. 184",
+   "kind": "targeting",
+   "implemented": false
+  },
+  {
+   "id": "long-jump",
+   "name": "Long Jump",
+   "tag": null,
+   "reference": "Rules Glossary, p. 184",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "long-rest",
+   "name": "Long Rest",
+   "tag": null,
+   "reference": "Rules Glossary, p. 185",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "magic",
+   "name": "Magic",
+   "tag": "Action",
+   "reference": "Rules Glossary, p. 185",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "malnutrition",
+   "name": "Malnutrition",
+   "tag": "Hazard",
+   "reference": "Rules Glossary, p. 185",
+   "kind": "hazard",
+   "implemented": false
+  },
+  {
+   "id": "occupied-space",
+   "name": "Occupied Space",
+   "tag": null,
+   "reference": "Rules Glossary, p. 185",
+   "kind": "targeting",
+   "implemented": false
+  },
+  {
+   "id": "opportunity-attacks",
+   "name": "Opportunity Attacks",
+   "tag": null,
+   "reference": "Rules Glossary, p. 185",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "paralyzed",
+   "name": "Paralyzed",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 186",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "passive-perception",
+   "name": "Passive Perception",
+   "tag": null,
+   "reference": "Rules Glossary, p. 186",
+   "kind": "test",
+   "implemented": false
+  },
+  {
+   "id": "per-day",
+   "name": "Per Day",
+   "tag": null,
+   "reference": "Rules Glossary, p. 186",
+   "kind": "resource",
+   "implemented": false
+  },
+  {
+   "id": "petrified",
+   "name": "Petrified",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 186",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "poisoned",
+   "name": "Poisoned",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 186",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "possession",
+   "name": "Possession",
+   "tag": null,
+   "reference": "Rules Glossary, p. 186",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "proficiency",
+   "name": "Proficiency",
+   "tag": null,
+   "reference": "Rules Glossary, p. 186",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "prone",
+   "name": "Prone",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 186",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "reach",
+   "name": "Reach",
+   "tag": null,
+   "reference": "Rules Glossary, p. 186",
+   "kind": "targeting",
+   "implemented": false
+  },
+  {
+   "id": "reaction",
+   "name": "Reaction",
+   "tag": null,
+   "reference": "Rules Glossary, p. 186",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "ready",
+   "name": "Ready",
+   "tag": "Action",
+   "reference": "Rules Glossary, p. 186",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "resistance",
+   "name": "Resistance",
+   "tag": null,
+   "reference": "Rules Glossary, p. 187",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "restrained",
+   "name": "Restrained",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 187",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "ritual",
+   "name": "Ritual",
+   "tag": null,
+   "reference": "Rules Glossary, p. 187",
+   "kind": "spellcasting",
+   "implemented": false
+  },
+  {
+   "id": "save",
+   "name": "Save",
+   "tag": null,
+   "reference": "Rules Glossary, p. 187",
+   "kind": "test",
+   "implemented": true
+  },
+  {
+   "id": "saving-throw",
+   "name": "Saving Throw",
+   "tag": null,
+   "reference": "Rules Glossary, p. 187",
+   "kind": "test",
+   "implemented": true
+  },
+  {
+   "id": "search",
+   "name": "Search",
+   "tag": "Action",
+   "reference": "Rules Glossary, p. 187",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "shape-shifting",
+   "name": "Shape-Shifting",
+   "tag": null,
+   "reference": "Rules Glossary, p. 187",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "short-rest",
+   "name": "Short Rest",
+   "tag": null,
+   "reference": "Rules Glossary, p. 187",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "simultaneous-effects",
+   "name": "Simultaneous Effects",
+   "tag": null,
+   "reference": "Rules Glossary, p. 187",
+   "kind": "convention",
+   "implemented": false
+  },
+  {
+   "id": "size",
+   "name": "Size",
+   "tag": null,
+   "reference": "Rules Glossary, p. 188",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "skill",
+   "name": "Skill",
+   "tag": null,
+   "reference": "Rules Glossary, p. 188",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "speed",
+   "name": "Speed",
+   "tag": null,
+   "reference": "Rules Glossary, p. 188",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "spell-attack",
+   "name": "Spell Attack",
+   "tag": null,
+   "reference": "Rules Glossary, p. 188",
+   "kind": "test",
+   "implemented": false
+  },
+  {
+   "id": "spellcasting-focus",
+   "name": "Spellcasting Focus",
+   "tag": null,
+   "reference": "Rules Glossary, p. 188",
+   "kind": "equipment",
+   "implemented": false
+  },
+  {
+   "id": "sphere",
+   "name": "Sphere",
+   "tag": "Area of Effect",
+   "reference": "Rules Glossary, p. 188",
+   "kind": "targeting",
+   "implemented": false
+  },
+  {
+   "id": "stable",
+   "name": "Stable",
+   "tag": null,
+   "reference": "Rules Glossary, p. 188",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "study",
+   "name": "Study",
+   "tag": "Action",
+   "reference": "Rules Glossary, p. 189",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "stunned",
+   "name": "Stunned",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 189",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "suffocation",
+   "name": "Suffocation",
+   "tag": "Hazard",
+   "reference": "Rules Glossary, p. 189",
+   "kind": "hazard",
+   "implemented": false
+  },
+  {
+   "id": "surprise",
+   "name": "Surprise",
+   "tag": null,
+   "reference": "Rules Glossary, p. 189",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "swimming",
+   "name": "Swimming",
+   "tag": null,
+   "reference": "Rules Glossary, p. 189",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "swim-speed",
+   "name": "Swim Speed",
+   "tag": null,
+   "reference": "Rules Glossary, p. 189",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "target",
+   "name": "Target",
+   "tag": null,
+   "reference": "Rules Glossary, p. 190",
+   "kind": "targeting",
+   "implemented": false
+  },
+  {
+   "id": "telepathy",
+   "name": "Telepathy",
+   "tag": null,
+   "reference": "Rules Glossary, p. 190",
+   "kind": "sense",
+   "implemented": false
+  },
+  {
+   "id": "teleportation",
+   "name": "Teleportation",
+   "tag": null,
+   "reference": "Rules Glossary, p. 190",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "temporary-hit-points",
+   "name": "Temporary Hit Points",
+   "tag": null,
+   "reference": "Rules Glossary, p. 190",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "tremorsense",
+   "name": "Tremorsense",
+   "tag": null,
+   "reference": "Rules Glossary, p. 190",
+   "kind": "sense",
+   "implemented": false
+  },
+  {
+   "id": "truesight",
+   "name": "Truesight",
+   "tag": null,
+   "reference": "Rules Glossary, p. 190",
+   "kind": "sense",
+   "implemented": false
+  },
+  {
+   "id": "unarmed-strike",
+   "name": "Unarmed Strike",
+   "tag": null,
+   "reference": "Rules Glossary, p. 190",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "unconscious",
+   "name": "Unconscious",
+   "tag": "Condition",
+   "reference": "Rules Glossary, p. 191",
+   "kind": "condition",
+   "implemented": false
+  },
+  {
+   "id": "unoccupied-space",
+   "name": "Unoccupied Space",
+   "tag": null,
+   "reference": "Rules Glossary, p. 191",
+   "kind": "targeting",
+   "implemented": false
+  },
+  {
+   "id": "utilize",
+   "name": "Utilize",
+   "tag": "Action",
+   "reference": "Rules Glossary, p. 191",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "vulnerability",
+   "name": "Vulnerability",
+   "tag": null,
+   "reference": "Rules Glossary, p. 191",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "weapon-attack",
+   "name": "Weapon Attack",
+   "tag": null,
+   "reference": "Rules Glossary, p. 191",
+   "kind": "test",
+   "implemented": false
+  }
+ ],
+ "vocabulary": [
+  {
+   "id": "adventure",
+   "name": "Adventure",
+   "tag": null,
+   "reference": "Rules Glossary, p. 176",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "alignment",
+   "name": "Alignment",
+   "tag": null,
+   "reference": "Rules Glossary, p. 176",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "ally",
+   "name": "Ally",
+   "tag": null,
+   "reference": "Rules Glossary, p. 176",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "campaign",
+   "name": "Campaign",
+   "tag": null,
+   "reference": "Rules Glossary, p. 178",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "challenge-rating",
+   "name": "Challenge Rating",
+   "tag": null,
+   "reference": "Rules Glossary, p. 178",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "character-sheet",
+   "name": "Character Sheet",
+   "tag": null,
+   "reference": "Rules Glossary, p. 178",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "creature",
+   "name": "Creature",
+   "tag": null,
+   "reference": "Rules Glossary, p. 179",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "encounter",
+   "name": "Encounter",
+   "tag": null,
+   "reference": "Rules Glossary, p. 181",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "enemy",
+   "name": "Enemy",
+   "tag": null,
+   "reference": "Rules Glossary, p. 181",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "experience-points",
+   "name": "Experience Points",
+   "tag": null,
+   "reference": "Rules Glossary, p. 182",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "magical-effect",
+   "name": "Magical Effect",
+   "tag": null,
+   "reference": "Rules Glossary, p. 185",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "monster",
+   "name": "Monster",
+   "tag": null,
+   "reference": "Rules Glossary, p. 185",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "nonplayer-character",
+   "name": "Nonplayer Character",
+   "tag": null,
+   "reference": "Rules Glossary, p. 185",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "object",
+   "name": "Object",
+   "tag": null,
+   "reference": "Rules Glossary, p. 185",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "player-character",
+   "name": "Player Character",
+   "tag": null,
+   "reference": "Rules Glossary, p. 186",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "round-down",
+   "name": "Round Down",
+   "tag": null,
+   "reference": "Rules Glossary, p. 187",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "spell",
+   "name": "Spell",
+   "tag": null,
+   "reference": "Rules Glossary, p. 188",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "stat-block",
+   "name": "Stat Block",
+   "tag": null,
+   "reference": "Rules Glossary, p. 188",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "weapon",
+   "name": "Weapon",
+   "tag": null,
+   "reference": "Rules Glossary, p. 191",
+   "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  }
+ ]
+}

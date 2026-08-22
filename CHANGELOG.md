@@ -6,6 +6,36 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 — build `08222026.15`
+
+The effect-shape inventory (#14, R17) — partial: the Rules Glossary sweep.
+
+- **The measuring stick exists.** `src/srd_rules_engine/data/effect_shapes.json` publishes the
+  distinct effect shapes SRD v5.2.1 defines: 136 shapes, 17 of which the engine resolves, plus 19
+  glossary entries recorded as vocabulary. Until now "full SRD 5.2 coverage is the definition of
+  done" had no denominator.
+- **Enumeration is mechanical; classification is editorial, and the two are separated.** The 155
+  Rules Glossary headings are the only text set in GillSans-SemiBold at 12pt, so
+  `scripts/derive_effect_shapes.py` reads them off the document rather than recalling them.
+  Which of them is an effect shape rather than a defined term is a judgment call, and it lives in
+  one reviewable table in that script.
+- **No SRD prose is redistributed.** Entries carry a name, a page citation, and a classification.
+  An earlier draft embedded each glossary definition; that would have contradicted `NOTICE.md`'s
+  own statement that this project re-expresses mechanics rather than reproducing rules text.
+- **Entries sit at independently-failable granularity.** Each of the fifteen conditions is its own
+  shape, so an engine resolving Prone and nothing else reports 1/15 rather than reporting
+  conditions done. Coarse families would reintroduce the silent omission R17 names.
+- **The guard runs in both directions**, because each catches a different lie: an inventory
+  marking a shape implemented that `ENGINE_SHAPES` does not claim, and an engine resolving a
+  shape the inventory never lists. A one-directional test passes through the other.
+- **Six guards, each proven red — and the first proof was worthless.** The corruptions were
+  applied to a copied tree while the editable install kept resolving imports to the original, so
+  all five corruptions "passed". Exactly the failure the standing rule names: a guard that has
+  never been seen red may be inspecting nothing. Re-run against the real tree, all six go red.
+- **The sweep is partial and says so.** The inventory carries a `coverage_scope` field naming the
+  Rules Glossary as its only source; Spell Descriptions, Monsters, and Magic Items are not yet
+  swept, and a test fails if that field is emptied.
+
 ## Unreleased — 2026-08-22 (documentation)
 
 Documentation only; no build stamp change, because nothing a consumer runs was altered.

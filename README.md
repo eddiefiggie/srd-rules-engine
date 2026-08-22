@@ -7,15 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08222026.14` — **M1's vertical slice is complete.** One character and one
-invented creature fight from initiative to a combatant at 0 hit points, with no model and no
-network, and the session-review report over the resulting ledger is the assertion. Every Ruling
-replays identically, and the same seed reruns the whole encounter to a byte-identical ledger with
-matching chain digests. The report detects each defect condition when one is deliberately injected.
-Running the slice found a defect in shipped code that every unit test had missed: the production
-seed source drew 64 bits, and a seed that wide has no canonical form, so the engine could not record
-its own roll. `tests/test_build_stamp.py` fails CI when this
-line drifts from `src/srd_rules_engine/__init__.py`, so it cannot go stale silently.
+**Current build:** `08222026.15` — **the effect-shape inventory is published.** The 155 Rules Glossary entries of SRD v5.2.1 are read off the official document and published as `src/srd_rules_engine/data/effect_shapes.json`: 136 effect shapes, 17 of which this engine resolves, plus 19 entries recorded as vocabulary rather than dropped. Coverage is now falsifiable in both directions — `tests/test_effect_shape_inventory.py` fails when the inventory claims a shape the engine cannot resolve, and when the engine resolves one the inventory never lists. Each of its six guards was proven red before being trusted; the first attempt at that proof was itself inspecting nothing, because an editable install shadowed the corrupted copy. The sweep so far covers the Rules Glossary only, and the inventory says so in its own `coverage_scope` field.
 
 ---
 
@@ -107,6 +99,29 @@ carries the issue number beside each one.
 | **M0 — Design gates settled** | Every [`gate`](https://github.com/eddiefiggie/srd-rules-engine/issues?q=is%3Aissue+is%3Aopen+label%3Agate) question answered and folded back into the plan. Nothing is implemented until this closes, because each open gate would otherwise be settled by whoever writes the code first. |
 | **M1 — Playable vertical slice** | One character, one encounter, end to end. A development milestone, not a release. |
 | **v1.0 — Full SRD 5.2 coverage** | Every entry in the effect-shape inventory ([#14](https://github.com/eddiefiggie/srd-rules-engine/issues/14)) resolves. Partial coverage is an incomplete release, not a smaller one. |
+
+## Effect-shape coverage
+
+`src/srd_rules_engine/data/effect_shapes.json` is the measuring stick R17 requires: the
+distinct effect shapes SRD v5.2.1 defines, each marked implemented or not. Without it,
+"full SRD 5.2 coverage is the definition of done" is unfalsifiable — there is no way to
+tell a complete engine from one whose author stopped noticing gaps.
+
+**17 of 136 shapes resolve today.** The other 119 are listed, not omitted; run
+`python -c "from srd_rules_engine.core import coverage_report; print(coverage_report())"`
+to see exactly which. Entries sit at independently-failable granularity, so each of the
+fifteen conditions counts separately — an engine that resolves Prone and nothing else
+reports 1/15 rather than reporting conditions done.
+
+Enumeration is mechanical: `scripts/derive_effect_shapes.py` reads the Rules Glossary's
+155 entry headings straight off the official PDF, so nothing in the list is recalled from
+memory. Classification — which entries are effect shapes and which merely define a term —
+is editorial and lives in that script where it can be reviewed. Nineteen entries are
+recorded as vocabulary with a stated reason rather than dropped.
+
+**The inventory is currently swept from the Rules Glossary only**, and says so in its own
+`coverage_scope` field. Spell Descriptions, Monsters, and Magic Items are not yet swept,
+so this understates what full coverage requires.
 
 Settled design decisions live in [`docs/decisions/`](docs/decisions/). A gate closes by producing
 one, and the plan is amended to match:
