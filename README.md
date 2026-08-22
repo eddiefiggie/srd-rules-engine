@@ -109,12 +109,17 @@ one, and the plan is amended to match:
   rather than calling the agent (closed [#4](https://github.com/eddiefiggie/srd-rules-engine/issues/4))
 - [0002 — ledger durability](docs/decisions/0002-ledger-durability.md) — nothing escapes the engine
   before its record is durable (closed [#5](https://github.com/eddiefiggie/srd-rules-engine/issues/5))
+- [0003 — seed and verification](docs/decisions/0003-seed-and-verification.md) — no community
+  dataset seeds the mechanics, and the official SRD v5.2.1 is the only verification reference
+  (closed [#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6))
 
-**Next up:** [#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6), the seed dataset and
-its per-entry verification record — the last gate that shapes the public contract, and the one
-that gates all SRD-derived data behind
-[#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3). Then `/ce-plan` to turn the
-requirements artifact into an implementation plan.
+**Next up:** [#7](https://github.com/eddiefiggie/srd-rules-engine/issues/7), how the trigger
+catalogue is expressed and how it grows from observed misses. It is the challenge mechanism —
+the thing that turns a silent skip into a recorded exchange — so it shapes the core contract more
+than any remaining gate. [#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3) still
+gates all SRD-derived data, and [#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6)
+made its target precise: the wording must come from **SRD v5.2.1** specifically. Then `/ce-plan`
+to turn the requirements artifact into an implementation plan.
 
 M1's machinery issues are deliberately **not** filed yet: the adjudication core, ledger, and memory
 port would all be reshaped by the gates above, so filing them now would file the wrong work. The
@@ -166,4 +171,4 @@ against the published document before the first entry lands.
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-21 — build `08212026.1`._
+_Last updated: 2026-08-22 — build `08212026.2`._
