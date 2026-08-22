@@ -66,6 +66,7 @@ rejected options and the reason survive, not the exact headings.
 | [0009](0009-reference-memory-store.md) | The reference memory store is flat JSON, because it is a projection of the ledger | [#12](https://github.com/eddiefiggie/srd-rules-engine/issues/12) |
 | [0010](0010-blocked-loop.md) | A block is a suspension, and the loop bounds itself | [#33](https://github.com/eddiefiggie/srd-rules-engine/issues/33) |
 | [0011](0011-module-layout-and-versioning.md) | Layer boundaries are a guard test, and schemas carry a min-reader floor | [#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13) |
+| [0012](0012-fixture-provenance.md) | Provenance selects the entry point, not a branch inside one | [#41](https://github.com/eddiefiggie/srd-rules-engine/issues/41) |
 
 ## What belongs here, and what doesn't
 

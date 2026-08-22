@@ -138,6 +138,9 @@ one, and the plan is amended to match:
 - [0011 — layout and versioning](docs/decisions/0011-module-layout-and-versioning.md) — layer
   boundaries are a guard test, and schemas carry a min-reader floor
   (closed [#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13))
+- [0012 — fixture provenance](docs/decisions/0012-fixture-provenance.md) — provenance selects the
+  entry point, not a branch inside one
+  (closed [#41](https://github.com/eddiefiggie/srd-rules-engine/issues/41))
 
 **Next up:** [#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3) — the last thing
 holding M0 open, and the only one that is not a design question. It needs the official SRD v5.2.1
