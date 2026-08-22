@@ -6,6 +6,38 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 — build `08222026.8`
+
+U8 — the unified d20 test primitive.
+
+- **One primitive, three kinds.** A check, a saving throw, and an attack against the same target and
+  modifiers resolve identically; the kind changes only where the target number came from. R11 exists
+  because building them separately means building a third of the primitive and retrofitting the rest.
+- **Dice are derived from the seed by SHA-256, not by `random`.** R28's replay guarantee has to hold
+  across machines and Python versions, and `random`'s bit consumption is an implementation detail of
+  the standard library rather than a specification. Verified by reproducing a roll in a separate
+  process.
+- **The hashed material is fixed-width big-endian fields, not a formatted string.** A concatenated
+  encoding renders seed 1 die 11 and seed 11 die 1 identically, so those rolls would share a die
+  every time. Fixed widths make that unrepresentable rather than something a test has to keep
+  catching.
+- **Rejection sampling rather than a modulo**, since 2**32 is not a multiple of 20 and a plain
+  modulo would make four faces likelier than the other sixteen. A loaded die inside an engine built
+  for auditable outcomes is not a defect anyone finds by inspection, so the distribution is tested.
+- **A target number carries its derivation**, refused at construction if absent: R5 requires the
+  Ruling to show where the number came from, not merely what it was.
+- **The declared advantage state is recorded alongside the effective one**, so a cancelled roll does
+  not read as though neither state was ever present.
+- Eighteen mutations proven caught. Two needed new tests, and both were serious: **both dice deriving
+  from the same material** would have made advantage silently do nothing (every ordering assertion
+  still passes, because `max(d, d)` is `d`), and **folding the index into the seed** would have made
+  each roll's second die identical to the next seed's first.
+- **The advantage rules are not verified against SRD v5.2.1** and are filed as #52. They are
+  load-bearing on every roll, so the gap is disclosed rather than assumed away.
+- `pyproject.toml` empties `python_classes` so pytest's `Test*` heuristic stops trying to collect
+  `D20Test` and `TestKind`. The SRD calls the primitive a "D20 Test"; renaming domain types to suit a
+  collector would put the tail in charge of the vocabulary.
+
 ## Unreleased — 2026-08-22 — build `08222026.7`
 
 U7 — rule definitions, verification state, and the two loaders. Implements `0012`, settled as #41
