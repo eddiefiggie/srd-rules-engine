@@ -62,6 +62,8 @@ rejected options and the reason survive, not the exact headings.
 | [0005](0005-retry-bounds.md) | Retry bounds belong to the turn loop, and exhaustion is not a rules outcome | [#11](https://github.com/eddiefiggie/srd-rules-engine/issues/11) |
 | [0006](0006-ledger-format.md) | JSONL with a fixed envelope, and a reader API rather than a public file format | [#10](https://github.com/eddiefiggie/srd-rules-engine/issues/10) |
 | [0007](0007-alternatives-verification.md) | Read tokens make the alternatives claim checkable without touching R19 | [#8](https://github.com/eddiefiggie/srd-rules-engine/issues/8) |
+| [0008](0008-extension-channel.md) | Reverse-DNS extension namespaces that no engine rule may consume | [#9](https://github.com/eddiefiggie/srd-rules-engine/issues/9) |
+| [0009](0009-reference-memory-store.md) | The reference memory store is flat JSON, because it is a projection of the ledger | [#12](https://github.com/eddiefiggie/srd-rules-engine/issues/12) |
 
 ## What belongs here, and what doesn't
 

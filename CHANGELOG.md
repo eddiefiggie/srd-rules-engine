@@ -6,6 +6,45 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 (sixth)
+
+Design only; no build stamp change, because nothing a consumer runs was altered. Two sibling gates
+settled together.
+
+- **Gate #9 settled**: extension fact types are **reverse-DNS namespaces**
+  (`com.example.tool.mood`), the core set is **unnamespaced** so carrying a namespace is what makes
+  a type an extension, and **no engine rule may consume an extension fact** — a rule declaring one
+  is a load-time error. Extensions keep typing, provenance, and ledger integration; what they do
+  not get is a resolver, so they cannot move an outcome and R31 stays intact by construction.
+  Recorded in `docs/decisions/0008-extension-channel.md`; R21, R22, and R24 amended.
+- **One answer dissolved most of that gate.** The issue posed four open questions and listed rule
+  access third, phrased as a clarification. It was the hinge: under "never", R22's default
+  classification never fires for extensions and the engine can be version-agnostic about
+  namespaces because it interprets none. Working the questions in the order given would have meant
+  designing a default classification and a version-negotiation scheme that turn out not to be
+  needed.
+- **A registry was disqualified by the constraint that named the problem.** "Collision between two
+  independent consumers must be impossible without coordination" — and a registered short prefix
+  *is* coordination, wherever the registry lives.
+- **Gate #12 settled**: the reference memory store is **flat JSON, one file per campaign**, on a
+  substrate separate from the ledger so the port stays swappable. Recorded in
+  `docs/decisions/0009-reference-memory-store.md`; R23 and R25 amended.
+- **Deciding what the store *is* settled what it should be made of.** R25 already requires every
+  fact write to append to the ledger with provenance, so the ledger is the system of record and
+  the store holds current values only — a **projection**, rebuildable by replay. That removes both
+  of SQLite's advantages at once rather than weighing them: durability protects a system of
+  record, and indexed reads matter at a scale solo play does not reach.
+- **This reaches the opposite conclusion to `0006` on a similar-looking question**, for a reason
+  that does not transfer: 0006 rejected SQLite partly because append-only would be discipline over
+  a mutable B-tree, and the memory store is *mutable by nature*. It is rejected here on scale and
+  inspectability instead.
+- **"Sufficient to run a solo campaign" is now five testable properties**, of which the
+  load-bearing one is that the store rebuilds from the ledger to an identical state — the
+  executable form of the projection claim.
+- **`0006`'s no-float rule reaches through the port**: because a fact write appends to the ledger,
+  no fact value may be a binary float.
+- `CONCEPTS.md` gains **Extension fact type** and **Memory store projection**.
+
 ## Unreleased — 2026-08-22 (fifth)
 
 Design only; no build stamp change, because nothing a consumer runs was altered.

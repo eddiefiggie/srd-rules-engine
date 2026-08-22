@@ -131,6 +131,20 @@ a missed skip but the same one inverted: the agent must resubmit naming a test, 
 rolls for something the SRD never called for, and the resulting Ruling is well-formed and
 unearned. Carries `srd-fidelity`.
 
+**Extension fact type** (R24) — a consumer-defined fact type in a reverse-DNS namespace
+(`com.example.tool.mood`). The core set is *unnamespaced*, so carrying a namespace is what makes a
+type an extension — no lookup, no list to maintain. **No engine rule may consume one**: extensions
+get typing, provenance, and ledger integration, but no resolver, so they cannot move an outcome
+and R31 stays intact. Each namespace versions independently and the engine interprets none of
+them. Specified in `docs/decisions/0008-extension-channel.md`.
+
+**Memory store projection** (R23, R25) — the reference memory implementation holds *current values
+only*. Because every fact write appends to the ledger with provenance, the **ledger is the system
+of record** and the store rebuilds from it. That is why it is flat JSON rather than a database:
+durability and indexing are advantages a rebuildable projection at solo-campaign scale does not
+need, and a person can read their own campaign state. Specified in
+`docs/decisions/0009-reference-memory-store.md`.
+
 **Effect-shape inventory** (R17) — the published inventory of distinct SRD 5.2 effect shapes
 against which coverage is checked. Mechanical coverage is complete when every shape resolves;
 entries not yet implemented are disclosed rather than omitted silently.
