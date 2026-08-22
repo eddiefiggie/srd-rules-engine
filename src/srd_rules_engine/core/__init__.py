@@ -17,4 +17,6 @@ See `docs/decisions/0011-module-layout-and-versioning.md`.
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from srd_rules_engine.core.canonical import CanonicalizationError, canonicalize, digest
+
+__all__ = ["CanonicalizationError", "canonicalize", "digest"]
