@@ -28,18 +28,37 @@ from srd_rules_engine.core.ledger_reader import (
     repair_truncated_tail,
     summarize,
 )
+from srd_rules_engine.core.read_surface import (
+    LegalAction,
+    ReadResult,
+    Verdict,
+    issue_token,
+    legal_actions,
+    read,
+    verify,
+)
+from srd_rules_engine.core.state import Combatant, EncounterState
 
 __all__ = [
     "READER_VERSION",
     "CanonicalizationError",
+    "Combatant",
+    "EncounterState",
     "Entry",
     "Finding",
     "Ledger",
     "LedgerReport",
     "LedgerUnavailable",
+    "LegalAction",
+    "ReadResult",
+    "Verdict",
     "canonicalize",
     "digest",
+    "issue_token",
+    "legal_actions",
+    "read",
     "read_ledger",
     "repair_truncated_tail",
     "summarize",
+    "verify",
 ]

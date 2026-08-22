@@ -7,10 +7,11 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08222026.4` — the layer packages and their import-graph guard, the canonical byte
-form every digest is taken over, and both halves of the ledger: the writer (fixed envelope, hash
-chain, one synchronising write at the escape boundary) and the reader, which is the supported way
-to consume a ledger. No adjudication yet — nothing yet produces an outcome to record. `tests/test_build_stamp.py` fails CI when this
+**Current build:** `08222026.5` — the layer packages and their import-graph guard, the canonical byte
+form every digest is taken over, both halves of the ledger, and the read surface: immutable
+encounter state whose generation cannot be forgotten, one legality derivation shared with
+adjudication, and the read token that makes the agent's claim about what it was offered checkable
+without the read surface recording anything. No adjudication yet. `tests/test_build_stamp.py` fails CI when this
 line drifts from `src/srd_rules_engine/__init__.py`, so it cannot go stale silently.
 
 ---
@@ -198,4 +199,4 @@ against the published document before the first entry lands.
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-22 — build `08222026.4`._
+_Last updated: 2026-08-22 — build `08222026.5`._
