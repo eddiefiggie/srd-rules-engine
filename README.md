@@ -7,11 +7,11 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08222026.8` — the layer packages and their import-graph guard, the canonical byte
-form every digest is taken over, both halves of the ledger, the read surface and its read token,
-the memory port and its reference store, rule definitions with their two loaders, and the unified
-d20 test: checks, saves, and attacks as one primitive, with dice derived from the seed by hash so a
-recorded roll reproduces on any machine. No adjudication yet — nothing yet calls it. `tests/test_build_stamp.py` fails CI when this
+**Current build:** `08222026.9` — everything above plus **the adjudication entry point**: the single
+path by which an outcome comes into existence. A Ruling now carries the roll and its seed, the
+target number and its derivation, every resolved fact with its provenance and whether it defaulted,
+the alternatives verdict, citations, and narration bounds — and nothing escapes before its ledger
+entry is durable. The trigger catalogue and the turn loop are next. `tests/test_build_stamp.py` fails CI when this
 line drifts from `src/srd_rules_engine/__init__.py`, so it cannot go stale silently.
 
 ---
@@ -202,4 +202,4 @@ against the published document before the first entry lands.
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-22 — build `08222026.8`._
+_Last updated: 2026-08-22 — build `08222026.9`._
