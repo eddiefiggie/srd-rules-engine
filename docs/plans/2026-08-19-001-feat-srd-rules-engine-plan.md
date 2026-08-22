@@ -59,7 +59,7 @@ The cost is that no state in the campaign can be trusted, which makes continuity
 
 - **Rulings bound what the narrator may claim.** A Ruling states not only what happened but what the caller may and may not assert happened, so unresolved consequences must be declared separately rather than appended to a successful roll. (session-settled: user-approved — chosen over returning outcome data alone: without bounds, free-associated consequences reproduce the original defect downstream of a correct roll.)
 
-- **Mechanics are seeded from a community dataset and verified against the official SRD before they are trusted.** Unverified entries are excluded and the exclusion disclosed rather than silently shipped. This buys fast seeding without inheriting somebody else's errors, at the cost of still needing the official document as a verification reference. (session-settled: user-directed — chosen over bulk transcription, per-subsystem transcription, and user-supplied text: verification is cheaper than transcription when a dataset exists.)
+- **Mechanics are modelled by hand from the official SRD 5.2.1, with no community dataset as a seed.** Verification state — `unverified` / `verified` / `excluded`, with the reference section, the date, and a reason on an exclusion — lives alongside each entry, and only `verified` entries reach the engine. This costs a human read of the document per mechanic, and buys a provenance chain with no unnameable link in it. (session-settled: user-approved — reverses an earlier decision to seed from a community dataset, whose premise failed on inspection: no candidate carries effect shapes, the only structured candidate mixes two document revisions under one version label and omits the Rules Glossary entirely, and the best-covered candidate labels its SRD 5.2 material as OGL. See `docs/decisions/0003-seed-and-verification.md`.)
 
 - **The memory port's fact set is derived from the SRD, with a namespaced extension channel.** Every rule that consumes a judgment or narrative input contributes a fact type; consumers add their own through the extension channel without a schema break. Committing only to what the SRD demands keeps the stable part stable, and growth stays additive. (session-settled: user-directed — chosen over a closed SRD-derived set, a minimal core set, and deferring to planning: a closed set forces forks, a minimal set is certain to need breaking additions, and deferring leaves the public schema unsettled while consumers could already be building.)
 
@@ -137,7 +137,7 @@ flowchart TB
 
 **Data provenance**
 
-- R31. Every mechanic seeded from a community dataset is verified against the official SRD 5.2 before it is trusted.
+- R31. Every mechanic is verified against the official SRD 5.2.1 before it is trusted, and records the section it was verified against, the verification date, and its state.
 - R32. Entries that fail verification are excluded from the engine, and the exclusion is disclosed rather than silently dropped.
 
 **Packaging and open source**
@@ -247,9 +247,9 @@ flowchart TB
 
 ### Dependencies / Assumptions
 
-- (#3) SRD 5.2 (2024 rules) is published under CC BY 4.0, which permits redistribution with attribution. Confirm the exact licence and attribution wording against the published document before release.
-- A machine-readable community SRD 5.2 dataset is assumed to exist and is the intended seed. Its existence and quality are unverified; if no usable dataset is found, mechanics fall back to transcription and the data track grows accordingly.
-- (#3, #6) The official SRD 5.2 document is required as the verification reference for every sourced entry. It gates the data track, not the mechanics code.
+- (#3) SRD 5.2.1 (2024 rules) is published under CC BY 4.0, which permits redistribution with attribution. Confirm the exact licence and attribution wording against the published document before release.
+- ~~A machine-readable community SRD 5.2 dataset is assumed to exist and is the intended seed.~~ **Settled by #6:** no usable dataset exists for the mechanics v1 needs, and mechanics are modelled by hand from the document. The data track grows accordingly. A structured seed remains plausible for content population (#21) and is evaluated there.
+- (#3, #6) The official **SRD v5.2.1** document (1 May 2025) is the verification reference for every entry, and the only one. It gates the data track, not the mechanics code. v5.2.0 is a different document — it omits fifteen magic items and carries a duplicated Iron Golem stat block where the Knight belongs — so the revision must be named wherever the reference is cited.
 - The SRD publishes movement and range in feet and treats the grid as an optional variant; the engine follows the published default.
 - The player is solo with one character, so no concurrency, turn arbitration between humans, or shared-session state is assumed anywhere in the design.
 - Conditions, attitudes, and similar states are mechanically typed in the SRD, which is what makes a typed memory port possible rather than a prose interface.
@@ -264,7 +264,7 @@ flowchart TB
 
 **Deferred to planning**
 
-- (#6) Which community SRD 5.2 dataset is used as the seed, and how its per-entry verification state is recorded.
+- ~~(#6) Which community SRD 5.2 dataset is used as the seed, and how its per-entry verification state is recorded.~~ **Settled** — see `docs/decisions/0003-seed-and-verification.md`.
 - (#9) How the namespaced extension channel on the memory port is expressed and versioned.
 - (#10) Ledger storage format and whether it doubles as the interchange format for sharing sessions.
 - (#7) How SRD-derived triggers are catalogued and expressed, and how the catalogue grows from observed misses.

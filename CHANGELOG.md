@@ -6,6 +6,33 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22
+
+Design only; no build stamp change, because nothing a consumer runs was altered.
+
+- **Gate #6 settled, against the plan's assumption.** No community dataset seeds the mechanics.
+  The plan had assumed a machine-readable SRD 5.2 dataset existed and was the intended seed; five
+  candidates were evaluated and none is usable for the mechanics v1 needs. Mechanics are modelled
+  by hand from the official SRD v5.2.1, verification state lives alongside each entry
+  (`unverified` / `verified` / `excluded`, with reference section, date, and a reason on an
+  exclusion), and only `verified` entries reach the engine. Recorded in
+  `docs/decisions/0003-seed-and-verification.md`; R31 amended, and the plan's sourcing decision,
+  dataset assumption, and deferred question updated to match.
+- **The verification reference is SRD v5.2.1, not "SRD 5.2".** WotC published v5.2.0 on
+  22 April 2025 and v5.2.1 on 1 May 2025; the later document restores fifteen omitted magic items
+  and replaces a duplicated Iron Golem stat block with the Knight. A seed built against the
+  earlier one carries a wrong monster presented as a right one. Bringing the rest of the
+  repository's prose into line is #30; `NOTICE.md` is left to #3, whose transcription must now
+  target the specific revision.
+- **The errata became a test.** Probing a candidate for the Knight, the Octopus, a duplicated
+  Iron Golem, and three of the restored magic items identifies which document it transcribed
+  regardless of what it claims. Open5e — the only structured candidate — turns out to carry
+  5.2.1 creatures and pre-5.2.1 items under one version label and a publication date belonging to
+  neither. Its `srd-2024` document also has no Rules Glossary at all, so it supplies none of the
+  fifteen conditions M1 needs.
+- Findings recorded on #21 (content population) and #3 (attribution) so neither re-runs the
+  research.
+
 ## Unreleased — 2026-08-21
 
 Design only; no build stamp change, because nothing a consumer runs was altered.
