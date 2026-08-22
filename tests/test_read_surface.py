@@ -23,6 +23,7 @@ from srd_rules_engine.core.read_surface import (
     TOKEN_SCHEME,
     LegalAction,
     Verdict,
+    attack_key,
     issue_token,
     legal_actions,
     read,
@@ -128,8 +129,9 @@ def test_a_mutator_cannot_override_the_generation() -> None:
 
 
 def test_the_active_combatant_is_offered_actions() -> None:
+    """Ending the turn, and one attack per opponent still standing."""
     state = encounter()
-    assert read(state, "pc").keys == (END_TURN,)
+    assert read(state, "pc").keys == (END_TURN, attack_key("boar"))
 
 
 def test_a_combatant_whose_turn_it_is_not_is_offered_nothing() -> None:
@@ -190,7 +192,10 @@ def test_relabelling_an_alternative_still_verifies() -> None:
     """Prose never enters the comparison — the same discipline R6 imposes on the matcher."""
     state = encounter()
     result = read(state, "pc")
-    relabelled = (dataclasses.replace(result.actions[0], label="Wrap it up"),)
+    relabelled = tuple(
+        dataclasses.replace(action, label=f"Wrap it up {n}")
+        for n, action in enumerate(result.actions)
+    )
     assert verify(result.token, relabelled, state.generation) is Verdict.FRESH
 
 

@@ -28,6 +28,7 @@ from srd_rules_engine.core.adjudicate import (
     Status,
 )
 from srd_rules_engine.core.d20 import D20Test, Modifier, TestKind
+from srd_rules_engine.core.d20 import resolve as roll_d20
 from srd_rules_engine.core.ledger import Ledger
 from srd_rules_engine.core.ledger_reader import read_ledger
 from srd_rules_engine.core.memory_port import (
@@ -293,23 +294,32 @@ def test_the_success_branch_fires_on_a_success_and_the_failure_branch_on_a_failu
     Asserting only that *some* damage landed would pass with the branches swapped, and a
     swapped branch means a failed roll harms the wrong party — a rules defect that reads
     as a perfectly ordinary Ruling in the ledger.
-    """
-    winning, _, _ = build(tmp_path / "won", seeds=(2,))
-    state = encounter()
-    ruling, after = winning.adjudicate(state, declare(state))
 
+    The seeds are found rather than written down: the dice derive from the seed, so a
+    change to the derivation would silently invalidate a literal and this test would stop
+    testing what it says it does.
+    """
+    flat = D20Test(kind=TestKind.CHECK, target=12, target_basis="invented flat difficulty 12")
+    winning_seed = next(s for s in range(500) if roll_d20(flat, seed=s).succeeded)
+    losing_seed = next(s for s in range(500) if not roll_d20(flat, seed=s).succeeded)
+
+    state = encounter()
+    boar_before = state.combatant("boar").hit_points
+    pc_before = state.combatant("pc").hit_points
+
+    winning, _, _ = build(tmp_path / "won", seeds=(winning_seed,))
+    ruling, after = winning.adjudicate(state, declare(state))
     assert ruling.result is not None and ruling.result.succeeded
     assert [e.target_id for e in ruling.effects] == ["boar"]
-    assert after.combatant("boar").hit_points == state.combatant("boar").hit_points - 3
-    assert after.combatant("pc").hit_points == state.combatant("pc").hit_points
+    assert after.combatant("boar").hit_points == boar_before - 3
+    assert after.combatant("pc").hit_points == pc_before, "the loser is untouched on a success"
 
-    losing, _, _ = build(tmp_path / "lost", seeds=(0,))
+    losing, _, _ = build(tmp_path / "lost", seeds=(losing_seed,))
     ruling, after = losing.adjudicate(state, declare(state))
-
     assert ruling.result is not None and not ruling.result.succeeded
     assert [e.target_id for e in ruling.effects] == ["pc"]
-    assert after.combatant("pc").hit_points == state.combatant("pc").hit_points - 2
-    assert after.combatant("boar").hit_points == state.combatant("boar").hit_points
+    assert after.combatant("pc").hit_points == pc_before - 2
+    assert after.combatant("boar").hit_points == boar_before, "and untouched on a failure"
 
 
 def test_applying_an_effect_advances_the_generation(tmp_path: Path) -> None:

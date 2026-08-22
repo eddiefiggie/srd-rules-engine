@@ -7,11 +7,12 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08222026.11` — everything above plus **the turn loop and its two reference
-drivers**. The loop yields typed requests and a driver answers them, so one rules implementation
-serves any driver shape. Refusals share a budget and terminate early on a repeat; a block is a
-suspension that resumes the same declaration; a Ruling's narration gates the next declaration. The
-slice is now playable with **no model and no network** — combat, replay, and the report remain. `tests/test_build_stamp.py` fails CI when this
+**Current build:** `08222026.12` — everything above plus **combat**: initiative, attacks against a
+target's armour class, damage, and dropping to 0 hit points. The read surface now offers an attack
+per opponent still standing, and stops offering one the moment a target falls. A resolver *declares*
+damage dice and the engine rolls them from the same seed as the attack, so a replay reproduces the
+damage as well as the hit — a resolver cannot hand back a number it chose. Replay and the
+session-review report remain. `tests/test_build_stamp.py` fails CI when this
 line drifts from `src/srd_rules_engine/__init__.py`, so it cannot go stale silently.
 
 ---

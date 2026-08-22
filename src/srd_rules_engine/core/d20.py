@@ -37,8 +37,12 @@ from typing import Final
 
 DIE_SIDES: Final = 20
 
-#: Rejection threshold for an unbiased mapping of 32 random bits onto the die's faces.
-_LIMIT: Final = (2**32 // DIE_SIDES) * DIE_SIDES
+#: The width of the hash slice a single die consumes.
+_BITS: Final = 32
+
+#: Where damage dice start in a seed's index space. One adjudication draws its d20 from
+#: the low indices and its damage from here, so the two can never collide on a die.
+DAMAGE_OFFSET: Final = 100
 
 
 class TestKind(StrEnum):
@@ -124,7 +128,7 @@ def resolve(test: D20Test, *, seed: int) -> D20Result:
     """Roll the test and return its result. The engine rolls; no caller supplies one."""
     effective = _effective_advantage(test)
     count = 1 if effective is Advantage.NONE else 2
-    dice = tuple(_die(seed, index) for index in range(count))
+    dice = tuple(die(seed, index) for index in range(count))
 
     if effective is Advantage.ADVANTAGE:
         used = max(dice)
@@ -161,8 +165,12 @@ def _effective_advantage(test: D20Test) -> Advantage:
     return Advantage.NONE
 
 
-def _die(seed: int, index: int) -> int:
+def die(seed: int, index: int, sides: int = DIE_SIDES) -> int:
     """One die face from a seed, specified rather than borrowed from `random`.
+
+    Damage dice come through here too. A second dice implementation would drift from this
+    one, and the drift would show up as a replay that reproduces the attack roll and not
+    the damage — which is worse than no replay at all, because it looks like it worked.
 
     The hashed material is **fixed-width big-endian fields, not a formatted string.** A
     delimited string invites a collision the moment the delimiter is dropped or a field
@@ -170,18 +178,33 @@ def _die(seed: int, index: int) -> int:
     unrelated rolls would share a die. Fixed widths make that unrepresentable rather than
     something a test has to keep catching.
 
-    Rejection sampling rather than a modulo: `2**32` is not a multiple of 20, so a plain
-    modulo would make four faces very slightly likelier than the other sixteen. The bias
-    is small and the fix is free, and a loaded die inside an engine built for auditable
-    outcomes is not a defect anyone would find by inspection.
+    Rejection sampling rather than a modulo: `2**32` is not a multiple of most die sizes,
+    so a plain modulo would make some faces likelier than others. The bias is small and
+    the fix is free, and a loaded die inside an engine built for auditable outcomes is not
+    a defect anyone would find by inspection.
     """
     if not 0 <= seed < 2**64:
         raise ValueError(f"a seed is a non-negative 64-bit integer, not {seed!r}")
+    if sides < 2:
+        raise ValueError(f"a die has at least two faces, not {sides!r}")
 
+    limit = (2**_BITS // sides) * sides
     attempt = 0
     while True:
-        material = seed.to_bytes(8, "big") + index.to_bytes(2, "big") + attempt.to_bytes(2, "big")
+        material = (
+            seed.to_bytes(8, "big")
+            + index.to_bytes(2, "big")
+            + sides.to_bytes(2, "big")
+            + attempt.to_bytes(2, "big")
+        )
         value = int.from_bytes(hashlib.sha256(material).digest()[:4], "big")
-        if value < _LIMIT:
-            return value % DIE_SIDES + 1
+        if value < limit:
+            return value % sides + 1
         attempt += 1
+
+
+def roll(seed: int, *, count: int, sides: int, offset: int = 0) -> tuple[int, ...]:
+    """Several dice of one size from one seed. `offset` keeps separate rolls apart."""
+    if count < 0:
+        raise ValueError("a roll has a non-negative number of dice")
+    return tuple(die(seed, offset + n, sides) for n in range(count))

@@ -55,6 +55,21 @@ TOKEN_DIGEST_LENGTH: Final = 32
 
 END_TURN: Final = "end-turn"
 
+#: Attack keys are `attack:<target-id>`. The target rides in the key and in `detail`, so
+#: adjudication reads it from the structure a token commits to rather than from prose.
+ATTACK: Final = "attack"
+
+
+def attack_key(target_id: str) -> str:
+    return f"{ATTACK}:{target_id}"
+
+
+def attack_target(action_key: str | None) -> str | None:
+    """The target an attack key names, or None if the key is not an attack."""
+    if action_key is None or not action_key.startswith(f"{ATTACK}:"):
+        return None
+    return action_key.split(":", 1)[1] or None
+
 
 class Verdict(StrEnum):
     """What the engine can say about an alternatives claim."""
@@ -103,9 +118,15 @@ class ReadResult:
 def legal_actions(state: EncounterState, actor_id: str) -> tuple[LegalAction, ...]:
     """The single derivation of what is legal, shared with adjudication.
 
-    M1 derives only what the state alone settles. Attacks arrive with combat, and
-    movement, spells, and conditions with the units that implement them — this is the
-    seam they extend, not a placeholder for them.
+    M1 derives only what the state alone settles: ending the turn, and an attack against
+    each opponent still standing. Movement, spells, and conditions arrive with the units
+    that implement them — this is the seam they extend, not a placeholder for them.
+
+    Attacks are enumerated here rather than in `core.combat` because legality has one
+    derivation: this function both offers the set and validates against it, so a second
+    enumeration living beside combat would make agreement a property to test rather than
+    a property to have. What an attack *does* is combat's business; that one is on the
+    menu is the state's.
     """
     if not state.has(actor_id):
         raise KeyError(f"no combatant {actor_id!r} in this encounter")
@@ -125,6 +146,15 @@ def legal_actions(state: EncounterState, actor_id: str) -> tuple[LegalAction, ..
                 detail={"round": state.round_number},
             )
         )
+    actions.extend(
+        LegalAction(
+            key=attack_key(other.id),
+            label=f"Attack {other.name}",
+            detail={"target": other.id, "armour_class": other.armour_class},
+        )
+        for other in state.combatants
+        if other.id != actor_id and not other.is_down
+    )
     return tuple(actions)
 
 

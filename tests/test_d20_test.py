@@ -25,7 +25,7 @@ from srd_rules_engine.core.d20 import (
     D20Test,
     Modifier,
     TestKind,
-    _die,
+    die,
     resolve,
 )
 
@@ -131,7 +131,7 @@ def test_advantage_and_disadvantage_cancel_to_a_single_roll() -> None:
     assert result.used == resolve(check(), seed=11).used, "identical to a plain roll"
 
 
-def test_a_plain_roll_uses_one_die() -> None:
+def test_a_plain_roll_uses_onedie() -> None:
     result = resolve(check(), seed=11)
     assert len(result.dice) == 1
     assert result.effective is Advantage.NONE
@@ -203,7 +203,7 @@ def test_the_hashed_material_is_unambiguous_across_seed_and_index() -> None:
     for left, right in conflated:
         assert f"{left[0]}{left[1]}0" == f"{right[0]}{right[1]}0", "the pair is genuinely conflated"
 
-    agreeing = sum(_die(*left) == _die(*right) for left, right in conflated)
+    agreeing = sum(die(*left) == die(*right) for left, right in conflated)
     assert agreeing <= 2, (
         f"{agreeing}/6 conflated pairs produced the same die — the encoding is ambiguous"
     )
