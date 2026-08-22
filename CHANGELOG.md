@@ -6,6 +6,32 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 — build `08222026.5`
+
+U5 — mechanical state, the read surface, and the read token.
+
+- **The state is immutable, and the generation cannot be forgotten.** Every successor is produced
+  by one private `_evolve`, which adds one to the generation and *discards* a generation a caller
+  tries to pass. A mutator has no way to skip the bump. That matters because the failure direction
+  is quiet: a mutation that did not bump would leave a read token from before it looking current,
+  and a stale claim would read `verified-fresh`.
+- **R19 is settled structurally rather than by convention.** The read surface is handed a frozen
+  state it could not modify if it tried, and the ability mapping is a `mappingproxy` so it cannot be
+  written through either.
+- **One legality derivation**, used to enumerate here and to validate in adjudication, so what is
+  offered and what is accepted cannot drift.
+- **The read token** carries the state generation and a digest of the offered set, derived and
+  returned but never stored. Verdicts are `verified-fresh`, `verified-stale`, `unverified`, and
+  `unread` — and *stale* and *unverified* are told apart, because one is an agent deciding from
+  state that has moved and the other is an agent misreporting what it saw.
+- **The token commits to structure, never prose.** Relabelling an alternative still verifies;
+  altering its structured detail does not. Same discipline R6 imposes on the trigger matcher.
+- **An unparseable or absent token yields `unread`**, not an error — `0011` already ruled that is
+  the right verdict, and it is the expected one for a caller outside the turn loop.
+- Eighteen mutations proven caught. Two needed new tests: `state.py`'s own arithmetic was uncovered
+  by a test file aimed at the read surface, so damage clamping, healing clamping, turn wrapping,
+  initiative ordering and its tie-break, and the ability modifier's rounding are now held directly.
+
 ## Unreleased — 2026-08-22 — build `08222026.4`
 
 U4 — the ledger reader, which is the supported way to consume a ledger. The on-disk format is not
