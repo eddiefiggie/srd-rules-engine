@@ -6,6 +6,64 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 — build `08222026.14`
+
+U14 — the fixture encounter and the slice proof. **M1's vertical slice is complete.**
+
+- **One character, one invented creature, end to end** with no model and no network. The driver
+  chooses from what the read surface offered, by a fixed policy; nothing in the harness supplies a
+  roll, a result, or a target number.
+- **The assertion is the report**, not a sequence of intermediate states. Every unit's own tests
+  were green while the report was silently mis-flagging an answered challenge, which is exactly
+  the kind of defect a slice composed of green units exists to catch.
+- **The same seed reruns the encounter to a byte-identical ledger**, chain digests included — the
+  part a per-entry replay cannot check.
+- **The report detects each defect condition when one is injected**: a narration with no Ruling, a
+  Ruling with no narration, a challenge never re-adjudicated, an alternatives verdict other than
+  `verified-fresh`, and a slot ending in exhaustion or fact-unavailable.
+- **A defect in shipped code, found only by running the slice.** `_system_seed` drew 64 bits, and
+  a seed that wide has no canonical form — so in production the Ruling could not be written to the
+  ledger and nothing escaped the engine. Every test until now used seeds small enough to miss it.
+  The engine now draws 52 bits, and a seed outside the recordable range is refused **at the seed
+  source** rather than surfacing as a ledger failure. It is never clamped: a quietly altered seed
+  reproduces a different roll on replay.
+- **A declaration slot is not a declaration.** The loop re-declares after a refusal, so a challenge
+  answered by a corrected declaration is one slot with two attempts. A resumption after a *block*
+  is not an attempt at all — the agent was never asked again, and counting it would report a
+  driver's omission as an agent failing to declare.
+- **What this does not prove**, stated in the harness rather than only in the plan: a scripted
+  driver asserts exactly what it is told to, so the slice proves the report's **detection**, not a
+  live agent's **inability to evade** it (#42).
+
+## Unreleased — 2026-08-22 — build `08222026.13`
+
+U13 — replay and the session-review report.
+
+- **Replay re-derives the roll from the recorded seed** rather than recomputing from the recorded
+  dice, which would agree by construction and never notice a change to the derivation.
+- **Replay takes no memory port**, so R28's "without re-querying the port" is a call that cannot be
+  written. A lookup would read today's memory into yesterday's outcome and pass.
+- A differing engine version yields a **reconciliation** naming both versions and both outcomes,
+  never an integrity verdict; the same version disagreeing with itself is one. A record too thin to
+  reconstruct is **unreplayable**, not replayed under an assumption.
+- The report **verifies chain integrity first** and refuses to summarise a corrupted ledger.
+- Two defects fixed to make either possible: the roll payload never recorded advantage (so replay
+  would have rolled the wrong number of dice), and nothing ever wrote an `exhaustion` entry (so a
+  terminated slot left no trace and R30's flag was unimplementable).
+
+## Unreleased — 2026-08-22 — build `08222026.12`
+
+U12 — combat: initiative, attacks against an armour value, damage, and dropping to 0.
+
+- **A resolver declares damage dice and never a total.** The engine rolls them from the same seed as
+  the attack, so a replay reproduces the damage as well as the hit.
+- **Attacks are enumerated in the read surface**, because legality has one derivation: the same
+  function offers the set and validates against it.
+- **No weapon list ships.** `Weapon` is a shape a ruleset fills in; a table compiled from memory
+  would be indistinguishable from a verified one inside a finished Ruling.
+- "Applying damage twice from the same Ruling" is settled by construction — there is no public
+  applier, so there is no second way to apply one.
+
 ## Unreleased — 2026-08-22 — build `08222026.11`
 
 U11 — the turn loop, the retry bound, the blocked loop, and the two reference drivers.

@@ -34,8 +34,9 @@ import secrets
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Protocol
+from typing import Final, Protocol
 
+from srd_rules_engine.core.canonical import MAX_SAFE_INTEGER
 from srd_rules_engine.core.d20 import DAMAGE_OFFSET, D20Result, D20Test
 from srd_rules_engine.core.d20 import resolve as roll_d20
 from srd_rules_engine.core.d20 import roll as dice
@@ -206,8 +207,17 @@ class SeedSource(Protocol):
     def __call__(self) -> int: ...
 
 
+#: How much entropy a seed carries. **Not 64.** A seed is recorded in the ledger, and the
+#: canonical form admits only integers an ECMAScript number represents exactly — so a
+#: 64-bit seed has no canonical form and the adjudication that drew it cannot be written
+#: down. The failure is total (the Ruling never escapes) but it looked like a ledger
+#: problem, and every test until the vertical slice used seeds small enough to miss it.
+SEED_BITS: Final = 52
+
+
 def _system_seed() -> int:
-    return secrets.randbits(64)
+    """Unpredictable, and inside the range the record can hold. R5 needs both."""
+    return secrets.randbits(SEED_BITS)
 
 
 @dataclass(frozen=True)
@@ -399,7 +409,7 @@ class Adjudicator:
         proposal = self._resolvers[rule.id](
             state=state, declaration=declaration, facts={r.type_name: r for r in resolutions}
         )
-        seed = self._seed_source()
+        seed = _checked_seed(self._seed_source())
         result = roll_d20(proposal.test, seed=seed)
         branch = proposal.on_success if result.succeeded else proposal.on_failure
         effects = _roll_declared(branch, seed=seed)
@@ -560,6 +570,23 @@ def _bounds(proposal: Proposal, result: D20Result) -> NarrationBounds:
             *proposal.may_not_claim,
         ),
     )
+
+
+def _checked_seed(seed: int) -> int:
+    """Refuse a seed the record cannot hold, and name the seed source rather than the ledger.
+
+    Without this the failure surfaces at the ledger write, as `LedgerUnavailable` — which
+    points at the ledger for a defect in whatever supplied the seed. The seed is never
+    clamped: a quietly altered seed reproduces a different roll on replay, so the only
+    honest options are the seed as given or a refusal.
+    """
+    if not 0 <= seed <= MAX_SAFE_INTEGER:
+        raise ValueError(
+            f"the seed source returned {seed}, which is outside the range a ledger entry "
+            f"can record exactly (0..{MAX_SAFE_INTEGER}). R5 requires the seed to be part "
+            "of the record, so a seed that cannot be written cannot be rolled with"
+        )
+    return seed
 
 
 def _roll_declared(branch: Sequence[Declared], *, seed: int) -> tuple[Effect, ...]:

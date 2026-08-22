@@ -7,15 +7,14 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08222026.13` — everything above plus **replay and the session-review report**.
-Any ruling replays from its recorded seed by re-deriving the dice, not by restating them, so a
-change to the derivation is caught rather than reproduced. A mismatch under a *different* engine
-version reconciles — naming both versions and both outcomes — because a rules fix is not
-corruption; a mismatch under the *same* one is an integrity failure. A record too thin to
-reconstruct is reported unreplayable rather than replayed under an assumption. The report verifies
-chain integrity first and refuses to summarise a corrupted ledger, then lists each turn with its
-declaration, alternatives, Ruling, and narration, flagging the five conditions R30 names. The
-fixture encounter remains. `tests/test_build_stamp.py` fails CI when this
+**Current build:** `08222026.14` — **M1's vertical slice is complete.** One character and one
+invented creature fight from initiative to a combatant at 0 hit points, with no model and no
+network, and the session-review report over the resulting ledger is the assertion. Every Ruling
+replays identically, and the same seed reruns the whole encounter to a byte-identical ledger with
+matching chain digests. The report detects each defect condition when one is deliberately injected.
+Running the slice found a defect in shipped code that every unit test had missed: the production
+seed source drew 64 bits, and a seed that wide has no canonical form, so the engine could not record
+its own roll. `tests/test_build_stamp.py` fails CI when this
 line drifts from `src/srd_rules_engine/__init__.py`, so it cannot go stale silently.
 
 ---

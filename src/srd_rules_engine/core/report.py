@@ -111,6 +111,8 @@ class Turn:
     action_key: str | None
     improvised: bool
     rule_id: str | None
+    #: How many declarations the slot took. More than one means a refusal was answered.
+    attempts: int = 1
     alternatives: tuple[Mapping[str, object], ...] = ()
     alternatives_verdict: str | None = None
     status: str | None = None
@@ -308,7 +310,15 @@ def report_from(ledger: LedgerReport) -> SessionReport:
 
 
 def _turns(entries: Sequence[Entry]) -> tuple[tuple[Turn, ...], int]:
-    """Walk the ledger in order, pairing each declaration with what followed it."""
+    """Walk the ledger in order, pairing each *declaration slot* with what followed it.
+
+    A slot is not one declaration. The loop re-declares after a refusal, so a challenge
+    answered by a corrected declaration is one slot with two attempts — and reading each
+    declaration as its own turn would report every answered challenge as never answered,
+    which is the flag saying the opposite of what happened.
+
+    A slot closes on a Ruling, on a termination, or when a different actor declares.
+    """
     turns: list[Turn] = []
     pending: dict[str, Any] | None = None
     orphans = 0
@@ -319,28 +329,51 @@ def _turns(entries: Sequence[Entry]) -> tuple[tuple[Turn, ...], int]:
             turns.append(_finish(pending))
             pending = None
 
+    def declaration_fields(entry: Entry) -> dict[str, Any]:
+        intent = entry.payload.get("intent")
+        intent = intent if isinstance(intent, Mapping) else {}
+        return {
+            "action_key": _text(intent.get("action_key")),
+            "improvised": bool(intent.get("improvised")),
+            "rule_id": _text(entry.payload.get("rule_id")),
+            "alternatives": tuple(
+                a for a in _sequence(entry.payload.get("alternatives")) if isinstance(a, Mapping)
+            ),
+        }
+
     for entry in entries:
         if entry.type == "declaration":
-            close()
-            intent = entry.payload.get("intent")
-            intent = intent if isinstance(intent, Mapping) else {}
-            pending = {
-                "seq": entry.seq,
-                "actor": _text(entry.payload.get("actor")) or "",
-                "action_key": _text(intent.get("action_key")),
-                "improvised": bool(intent.get("improvised")),
-                "rule_id": _text(entry.payload.get("rule_id")),
-                "alternatives": tuple(
-                    a
-                    for a in _sequence(entry.payload.get("alternatives"))
-                    if isinstance(a, Mapping)
-                ),
-                "statuses": [],
-            }
+            actor = _text(entry.payload.get("actor")) or ""
+            settled = pending is not None and (
+                pending.get("status") == "ruled" or pending.get("terminal_reason") is not None
+            )
+            if pending is not None and (settled or pending["actor"] != actor):
+                close()
+            if pending is None:
+                pending = {
+                    "seq": entry.seq,
+                    "actor": actor,
+                    "attempts": 1,
+                    "statuses": [],
+                    "verdicts": [],
+                    **declaration_fields(entry),
+                }
+            else:
+                # The same slot again. Count it as an *attempt* only if the agent was asked
+                # again — a block is a suspension, so the loop re-adjudicates the same
+                # declaration once the facts arrive and the agent is never re-consulted.
+                # Counting that as a retry would report a driver's omission as an agent
+                # failing to declare correctly, which is the opposite attribution.
+                # The duplicate declaration entry a resumption leaves behind is #59.
+                if pending.get("status") != "blocked":
+                    pending["attempts"] += 1
+                pending["status"] = None
+                pending.update(declaration_fields(entry))
         elif entry.type in RULING_TYPES and pending is not None:
-            pending["statuses"].append(_text(entry.payload.get("status")))
-            pending["status"] = _text(entry.payload.get("status"))
-            pending["alternatives_verdict"] = _text(entry.payload.get("alternatives_verdict"))
+            status = _text(entry.payload.get("status"))
+            pending["statuses"].append(status)
+            pending["status"] = status
+            pending["verdicts"].append(_text(entry.payload.get("alternatives_verdict")))
             roll = entry.payload.get("roll")
             if isinstance(roll, Mapping):
                 pending["outcome"] = _text(roll.get("derivation"))
@@ -365,8 +398,11 @@ def _finish(pending: Mapping[str, Any]) -> Turn:
     """Assign R30's flags to one closed slot."""
     status = pending.get("status")
     terminal = pending.get("terminal_reason")
-    verdict = pending.get("alternatives_verdict")
     statuses: Sequence[str | None] = pending.get("statuses") or ()
+    verdicts: Sequence[str | None] = pending.get("verdicts") or ()
+    # Any declaration in the slot, not only the last: an agent that claimed a stale menu
+    # and then corrected itself still made the claim, and the record should say so.
+    stale = next((v for v in verdicts if v is not None and v != str(Verdict.FRESH)), None)
 
     flags: list[Flag] = []
     if pending.get("orphan_narration"):
@@ -382,7 +418,7 @@ def _finish(pending: Mapping[str, Any]) -> Turn:
         flags.append(Flag.RULING_WITHOUT_NARRATION)
     if "challenged" in statuses and statuses[-1] == "challenged" and terminal is None:
         flags.append(Flag.CHALLENGE_NEVER_READJUDICATED)
-    if verdict is not None and verdict != str(Verdict.FRESH):
+    if stale is not None:
         flags.append(Flag.ALTERNATIVES_NOT_FRESH)
 
     return Turn(
@@ -391,8 +427,9 @@ def _finish(pending: Mapping[str, Any]) -> Turn:
         action_key=pending.get("action_key"),
         improvised=bool(pending.get("improvised")),
         rule_id=pending.get("rule_id"),
+        attempts=int(pending.get("attempts") or 1),
         alternatives=tuple(pending.get("alternatives") or ()),
-        alternatives_verdict=verdict,
+        alternatives_verdict=stale or (verdicts[-1] if verdicts else None),
         status=status,
         outcome=pending.get("outcome"),
         narration=pending.get("narration"),
@@ -418,7 +455,10 @@ def render(report: SessionReport) -> str:
     body: list[str] = []
     for turn in report.turns:
         named = turn.action_key or (turn.rule_id and f"rule {turn.rule_id}") or "improvised"
-        body.append(f"seq {turn.seq} — {turn.actor}: {named} [{turn.status or 'no ruling'}]")
+        retries = f" after {turn.attempts - 1} refused" if turn.attempts > 1 else ""
+        body.append(
+            f"seq {turn.seq} — {turn.actor}: {named} [{turn.status or 'no ruling'}]{retries}"
+        )
         if turn.outcome:
             body.append(f"    {turn.outcome}")
         if turn.narration:
