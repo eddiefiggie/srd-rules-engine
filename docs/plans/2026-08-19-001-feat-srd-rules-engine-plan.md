@@ -129,7 +129,7 @@ flowchart TB
 - R14. The engine implements the SRD condition set, including how each condition modifies d20 tests.
 - R15. The engine implements spellcasting: slots, prepared and known spells, concentration, components, spell save DCs, and spell attacks.
 - R16. The engine resolves weapon range and reach and spell range and area of effect when validating and resolving attacks and spells, including disadvantage beyond a ranged weapon's normal range, against the positional state of R9 expressed in feet. R11 through R16 enumerate coverage rather than bound it; the SRD is the authority on what completeness requires.
-- R17. An effect-shape inventory derived from SRD 5.2 is published with the repository. Coverage is checked against that inventory, and entries not yet implemented are disclosed rather than omitted silently.
+- R17. An effect-shape inventory derived from SRD v5.2.1 is published with the repository. Coverage is checked against that inventory, and entries not yet implemented are disclosed rather than omitted silently.
 
 **Read surface**
 
@@ -295,7 +295,7 @@ flowchart TB
 
 ### Sources / Research
 
-- SRD 5.2 (2024 rules), Wizards of the Coast, CC BY 4.0 — the authoritative source for every mechanic in this contract.
+- SRD v5.2.1 (2024 rules), Wizards of the Coast, CC BY 4.0 — the authoritative source for every mechanic in this contract.
 - [`ddo-loadout-optimizer`](https://github.com/eddiefiggie/ddo-loadout-optimizer) is the closest prior art in method rather than domain: an authoritative external source turned into a rules-accurate engine, with exclude-until-verified data gating and per-result receipts. Its lesson — that rules fidelity lives or dies on data provenance rather than on the solver — is why R22 and R27 exist.
 - No tabletop D&D or SRD prior art exists in my other projects; every other D&D-named one targets Dungeons & Dragons Online, a different ruleset.
 

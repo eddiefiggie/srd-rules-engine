@@ -6,6 +6,24 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 (documentation)
+
+Documentation only; no build stamp change, because nothing a consumer runs was altered.
+
+- **The verification reference is named as SRD v5.2.1 wherever it is cited as an authority**
+  (#30). Decision `0003` settled that v5.2.0 (22 April 2025) is a materially different document —
+  it omits fifteen magic items and carries a duplicated Iron Golem stat block where the Knight
+  belongs — so a citation that names only "5.2" can send a reader to the wrong one.
+- **Not a find-and-replace, and most occurrences were left alone.** The test applied to each of the
+  53 occurrences was whether a reader *acting on it* could land on the wrong document. Citations of
+  the document as an authority or a verification reference name the revision; the **edition family**
+  does not, because 5.2.1 is a revision of 5.2 rather than a separate edition — so the project name,
+  the coverage goal, and "SRD 5.2 (2024 rules) as the modelled edition" all read correctly as they
+  stand. Struck-through historical text and `CHANGELOG.md` entries are records of what was believed
+  at the time and were not rewritten.
+- **`NOTICE.md` was deliberately not touched.** Its wording must be transcribed verbatim from the
+  published document under #3, and editing it here would pre-empt that gate.
+
 ## Unreleased — 2026-08-22 — build `08222026.14`
 
 U14 — the fixture encounter and the slice proof. **M1's vertical slice is complete.**

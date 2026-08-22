@@ -168,7 +168,7 @@ meeting `compat=4` it reports the payload *unauditable*. Additive changes theref
 by older readers, which matters because most schema changes are additive and the retrospective
 audit reads long-lived archives. Raised only when an older reader would get it wrong.
 
-**Effect-shape inventory** (R17) — the published inventory of distinct SRD 5.2 effect shapes
+**Effect-shape inventory** (R17) — the published inventory of distinct SRD v5.2.1 effect shapes
 against which coverage is checked. Mechanical coverage is complete when every shape resolves;
 entries not yet implemented are disclosed rather than omitted silently.
 
@@ -177,7 +177,7 @@ effect vocabulary. A parallel data track, deliberately *not* a blocker on the me
 The line between it and mechanical coverage is the effect vocabulary itself.
 
 **Verification state** (R31, R32) — per-entry record of whether a seeded mechanic has been
-checked against the official SRD 5.2 document. Unverified entries are excluded from the engine
+checked against the official SRD v5.2.1 document. Unverified entries are excluded from the engine
 and the exclusion disclosed.
 
 **Adapter** (R34) — MCP, HTTP, or CLI access built over the same contract, outside the core,

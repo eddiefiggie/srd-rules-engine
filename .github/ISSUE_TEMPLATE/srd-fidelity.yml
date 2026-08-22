@@ -18,7 +18,7 @@ body:
   - type: textarea
     id: srd
     attributes:
-      label: What the SRD 5.2 says
+      label: What SRD v5.2.1 says
       description: >
         Cite the section. Paraphrase rather than pasting large blocks — this repo is careful
         about how much SRD text it carries. "Widely known 5e behaviour" is not a citation:
