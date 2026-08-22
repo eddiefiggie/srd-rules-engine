@@ -64,6 +64,7 @@ rejected options and the reason survive, not the exact headings.
 | [0007](0007-alternatives-verification.md) | Read tokens make the alternatives claim checkable without touching R19 | [#8](https://github.com/eddiefiggie/srd-rules-engine/issues/8) |
 | [0008](0008-extension-channel.md) | Reverse-DNS extension namespaces that no engine rule may consume | [#9](https://github.com/eddiefiggie/srd-rules-engine/issues/9) |
 | [0009](0009-reference-memory-store.md) | The reference memory store is flat JSON, because it is a projection of the ledger | [#12](https://github.com/eddiefiggie/srd-rules-engine/issues/12) |
+| [0010](0010-blocked-loop.md) | A block is a suspension, and the loop bounds itself | [#33](https://github.com/eddiefiggie/srd-rules-engine/issues/33) |
 
 ## What belongs here, and what doesn't
 
