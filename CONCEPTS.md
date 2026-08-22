@@ -27,6 +27,18 @@ never against its free-text label.
 situation cannot support. Distinct from a Challenge: a rejection says *not that test*, a
 challenge says *some test*.
 
+**Declaration slot** (R8) — one actor's attempt to produce one adjudicated action within a turn.
+A slot may absorb several refused declarations before a Ruling ends it. The retry budget is
+counted per slot, and resets when a Ruling is produced or the turn ends.
+
+**Retry exhaustion** (R8, R30) — the turn loop ending a declaration slot because its budget ran
+out or a refusal repeated. **Not a rules status** — it sits beside a failed ledger append, not
+beside `challenged` and `rejected`, because no rule says a badly-declared action has a result.
+Carries a reason (`no-progress`, `challenge-churn`, `rejection-churn`, `mixed-churn`), the
+refusal history, and the alternatives the read surface had offered. The engine never breaks the
+loop by selecting a test: that would let an agent reach an outcome by failing. Specified in
+`docs/decisions/0005-retry-bounds.md`.
+
 **Ruling** (R5) — the only object that constitutes an outcome. Carries status, the test
 performed, raw dice and seed, the target number *and its derivation*, the outcome, applied
 effects, the resolved value and provenance of every memory-port fact consumed, SRD citations,

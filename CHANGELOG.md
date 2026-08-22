@@ -6,6 +6,45 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 (later still)
+
+Design only; no build stamp change, because nothing a consumer runs was altered.
+
+- **Gate #11 settled**: the retry bound belongs to the **turn loop**, not the adjudication core.
+  The core answers one declaration and has no memory of having answered before; counting attempts
+  is session state, and a bound in the core would be a half-measure anyway since a direct caller
+  gets no skip guarantee. One budget per declaration slot covering challenges and rejections
+  together, defaulting to **3 refusals**, configurable, with `None` meaning unbounded — the
+  human-CLI driver is expected to use it, because a person burns no model calls. Recorded in
+  `docs/decisions/0005-retry-bounds.md`; R8 and R30 amended, F3 filled in.
+- **An engine-selected default was rejected as a bypass.** Letting the engine pick a legal test on
+  exhaustion would let an agent reach an adjudicated outcome *by failing* — a second path beside
+  the declaration it is accountable for — and would leave R10 nothing to review, since recording
+  the offered alternatives exists so a legal-but-wrong classification can be checked after the
+  fact. The terminal outcome instead **discloses** the alternatives that were offered without
+  choosing among them.
+- **Two of the issue's three candidates turned out to be one.** "Surface a terminal status to the
+  human" and "abort the turn" are the same engine behaviour under two different drivers, per
+  `docs/decisions/0001-agent-seam.md`. The issue's option list had framed a driver policy as an
+  engine decision.
+- **Exhaustion is not a rules status.** No rule says a badly-declared action has a result, so it
+  sits beside a failed ledger append rather than beside `challenged` and `rejected` — the same
+  distinction `0002` drew for infrastructure failure. It appends its own ledger entry and carries
+  a reason: `no-progress`, `challenge-churn`, `rejection-churn`, or `mixed-churn`.
+- **Two structurally identical refusals terminate at once**, ahead of the general bound. Identity
+  is the trigger id set or the reason code and citation — **never the message text**, since
+  templated messages can differ while naming the same refusal, and the engine should no more read
+  its own prose than the agent's. Under `0004` a repeating trigger set usually means an over-broad
+  catalogue row, so `no-progress` is often the engine's fault and is an `srd-fidelity` triage
+  input.
+- **R30 must not count an exhausted slot as a narration gap.** It produced no Ruling, so without
+  an explicit exclusion every exhaustion would surface as "a Ruling with no narration" and make
+  the report's most important signal noisy.
+- `CONCEPTS.md` gains **Declaration slot** and **Retry exhaustion**.
+- #33 filed for the `blocked` loop, which R22 also invites and this bound deliberately excludes —
+  a driver failing to supply a fact is a different actor failing than an agent misjudging a rule,
+  and charging it to the agent's budget would misattribute it.
+
 ## Unreleased — 2026-08-22 (later)
 
 Design only; no build stamp change, because nothing a consumer runs was altered.
