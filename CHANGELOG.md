@@ -6,6 +6,37 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 — build `08222026.9`
+
+U9 — the adjudication entry point and the Ruling. The largest unit in M1, and the one the plan's
+Risks section named as most likely to need a second pass.
+
+- **One door.** `Adjudicator.adjudicate` is the only thing that produces an outcome (R1), and it
+  returns the Ruling together with the state it left behind, so a caller cannot apply effects
+  itself.
+- **The caller supplies neither a roll nor a seed** (R4). A seed is not a roll, but a caller who
+  chooses it chooses the outcome by searching for a favourable one — so the engine draws its own
+  from a source unpredictable by default. Tests substitute the *source*; nothing substitutes the
+  value, and `Declaration` has no seed field for one to arrive through.
+- **Validation uses the same legality derivation the read surface enumerates with** (R3, R18), so
+  what was offered and what is accepted cannot drift. A rejection also names what *would* have been
+  legal, because a refusal that does not is hard to act on.
+- **A rule is data; a resolver is code.** The rule declares what it consumes and carries its
+  provenance; the resolver turns it into a target number and effects. That split is what `0003`
+  found the hard way — no dataset supplies effect shapes. An adjudicator refuses at construction if
+  any loaded rule has no resolver, rather than failing at the table.
+- **Blocked names every unresolved fact, not the first** (R22), and never reaches the resolver — so
+  a resolver never sees a fact it cannot rely on. Supplying the facts lets the *same* declaration
+  proceed.
+- **The Ruling shows its working** (R5): seed, raw dice, target and its derivation, each resolved
+  fact with provenance and which kind of default applied, the alternatives verdict, citations, and
+  bounds. `why()` renders a one-line account for every status.
+- **An unverified alternatives claim is recorded and adjudication proceeds** (R10) — the
+  alternatives are metadata about a decision, not the decision.
+- Seventeen mutations proven caught. One needed a new test: **swapping the success and failure
+  effect branches** passed, because the existing test only asserted that *some* damage landed. A
+  swapped branch means a failed roll harms the wrong party, and reads as an ordinary Ruling.
+
 ## Unreleased — 2026-08-22 — build `08222026.8`
 
 U8 — the unified d20 test primitive.
