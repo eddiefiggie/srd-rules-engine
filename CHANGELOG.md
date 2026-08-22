@@ -6,6 +6,46 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 (eighth)
+
+Design only; no build stamp change, because nothing a consumer runs was altered. **This closes the
+last design gate.**
+
+- **Gate #13 settled**: four layer packages — `core`, `loop`, `memory`, `adapters` — with **two
+  import rules enforced by a guard test**. Recorded in
+  `docs/decisions/0011-module-layout-and-versioning.md`; R33, R34, and R35 amended.
+- **The layout risk ran both ways, and the more dangerous direction was unnamed.** The issue named
+  the turn loop reaching into core internals. The worse case is **the core importing outward**: R33's
+  promise would die while `dependencies = []` continued to read empty, because an empty dependency
+  list constrains what the *package* pulls in from outside, not how its own layers depend on each
+  other. A core importing an adapter that imports an LLM extra adds no third-party dependency at
+  all. Both directions are visible in the import graph and neither is visible in a dependency list.
+- **The four engine-defined data schemas version independently as monotonic integers.** Not semver:
+  a data schema's only question is "can I interpret this", and a change to the Ruling must not make
+  a reader treat unchanged Declarations as unknown.
+- **Every payload carries a reserved `compat` key** — the lowest reader version that can correctly
+  interpret it. Most schema changes are additive, and under a bare version number every one of them
+  would be unreadable to exactly the long-lived archives `0004`'s retrospective audit exists to
+  read. Combined with `0006`'s always-readable envelope this gives three tiers rather than two:
+  structurally readable, interpretable, and neither. `compat` is now the second permanently
+  reserved name in the format.
+- **Three kinds of versioned thing, named rather than unified.** A single scheme would not survive
+  the read token (opaque and engine-internal — giving it a public version would publish an
+  implementation detail) or extension namespace versions (consumer-declared and never compared, so
+  a compare-and-dispatch mechanism has nothing to compare them to, and treating a malformed one as
+  an error would make the engine police a namespace it explicitly does not interpret).
+- **The build stamp makes no compatibility claim**, stated plainly rather than left implied, and
+  the public code API is explicitly unstable until v1.0. A stability policy is a v1.0 release
+  requirement, filed as #39 rather than left in prose — writing one before any API exists would be
+  writing it blind, and the failure this repo has seen before is the deferral that never becomes an
+  issue.
+- **Holding this gate until last paid twice.** Layout genuinely depended on what modules turned out
+  to exist — and the versioning half arrived with **seven** items rather than R35's original three,
+  five contributed by gates settled in the interim, two of which do not fit the obvious mechanism.
+  Settled first, it would have produced a uniform scheme that the read token and the extension
+  namespace would each have had to be bent to fit.
+- `CONCEPTS.md` gains **Layer** and **Compat floor**.
+
 ## Unreleased — 2026-08-22 (seventh)
 
 Design only; no build stamp change, because nothing a consumer runs was altered.

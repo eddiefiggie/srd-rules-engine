@@ -155,6 +155,19 @@ durability and indexing are advantages a rebuildable projection at solo-campaign
 need, and a person can read their own campaign state. Specified in
 `docs/decisions/0009-reference-memory-store.md`.
 
+**Layer** (R33, R34) — one of `core`, `loop`, `memory`, `adapters`. Two import rules are enforced
+by a guard test rather than by convention: **the core imports nothing outward**, and **nothing
+outside the core imports a core submodule**. The first is R33's real teeth — an empty dependency
+list constrains what the package pulls in from outside, not how its own layers depend on each
+other. The second makes R34's "the same contract" a fact about the import graph. Specified in
+`docs/decisions/0011-module-layout-and-versioning.md`.
+
+**Compat floor** (R35) — the reserved `compat` key every payload carries, naming the lowest reader
+version that can correctly interpret it. A reader at 3 meeting `v=5, compat=2` interprets it;
+meeting `compat=4` it reports the payload *unauditable*. Additive changes therefore stay readable
+by older readers, which matters because most schema changes are additive and the retrospective
+audit reads long-lived archives. Raised only when an older reader would get it wrong.
+
 **Effect-shape inventory** (R17) — the published inventory of distinct SRD 5.2 effect shapes
 against which coverage is checked. Mechanical coverage is complete when every shape resolves;
 entries not yet implemented are disclosed rather than omitted silently.

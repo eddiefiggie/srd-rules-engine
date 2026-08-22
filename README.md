@@ -85,7 +85,7 @@ backlog.
 
 ## Status
 
-**Requirements-only. Nothing built yet.**
+**Requirements-only. Nothing built yet — but every design gate is now settled.**
 
 [`docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`](docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md)
 carries 36 requirements, 4 flows, 5 acceptance examples, and 10 settled design decisions. Two
@@ -133,18 +133,18 @@ one, and the plan is amended to match:
 - [0010 — the blocked loop](docs/decisions/0010-blocked-loop.md) — a block is a suspension, and the
   loop bounds itself
   (closed [#33](https://github.com/eddiefiggie/srd-rules-engine/issues/33))
+- [0011 — layout and versioning](docs/decisions/0011-module-layout-and-versioning.md) — layer
+  boundaries are a guard test, and schemas carry a min-reader floor
+  (closed [#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13))
 
-**Next up:** [#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13), the last design
-gate — module layout and schema-versioning mechanics. It was left until now because module layout
-depends on what modules turned out to exist, and it has since accumulated seven versioned things:
-the Declaration, Ruling, memory-port core, and ledger-payload schemas, the ledger reader API,
-[0007](docs/decisions/0007-alternatives-verification.md)'s opaque read token, and — the odd one
-out — extension namespaces, which consumers declare and the engine only records.
+**Next up:** [#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3) — the last thing
+holding M0 open, and the only one that is not a design question. It needs the official SRD v5.2.1
+document, and its attribution statement transcribed from the front matter rather than
+reconstructed. It gates SRD-derived **data**, not the mechanics code.
 
-[#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3) is not a design gate but an errand:
-it needs the official SRD v5.2.1 PDF and its attribution statement transcribed from the front
-matter. It gates all SRD-derived data and runs parallel to everything above. Then `/ce-plan` to
-turn the requirements artifact into an implementation plan.
+**Every design gate is settled.** The eleven records in
+[`docs/decisions/`](docs/decisions/) answer them, and the plan is amended to match each one. Then
+`/ce-plan` to turn the requirements artifact into an implementation plan.
 
 M1's machinery issues are deliberately **not** filed yet: the adjudication core, ledger, and memory
 port would all be reshaped by the gates above, so filing them now would file the wrong work. The
