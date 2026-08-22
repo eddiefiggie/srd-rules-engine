@@ -130,13 +130,16 @@ one, and the plan is amended to match:
 - [0009 — the reference memory store](docs/decisions/0009-reference-memory-store.md) — flat JSON,
   because the store is a projection of the ledger
   (closed [#12](https://github.com/eddiefiggie/srd-rules-engine/issues/12))
+- [0010 — the blocked loop](docs/decisions/0010-blocked-loop.md) — a block is a suspension, and the
+  loop bounds itself
+  (closed [#33](https://github.com/eddiefiggie/srd-rules-engine/issues/33))
 
-**Next up:** [#33](https://github.com/eddiefiggie/srd-rules-engine/issues/33), bounding the
-`blocked` loop that [0005](docs/decisions/0005-retry-bounds.md) deliberately excluded. Then
-[#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13) last, since module layout depends
-on what modules turned out to exist — and it now owns versioning for the Declaration, Ruling,
-memory-port, and ledger-payload schemas, the reader API, the opaque read token, and
-consumer-declared extension namespaces the engine records without interpreting.
+**Next up:** [#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13), the last design
+gate — module layout and schema-versioning mechanics. It was left until now because module layout
+depends on what modules turned out to exist, and it has since accumulated seven versioned things:
+the Declaration, Ruling, memory-port core, and ledger-payload schemas, the ledger reader API,
+[0007](docs/decisions/0007-alternatives-verification.md)'s opaque read token, and — the odd one
+out — extension namespaces, which consumers declare and the engine only records.
 
 [#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3) is not a design gate but an errand:
 it needs the official SRD v5.2.1 PDF and its attribution statement transcribed from the front

@@ -6,6 +6,43 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-22 (seventh)
+
+Design only; no build stamp change, because nothing a consumer runs was altered.
+
+- **Gate #33 settled**: **a block is a suspension, not a refusal.** The declaration was accepted —
+  it passed R3 and the trigger check — and stalled only at fact resolution, so supplying the facts
+  resumes *that* declaration rather than requiring a new one, and `0005`'s declaration budget is
+  not charged. That budget counts refusals, and its terminal reasons all name agent behaviour.
+  Recorded in `docs/decisions/0010-blocked-loop.md`; R22 and R30 amended.
+- **The loop needs no count bound, because it bounds itself.** R21 makes a rule's fact
+  dependencies a *static* declaration, so the unresolved set can only shrink — the loop terminates
+  in at most as many rounds as the rule declares facts. Only a round that fails to shrink the set
+  ends the turn, as `fact-unavailable`.
+- **A count bound would have been worse than nothing.** It could do exactly one thing: cut off a
+  sequence that was progressing — which in a human-driven session is a person supplying facts one
+  at a time and thinking in between. And a safeguard that essentially never fires is untested code
+  guarding a case that cannot occur. Distinguished in the record from `0007`'s deliberately-kept
+  `verified-stale`: **a signal that never fires tells you something is healthy; a safeguard that
+  never fires is dead machinery.**
+- **`blocked` names every unresolved fact at once**, with each type's R22 classification — one
+  round trip rather than N. Same shape as `0004`'s rule for challenges. It also makes the
+  shrinking-set invariant observable, and catches the case a count bound is usually reached for: a
+  driver writing the *wrong* facts makes no progress by definition.
+- **Blocking is usually correct behaviour** — the engine refusing to invent and asking. What is
+  defective is a fact type that blocks session after session, which means its `absent`
+  classification is a design-time claim being tested and failing. Treated as a data-model defect,
+  the analogue of `0004`'s over-broad trigger row, and surfaced by the ledger reader's
+  cross-session audit rather than a single session's report.
+- **The engine never invents a default at the terminal.** R22 blocking *means* no default is
+  honest, so supplying one would be worse than `0005`'s rejected bypass rather than equivalent to
+  it.
+- **Drivers acquire an obligation**: a driver must not return from a blocked-fact request without
+  either supplying facts or intending to stop, since a bare return is indistinguishable from no
+  progress. Easy to get wrong in a polling driver, so it belongs in the driver documentation.
+- `CONCEPTS.md` gains **Block**. The exhaustion entry type gains a second terminal reason with no
+  envelope change — `0006`'s payload split working as intended.
+
 ## Unreleased — 2026-08-22 (sixth)
 
 Design only; no build stamp change, because nothing a consumer runs was altered. Two sibling gates

@@ -51,6 +51,16 @@ caller outside the turn loop). A failed verification is recorded and flagged in 
 a refusal to adjudicate: the alternatives are metadata about a decision, not the decision.
 Specified in `docs/decisions/0007-alternatives-verification.md`.
 
+**Block** (R22) — the engine declining to adjudicate because a rule consumes a fact the port does
+not hold and no default of any kind would be honest. **A suspension, not a refusal**: the
+declaration was accepted, so supplying the facts resumes *that* declaration rather than requiring
+a new one, and the agent's retry budget is not charged. Names every unresolved fact at once. The
+loop is self-terminating because R21 makes fact dependencies static, so the unresolved set can
+only shrink; a round that fails to shrink it ends the turn as `fact-unavailable`. Blocking is
+usually correct behaviour — what is defective is a fact type that blocks session after session,
+which means its `absent` classification is failing. Specified in
+`docs/decisions/0010-blocked-loop.md`.
+
 **Ruling** (R5) — the only object that constitutes an outcome. Carries status, the test
 performed, raw dice and seed, the target number *and its derivation*, the outcome, applied
 effects, the resolved value and provenance of every memory-port fact consumed, SRD citations,
