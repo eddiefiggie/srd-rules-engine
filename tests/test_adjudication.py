@@ -42,6 +42,13 @@ from srd_rules_engine.core.memory_port import (
 from srd_rules_engine.core.read_surface import END_TURN, Verdict, read
 from srd_rules_engine.core.rules import Rule, RuleProvenance, load_fixture_ruleset
 from srd_rules_engine.core.state import Combatant, EncounterState
+from srd_rules_engine.core.triggers import (
+    Catalogue,
+    Condition,
+    Grounding,
+    Operator,
+    Trigger,
+)
 from srd_rules_engine.memory.store import JsonMemoryStore
 
 # --- Invented fixtures. Nothing here is an SRD value. ------------------------------
@@ -150,6 +157,20 @@ RESOLVERS = {
 }
 RULESET = load_fixture_ruleset("adjudication", [STEEL_YOURSELF, READ_THE_OMENS, PLAIN])
 
+#: One invented row, so the challenged status can be produced here too.
+CATALOGUE = Catalogue(
+    version=3,
+    triggers=(
+        Trigger(
+            id="fixture-never-skip-in-combat",
+            grounding=Grounding.AUTHORED,
+            when=(Condition(field="in_combat", operator=Operator.EQUALS, value=True),),
+            message="an invented row, so a skip mid-combat collides with something",
+            rationale="Exercises the challenged path from the adjudication side.",
+        ),
+    ),
+)
+
 
 def combatant(cid: str, hp: int = 20) -> Combatant:
     return Combatant(
@@ -179,6 +200,7 @@ def build(tmp_path: Path, *, seeds: tuple[int, ...] = (12345,)) -> tuple[Adjudic
             fact_types=FACT_TYPES,
             port=JsonMemoryStore(store_path),
             ledger=ledger,
+            catalogue=CATALOGUE,
             seed_source=lambda: next(supply),
         ),
         store_path,
@@ -615,12 +637,24 @@ def test_nothing_is_recorded_when_the_adjudication_raises_before_the_boundary_cl
 # --- The no-test path (the challenge itself arrives with the trigger catalogue) -----
 
 
+def quiet_skip(reason: str) -> tuple[EncounterState, Declaration]:
+    """A skip outside combat, so the fixture catalogue has nothing to collide with.
+
+    The challenged path belongs to the trigger tests; these are about what an *accepted*
+    skip records.
+    """
+    state = EncounterState.new([combatant("pc")])
+    return state, Declaration(
+        actor_id="pc",
+        intent=Intent(improvised=True, label="something unremarkable"),
+        no_test_reason=reason,
+    )
+
+
 def test_a_no_test_claim_is_accepted_and_recorded_distinctly(tmp_path: Path) -> None:
     adjudicator, _, _ = build(tmp_path)
-    state = encounter()
-    ruling, unchanged = adjudicator.adjudicate(
-        state, declare(state, rule_id=None, no_test_reason="the door was already open")
-    )
+    state, declaration = quiet_skip("the door was already open")
+    ruling, unchanged = adjudicator.adjudicate(state, declaration)
 
     assert ruling.status is Status.NO_TEST
     assert ruling.result is None
@@ -630,10 +664,9 @@ def test_a_no_test_claim_is_accepted_and_recorded_distinctly(tmp_path: Path) -> 
 
 def test_a_no_test_claim_still_bounds_what_may_be_narrated(tmp_path: Path) -> None:
     adjudicator, _, _ = build(tmp_path)
-    state = encounter()
-    ruling, _ = adjudicator.adjudicate(
-        state, declare(state, rule_id=None, no_test_reason="nothing was at stake")
-    )
+    state, declaration = quiet_skip("nothing was at stake")
+    ruling, _ = adjudicator.adjudicate(state, declaration)
+    assert ruling.status is Status.NO_TEST
     assert any("a rule would have had to resolve" in claim for claim in ruling.bounds.may_not)
 
 
@@ -652,6 +685,8 @@ def test_why_reads_as_an_explanation_for_every_status(tmp_path: Path) -> None:
             state, declare(state, rule_id=None, no_test_reason="nothing at stake")
         )[0],
     ]
+    # The catalogue fires on a skip in combat, so NO_TEST needs a state that is not.
+    outcomes.append(adjudicator.adjudicate(*quiet_skip("nothing at stake"))[0])
     assert {r.status for r in outcomes} == set(Status)
     for ruling in outcomes:
         assert ruling.why(), f"{ruling.status} has no account of itself"

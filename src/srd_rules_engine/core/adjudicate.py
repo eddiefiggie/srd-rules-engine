@@ -51,6 +51,7 @@ from srd_rules_engine.core.memory_port import (
 from srd_rules_engine.core.read_surface import LegalAction, Verdict, legal_actions, verify
 from srd_rules_engine.core.rules import Ruleset
 from srd_rules_engine.core.state import EncounterState
+from srd_rules_engine.core.triggers import Catalogue, MatchContext, Trigger, challenge_text
 
 DECLARATION_VERSION = 1
 RULING_VERSION = 1
@@ -61,6 +62,7 @@ class Status(StrEnum):
 
     RULED = "ruled"
     NO_TEST = "no-test-accepted"
+    CHALLENGED = "challenged"
     REJECTED = "rejected"
     BLOCKED = "blocked"
 
@@ -176,6 +178,7 @@ class Ruling:
     bounds: NarrationBounds = field(default_factory=NarrationBounds)
     reason: str | None = None
     unresolved: tuple[str, ...] = ()
+    fired: tuple[Trigger, ...] = ()
 
     @property
     def is_outcome(self) -> bool:
@@ -185,6 +188,8 @@ class Ruling:
         """The one-line account a reader can check without reconstructing the session."""
         if self.status is Status.REJECTED:
             return f"rejected: {self.reason}"
+        if self.status is Status.CHALLENGED:
+            return f"challenged: {challenge_text(self.fired)}"
         if self.status is Status.BLOCKED:
             return f"blocked on {', '.join(self.unresolved)}"
         if self.result is None:
@@ -203,6 +208,7 @@ class Adjudicator:
         fact_types: Mapping[str, FactType],
         port: MemoryPort,
         ledger: Ledger,
+        catalogue: Catalogue | None = None,
         seed_source: SeedSource = _system_seed,
     ) -> None:
         missing = [rule.id for rule in ruleset if rule.id not in resolvers]
@@ -216,17 +222,24 @@ class Adjudicator:
         self._fact_types = dict(fact_types)
         self._port = port
         self._ledger = ledger
+        self._catalogue = catalogue or Catalogue(version=1)
         self._seed_source = seed_source
 
     def adjudicate(
-        self, state: EncounterState, declaration: Declaration
+        self,
+        state: EncounterState,
+        declaration: Declaration,
+        *,
+        situation: Mapping[str, object] | None = None,
     ) -> tuple[Ruling, EncounterState]:
         """The single entry point. Returns the Ruling and the state it left behind."""
         with self._ledger.escape_boundary():
             self._ledger.append(
-                "declaration", v=DECLARATION_VERSION, payload=_declaration_payload(declaration)
+                "declaration",
+                v=DECLARATION_VERSION,
+                payload=_declaration_payload(declaration, self._catalogue.version),
             )
-            ruling, next_state = self._decide(state, declaration)
+            ruling, next_state = self._decide(state, declaration, situation or {})
             self._ledger.append(
                 _entry_type(ruling.status), v=RULING_VERSION, payload=_ruling_payload(ruling)
             )
@@ -235,7 +248,10 @@ class Adjudicator:
     # --- The decision, in the order R5 requires it to be reconstructable ------------
 
     def _decide(
-        self, state: EncounterState, declaration: Declaration
+        self,
+        state: EncounterState,
+        declaration: Declaration,
+        situation: Mapping[str, object],
     ) -> tuple[Ruling, EncounterState]:
         verdict = self._verdict(state, declaration)
 
@@ -244,6 +260,11 @@ class Adjudicator:
             return _refused(declaration, verdict, refusal), state
 
         if declaration.claims_no_test:
+            # R6. The matcher sees a projection with no field for the free-text label,
+            # so a skip cannot be waved through by how it was worded.
+            fired = self._catalogue.matching(project(declaration, state, situation))
+            if fired:
+                return _challenged(declaration, verdict, fired), state
             return _no_test(declaration, verdict), state
 
         assert declaration.rule_id is not None  # guaranteed by Declaration.__post_init__
@@ -319,6 +340,40 @@ def _refused(declaration: Declaration, verdict: Verdict, reason: str) -> Ruling:
     )
 
 
+def _challenged(declaration: Declaration, verdict: Verdict, fired: tuple[Trigger, ...]) -> Ruling:
+    """R6. Names every row that fired, in identifier order, and produces no outcome."""
+    return Ruling(
+        status=Status.CHALLENGED,
+        declaration=declaration,
+        alternatives_verdict=verdict,
+        fired=fired,
+        bounds=NarrationBounds(
+            may_not=("that anything happened — the skip must be re-declared as a test",)
+        ),
+    )
+
+
+def project(
+    declaration: Declaration, state: EncounterState, situation: Mapping[str, object]
+) -> MatchContext:
+    """Build what the matcher sees. The free-text label has nowhere to go."""
+    derived: dict[str, object] = {
+        "in_combat": state.in_combat,
+        "round": state.round_number,
+        "actor_is_active": state.is_active(declaration.actor_id),
+    }
+    if state.has(declaration.actor_id):
+        actor = state.combatant(declaration.actor_id)
+        derived["actor_hit_points"] = actor.hit_points
+        derived["actor_is_down"] = actor.is_down
+    return MatchContext(
+        actor_id=declaration.actor_id,
+        action_key=declaration.intent.action_key,
+        improvised=declaration.intent.improvised,
+        situation={**derived, **situation},
+    )
+
+
 def _no_test(declaration: Declaration, verdict: Verdict) -> Ruling:
     return Ruling(
         status=Status.NO_TEST,
@@ -373,12 +428,19 @@ def _apply(state: EncounterState, effects: Sequence[Effect]) -> EncounterState:
 
 
 def _entry_type(status: Status) -> str:
-    return "rejection" if status is Status.REJECTED else "ruling"
+    if status is Status.REJECTED:
+        return "rejection"
+    if status is Status.CHALLENGED:
+        return "challenge"
+    return "ruling"
 
 
-def _declaration_payload(declaration: Declaration) -> Mapping[str, object]:
+def _declaration_payload(declaration: Declaration, catalogue_version: int) -> Mapping[str, object]:
     return {
         COMPAT: DECLARATION_VERSION,
+        # R6: replay uses the catalogue version in force, not the current one, so a
+        # grown catalogue never reports a sound ledger as inconsistent.
+        "catalogue_version": catalogue_version,
         "actor": declaration.actor_id,
         "intent": {
             "action_key": declaration.intent.action_key,
@@ -402,6 +464,10 @@ def _ruling_payload(ruling: Ruling) -> Mapping[str, object]:
         "alternatives_verdict": str(ruling.alternatives_verdict),
         "reason": ruling.reason,
         "unresolved": list(ruling.unresolved),
+        "fired": [
+            {"id": t.id, "grounding": str(t.grounding), "basis": t.reference or t.rationale}
+            for t in ruling.fired
+        ],
         "citations": list(ruling.citations),
         "facts": [
             {
