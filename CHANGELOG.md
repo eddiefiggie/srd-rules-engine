@@ -6,6 +6,35 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.2`
+
+The monster sweep (#63, part of #14) — the inventory reaches 158 shapes, 17 implemented.
+
+- **All 330 stat blocks were parsed**, reconciled against the heading list in both directions with
+  none empty. The first range stopped at p. 358 because that is where the contents listing ends,
+  which truncated Reef Shark, Seahorse, and Swarm of Piranhas — the Animals section actually runs
+  to the last page of the document. Second range error of this sweep series, and the second one a
+  reconciliation caught rather than a reader.
+- **Ten shapes the earlier sweeps do not name**: Multiattack, recharging abilities, Legendary
+  Resistance, Legendary Actions, Regeneration, Hit Point maximum reduction, effects triggered by
+  death, swarm space-sharing, escape DCs, and repeated saves to end an effect.
+- **Two were nearly lost to detector wording, and one apparent find was false.** `escape DC` is
+  written lowercase, and the document says `repeats the save` rather than the phrasing first
+  searched for; both returned zero hits and would have been recorded as absent. Probing the
+  corpus for alternate wordings found 39 and 31 occurrences. In the other direction, Gibbering
+  Mouther's "absorbed into the mouther" is flavour about a corpse rather than damage absorption,
+  and that candidate was dropped.
+- **Shapes the earlier sweeps already name were deliberately not re-added**, and the reason is
+  recorded next to the table: a monster's aura is an Emanation, Pack Tactics is Advantage,
+  Frightful Presence applies Frightened, Sunlight Sensitivity is Disadvantage, Flyby is an
+  Opportunity Attack exception, and a Spellcasting trait is the Magic action bounded by Per Day.
+  Re-adding them would inflate the denominator with duplicates and make coverage read worse than
+  it is.
+- **The exemplar test now generalises.** It was written against "Spell Descriptions"; it is now
+  written against "not the Rules Glossary", so the Magic Items sweep inherits the requirement
+  instead of quietly escaping it.
+- **Magic Items remains unswept**, and `coverage_scope` says so.
+
 ## Unreleased — 2026-08-23 — build `08232026.1`
 
 The spell sweep (#63, part of #14) — the inventory reaches 148 shapes, 17 implemented.

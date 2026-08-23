@@ -413,6 +413,164 @@ def sweep_spells(pdf: Path) -> list[dict[str, object]]:
     return shapes
 
 
+# Printed pages 254-364 are Monsters and the Animals section that continues it. The
+# Animals list runs to the last page of the document; stopping at the contents' "358"
+# silently truncated Reef Shark, Seahorse, and Swarm of Piranhas.
+MONSTER_PAGES = range(253, 364)
+MONSTER_HEADING_SIZE = 14.8
+
+#: Effect shapes found by sweeping Monsters, verified the same way SPELL_SHAPES are.
+#:
+#: Stat blocks are set in Optima with names in 14.8pt GillSans-SemiBold, so the entries
+#: enumerate mechanically; which of their mechanics is a distinct shape is editorial.
+#:
+#: Shapes the earlier sweeps already name are deliberately absent: a monster's aura is an
+#: Emanation, Pack Tactics is Advantage, Frightful Presence applies Frightened, Sunlight
+#: Sensitivity is Disadvantage, Flyby is an Opportunity Attack exception, and a
+#: Spellcasting trait is the Magic action bounded by Per Day. Re-adding them would inflate
+#: the denominator with duplicates and make coverage read worse than it is.
+MONSTER_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
+    # id, name, kind, exemplar monster, printed page, pattern that must match its stat block
+    (
+        "multiattack",
+        "Multiattack",
+        "action",
+        "Aboleth",
+        258,
+        r"Multiattack\. The aboleth makes two Tentacle attacks",
+    ),
+    ("recharge", "Recharging Ability", "resource", "Air Elemental", 258, r"Whirlwind \(Recharge 4"),
+    (
+        "legendary-resistance",
+        "Legendary Resistance",
+        "test-modifier",
+        "Aboleth",
+        258,
+        r"Legendary Resistance \(3/Day",
+    ),
+    ("legendary-action", "Legendary Action", "action", "Aboleth", 258, r"Legendary Action Uses: 3"),
+    (
+        "regeneration",
+        "Regeneration",
+        "effect",
+        "Troll",
+        333,
+        r"regains 15 Hit Points at the start of each of its turns",
+    ),
+    (
+        "hit-point-maximum-reduction",
+        "Hit Point Maximum Reduction",
+        "effect",
+        "Clay Golem",
+        274,
+        r"Hit Point maximum decreases by an amount equal to",
+    ),
+    (
+        "death-triggered-effect",
+        "Effect Triggered by Death",
+        "effect",
+        "Magmin",
+        305,
+        r"Death Burst\. The magmin explodes when it dies",
+    ),
+    (
+        "swarm-space-sharing",
+        "Swarm Occupying Another Creature's Space",
+        "targeting",
+        "Swarm of Bats",
+        361,
+        r"can occupy another creature.s space",
+    ),
+    (
+        "escape-dc",
+        "Escape DC for an Applied Grapple",
+        "state",
+        "Aboleth",
+        258,
+        r"Grappled condition \(escape DC 14\)",
+    ),
+    (
+        "repeat-save-to-end-effect",
+        "Repeated Save to End an Effect",
+        "test",
+        "Basilisk",
+        262,
+        r"repeats the save at the end of its next turn",
+    ),
+)
+
+
+def read_monsters(pdf: Path) -> dict[str, dict[str, object]]:
+    """Return every stat block as name -> {page, text}, in reading order."""
+    import pymupdf
+
+    doc = pymupdf.open(pdf)
+    monsters: dict[str, dict[str, object]] = {}
+    current: dict[str, object] | None = None
+    for pno in MONSTER_PAGES:
+        page = doc[pno]
+        mid = page.rect.width / 2
+        columns: dict[int, list[tuple[float, str, bool]]] = {0: [], 1: []}
+        for block in page.get_text("dict")["blocks"]:
+            for line in block.get("lines", []):
+                spans = [s for s in line["spans"] if s["text"].strip()]
+                if not spans:
+                    continue
+                text = "".join(s["text"] for s in spans)
+                if RUNNING_HEADER.match(text):
+                    continue
+                x0 = min(s["bbox"][0] for s in spans)
+                y0 = min(s["bbox"][1] for s in spans)
+                heading = any(
+                    s["font"] == HEADING_FONT and round(s["size"], 1) == MONSTER_HEADING_SIZE
+                    for s in spans
+                )
+                columns[0 if x0 < mid else 1].append((y0, text, heading))
+        for column in (0, 1):
+            for _, text, heading in sorted(columns[column], key=lambda r: r[0]):
+                if heading:
+                    current = {"page": pno + 1, "text": []}
+                    monsters[text.strip()] = current
+                elif current is not None:
+                    current["text"].append(text)  # type: ignore[union-attr]
+    for entry in monsters.values():
+        joined = " ".join(entry["text"])  # type: ignore[arg-type]
+        joined = joined.replace("\u00ad", "")
+        joined = re.sub(r"(\w)-\s+(\w)", r"\1\2", joined)
+        entry["text"] = re.sub(r"\s+", " ", joined).strip()
+    return monsters
+
+
+def sweep_monsters(pdf: Path) -> list[dict[str, object]]:
+    """Verify every MONSTER_SHAPES row against the document, then return the shapes."""
+    monsters = read_monsters(pdf)
+    shapes: list[dict[str, object]] = []
+    for shape_id, name, kind, monster, page, pattern in MONSTER_SHAPES:
+        entry = monsters.get(monster)
+        if entry is None:
+            raise SystemExit(f"{shape_id}: cites {monster!r}, which is not a stat block")
+        if entry["page"] != page:
+            raise SystemExit(
+                f"{shape_id}: cites {monster} at p. {page}, document has it at p. {entry['page']}"
+            )
+        if not re.search(pattern, str(entry["text"]), re.I):
+            raise SystemExit(
+                f"{shape_id}: pattern {pattern!r} does not match {monster} — the citation is "
+                "wrong, or the shape is not in this document"
+            )
+        shapes.append(
+            {
+                "id": shape_id,
+                "name": name,
+                "tag": None,
+                "reference": f"Monsters, p. {page} ({monster})",
+                "kind": kind,
+                "implemented": False,
+            }
+        )
+    return shapes
+
+
 def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
@@ -449,6 +607,7 @@ def build(pdf: Path) -> dict[str, object]:
         )
 
     shapes.extend(sweep_spells(pdf))
+    shapes.extend(sweep_monsters(pdf))
 
     return {
         "schema_version": 1,
@@ -457,11 +616,14 @@ def build(pdf: Path) -> dict[str, object]:
             "document": "System Reference Document 5.2.1",
             "revision": "5.2.1",
             "published": "2025-05-01",
-            "section": "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175)",
+            "section": (
+                "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175); "
+                "Monsters (pp. 254-364)"
+            ),
         },
         "coverage_scope": (
-            "Rules Glossary and Spell Descriptions. The Monsters and Magic Items sweeps "
-            "are tracked separately; until they land this inventory understates what full "
+            "Rules Glossary, Spell Descriptions, and Monsters. The Magic Items sweep is "
+            "tracked separately; until it lands this inventory understates what full "
             "coverage requires."
         ),
         "shapes": shapes,

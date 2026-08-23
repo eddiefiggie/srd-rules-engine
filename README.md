@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.1` — **the spell sweep extends the effect-shape inventory to 148 shapes.** All 338 Spell Descriptions entries were parsed and swept for effect shapes the Rules Glossary never names, adding twelve: half damage on a successful save, recurring damage, forced movement, summoned creatures, created objects, commanded creatures, ending a magical effect, planar travel, resurrection, transferred damage, forced rerolls, and information granted to the caster. Spell effects are body text with no typographic handle, so the editorial table is kept honest by verification rather than trust: every row names a spell, its page, and a pattern that must match that spell's text in the PDF, and the derivation fails if any of the three is wrong. Monsters and Magic Items are still unswept.
+**Current build:** `08232026.2` — **the monster sweep takes the effect-shape inventory to 158 shapes.** All 330 stat blocks were parsed and swept, adding ten shapes: Multiattack, recharging abilities, Legendary Resistance, Legendary Actions, Regeneration, Hit Point maximum reduction, effects triggered by death, swarm space-sharing, escape DCs, and repeated saves to end an effect. Two of those were nearly lost to detector wording — the document writes "escape DC" lowercase and "repeats the save" rather than the phrasings first searched for — and one apparent find was a false positive. Magic Items is the last unswept section.
 
 ---
 
@@ -107,7 +107,7 @@ distinct effect shapes SRD v5.2.1 defines, each marked implemented or not. Witho
 "full SRD 5.2 coverage is the definition of done" is unfalsifiable — there is no way to
 tell a complete engine from one whose author stopped noticing gaps.
 
-**17 of 148 shapes resolve today.** The other 131 are listed, not omitted; run
+**17 of 158 shapes resolve today.** The other 141 are listed, not omitted; run
 `python -c "from srd_rules_engine.core import coverage_report; print(coverage_report())"`
 to see exactly which. Entries sit at independently-failable granularity, so each of the
 fifteen conditions counts separately — an engine that resolves Prone and nothing else
@@ -119,8 +119,8 @@ memory. Classification — which entries are effect shapes and which merely defi
 is editorial and lives in that script where it can be reviewed. Nineteen entries are
 recorded as vocabulary with a stated reason rather than dropped.
 
-**The inventory is currently swept from the Rules Glossary and Spell Descriptions**, and
-says so in its own `coverage_scope` field. Monsters and Magic Items are not yet swept, so
+**The inventory is currently swept from the Rules Glossary, Spell Descriptions, and
+Monsters**, and says so in its own `coverage_scope` field. Magic Items is not yet swept, so
 this understates what full coverage requires.
 
 Settled design decisions live in [`docs/decisions/`](docs/decisions/). A gate closes by producing
