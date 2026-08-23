@@ -99,6 +99,12 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "dash": "core.actions.ActionBudget.dashed",
         "dodge": "core.actions.dodging",
         "disengage": "core.actions.ActionBudget.disengaged",
+        # Spell slots, save DCs, spell attacks and Concentration (#19).
+        "spell-slot": "core.spellcasting.SpellSlots",
+        "regain-spell-slots": "core.spellcasting.SpellSlots.restored",
+        "cantrip": "core.spellcasting.CANTRIP_LEVEL",
+        "concentration": "core.spellcasting.Concentration",
+        "spell-attack": "core.spellcasting.spell_attack_modifier",
         "ability-check": f"core.d20.TestKind.{TestKind.CHECK.name}",
         "saving-throw": f"core.d20.TestKind.{TestKind.SAVE.name}",
         "save": f"core.d20.TestKind.{TestKind.SAVE.name}",

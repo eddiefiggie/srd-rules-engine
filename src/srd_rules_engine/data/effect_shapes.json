@@ -215,7 +215,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 178",
    "kind": "spellcasting",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "carrying-capacity",
@@ -255,7 +255,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 179",
    "kind": "state",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "condition",
@@ -967,7 +967,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 188",
    "kind": "test",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "spellcasting-focus",
@@ -1471,7 +1471,7 @@
    "tag": null,
    "reference": "Classes, p. 32 (Spellcasting)",
    "kind": "resource",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "resource-recharge",
@@ -1495,7 +1495,7 @@
    "tag": null,
    "reference": "Classes, p. 78 (Arcane Recovery)",
    "kind": "resource",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "die-applied-to-a-roll",
