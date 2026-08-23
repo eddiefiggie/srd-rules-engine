@@ -6,6 +6,55 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.13`
+
+The effect-shape vocabulary is normalised on mechanism rather than on the feature that exhibits it.
+Decision `0013` settles all five of #76's questions plus the three it left pending. 215 shapes become
+211; 17 still implemented. Closes #76.
+
+- **Three recharge shapes become one `resource-recharge`,** parameterised by trigger. The document
+  defers the mechanism to each feature — both rest rules say a feature "recharges in the way
+  specified in its description" (pp. 185, 187) — so three entries were reproducing the content layer
+  inside the vocabulary layer. This does relax the "distinct trigger, fails independently" rule,
+  bounded by requiring the trigger to be expressible as an enumerated parameter.
+- **Two override shapes become one `failed-test-overridden-to-success`.** Peerless Aim (p. 88) and
+  Aboleth's Legendary Resistance (p. 258) are the same sentence with the test kind changed. Naming a
+  shape after the monster feature that exhibits it is what hid the duplication.
+- **Three reroll shapes become one `die-replacement`.** Halfling Luck (p. 86), Heroic Inspiration
+  (p. 183) and Wish (p. 175) share "an already-rolled die is replaced, and the replacement is
+  binding". #81 shipped `replace_die` as **one** seam serving all three, so a single shape is what
+  the engine actually exposes. Savage Attacker leaves the family entirely — it rolls damage dice
+  twice up front and keeps either, which is the advantage pattern, not a reroll.
+- **`ability-score-increase` is admitted,** because the exclusion criterion moved off the wrong
+  axis. "No Ruling applies it" asked what the adjudication surface happens to touch, which #81 had
+  just changed; it now asks whether a shape names a change to state the engine holds. Level
+  Advancement stays excluded on the new criterion too, and `split-movement` was never really in
+  question.
+- **Poisons and contagions both stand, and the issue's premise was wrong.** p. 197 enumerates
+  poison's four types as a closed named set with its own subsection; p. 194 gives contagions one
+  shared mechanic with the instances as content. Each sweep mirrored the document. The real defect
+  was the `kind`: `poison-delivery` is now `affliction`, and `magical-contagion` joins it.
+- **`kind` is a closed vocabulary, guarded in both directions.** It drifted from roughly fifteen
+  values to nineteen through eleven sweeps with nothing checking it. The generator now refuses a
+  stray value and the artifact is checked both ways — a one-way check would let a retired value sit
+  in the declaration forever, which is the same drift running backwards.
+- **The criteria that decide shape from content ship in the data.** They were applied across eleven
+  sweeps while living only in generator comments, where no consumer could see them and no auditor
+  could check them. `criteria` and `kind_values` are new top-level fields; the loader reads named
+  fields only, so `compat` is unchanged.
+- **An entry set aside now carries the reason that applied to it.** All nineteen `vocabulary`
+  reasons previously recorded the glossary-term exclusion while a second criterion was in use
+  elsewhere. Heroic Inspiration moves to `vocabulary` with a reason naming `die-replacement`, so it
+  reads as subsumed rather than dropped.
+- **`bonus-die-on-roll` is renamed `die-applied-to-a-roll`.** It was named from Bardic Inspiration,
+  which only ever adds; Boon of Fate applies its roll as a penalty too.
+- **The two-axis `kind` question is deliberately left open.** `kind` still mixes what a shape is
+  with what it applies to. Splitting it would re-classify all 211 shapes and change the schema, so
+  it wants its own record rather than being settled in passing.
+- **All three new guards were seen red before being trusted**, by four separate corruptions: a stray
+  kind value, a retired kind lingering in the declaration, the criteria stripped, and every
+  vocabulary reason flattened back to one string. Regeneration is byte-identical on a second run.
+
 ## Unreleased — 2026-08-23 — build `08232026.12`
 
 The d20 primitive can reroll or replace one die of an advantage pair. This was the gap #52

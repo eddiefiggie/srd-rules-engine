@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 from importlib import resources
+from typing import Any
 
 import pytest
 
@@ -219,3 +220,66 @@ def test_the_disclosure_surface_states_coverage_is_complete() -> None:
     """With nothing outstanding, the report must say so rather than going quiet."""
     report = coverage_report()
     assert "Every section of the document has been swept." in report
+
+
+# --- The vocabulary is closed, and the rules that closed it are in the data (0013) ---
+
+
+def _raw() -> dict[str, Any]:
+    raw: dict[str, Any] = json.loads(
+        resources.files("srd_rules_engine.data")
+        .joinpath("effect_shapes.json")
+        .read_text(encoding="utf-8")
+    )
+    return raw
+
+
+def test_kind_is_a_closed_vocabulary(inventory: Inventory) -> None:
+    """Decision 0013. `kind` went unguarded through eleven sweeps and drifted from roughly
+    fifteen values to nineteen with nothing noticing — a typo would have landed in the
+    published artifact as a new category.
+
+    Checked in both directions. A one-way check on "every kind is declared" would let a
+    retired value sit in the declaration forever, which is the same drift running backwards.
+    """
+    declared = set(_raw()["kind_values"])
+    used = {shape.kind for shape in inventory.shapes}
+
+    assert not used - declared, f"kinds used but not declared: {sorted(used - declared)}"
+    assert not declared - used, f"kinds declared but unused: {sorted(declared - used)}"
+
+
+def test_the_criteria_that_decided_shape_from_content_are_in_the_artifact() -> None:
+    """0013's Q2 finding: the exclusion criteria were applied across eleven sweeps while
+    living only in generator comments, so no consumer of the artifact could see them and
+    no auditor could check them. Prose in a file nobody publishes is not a record.
+    """
+    criteria = _raw()["criteria"]
+    assert criteria, "the rules that decided shape from content must ship with the data"
+
+    for entry in criteria:
+        assert entry["id"].strip()
+        assert entry["rule"].strip(), f"{entry['id']} states no rule"
+        assert entry["decided_by"].strip(), f"{entry['id']} names no decision"
+
+    ids = [entry["id"] for entry in criteria]
+    assert len(ids) == len(set(ids)), "criterion ids are the join key and must be unique"
+
+
+def test_an_entry_set_aside_carries_the_reason_that_actually_applied_to_it() -> None:
+    """The defect 0013 found: all nineteen `vocabulary` reasons recorded the glossary-term
+    exclusion while a second, different criterion was being applied elsewhere. One reason
+    repeated across every entry is indistinguishable from a reason nobody chose.
+    """
+    vocabulary = _raw()["vocabulary"]
+    reasons = {entry["reason"] for entry in vocabulary}
+    assert len(reasons) > 1, (
+        "every entry carries the same reason, which is what a default looks like when it "
+        "has quietly become the only answer"
+    )
+
+    heroic = next(e for e in vocabulary if e["name"] == "Heroic Inspiration")
+    assert "die-replacement" in heroic["reason"], (
+        "a mechanical entry set aside must say which shape subsumes it, or it reads as "
+        "having been dropped"
+    )

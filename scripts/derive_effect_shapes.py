@@ -139,7 +139,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Hazard": ("effect", False),
     "Healing": ("effect", True),
     "Heavily Obscured": ("environment", False),
-    "Heroic Inspiration": ("resource", False),
+    "Heroic Inspiration": ("vocabulary", False),
     "High Jump": ("movement", False),
     "Hit Point Dice": ("resource", False),
     "Hit Points": ("state", True),
@@ -202,6 +202,46 @@ KINDS: dict[str, tuple[str, bool]] = {
 #: reason is stated once rather than copy-pasted 20 times and drifting.
 VOCABULARY_REASON = (
     "Defines a term the rules use; it names no mechanical change the engine resolves."
+)
+
+#: Entries set aside for a *different* reason than the default. Decision 0013 found the
+#: artifact recording one reason for nineteen entries while a second criterion was being
+#: applied that appeared nowhere outside generator comments. A reason per entry is what
+#: stops that recurring: the exclusion a consumer can see is the exclusion that was used.
+VOCABULARY_REASONS: dict[str, str] = {
+    "Heroic Inspiration": (
+        "Mechanical, but not a separate shape: it is the document's own name for one "
+        "instance of `die-replacement`, differing from Halfling Luck and Wish in trigger "
+        "and cost rather than in mechanism. Decision 0013, Q5."
+    ),
+}
+
+#: The closed set of `kind` values. Classification is editorial, so this is the reviewable
+#: layer — but it was unguarded through eleven sweeps and drifted from roughly fifteen
+#: values to nineteen without anything noticing. Decision 0013 closes it. Adding a value is
+#: a deliberate edit here, not a typo that lands silently in the published artifact.
+KIND_VALUES: frozenset[str] = frozenset(
+    {
+        "action",
+        "affliction",
+        "attitude",
+        "condition",
+        "convention",
+        "effect",
+        "environment",
+        "equipment",
+        "hazard",
+        "movement",
+        "resource",
+        "sense",
+        "spellcasting",
+        "state",
+        "targeting",
+        "test",
+        "test-modifier",
+        "weapon-mastery",
+        "weapon-property",
+    }
 )
 
 
@@ -331,7 +371,6 @@ SPELL_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
         173,
         r"you take the same amount of damage",
     ),
-    ("reroll", "Forced Reroll", "test-modifier", "Wish", 175, r"forcing a reroll of any die roll"),
     (
         "information-granted",
         "Information Granted to the Caster",
@@ -438,15 +477,6 @@ MONSTER_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
         "Aboleth",
         258,
         r"Multiattack\. The aboleth makes two Tentacle attacks",
-    ),
-    ("recharge", "Recharging Ability", "resource", "Air Elemental", 258, r"Whirlwind \(Recharge 4"),
-    (
-        "legendary-resistance",
-        "Legendary Resistance",
-        "test-modifier",
-        "Aboleth",
-        258,
-        r"Legendary Resistance \(3/Day",
     ),
     ("legendary-action", "Legendary Action", "action", "Aboleth", 258, r"Legendary Action Uses: 3"),
     (
@@ -594,14 +624,6 @@ MAGIC_ITEM_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
         "Cloak of Invisibility",
         215,
         r"This cloak has 3 charges",
-    ),
-    (
-        "daily-recharge",
-        "Charges Regained on a Daily Schedule",
-        "resource",
-        "Cloak of Invisibility",
-        215,
-        r"regains 1d3 expended",
     ),
     (
         "numeric-bonus",
@@ -930,8 +952,8 @@ CLASS_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
         r"how many spell slots you have",
     ),
     (
-        "rest-recharge",
-        "Uses Regained on a Rest",
+        "resource-recharge",
+        "Resource Recharge",
         "resource",
         "Level 1: Rage",
         28,
@@ -954,8 +976,8 @@ CLASS_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
         r"choose expended spell slots to recover",
     ),
     (
-        "bonus-die-on-roll",
-        "Bonus Die Added to a Roll",
+        "die-applied-to-a-roll",
+        "Rolled Die Applied to a D20 Test in Either Direction",
         "test-modifier",
         "Level 1: Bardic Inspiration",
         31,
@@ -1078,8 +1100,16 @@ FEAT_PAGES = range(86, 88)
 FEAT_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
     # id, name, kind, exemplar feat, printed page, pattern that must match its text
     (
-        "miss-becomes-hit",
-        "Missed Attack Overridden to a Hit",
+        "ability-score-increase",
+        "Ability Score Increased to a Bounded Maximum",
+        "state",
+        "Boon of Combat Prowess",
+        88,
+        r"Increase one ability score of your choice by 1, to a maximum of 30",
+    ),
+    (
+        "failed-test-overridden-to-success",
+        "Failed D20 Test Overridden to a Success",
         "test-modifier",
         "Boon of Combat Prowess",
         88,
@@ -1227,7 +1257,7 @@ TOOLBOX_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
     (
         "poison-contact",
         "Contact Poison",
-        "poison-delivery",
+        "affliction",
         "Crawler Mucus (200 GP)",
         197,
         r"Contact Poison",
@@ -1235,7 +1265,7 @@ TOOLBOX_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
     (
         "poison-ingested",
         "Ingested Poison",
-        "poison-delivery",
+        "affliction",
         "Assassin’s Blood (150 GP)",  # noqa: RUF001 — the document's own apostrophe
         197,
         r"Ingested Poison",
@@ -1243,7 +1273,7 @@ TOOLBOX_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
     (
         "poison-inhaled",
         "Inhaled Poison",
-        "poison-delivery",
+        "affliction",
         "Burnt Othur Fumes (500 GP)",
         197,
         r"Inhaled Poison",
@@ -1251,7 +1281,7 @@ TOOLBOX_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
     (
         "poison-injury",
         "Injury Poison",
-        "poison-delivery",
+        "affliction",
         "Purple Worm Poison (2,000 GP)",
         198,
         r"Injury Poison",
@@ -1264,7 +1294,14 @@ TOOLBOX_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
         200,
         r"Trigger: A creature moves onto the pit.s lid",
     ),
-    ("magical-contagion", "Magical Contagion", "effect", "Cackle Fever", 194, r"Magical Contagion"),
+    (
+        "magical-contagion",
+        "Magical Contagion",
+        "affliction",
+        "Cackle Fever",
+        194,
+        r"Magical Contagion",
+    ),
 )
 
 
@@ -1370,8 +1407,8 @@ ORIGIN_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
         r"reduce the damage by that total",
     ),
     (
-        "reroll-a-natural-one",
-        "Natural 1 Rerolled, New Result Binding",
+        "die-replacement",
+        "Rolled Die Replaced, New Roll Binding",
         "test-modifier",
         "Halfling",
         86,
@@ -1754,7 +1791,8 @@ def build(pdf: Path) -> dict[str, object]:
             "reference": f"Rules Glossary, p. {entry['page']}",
         }
         if kind == "vocabulary":
-            vocabulary.append({**record, "reason": VOCABULARY_REASON})
+            reason = VOCABULARY_REASONS.get(name, VOCABULARY_REASON)
+            vocabulary.append({**record, "reason": reason})
         else:
             shapes.append({**record, "kind": kind, "implemented": implemented})
 
@@ -1774,6 +1812,13 @@ def build(pdf: Path) -> dict[str, object]:
     shapes.extend(sweep_origins(pdf))
     shapes.extend(sweep_playing(pdf))
     shapes.extend(sweep_chargen(pdf))
+
+    stray = sorted({str(sh["kind"]) for sh in shapes} - KIND_VALUES)
+    if stray:
+        raise SystemExit(
+            "kind values outside the closed vocabulary. Add them to KIND_VALUES "
+            f"deliberately, or fix the typo: {stray}"
+        )
 
     return {
         "schema_version": 1,
@@ -1798,9 +1843,56 @@ def build(pdf: Path) -> dict[str, object]:
             "`unswept_sections` is empty, which is the only form of this claim a guard "
             "can check, and `section` lists what the shapes actually cite. Complete "
             "coverage of the document is not the same as a correct inventory: the "
-            "granularity and consolidation questions raised across the sweeps are "
-            "tracked separately."
+            "granularity and consolidation questions raised across the sweeps were "
+            "settled by decision 0013."
         ),
+        # The rules that decided what is a shape and what is content. They were applied
+        # across eleven sweeps while living only in this file's comments, so a consumer of
+        # the artifact could not see them and an auditor could not check them. Decision
+        # 0013 put them in the data. Anything set aside cites one of these by id.
+        "criteria": [
+            {
+                "id": "engine-held-state",
+                "rule": (
+                    "A shape names a mechanical change to state the engine holds. Character "
+                    "progression that no engine operation resolves does not — level "
+                    "advancement maps experience to a level, and the engine holds the level "
+                    "rather than the mapping."
+                ),
+                "supersedes": (
+                    "'No Ruling applies it', which asked whether the adjudication entry "
+                    "point happened to touch the shape and so moved whenever that surface "
+                    "grew."
+                ),
+                "decided_by": "0013, Q2",
+            },
+            {
+                "id": "closed-named-set",
+                "rule": (
+                    "A closed named set with its own rules subsection is vocabulary. Worked "
+                    "examples that compose shapes already inventoried are content."
+                ),
+                "admitted": [
+                    "the eight weapon mastery properties",
+                    "the four poison delivery types",
+                ],
+                "declined": [
+                    "the nine environmental effects",
+                    "the three magical contagions",
+                ],
+                "decided_by": "0013, Q4",
+            },
+            {
+                "id": "mechanism-not-exemplar",
+                "rule": (
+                    "A shape is named for the mechanism it is, not for the feature that "
+                    "exhibits it. Two features whose rules differ only in a parameter are "
+                    "one shape."
+                ),
+                "decided_by": "0013, Q1, Q3 and Q5",
+            },
+        ],
+        "kind_values": sorted(KIND_VALUES),
         "shapes": shapes,
         "vocabulary": vocabulary,
     }
