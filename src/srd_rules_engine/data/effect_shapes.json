@@ -175,7 +175,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 177",
    "kind": "action",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "breaking-objects",
@@ -391,7 +391,7 @@
    "tag": "Action",
    "reference": "Rules Glossary, p. 180",
    "kind": "action",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "dead",
@@ -463,7 +463,7 @@
    "tag": "Action",
    "reference": "Rules Glossary, p. 181",
    "kind": "action",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "dodge",
@@ -471,7 +471,7 @@
    "tag": "Action",
    "reference": "Rules Glossary, p. 181",
    "kind": "action",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "emanation",
@@ -855,7 +855,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 186",
    "kind": "action",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "ready",

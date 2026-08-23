@@ -430,6 +430,48 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         176,
+        "one action per turn",
+        r"On your turn, you can take one action",
+    ),
+    (
+        177,
+        "a Bonus Action exists only if a rule grants one, and only one per turn",
+        r"You can.t take more than one Bonus Action on a turn, and you have a Bonus Action "
+        r"to take only if a rule explicitly says so",
+    ),
+    (
+        186,
+        "a Reaction is free of the other two and refreshes at the START OF YOUR NEXT TURN",
+        r"you can do so even if you also take an action, a Bonus Action, or both\.\s*Once "
+        r"you take a Reaction, you can.t take another one until the start of your next turn",
+    ),
+    (
+        180,
+        "Dash grants extra movement equal to Speed after modifiers",
+        r"you gain extra movement for the current turn\.\s*The increase equals your Speed "
+        r"after applying any modifiers",
+    ),
+    (
+        181,
+        "Dodge lasts until the start of your next turn and is lost to Speed 0",
+        r"until the start of your next turn, any attack roll made against you has "
+        r"Disadvantage if you can see the attacker, and you make Dexterity saving throws "
+        r"with Advantage\.\s*You lose these benefits if you have the Incapacitated "
+        r"condition or if your Speed is 0",
+    ),
+    (
+        181,
+        "Disengage lasts only for the rest of the current turn",
+        r"your movement doesn.t provoke Opportunity Attacks for the rest of the current turn",
+    ),
+    (
+        185,
+        "an Opportunity Attack costs a Reaction — the trigger this engine does not detect",
+        r"You can make an Opportunity Attack when a creature that you can see leaves your "
+        r"reach.{0,140}take a Reaction to make one melee attack",
+    ),
+    (
+        176,
         "the Rules Glossary states the same cancellation rule",
         r"Advantage and Dis-?\s*advantage on the same roll cancel each other",
     ),
