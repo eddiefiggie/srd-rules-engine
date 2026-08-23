@@ -101,6 +101,17 @@ REROLL_VERIFICATION: Final = Verification(
     date="2026-08-23",
 )
 
+#: R31. The natural-20 rules and the two scores derived without a roll rest on their own
+#: sentences, so they carry their own citation rather than borrowing the advantage one.
+CRITICAL_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference=(
+        'SRD v5.2.1, "Playing the Game" ("D20 Tests" -> "Rolling 20 or 1"), p. 7; '
+        "Rules Glossary, Critical Hit p. 179 and Passive Perception p. 186"
+    ),
+    date="2026-08-23",
+)
+
 #: The width of the hash slice a single die consumes.
 _BITS: Final = 32
 
@@ -134,6 +145,20 @@ class TestKind(StrEnum):
     CHECK = "ability-check"
     SAVE = "saving-throw"
     ATTACK = "attack-roll"
+
+
+class Critical(StrEnum):
+    """What a natural 20 or 1 did to this roll.
+
+    Only attack rolls have them. The document gives the rule under "Rolling 20 or 1" for
+    an *attack roll* and nowhere extends it to ability checks or saving throws, so neither
+    does this. A natural 20 on a check is a 20 and nothing more, which is the rule as
+    written rather than the one most tables play.
+    """
+
+    NONE = "none"
+    HIT = "critical-hit"
+    MISS = "critical-miss"
 
 
 class Advantage(StrEnum):
@@ -218,6 +243,8 @@ class D20Result:
     modifiers: tuple[Modifier, ...]
     total: int
     succeeded: bool
+    #: A natural 20 or 1 on an attack roll, which settles the outcome on its own.
+    critical: Critical = Critical.NONE
     #: Applied in order. Empty for a roll nothing has rerolled, which is almost all of them.
     replacements: tuple[Replacement, ...] = ()
 
@@ -250,6 +277,7 @@ def resolve(test: D20Test, *, seed: int) -> D20Result:
     used = _pick(dice, effective)
 
     total = used + sum(modifier.value for modifier in test.modifiers)
+    critical = _critical(test.kind, used)
     return D20Result(
         kind=test.kind,
         seed=seed,
@@ -262,13 +290,56 @@ def resolve(test: D20Test, *, seed: int) -> D20Result:
         effective=effective,
         modifiers=test.modifiers,
         total=total,
-        succeeded=total >= test.target,
+        succeeded=_succeeded(total, test.target, critical),
+        critical=critical,
     )
 
 
 def _effective_advantage(test: D20Test) -> Advantage:
     """Advantage and disadvantage cancel to a plain roll rather than accumulating."""
     return _cancel(test.has_advantage, test.has_disadvantage)
+
+
+def _critical(kind: TestKind, used: int) -> Critical:
+    """p. 7: a natural 20 on an attack roll hits and a natural 1 misses, either way
+    "regardless of any modifiers or the target's AC".
+
+    Read off the **used** die, not off the pair. With Disadvantage on an 18 and a 3 the
+    roll is a 3, and a 20 that was never used is a 20 nobody rolled for this test.
+    """
+    if kind is not TestKind.ATTACK:
+        return Critical.NONE
+    if used == DIE_SIDES:
+        return Critical.HIT
+    if used == 1:
+        return Critical.MISS
+    return Critical.NONE
+
+
+def _succeeded(total: int, target: int, critical: Critical) -> bool:
+    """A natural 20 or 1 settles an attack before the arithmetic is consulted."""
+    if critical is Critical.HIT:
+        return True
+    if critical is Critical.MISS:
+        return False
+    return total >= target
+
+
+def passive_score(
+    bonus: int, *, has_advantage: bool = False, has_disadvantage: bool = False
+) -> int:
+    """A score used without rolling — Passive Perception is the document's example.
+
+    p. 186: it "equals 10 plus the creature's Wisdom (Perception) check bonus", and
+    Advantage on such checks raises it by 5 while Disadvantage lowers it by 5.
+
+    Advantage and Disadvantage cancel here by the same rule as everywhere else, so a
+    creature holding both gets the unmodified score rather than +5 and -5 arriving in an
+    order that happens to work out.
+    """
+    effective = _cancel(has_advantage, has_disadvantage)
+    shift = {Advantage.ADVANTAGE: 5, Advantage.DISADVANTAGE: -5}.get(effective, 0)
+    return 10 + bonus + shift
 
 
 def _cancel(has_advantage: bool, has_disadvantage: bool) -> Advantage:
@@ -351,12 +422,14 @@ def replace_die(
 
     used = _pick(tuple(dice), result.effective)
     total = used + result.modifier_total
+    critical = _critical(result.kind, used)
     return replace(
         result,
         dice=tuple(dice),
         used=used,
         total=total,
-        succeeded=total >= result.target,
+        succeeded=_succeeded(total, result.target, critical),
+        critical=critical,
         replacements=(
             *result.replacements,
             Replacement(

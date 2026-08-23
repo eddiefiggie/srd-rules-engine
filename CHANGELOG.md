@@ -6,6 +6,44 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.14`
+
+The first slice of #15: what a natural 20 or 1 means, and the first scores derived without a roll.
+Inventory coverage 17 → 21 of 211. #15 stays open — the shapes it still lacks are listed below.
+
+- **A natural 20 on an attack roll hits and a natural 1 misses** "regardless of any modifiers or
+  the target's AC" (p. 7). `succeeded` is settled by the die before the total is consulted, proven
+  against an AC no total could reach and against a target any total would beat.
+- **Read off the die that counted, not the pair.** With Disadvantage on a 20 and a 3 the roll is a
+  3, and treating the discarded 20 as a critical would invent a hit. `replace_die` recomputes it,
+  so a reroll can create or destroy a critical — both directions have a test.
+- **Checks and saves have no criticals.** The document gives "Rolling 20 or 1" for an *attack roll*
+  and never extends it, so neither does the engine. This is the rule as written rather than the one
+  most tables play, which makes it exactly the kind of thing a confident memory would "fix" — R31
+  says widely-known 5e behaviour absent from the SRD is still a guess.
+- **A Critical Hit doubles the damage dice and not the modifier** (p. 179), and doubles **every**
+  damage expression in the branch rather than only the weapon's. The doubled count consumes twice
+  the index space, so the two halves of a critical cannot land on the same die. The modifier is
+  recovered by arithmetic in the test, because a test asserting only that damage went up would
+  never catch a doubled modifier.
+- **Passive Perception** is 10 plus the check bonus, shifted 5 either way by Advantage or
+  Disadvantage (p. 186), cancelling by the same rule as a roll rather than by +5 and −5 arriving in
+  a lucky order.
+- **`advantage-does-not-stack` is marked implemented as already-correct.** The engine has resolved
+  it since U8 — two booleans make the count-based reading unrepresentable — and the inventory was
+  simply understating coverage. No code changed for it.
+- **Section-swept shapes can now claim implementation.** They hard-coded `False`, which was fine
+  while none was implemented and became a floor the moment one was.
+  `IMPLEMENTED_SECTION_SHAPES` is asserted against `ENGINE_SHAPES` in both directions like the
+  glossary's claim.
+- **`CRITICAL_VERIFICATION`** is a third citation rather than a third clause on an existing one,
+  since these rules sit in different sections. `scripts/verify_d20_rules.py` now checks 21 clauses
+  rather than 16, all confirmed against the document, and was seen red by corrupting a new pattern.
+- **Six mutations were run against the new tests and all six were caught**, each by the test that
+  should catch it — criticals leaking into checks, the critical read off the pair, a natural 20 no
+  longer overriding, passive scores ignoring advantage, a doubled modifier, and only the first
+  damage expression doubling.
+
 ## Unreleased — 2026-08-23 — build `08232026.13`
 
 The effect-shape vocabulary is normalised on mechanism rather than on the feature that exhibits it.

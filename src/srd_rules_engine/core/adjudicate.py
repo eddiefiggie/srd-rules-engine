@@ -37,7 +37,7 @@ from enum import StrEnum
 from typing import Final, Protocol
 
 from srd_rules_engine.core.canonical import MAX_SAFE_INTEGER
-from srd_rules_engine.core.d20 import DAMAGE_OFFSET, D20Result, D20Test
+from srd_rules_engine.core.d20 import DAMAGE_OFFSET, Critical, D20Result, D20Test
 from srd_rules_engine.core.d20 import resolve as roll_d20
 from srd_rules_engine.core.d20 import roll as dice
 from srd_rules_engine.core.ledger import COMPAT, Ledger
@@ -412,7 +412,7 @@ class Adjudicator:
         seed = _checked_seed(self._seed_source())
         result = roll_d20(proposal.test, seed=seed)
         branch = proposal.on_success if result.succeeded else proposal.on_failure
-        effects = _roll_declared(branch, seed=seed)
+        effects = _roll_declared(branch, seed=seed, critical=result.critical)
         next_state = _apply(state, effects)
 
         return (
@@ -589,11 +589,21 @@ def _checked_seed(seed: int) -> int:
     return seed
 
 
-def _roll_declared(branch: Sequence[Declared], *, seed: int) -> tuple[Effect, ...]:
+def _roll_declared(
+    branch: Sequence[Declared], *, seed: int, critical: Critical = Critical.NONE
+) -> tuple[Effect, ...]:
     """Turn a branch into settled effects, rolling any dice the resolver declared.
 
     Each expression consumes its own stretch of the seed's index space, so two damage
     dice in one branch cannot silently share a die and report the same number twice.
+
+    On a Critical Hit the Rules Glossary (p. 179) says to "roll all of the attack's damage
+    dice twice and add them together. Then add any relevant modifiers." Two things follow,
+    and both are easy to get wrong: **every** damage expression in the branch doubles, not
+    just the weapon's, and the **modifier does not** — it is added once, after.
+
+    Doubling the count rather than rolling the same dice twice is deliberate: it consumes
+    twice the index space, so the two halves of a critical cannot land on the same die.
     """
     settled: list[Effect] = []
     offset = DAMAGE_OFFSET
@@ -601,17 +611,19 @@ def _roll_declared(branch: Sequence[Declared], *, seed: int) -> tuple[Effect, ..
         if isinstance(declared, Effect):
             settled.append(declared)
             continue
-        faces = dice(seed, count=declared.count, sides=declared.sides, offset=offset)
-        offset += declared.count
+        count = declared.count * 2 if critical is Critical.HIT else declared.count
+        faces = dice(seed, count=count, sides=declared.sides, offset=offset)
+        offset += count
         total = max(0, sum(faces) + declared.modifier)
+        crit = " (Critical Hit: damage dice doubled)" if critical is Critical.HIT else ""
         settled.append(
             Effect(
                 kind=EffectKind.DAMAGE,
                 target_id=declared.target_id,
                 amount=total,
                 description=(
-                    f"{declared.source}: {declared.count}d{declared.sides}"
-                    f"{_signed(declared.modifier)} -> "
+                    f"{declared.source}: {count}d{declared.sides}"
+                    f"{_signed(declared.modifier)}{crit} -> "
                     f"{' + '.join(str(f) for f in faces) or '0'}"
                     f"{_signed(declared.modifier)} = {total}"
                 ),

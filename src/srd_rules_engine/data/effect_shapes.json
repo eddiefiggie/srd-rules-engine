@@ -303,7 +303,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 179",
    "kind": "test",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "cube",
@@ -791,7 +791,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 186",
    "kind": "test",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "per-day",
@@ -1671,7 +1671,7 @@
    "tag": null,
    "reference": "Playing the Game, p. 7 (Rolling 20 or 1)",
    "kind": "test-modifier",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "advantage-does-not-stack",
@@ -1679,7 +1679,7 @@
    "tag": null,
    "reference": "Playing the Game, p. 8 (They Don’t Stack)",
    "kind": "test-modifier",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "split-movement",

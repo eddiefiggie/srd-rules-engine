@@ -48,6 +48,11 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
     {
         # The unified D20 test primitive (U8).
         "d20-test": "core.d20.D20Test",
+        # What a natural 20 or 1 means, and the score derived without rolling (#15).
+        "critical-hit": "core.d20.Critical.HIT",
+        "natural-20-auto-hit": "core.d20._critical",
+        "advantage-does-not-stack": "core.d20.D20Test.has_advantage",
+        "passive-perception": "core.d20.passive_score",
         "ability-check": f"core.d20.TestKind.{TestKind.CHECK.name}",
         "saving-throw": f"core.d20.TestKind.{TestKind.SAVE.name}",
         "save": f"core.d20.TestKind.{TestKind.SAVE.name}",

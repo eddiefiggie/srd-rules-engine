@@ -12,6 +12,7 @@ them refuses SRD-provenance entries outright.
 from __future__ import annotations
 
 import itertools
+import re
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -19,6 +20,7 @@ import pytest
 
 from srd_rules_engine.core.adjudicate import (
     Adjudicator,
+    DamageDice,
     Declaration,
     Effect,
     EffectKind,
@@ -26,8 +28,9 @@ from srd_rules_engine.core.adjudicate import (
     Proposal,
     Ruling,
     Status,
+    _roll_declared,
 )
-from srd_rules_engine.core.d20 import D20Test, Modifier, TestKind
+from srd_rules_engine.core.d20 import Critical, D20Test, Modifier, TestKind
 from srd_rules_engine.core.d20 import resolve as roll_d20
 from srd_rules_engine.core.ledger import Ledger
 from srd_rules_engine.core.ledger_reader import read_ledger
@@ -700,3 +703,58 @@ def test_why_reads_as_an_explanation_for_every_status(tmp_path: Path) -> None:
     assert {r.status for r in outcomes} == set(Status)
     for ruling in outcomes:
         assert ruling.why(), f"{ruling.status} has no account of itself"
+
+
+# --- A Critical Hit doubles the dice and not the modifier (#15) ----------------------
+
+
+def _damage(critical: Critical, *, count: int = 2, sides: int = 6, modifier: int = 4) -> Effect:
+    declared = DamageDice(
+        target_id="bandit", count=count, sides=sides, modifier=modifier, source="longsword"
+    )
+    return _roll_declared((declared,), seed=99, critical=critical)[0]
+
+
+def test_a_critical_hit_doubles_the_damage_dice() -> None:
+    """Rules Glossary p. 179: "Roll all of the attack's damage dice twice and add them
+    together." The record has to show the doubled dice, not just a bigger number."""
+    plain = _damage(Critical.NONE)
+    crit = _damage(Critical.HIT)
+
+    assert "2d6" in plain.description
+    assert "4d6" in crit.description, "the dice doubled, and the derivation says so"
+    assert "Critical Hit" in crit.description
+
+
+def test_a_critical_hit_does_not_double_the_modifier() -> None:
+    """The same sentence continues: "Then add any relevant modifiers." Once, after.
+
+    This is the half that gets doubled by mistake, and a test asserting only that damage
+    went up would never catch it. So the modifier is recovered by arithmetic: the total
+    minus the faces actually rolled must equal the modifier exactly.
+    """
+    crit = _damage(Critical.HIT, count=2, sides=6, modifier=4)
+
+    faces = [int(n) for n in re.findall(r"\b(\d+)\b", crit.description.split("->")[1])]
+    rolled = faces[:4]
+    assert len(rolled) == 4, "four dice were rolled"
+    assert crit.amount == sum(rolled) + 4, "the modifier was added once, not doubled"
+    assert crit.amount != sum(rolled) + 8
+
+
+def test_a_critical_miss_deals_damage_like_any_other_branch() -> None:
+    """`Critical.MISS` settles the attack, so no damage branch runs at all — but if one is
+    handed here directly it must not be treated as a critical hit."""
+    assert _damage(Critical.MISS).description == _damage(Critical.NONE).description
+
+
+def test_every_damage_expression_in_the_branch_doubles() -> None:
+    """ "All of the attack's damage dice" — a flaming sword's fire dice double too, not
+    just the weapon's. Doubling only the first expression would be invisible in play."""
+    declared = (
+        DamageDice(target_id="bandit", count=1, sides=8, modifier=3, source="longsword"),
+        DamageDice(target_id="bandit", count=2, sides=6, modifier=0, source="flame"),
+    )
+    effects = _roll_declared(declared, seed=99, critical=Critical.HIT)
+    assert "2d8" in effects[0].description
+    assert "4d6" in effects[1].description

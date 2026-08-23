@@ -22,15 +22,18 @@ import pytest
 
 from srd_rules_engine.core.d20 import (
     ADVANTAGE_VERIFICATION,
+    CRITICAL_VERIFICATION,
     DAMAGE_OFFSET,
     DIE_SIDES,
     REPLACEMENT_OFFSET,
     REROLL_VERIFICATION,
     Advantage,
+    Critical,
     D20Test,
     Modifier,
     TestKind,
     die,
+    passive_score,
     replace_die,
     resolve,
     roll,
@@ -665,3 +668,149 @@ def test_an_unrerolled_result_carries_an_empty_lineage() -> None:
     rolled = resolve(check(has_advantage=True), seed=8)
     assert rolled.replacements == ()
     assert rolled.original_dice == rolled.dice
+
+
+# --- What a natural 20 or 1 means (#15) ----------------------------------------------
+
+
+def attack(target: int = 15, **overrides: object) -> D20Test:
+    fields: dict[str, object] = {
+        "kind": TestKind.ATTACK,
+        "target": target,
+        "target_basis": "armour class 15, worn by a bandit",
+    }
+    fields.update(overrides)
+    return D20Test(**fields)  # type: ignore[arg-type]
+
+
+def _seed_where(test: D20Test, face: int, limit: int = 4000) -> int:
+    """The first seed whose *used* die is `face`. Searched, never dialled in — R4."""
+    for seed in range(limit):
+        if resolve(test, seed=seed).used == face:
+            return seed
+    raise AssertionError(f"no seed under {limit} produced a used die of {face}")
+
+
+def test_a_natural_20_hits_however_bad_the_arithmetic_is() -> None:
+    """p. 7: the attack "hits regardless of any modifiers or the target's AC".
+
+    Set against an AC no total could reach and a penalty that makes it worse. If the
+    implementation ever falls back to comparing the total, this goes red.
+    """
+    test = attack(target=99, modifiers=(Modifier(source="curse", value=-20),))
+    result = resolve(test, seed=_seed_where(test, DIE_SIDES))
+
+    assert result.critical is Critical.HIT
+    assert result.succeeded, "a natural 20 hits regardless of any modifiers or the target's AC"
+    assert result.total < result.target, "and it hit while falling short — that is the rule"
+
+
+def test_a_natural_1_misses_however_good_the_arithmetic_is() -> None:
+    """p. 7, the same rule from the other end: the attack "misses regardless"."""
+    test = attack(target=2, modifiers=(Modifier(source="blessed", value=20),))
+    result = resolve(test, seed=_seed_where(test, 1))
+
+    assert result.critical is Critical.MISS
+    assert not result.succeeded
+    assert result.total >= result.target, "it missed while beating the target — that is the rule"
+
+
+def test_checks_and_saves_have_no_criticals() -> None:
+    """The document gives "Rolling 20 or 1" for an **attack roll** and never extends it to
+    ability checks or saving throws.
+
+    This is the rule as written rather than the one most tables play, so it is exactly the
+    kind of thing that gets 'fixed' by someone confident from memory. R31: a widely-known
+    5e behaviour that the SRD does not state is still a guess.
+    """
+    for kind, basis in ((TestKind.CHECK, "difficulty class"), (TestKind.SAVE, "save DC")):
+        test = D20Test(kind=kind, target=99, target_basis=basis)
+        result = resolve(test, seed=_seed_where(test, DIE_SIDES))
+        assert result.used == DIE_SIDES
+        assert result.critical is Critical.NONE
+        assert not result.succeeded, "a natural 20 on a check is a 20, and 20 does not beat 99"
+
+
+def test_the_critical_is_read_off_the_used_die_not_the_pair() -> None:
+    """With Disadvantage on a 20 and a 3 the roll is a 3. A 20 that was never used is a 20
+    nobody rolled for this test, and treating it as a critical would invent a hit."""
+    unlucky = [
+        (seed, r)
+        for seed in range(3000)
+        for r in [resolve(attack(has_disadvantage=True), seed=seed)]
+        if DIE_SIDES in r.dice and r.used != DIE_SIDES
+    ]
+    assert unlucky, "no seed rolled a 20 that disadvantage discarded; the test proves nothing"
+
+    _, result = unlucky[0]
+    assert result.critical is Critical.NONE
+    assert result.succeeded == (result.total >= result.target)
+
+
+def test_replacing_a_die_can_create_or_destroy_a_critical() -> None:
+    """The critical follows the die that counts, so a reroll has to recompute it. A
+    replacement that left `critical` stale would report a hit the dice no longer support.
+    """
+    made = next(
+        (
+            after
+            for seed in range(3000)
+            for before in [resolve(attack(target=99), seed=seed)]
+            if before.critical is Critical.NONE
+            for after in [replace_die(before, position=0, source="Heroic Inspiration")]
+            if after.critical is Critical.HIT
+        ),
+        None,
+    )
+    assert made is not None, "no seed turned a plain attack into a critical"
+    assert made.succeeded, "the replacement created the critical, so the attack now hits"
+
+    lost = next(
+        (
+            after
+            for seed in range(3000)
+            for before in [resolve(attack(target=99), seed=seed)]
+            if before.critical is Critical.HIT
+            for after in [replace_die(before, position=0, source="Heroic Inspiration")]
+            if after.critical is not Critical.HIT
+        ),
+        None,
+    )
+    assert lost is not None, "no seed replaced a natural 20 away"
+    assert not lost.succeeded, "the critical went with the die; the attack no longer hits"
+
+
+# --- A score used without rolling ----------------------------------------------------
+
+
+def test_passive_perception_is_ten_plus_the_bonus() -> None:
+    """p. 186, including the document's own worked example: a level 1 character with
+    Wisdom 15 and Perception proficiency has a Passive Perception of 14 (10 + 2 + 2)."""
+    assert passive_score(4) == 14
+    assert passive_score(0) == 10
+    assert passive_score(-1) == 9
+
+
+def test_advantage_and_disadvantage_shift_a_passive_score_by_five() -> None:
+    assert passive_score(4, has_advantage=True) == 19
+    assert passive_score(4, has_disadvantage=True) == 9
+
+
+def test_a_passive_score_cancels_by_the_same_rule_as_a_roll() -> None:
+    """Holding both is the cancellation rule, not +5 and -5 arriving in a lucky order —
+    they happen to reach the same number here, which is exactly why it needs saying.
+    """
+    assert passive_score(4, has_advantage=True, has_disadvantage=True) == passive_score(4)
+
+
+def test_the_critical_semantics_carry_their_own_verified_citation() -> None:
+    """R31, and a third citation rather than a third clause on an existing one: these
+    rules sit in different sections from the advantage and reroll ones."""
+    assert CRITICAL_VERIFICATION.state is VerificationState.VERIFIED
+    assert CRITICAL_VERIFICATION.reference is not None
+    assert CRITICAL_VERIFICATION.reference not in (
+        ADVANTAGE_VERIFICATION.reference,
+        REROLL_VERIFICATION.reference,
+    )
+    for cited in ("p. 7", "p. 179", "p. 186"):
+        assert cited in CRITICAL_VERIFICATION.reference

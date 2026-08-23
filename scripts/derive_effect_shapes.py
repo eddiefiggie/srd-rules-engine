@@ -114,7 +114,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Crawling": ("movement", False),
     "Creature": ("vocabulary", False),
     "Creature Type": ("state", False),
-    "Critical Hit": ("test", False),
+    "Critical Hit": ("test", True),
     "Curses": ("effect", False),
     "D20 Test": ("test", True),
     "Damage": ("effect", True),
@@ -159,7 +159,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Object": ("vocabulary", False),
     "Occupied Space": ("targeting", False),
     "Opportunity Attacks": ("action", False),
-    "Passive Perception": ("test", False),
+    "Passive Perception": ("test", True),
     "Per Day": ("resource", False),
     "Player Character": ("vocabulary", False),
     "Possession": ("effect", False),
@@ -220,6 +220,17 @@ VOCABULARY_REASONS: dict[str, str] = {
 #: layer — but it was unguarded through eleven sweeps and drifted from roughly fifteen
 #: values to nineteen without anything noticing. Decision 0013 closes it. Adding a value is
 #: a deliberate edit here, not a typo that lands silently in the published artifact.
+#: Section-swept shapes the engine resolves. The glossary carries its claim in `KINDS`;
+#: the sweeps hard-coded `False`, which was fine while none of them was implemented and
+#: became a floor the moment one was. Asserted against `ENGINE_SHAPES` in both directions
+#: by tests/test_effect_shape_inventory.py, so an optimistic entry here fails the build.
+IMPLEMENTED_SECTION_SHAPES: frozenset[str] = frozenset(
+    {
+        "natural-20-auto-hit",
+        "advantage-does-not-stack",
+    }
+)
+
 KIND_VALUES: frozenset[str] = frozenset(
     {
         "action",
@@ -446,7 +457,7 @@ def sweep_spells(pdf: Path) -> list[dict[str, object]]:
                 "tag": None,
                 "reference": f"Spell Descriptions, p. {page} ({spell})",
                 "kind": kind,
-                "implemented": False,
+                "implemented": shape_id in IMPLEMENTED_SECTION_SHAPES,
             }
         )
     return shapes
@@ -595,7 +606,7 @@ def sweep_monsters(pdf: Path) -> list[dict[str, object]]:
                 "tag": None,
                 "reference": f"Monsters, p. {page} ({monster})",
                 "kind": kind,
-                "implemented": False,
+                "implemented": shape_id in IMPLEMENTED_SECTION_SHAPES,
             }
         )
     return shapes
@@ -724,7 +735,7 @@ def sweep_magic_items(pdf: Path) -> list[dict[str, object]]:
                 "tag": None,
                 "reference": f"Magic Items, p. {page} ({item})",
                 "kind": kind,
-                "implemented": False,
+                "implemented": shape_id in IMPLEMENTED_SECTION_SHAPES,
             }
         )
     return shapes
@@ -912,7 +923,7 @@ def sweep_equipment(pdf: Path) -> list[dict[str, object]]:
                 "tag": None,
                 "reference": f"Equipment, p. {page} ({entry_name})",
                 "kind": kind,
-                "implemented": False,
+                "implemented": shape_id in IMPLEMENTED_SECTION_SHAPES,
             }
         )
     return shapes
@@ -1074,7 +1085,7 @@ def sweep_classes(pdf: Path) -> list[dict[str, object]]:
                 "tag": None,
                 "reference": f"Classes, p. {page} ({LEVEL_PREFIX.sub('', heading)})",
                 "kind": kind,
-                "implemented": False,
+                "implemented": shape_id in IMPLEMENTED_SECTION_SHAPES,
             }
         )
     return shapes
@@ -1222,7 +1233,7 @@ def sweep_feats(pdf: Path) -> list[dict[str, object]]:
                 "tag": None,
                 "reference": f"Feats, p. {page} ({feat})",
                 "kind": kind,
-                "implemented": False,
+                "implemented": shape_id in IMPLEMENTED_SECTION_SHAPES,
             }
         )
     return shapes
@@ -1372,7 +1383,7 @@ def sweep_toolbox(pdf: Path) -> list[dict[str, object]]:
                 "tag": None,
                 "reference": f"Gameplay Toolbox, p. {page} ({PRICE_SUFFIX.sub('', entry_name)})",
                 "kind": kind,
-                "implemented": False,
+                "implemented": shape_id in IMPLEMENTED_SECTION_SHAPES,
             }
         )
     return shapes
@@ -1491,7 +1502,7 @@ def sweep_origins(pdf: Path) -> list[dict[str, object]]:
                 "tag": None,
                 "reference": f"Character Origins, p. {page} ({species})",
                 "kind": kind,
-                "implemented": False,
+                "implemented": shape_id in IMPLEMENTED_SECTION_SHAPES,
             }
         )
     return shapes
@@ -1653,7 +1664,7 @@ def sweep_playing(pdf: Path) -> list[dict[str, object]]:
                 "tag": None,
                 "reference": f"Playing the Game, p. {page} ({entry_name})",
                 "kind": kind,
-                "implemented": False,
+                "implemented": shape_id in IMPLEMENTED_SECTION_SHAPES,
             }
         )
     return shapes
@@ -1760,7 +1771,7 @@ def sweep_chargen(pdf: Path) -> list[dict[str, object]]:
                 "tag": None,
                 "reference": f"Character Creation, p. {page} ({entry_name})",
                 "kind": kind,
-                "implemented": False,
+                "implemented": shape_id in IMPLEMENTED_SECTION_SHAPES,
             }
         )
     return shapes

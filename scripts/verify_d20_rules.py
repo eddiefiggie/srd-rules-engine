@@ -76,6 +76,35 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"you can reroll or replace only one die, not both\.\s*You choose which one",
     ),
     (
+        7,
+        "a natural 20 on an attack roll hits regardless of modifiers or AC",
+        r"If you roll a 20 on the d20 \(called a .natural 20.\) for an attack roll, the "
+        r"attack hits regardless of any modifiers or the target.s AC",
+    ),
+    (
+        7,
+        "a natural 1 on an attack roll misses regardless of modifiers or AC",
+        r"If you roll a 1 on the d20 \(a .natural 1.\) for an attack roll, the attack "
+        r"misses regardless of any modifiers or the target.s AC",
+    ),
+    (
+        179,
+        "a Critical Hit doubles the damage dice and not the modifiers",
+        r"Roll all of the attack.s damage dice twice and add them together\.\s*Then add "
+        r"any relevant modifiers",
+    ),
+    (
+        186,
+        "Passive Perception is 10 plus the check bonus",
+        r"Passive Perception equals 10 plus the creature.s Wisdom \(Perception\) check bonus",
+    ),
+    (
+        186,
+        "advantage and disadvantage shift a passive score by 5 rather than rolling",
+        r"If the creature has Advantage on such checks, increase the score by 5\.\s*If the "
+        r"creature has Disadvantage on them, decrease the score by 5",
+    ),
+    (
         8,
         "the reroll rule has a subsection of its own, which is what makes it a rule",
         r"Interactions with Rerolls",
