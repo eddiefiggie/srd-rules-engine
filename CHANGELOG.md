@@ -43,6 +43,10 @@ API was not. Closes #78.
   moved with it. The band ordering is now asserted against the constants themselves.
 - **The disclosed limit in `core.d20` is removed rather than reworded.** No shape in the inventory
   becomes `implemented` — this is the seam those shapes need, not the shapes.
+- **A new limit ships disclosed in its place.** The index bands are a convention rather than an
+  enforced invariant: `roll` takes an arbitrary `count` and `offset`, so a large enough damage roll
+  would cross into the replacement band and silently alias one onto the other. No caller does that
+  and nothing checks. Recorded at both constants and filed as #82.
 
 ## Unreleased — 2026-08-23 (documentation)
 

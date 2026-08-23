@@ -111,6 +111,12 @@ DAMAGE_OFFSET: Final = 100
 #: Where replacement dice start. The seed's index space is banded — d20 at 0-1, damage from
 #: 100, replacements from 200 — so a rerolled die is drawn from the same seed as the roll it
 #: replaces without ever landing on a die that seed has already produced.
+#:
+#: The bands are a **convention, not an enforced invariant**: `roll` takes an arbitrary
+#: `count` and `offset`, so a large enough damage roll would cross into this band and
+#: silently alias a replacement onto a damage die. No caller does, and nothing checks.
+#: Disclosed rather than assumed away — see
+#: https://github.com/eddiefiggie/srd-rules-engine/issues/82.
 REPLACEMENT_OFFSET: Final = 200
 
 #: Indices a single replacement consumes: two, because the replacement may itself be rolled
@@ -404,7 +410,11 @@ def die(seed: int, index: int, sides: int = DIE_SIDES) -> int:
 
 
 def roll(seed: int, *, count: int, sides: int, offset: int = 0) -> tuple[int, ...]:
-    """Several dice of one size from one seed. `offset` keeps separate rolls apart."""
+    """Several dice of one size from one seed. `offset` keeps separate rolls apart.
+
+    `offset` is not checked against the band it lands in, so a large enough `count` runs
+    past the next band's start and aliases onto its dice. See #82.
+    """
     if count < 0:
         raise ValueError("a roll has a non-negative number of dice")
     return tuple(die(seed, offset + n, sides) for n in range(count))
