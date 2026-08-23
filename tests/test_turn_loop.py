@@ -343,7 +343,13 @@ def test_a_terminal_outcome_carries_the_refusals_and_what_was_offered(
         ScriptedDriver(declarations=[illegal(state, "fly"), illegal(state, "swim")]),
     )
     assert outcome.terminal is TerminalReason.REJECTION_CHURN
-    assert [a.key for a in outcome.offered] == [END_TURN, "attack:boar"]
+    assert [a.key for a in outcome.offered] == [
+        END_TURN,
+        "attack:boar",
+        "dash",
+        "dodge",
+        "disengage",
+    ]
     assert all(r.status is Status.REJECTED for r in outcome.refusals)
     assert outcome.ruling is None, "the engine never breaks a loop by choosing a test"
 
@@ -488,7 +494,13 @@ def test_the_loop_yields_typed_requests_and_never_calls_the_driver(tmp_path: Pat
     first = next(generator)
     assert isinstance(first, DeclarationRequest)
     assert first.actor_id == "pc"
-    assert [a.key for a in first.offered.actions] == [END_TURN, "attack:boar"]
+    assert [a.key for a in first.offered.actions] == [
+        END_TURN,
+        "attack:boar",
+        "dash",
+        "dodge",
+        "disengage",
+    ]
 
     second = generator.send(Declared(declaration(state)))
     assert isinstance(second, NarrationRequest)

@@ -6,6 +6,40 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.24`
+
+The read surface reports what the engine has learned. **Inventory coverage is unchanged at 76 of
+211, deliberately** — this build adds no rules. It connects the rules already built to the agent
+that has to decide with them, which is the half of R18 that was missing.
+
+- **A `Situation` reports typed values, never prose.** R18 asks for "active conditions with their
+  mechanical effects", because a name alone puts the agent back to recalling 5e from training —
+  the capability this engine exists to remove. So the agent is told it attacks at Disadvantage,
+  not merely that it is Poisoned.
+- **Implication is resolved before the agent sees it.** An Unconscious creature is reported as also
+  Prone and Incapacitated, so the agent never has to know which conditions imply which in order to
+  read what it can do.
+- **Speed is reported after conditions have acted on it.** A creature at Exhaustion level 1 is told
+  25, not the 30 on its sheet, and Dash offers the same 25 — "the increase equals your Speed after
+  applying any modifiers" (p. 180).
+- **The menu now follows the action economy.** Dash, Dodge and Disengage appear while an Action
+  remains and are withdrawn once it is spent. An Incapacitated creature is offered **only** the end
+  of its turn: p. 184 removes every action, but a creature that can do nothing must still be able to
+  stop, and offering nothing at all would strand the loop with no legal answer.
+- **An attack reports its distance without gating on it.** Whether a target is in range depends on
+  the *weapon* — reach for a melee one, normal and long range for a ranged one — and the read
+  surface does not know which weapon an attack will use. It supplies the fact and leaves the
+  judgement; adjudication still refuses an attack beyond reach or long range.
+- **Rules the engine does not enforce reach the agent.** Frightened's line-of-sight qualifier and
+  Dodge's "if you can see the attacker" are reported in `unenforced_clauses`, because an agent that
+  cannot see the gap will assume the engine closed it.
+- **The read token is unchanged, and that is the decision.** Decision `0007` has it commit to the
+  *offered set*, because that is what a declaration's alternatives claim. A situation is not a menu.
+  Staleness is still caught, since both are derived from the same generation the token carries — and
+  a mutation that folded the situation into the token is caught by `0007`'s own tests.
+- **Ten mutations were run against the new code and all ten were caught.** Three existing tests that
+  pinned the exact offered set were updated to the new menu rather than loosened.
+
 ## Unreleased — 2026-08-23 — build `08232026.23`
 
 Spell slots, save DCs, spell attacks and Concentration: the first slice of #19. Inventory coverage
