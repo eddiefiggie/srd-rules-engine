@@ -83,7 +83,7 @@ def test_the_inventory_states_the_scope_it_does_not_cover(inventory: Inventory) 
 #: A citation names a section of the document and a printed page, and may name the entry
 #: that exhibits the shape. Deliberately strict: "cites the document" is the claim every
 #: entry makes, and a pattern loose enough to accept free text would stop checking it.
-SECTIONS = "Rules Glossary|Spell Descriptions|Monsters|Magic Items"
+SECTIONS = "Rules Glossary|Spell Descriptions|Monsters|Magic Items|Equipment"
 CITATION = re.compile(rf"^({SECTIONS}), p\. \d{{1,3}}(?: \([A-Z][\w' -]+\))?$")
 
 
@@ -119,3 +119,17 @@ def test_vocabulary_entries_are_recorded_with_a_reason() -> None:
     assert raw["vocabulary"], "the glossary defines terms that are not effect shapes"
     for entry in raw["vocabulary"]:
         assert entry["reason"].strip(), f"{entry['name']} was set aside with no reason"
+
+
+def test_the_weapon_mastery_set_is_complete(inventory: Inventory) -> None:
+    """SRD v5.2.1 names exactly eight mastery properties (Equipment, p. 90).
+
+    A closed set the document enumerates is a completeness claim, and a completeness claim
+    gets a guard rather than a comment: these eight were the proof that the inventory was
+    incomplete after four sweeps, and losing one to a refactor would be invisible otherwise.
+    """
+    expected = {"Cleave", "Graze", "Nick", "Push", "Sap", "Slow", "Topple", "Vex"}
+    found = {s.name for s in inventory.shapes if s.kind == "weapon-mastery"}
+    assert found == expected, (
+        f"missing {expected - found or 'none'}, unexpected {found - expected or 'none'}"
+    )

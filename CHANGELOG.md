@@ -6,6 +6,31 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.4`
+
+The Equipment sweep (#67, part of #14) — the inventory reaches 181 shapes, 17 implemented.
+
+- **The gap that proved the inventory incomplete is closed.** All eight weapon mastery properties
+  — Cleave, Graze, Nick, Push, Sap, Slow, Topple, Vex — are now listed, with nine weapon
+  properties alongside them.
+- **The mastery set is a closed set, so it gets a guard rather than a comment.** The document
+  enumerates exactly eight; a test asserts all eight are present and named as the document names
+  them. Proven red two ways: one removed, and one renamed. These eight were the evidence that
+  four completed sweeps had not finished the job, and losing one to a later refactor would
+  otherwise be invisible.
+- **Two exclusions, both deliberate.** `Reach` appears here as a weapon property but the Rules
+  Glossary already defines it (p. 186). The armor subsections are subdivisions of `Armor
+  Training`, which the Glossary already names.
+- **The mastery properties are listed individually despite five delivering effects already
+  named** — Push is forced movement, Topple applies Prone, Vex grants Advantage, Sap imposes
+  Disadvantage, Slow reduces Speed. That resembles the duplication declined in the monster sweep,
+  and the distinction is recorded next to the table: Pack Tactics is one creature's trait, while
+  Mastery Properties is a closed named set the document enumerates as a mechanic — the same shape
+  as the fifteen conditions and the six areas of effect, each of which is its own entry. An engine
+  can implement Topple and not Vex, so they fail independently.
+- **Classes, Character Origins, Feats, and the Gameplay Toolbox remain unswept**, and
+  `coverage_scope` names them.
+
 ## Unreleased — 2026-08-23 — build `08232026.3`
 
 The magic-item sweep (closes #63; #14 stays open) — the inventory reaches 164 shapes, 17 implemented.
