@@ -1198,6 +1198,149 @@ def sweep_feats(pdf: Path) -> list[dict[str, object]]:
     return shapes
 
 
+# Printed pages 192-203 are the Gameplay Toolbox.
+TOOLBOX_PAGES = range(191, 203)
+#: Poison entries are headed "Serpent Venom (200 GP)". The price is catalogue data, not
+#: part of the shape's citation, so it is dropped the way class levels are.
+PRICE_SUFFIX = re.compile(r"\s*\([\d,]+ GP\)$")
+
+#: Effect shapes found by sweeping the Gameplay Toolbox, verified as the others are.
+#:
+#: Most of this section is guidance for a GM rather than mechanics the engine resolves, and
+#: the declines are as considered as the entries:
+#:   Fear Effects        -> the document itself says to "use the Frightened condition as the
+#:                          baseline effect", so it composes rather than introduces
+#:   Prolonged Effects   -> conditions plus `end-magical-effect` (removal by a named spell)
+#:   Curses              -> the Rules Glossary already defines `Curses`
+#:   Travel Pace, Creating a Background, Combat Encounters -> table and encounter-building
+#:                          tooling; no Ruling applies them
+#:
+#: The nine Environmental Effects (Deep Water, Extreme Cold, Extreme Heat, Frigid Water,
+#: Heavy Precipitation, High Altitude, Slippery Ice, Strong Wind, Thin Ice) are also declined,
+#: and this is the closest call in the sweep. They are a closed named set, which is the
+#: argument that admitted the eight mastery properties — but each composes existing shapes
+#: (Exhaustion, Difficult Terrain, Prone) and the document presents them as worked examples of
+#: applying rules rather than as a mechanic with its own rules subsection. Mastery Properties
+#: has such a subsection; Environmental Effects does not.
+TOOLBOX_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
+    # id, name, kind, exemplar entry, printed page, pattern that must match its text
+    (
+        "poison-contact",
+        "Contact Poison",
+        "poison-delivery",
+        "Crawler Mucus (200 GP)",
+        197,
+        r"Contact Poison",
+    ),
+    (
+        "poison-ingested",
+        "Ingested Poison",
+        "poison-delivery",
+        "Assassin’s Blood (150 GP)",  # noqa: RUF001 — the document's own apostrophe
+        197,
+        r"Ingested Poison",
+    ),
+    (
+        "poison-inhaled",
+        "Inhaled Poison",
+        "poison-delivery",
+        "Burnt Othur Fumes (500 GP)",
+        197,
+        r"Inhaled Poison",
+    ),
+    (
+        "poison-injury",
+        "Injury Poison",
+        "poison-delivery",
+        "Purple Worm Poison (2,000 GP)",
+        198,
+        r"Injury Poison",
+    ),
+    (
+        "trap-trigger",
+        "Effect Fired by a Trap Trigger",
+        "targeting",
+        "Hidden Pit",
+        200,
+        r"Trigger: A creature moves onto the pit.s lid",
+    ),
+    ("magical-contagion", "Magical Contagion", "effect", "Cackle Fever", 194, r"Magical Contagion"),
+)
+
+
+def read_toolbox(pdf: Path) -> dict[str, dict[str, object]]:
+    """Return every Gameplay Toolbox entry as name -> {page, text}, in reading order."""
+    import pymupdf
+
+    doc = pymupdf.open(pdf)
+    entries: dict[str, dict[str, object]] = {}
+    current: dict[str, object] | None = None
+    for pno in TOOLBOX_PAGES:
+        page = doc[pno]
+        mid = page.rect.width / 2
+        columns: dict[int, list[tuple[float, str, bool]]] = {0: [], 1: []}
+        for block in page.get_text("dict")["blocks"]:
+            for line in block.get("lines", []):
+                spans = [s for s in line["spans"] if s["text"].strip()]
+                if not spans:
+                    continue
+                text = "".join(s["text"] for s in spans)
+                if RUNNING_HEADER.match(text):
+                    continue
+                x0 = min(s["bbox"][0] for s in spans)
+                y0 = min(s["bbox"][1] for s in spans)
+                heading = any(
+                    s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
+                )
+                columns[0 if x0 < mid else 1].append((y0, text, heading))
+        for column in (0, 1):
+            for _, text, heading in sorted(columns[column], key=lambda r: r[0]):
+                if heading:
+                    current = {"page": pno + 1, "text": []}
+                    entries.setdefault(text.strip(), current)
+                elif current is not None:
+                    current["text"].append(text)  # type: ignore[union-attr]
+    for entry in entries.values():
+        joined = " ".join(entry["text"])  # type: ignore[arg-type]
+        joined = joined.replace("\u00ad", "")
+        joined = re.sub(r"(\w)-\s+(\w)", r"\1\2", joined)
+        entry["text"] = re.sub(r"\s+", " ", joined).strip()
+    return entries
+
+
+def sweep_toolbox(pdf: Path) -> list[dict[str, object]]:
+    """Verify every TOOLBOX_SHAPES row against the document, then return the shapes."""
+    entries = read_toolbox(pdf)
+    shapes: list[dict[str, object]] = []
+    for shape_id, name, kind, entry_name, page, pattern in TOOLBOX_SHAPES:
+        entry = entries.get(entry_name)
+        if entry is None:
+            raise SystemExit(
+                f"{shape_id}: cites {entry_name!r}, which is not a Gameplay Toolbox entry"
+            )
+        if entry["page"] != page:
+            raise SystemExit(
+                f"{shape_id}: cites {entry_name} at p. {page}, document has it at "
+                f"p. {entry['page']}"
+            )
+        if not re.search(pattern, str(entry["text"]), re.I):
+            raise SystemExit(
+                f"{shape_id}: pattern {pattern!r} does not match {entry_name} — the citation "
+                "is wrong, or the shape is not in this document"
+            )
+        shapes.append(
+            {
+                "id": shape_id,
+                "name": name,
+                "tag": None,
+                "reference": f"Gameplay Toolbox, p. {page} ({PRICE_SUFFIX.sub('', entry_name)})",
+                "kind": kind,
+                "implemented": False,
+            }
+        )
+    return shapes
+
+
 def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
@@ -1239,6 +1382,7 @@ def build(pdf: Path) -> dict[str, object]:
     shapes.extend(sweep_equipment(pdf))
     shapes.extend(sweep_classes(pdf))
     shapes.extend(sweep_feats(pdf))
+    shapes.extend(sweep_toolbox(pdf))
 
     return {
         "schema_version": 1,
@@ -1254,8 +1398,8 @@ def build(pdf: Path) -> dict[str, object]:
         },
         "coverage_scope": (
             "Rules Glossary, Spell Descriptions, Monsters, Magic Items, Equipment, "
-            "Classes, and Feats. Still unswept: Character Origins and the Gameplay "
-            "Toolbox. Until those land this inventory understates what full coverage "
+            "Classes, Feats, and the Gameplay Toolbox. Still unswept: Character Origins "
+            "(pp. 83-86). Until it lands this inventory understates what full coverage "
             "requires."
         ),
         "shapes": shapes,
