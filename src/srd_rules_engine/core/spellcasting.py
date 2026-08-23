@@ -39,7 +39,7 @@ be the inferred rule value R31 forbids. `SpellSlots` is the shape a ruleset fill
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Final
 
@@ -83,7 +83,7 @@ class SpellSlots:
     """
 
     total: Mapping[int, int]
-    spent: Mapping[int, int] = MappingProxyType({})
+    spent: Mapping[int, int] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         for level in {*self.total, *self.spent}:
