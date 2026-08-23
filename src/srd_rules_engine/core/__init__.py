@@ -52,6 +52,13 @@ from srd_rules_engine.core.d20 import (
     TestKind,
     replace_die,
 )
+from srd_rules_engine.core.damage import (
+    DAMAGE_VERIFICATION,
+    DamageOutcome,
+    DamageType,
+    Defences,
+    after_defences,
+)
 from srd_rules_engine.core.death import (
     DEATH_SAVE_DC,
     DEATH_SAVE_VERIFICATION,
@@ -141,6 +148,7 @@ from srd_rules_engine.core.triggers import (
 __all__ = [
     "ATTACK",
     "DAMAGE_OFFSET",
+    "DAMAGE_VERIFICATION",
     "DEATH_SAVE_DC",
     "DEATH_SAVE_VERIFICATION",
     "DIE_SIDES",
@@ -160,9 +168,12 @@ __all__ = [
     "D20Result",
     "D20Test",
     "DamageDice",
+    "DamageOutcome",
+    "DamageType",
     "DeathSaves",
     "Declaration",
     "DefaultKind",
+    "Defences",
     "Effect",
     "EffectKind",
     "EncounterState",
@@ -214,6 +225,7 @@ __all__ = [
     "Weapon",
     "Writer",
     "adjust_roll",
+    "after_defences",
     "attack_key",
     "attack_resolver",
     "attack_target",

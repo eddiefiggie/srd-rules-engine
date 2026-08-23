@@ -6,6 +6,41 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.17`
+
+Damage types and the defences that act on them: the first slice of #16. Inventory coverage
+27 → 32 of 211. #16 stays open — it is 14 of 67 shapes, and the action economy, weapon properties
+and mastery are all still ahead.
+
+- **The order is fixed and it does not commute.** p. 17: "adjustments such as bonuses, penalties,
+  or multipliers are applied first; Resistance is applied second; and Vulnerability is applied
+  third." The document's own worked example is the first test — 28 Fire damage reduced by 5 to 23,
+  halved to 11, doubled to 22 — and the second test states what the wrong order produces (23), so
+  the ordering is load-bearing rather than decorative. An implementation applying Vulnerability
+  first passes every other test in the file.
+- **Rounding happens at the halving, not at the end.** Resistance halves "(round down)" and the
+  worked example rounds there. Deferring it gives 23 where the document prints 22.
+- **Neither defence stacks with itself** (p. 17), and `Defences` holds sets rather than counters,
+  so two Resistances to the same type are unrepresentable rather than merely untaken — the same
+  move `has_advantage` makes for the d20.
+- **Resistance and Vulnerability do not cancel.** They are applied in order, and the document's
+  example has both on one instance and lands on 22 rather than 23. Cancelling them would import
+  the advantage rule into a place the document never put it, and it is exactly the shortcut a
+  reasonable implementer takes.
+- **Immunity is not a reduction.** "It doesn't affect you in any way" (p. 183), so it
+  short-circuits and leaves nothing for Vulnerability to double.
+- **Defences resolve before hit points move.** Everything downstream is about damage *taken*: a
+  creature immune to the type suffers no death-save failure for "any damage" at 0 hit points, and
+  Resistance can pull a character out of Massive Damage by halving the remainder below their
+  maximum. Applying defences afterwards would charge a failure for a blow that never landed.
+- **Condition Immunity ships disclosed as absent.** The glossary entry covers "a damage type **or**
+  a condition", and conditions are #18. Damage immunity works; `immunity` is not claimed as
+  implemented, because a binary flag cannot say half and overstating coverage is the failure R17
+  exists to prevent. Same reasoning that left `instant-death` unclaimed.
+- **`scripts/verify_d20_rules.py` now checks 42 clauses rather than 35**, all confirmed against the
+  document, and was seen red by swapping Resistance and Vulnerability in the order-of-application
+  pattern. Seven mutations were run against the new tests and all seven were caught.
+
 ## Unreleased — 2026-08-23 — build `08232026.16`
 
 The unified d20 test is complete. Closes #15. Inventory coverage 23 → 27 of 211, and 19 of the 25

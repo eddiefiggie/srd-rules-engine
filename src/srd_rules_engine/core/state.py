@@ -22,9 +22,11 @@ spell slots arrive with the units that implement them, not before.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 from typing import Any, Final
+
+from srd_rules_engine.core.damage import DamageType, Defences, after_defences
 
 #: p. 17: "On your third success, you become Stable... On your third failure, you die."
 DEATH_SAVE_THRESHOLD: Final = 3
@@ -72,6 +74,8 @@ class Combatant:
     #: reading, because the product is solo play with exactly one player character and a
     #: combatant nobody marked is far more likely to be the bear.
     is_player_character: bool = False
+    #: What this creature resists, is vulnerable to, and is immune to (p. 17).
+    defences: Defences = field(default_factory=Defences)
     #: Only meaningful at 0 hit points. Reset rather than carried once healing lands.
     death_saves: DeathSaves = DeathSaves()
 
@@ -154,7 +158,12 @@ class EncounterState:
         return tuple(updated if c.id == updated.id else c for c in self.combatants)
 
     def with_damage(
-        self, combatant_id: str, amount: int, *, critical: bool = False
+        self,
+        combatant_id: str,
+        amount: int,
+        *,
+        critical: bool = False,
+        damage_type: DamageType | None = None,
     ) -> EncounterState:
         """Apply damage, including what it costs a creature already at 0 hit points.
 
@@ -171,6 +180,12 @@ class EncounterState:
         if amount < 0:
             raise ValueError("damage is not negative; healing is a separate change")
         target = self.combatant(combatant_id)
+
+        # Defences resolve before anything else looks at the number. Everything downstream
+        # — the death save failure for "any damage", and Massive Damage's remainder — is
+        # about damage *taken*, so a creature immune to Fire takes none and suffers none of
+        # it. Applying them after would charge a failure for damage that never landed.
+        amount = after_defences(amount, damage_type, target.defences).amount
         before = target.hit_points
 
         reduced = replace(target, hit_points=max(0, before - amount))

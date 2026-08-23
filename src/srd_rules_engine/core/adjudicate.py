@@ -46,6 +46,7 @@ from srd_rules_engine.core.d20 import (
 )
 from srd_rules_engine.core.d20 import resolve as roll_d20
 from srd_rules_engine.core.d20 import roll as dice
+from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.ledger import COMPAT, Ledger
 from srd_rules_engine.core.memory_port import (
     DefaultKind,
@@ -115,6 +116,8 @@ class Effect:
     #: Damage only. p. 18 makes a Critical Hit cost two death save failures rather than
     #: one, so the state transition has to know where the damage came from.
     critical: bool = False
+    #: Damage only. Resistance and the rest key off it; untyped damage matches no defence.
+    damage_type: DamageType | None = None
 
 
 @dataclass(frozen=True)
@@ -135,6 +138,8 @@ class DamageDice:
     sides: int
     modifier: int = 0
     source: str = "damage"
+    #: Carried through to the Effect, where the target's defences act on it.
+    damage_type: DamageType | None = None
 
     def __post_init__(self) -> None:
         if self.count < 0 or self.sides < 1:
@@ -657,6 +662,7 @@ def _roll_declared(
                 target_id=declared.target_id,
                 amount=total,
                 critical=critical is Critical.HIT,
+                damage_type=declared.damage_type,
                 description=(
                     f"{declared.source}: {count}d{declared.sides}"
                     f"{_signed(declared.modifier)}{crit} -> "
@@ -675,7 +681,12 @@ def _signed(modifier: int) -> str:
 def _apply(state: EncounterState, effects: Sequence[Effect]) -> EncounterState:
     for effect in effects:
         if effect.kind is EffectKind.DAMAGE:
-            state = state.with_damage(effect.target_id, effect.amount, critical=effect.critical)
+            state = state.with_damage(
+                effect.target_id,
+                effect.amount,
+                critical=effect.critical,
+                damage_type=effect.damage_type,
+            )
         elif effect.kind is EffectKind.HEALING:
             state = state.with_healing(effect.target_id, effect.amount)
         elif effect.kind is EffectKind.DEATH_SAVE_SUCCESS:
