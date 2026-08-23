@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.11` — **the d20 advantage rules are verified against SRD v5.2.1 and no longer asserted by a plan.** The semantics were already correct, and two of them could have gone the other way: cancellation is presence-based rather than count-based — both states cancel even when four sources impose Disadvantage and one grants Advantage — and the unused die is retained rather than discarded, because a reroll may replace only one die of the pair. `scripts/verify_d20_rules.py` re-checks all ten cited sentences against the document, so the citation's date is falsifiable. Rerolling one die of a pair remains unmodelled and is disclosed in the primitive.
+**Current build:** `08232026.12` — **the d20 primitive can now reroll or replace one die of an advantage pair.** "Interactions with Rerolls" (p. 8) allows exactly one die of the pair to be replaced, and the holder chooses which; Heroic Inspiration (p. 183) and Halfling Luck (p. 86) both make the new roll binding, so `replace_die` replaces rather than takes the better of two. The replacement is drawn from the roll's own seed in an index band of its own, so replay reproduces the reroll and not merely the roll it replaced. It may itself carry Advantage or Disadvantage, because Wish (p. 175) can force that. The lineage is kept: `dice` is the pair as it stands, `replacements` records what moved, and `original_dice` walks back to the pair as first rolled. Closes #78.
 
 ---
 

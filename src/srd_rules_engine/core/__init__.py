@@ -41,11 +41,14 @@ from srd_rules_engine.core.combat import Weapon, attack_resolver, initiative_ord
 from srd_rules_engine.core.d20 import (
     DAMAGE_OFFSET,
     DIE_SIDES,
+    REPLACEMENT_OFFSET,
     Advantage,
     D20Result,
     D20Test,
     Modifier,
+    Replacement,
     TestKind,
+    replace_die,
 )
 from srd_rules_engine.core.inventory import (
     ENGINE_SHAPES,
@@ -137,6 +140,7 @@ __all__ = [
     "FACT_WRITE",
     "MAX_SAFE_INTEGER",
     "READER_VERSION",
+    "REPLACEMENT_OFFSET",
     "Adjudicator",
     "Advantage",
     "CanonicalizationError",
@@ -174,6 +178,7 @@ __all__ = [
     "Provenance",
     "ReadResult",
     "RejectionCode",
+    "Replacement",
     "Replay",
     "ReplayVerdict",
     "Resolution",
@@ -216,6 +221,7 @@ __all__ = [
     "read_ledger",
     "render",
     "repair_truncated_tail",
+    "replace_die",
     "replay",
     "replay_entry",
     "report_from",

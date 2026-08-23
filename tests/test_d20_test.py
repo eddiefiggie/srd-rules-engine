@@ -22,13 +22,18 @@ import pytest
 
 from srd_rules_engine.core.d20 import (
     ADVANTAGE_VERIFICATION,
+    DAMAGE_OFFSET,
     DIE_SIDES,
+    REPLACEMENT_OFFSET,
+    REROLL_VERIFICATION,
     Advantage,
     D20Test,
     Modifier,
     TestKind,
     die,
+    replace_die,
     resolve,
+    roll,
 )
 from srd_rules_engine.core.rules import VerificationState
 
@@ -391,8 +396,9 @@ def test_both_dice_are_retained_so_neither_can_be_called_the_discarded_one() -> 
     replaces "only one die, not both. You choose which one."
 
     So the pair is individually addressable and the unused die is not spent. Recording
-    only `used` would foreclose every reroll shape in the inventory (#78). This guards the
-    record rather than the arithmetic, which is why it is separate from the tests above.
+    only `used` would foreclose every reroll shape in the inventory. `replace_die` is what
+    now acts on this (#78), and the tests for it are below; this one guards the record it
+    depends on, which is why it stays separate from the arithmetic tests above.
     """
     result = resolve(check(has_advantage=True), seed=11)
     assert len(result.dice) == 2
@@ -405,3 +411,257 @@ def test_both_dice_are_retained_so_neither_can_be_called_the_discarded_one() -> 
     # And it is a real second die, not a copy of the one that counted. A pair that always
     # agreed would satisfy every assertion above while making a reroll meaningless.
     assert any(len(set(resolve(check(has_advantage=True), seed=s).dice)) == 2 for s in range(50))
+
+
+# --- Replacing one die of a pair (#78) ---------------------------------------------
+
+
+def test_one_named_die_of_a_pair_is_replaced_and_the_other_is_left_alone() -> None:
+    """p. 8, Interactions with Rerolls: "only one die, not both. You choose which one."
+
+    The caller names the position; the engine supplies what it became. A seam that
+    replaced the pair, or that let the caller hand in a value, would give away R4 in the
+    one place the document is most explicit about the choice being the holder's.
+    """
+    rolled = resolve(check(has_advantage=True), seed=11)
+    before = rolled.dice
+
+    for position in (0, 1):
+        after = replace_die(rolled, position=position, source="Heroic Inspiration")
+        assert len(after.dice) == len(before)
+        untouched = 1 - position
+        assert after.dice[untouched] == before[untouched], "the other die was not the one chosen"
+        assert (
+            after.dice[position] != before[position]
+            or after.replacements[0].value == before[position]
+        ), "the replaced die is whatever the engine rolled, including the same face"
+
+
+def test_the_record_shows_the_original_pair_which_die_moved_and_what_replaced_it() -> None:
+    """R5: the Ruling shows the arithmetic. A reroll that erased what it replaced would
+    assert its outcome, which is the failure this whole engine exists to remove."""
+    rolled = resolve(check(has_advantage=True), seed=7)
+    after = replace_die(rolled, position=0, source="Halfling Luck")
+
+    assert after.original_dice == rolled.dice, "the pair as first rolled is still recoverable"
+    assert len(after.replacements) == 1
+
+    record = after.replacements[0]
+    assert record.position == 0
+    assert record.original == rolled.dice[0]
+    assert record.value == after.dice[0]
+    assert record.value in record.dice, "the value that counted came from the dice recorded"
+    assert record.source == "Halfling Luck"
+
+
+def test_a_replacement_names_what_caused_it() -> None:
+    rolled = resolve(check(has_advantage=True), seed=3)
+    with pytest.raises(ValueError, match="names what replaced the die"):
+        replace_die(rolled, position=0, source="")
+
+
+def test_replacing_a_die_that_does_not_exist_is_refused() -> None:
+    """A plain roll has one die. "You choose which one" presumes the die exists."""
+    plain = resolve(check(), seed=3)
+    assert len(plain.dice) == 1
+    with pytest.raises(ValueError, match="no die at position 1"):
+        replace_die(plain, position=1, source="Heroic Inspiration")
+
+
+def test_the_new_roll_is_binding_rather_than_the_better_of_the_two() -> None:
+    """p. 183 Heroic Inspiration and p. 86 Halfling Luck both say "you must use the new
+    roll". A reroll that kept the higher of old and new would be a strictly better rule
+    than the document's, and would pass any test that only checked the total went up.
+
+    Proven on a seed where the replacement is *worse* than what it replaced.
+    """
+    worsened = [
+        (seed, before, after)
+        for seed in range(200)
+        for before in [resolve(check(has_advantage=True), seed=seed)]
+        for after in [replace_die(before, position=0, source="Heroic Inspiration")]
+        if after.replacements[0].value < after.replacements[0].original
+    ]
+    assert worsened, "no seed in range produced a worse replacement; the test proves nothing"
+
+    after = worsened[0][2]
+    record = after.replacements[0]
+    assert after.dice[0] == record.value, "the new die stands even though it is worse"
+    assert after.dice[0] < record.original
+    assert after.used == max(after.dice), "advantage still picks from the pair as it now stands"
+
+
+def test_the_advantage_rule_reapplies_to_the_pair_as_it_now_stands() -> None:
+    """The replacement does not change whether the *test* had advantage — it changes one
+    die. The higher-of-two rule then runs again over the new pair."""
+    for seed in range(60):
+        rolled = resolve(check(has_advantage=True), seed=seed)
+        after = replace_die(rolled, position=0, source="Heroic Inspiration")
+        assert after.used == max(after.dice)
+        assert after.total == after.used + after.modifier_total
+        assert after.succeeded == (after.total >= after.target)
+
+        lowered = resolve(check(has_disadvantage=True), seed=seed)
+        after_low = replace_die(lowered, position=1, source="Heroic Inspiration")
+        assert after_low.used == min(after_low.dice)
+
+
+def test_a_forced_reroll_can_itself_carry_advantage_or_disadvantage() -> None:
+    """p. 175, Wish: "You can force the reroll to be made with Advantage or Disadvantage."
+
+    A seam returning a single substitute value cannot express this, which is why the
+    replacement records dice of its own rather than one face.
+    """
+    rolled = resolve(check(has_advantage=True), seed=5)
+
+    plain = replace_die(rolled, position=0, source="Wish")
+    assert len(plain.replacements[0].dice) == 1
+    assert plain.replacements[0].effective is Advantage.NONE
+
+    better = replace_die(rolled, position=0, source="Wish", with_advantage=True)
+    assert len(better.replacements[0].dice) == 2
+    assert better.replacements[0].effective is Advantage.ADVANTAGE
+    assert better.replacements[0].value == max(better.replacements[0].dice)
+
+    worse = replace_die(rolled, position=0, source="Wish", with_disadvantage=True)
+    assert worse.replacements[0].effective is Advantage.DISADVANTAGE
+    assert worse.replacements[0].value == min(worse.replacements[0].dice)
+
+
+def test_a_forced_reroll_with_both_states_cancels_by_the_same_rule_as_the_roll() -> None:
+    """One cancellation rule, not two. The count-versus-presence question #52 settled
+    would otherwise get a second chance to be answered differently here."""
+    rolled = resolve(check(has_advantage=True), seed=5)
+    cancelled = replace_die(
+        rolled, position=0, source="Wish", with_advantage=True, with_disadvantage=True
+    )
+    assert cancelled.replacements[0].effective is Advantage.NONE
+    assert len(cancelled.replacements[0].dice) == 1
+
+    plain = replace_die(rolled, position=0, source="Wish")
+    assert cancelled.replacements[0].dice == plain.replacements[0].dice
+
+
+def test_a_rerolled_result_replays_from_the_original_seed() -> None:
+    """R28. The replacement is drawn from the roll's own seed, so seed plus the record of
+    what was replaced is enough to reconstruct the outcome."""
+    test = check(has_advantage=True, modifiers=(STRENGTH,))
+    first = replace_die(resolve(test, seed=4242), position=1, source="Heroic Inspiration")
+    again = replace_die(resolve(test, seed=4242), position=1, source="Heroic Inspiration")
+
+    assert first == again
+    assert first.dice == again.dice
+    assert first.replacements == again.replacements
+    assert first.total == again.total
+
+
+def test_replay_from_a_fresh_seed_does_not_reproduce_the_reroll() -> None:
+    """The failure this guards is quiet: a replacement drawn from a *new* seed would
+    reproduce the roll and not the reroll, so replay would look like it worked.
+
+    If `replace_die` ever stops deriving from `result.seed`, this goes red.
+    """
+    test = check(has_advantage=True)
+    rolled = resolve(test, seed=4242)
+    faithful = replace_die(rolled, position=0, source="Heroic Inspiration")
+
+    from_elsewhere = [
+        replace_die(resolve(test, seed=other), position=0, source="Heroic Inspiration")
+        for other in range(4200, 4300)
+        if other != 4242
+    ]
+    assert any(
+        other.replacements[0].value != faithful.replacements[0].value for other in from_elsewhere
+    ), "a different seed must be able to produce a different reroll"
+
+
+def test_a_replacement_draws_from_its_own_band_of_the_seed_index_space() -> None:
+    """The index space is banded — d20 at 0-1, damage from 100, replacements from 200 — so
+    a reroll cannot land on the die it is replacing, or on a damage die of the same roll.
+
+    A collision would not raise. It would produce a reroll that agreed with the original
+    suspiciously often, which is the kind of defect nobody finds by inspection. So this
+    pins the exact index each replacement draws from rather than asserting a property that
+    a colliding implementation would also satisfy.
+    """
+    seed = 99
+    stride = 2
+
+    # The bands must be ordered, and this is asserted against the *constants* rather than
+    # against values derived from them. An expectation computed from REPLACEMENT_OFFSET
+    # moves when REPLACEMENT_OFFSET moves, so it cannot notice the offset being wrong —
+    # a mutation setting it to 0 survived an earlier version of this test for exactly that
+    # reason, and this is the assertion that catches it.
+    assert DAMAGE_OFFSET > 1, "the d20 occupies indices 0-1; damage must start above them"
+    assert REPLACEMENT_OFFSET > DAMAGE_OFFSET, "replacements must start above the damage band"
+
+    for generation, position in ((1, 0), (1, 1), (2, 0), (3, 1)):
+        index = REPLACEMENT_OFFSET + generation * stride * 2 + position * stride
+        assert index >= REPLACEMENT_OFFSET, "a replacement stays inside its own band"
+        assert index not in (0, 1), "a replacement must not reuse a d20 index"
+        assert not DAMAGE_OFFSET <= index < REPLACEMENT_OFFSET, "nor a damage index"
+
+    rolled = resolve(check(has_advantage=True), seed=seed)
+
+    first = replace_die(rolled, position=1, source="Heroic Inspiration")
+    assert first.replacements[0].value == die(seed, REPLACEMENT_OFFSET + 1 * 4 + 1 * 2)
+
+    second = replace_die(first, position=0, source="Wish", with_advantage=True)
+    base = REPLACEMENT_OFFSET + 2 * 4 + 0 * 2
+    assert second.replacements[1].dice == (die(seed, base), die(seed, base + 1))
+
+    # And the bands really are disjoint from what this same seed produces elsewhere.
+    damage = roll(seed, count=40, sides=DIE_SIDES, offset=DAMAGE_OFFSET)
+    assert len(damage) == 40
+    assert first.replacements[0].value == die(seed, REPLACEMENT_OFFSET + 6), "unchanged by damage"
+
+
+def test_replacements_accumulate_in_order_and_each_is_recoverable() -> None:
+    """Halfling Luck can fire, and Heroic Inspiration can then be spent on the same roll.
+    The lineage is a sequence, not a single slot."""
+    rolled = resolve(check(has_advantage=True), seed=13)
+    once = replace_die(rolled, position=0, source="Halfling Luck")
+    twice = replace_die(once, position=1, source="Heroic Inspiration")
+
+    assert [r.source for r in twice.replacements] == ["Halfling Luck", "Heroic Inspiration"]
+    assert twice.original_dice == rolled.dice, "walking back both replacements gives the first pair"
+    assert twice.replacements[0].original == rolled.dice[0]
+    assert twice.replacements[1].original == once.dice[1]
+
+
+def test_the_documents_worked_reroll_example_is_expressible() -> None:
+    """p. 8: with Advantage or Disadvantage, rolling a 3 and an 18, Heroic Inspiration
+    rerolls "one of those dice, not both of them".
+
+    The engine rolls, so the pair is not dialled in — this asserts the *shape* the example
+    requires: a two-die result where replacing one leaves the other exactly as it was.
+    """
+    rolled = resolve(check(has_advantage=True), seed=11)
+    assert len(rolled.dice) == 2
+
+    after = replace_die(rolled, position=0, source="Heroic Inspiration")
+    assert after.dice[1] == rolled.dice[1], "the die not chosen is untouched"
+    assert len(after.replacements) == 1, "exactly one die moved"
+    assert after.original_dice == rolled.dice
+
+
+def test_the_reroll_semantics_carry_their_own_verified_citation() -> None:
+    """R31, and a *separate* citation from the advantage one on purpose.
+
+    The reroll rules rest on different sentences in different sections. Folding them into
+    `ADVANTAGE_VERIFICATION` would let a revision reword one set while the other's date
+    went on vouching for both.
+    """
+    assert REROLL_VERIFICATION.state is VerificationState.VERIFIED
+    assert REROLL_VERIFICATION.reference is not None
+    assert REROLL_VERIFICATION.reference != ADVANTAGE_VERIFICATION.reference
+    assert "SRD v5.2.1" in REROLL_VERIFICATION.reference
+    for cited in ("p. 8", "p. 183", "p. 86", "p. 175"):
+        assert cited in REROLL_VERIFICATION.reference, f"{cited} is a page the seam rests on"
+
+
+def test_an_unrerolled_result_carries_an_empty_lineage() -> None:
+    """The common case stays clean: nothing to read, and `original_dice` is the pair."""
+    rolled = resolve(check(has_advantage=True), seed=8)
+    assert rolled.replacements == ()
+    assert rolled.original_dice == rolled.dice
