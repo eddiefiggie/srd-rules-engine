@@ -214,6 +214,47 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"If the aboleth fails a saving throw, it can choose to suc-?\s*ceed instead",
     ),
     (
+        17,
+        "damage modifiers apply in a fixed order: adjustments, Resistance, Vulnerability",
+        r"adjustments such as bonuses, penalties, or multipliers are applied first; "
+        r"Resistance is applied second; and Vulnerability is applied third",
+    ),
+    (
+        17,
+        "the document's worked example rounds AT the halving, and lands on 22",
+        r"the damage is first reduced by 5 \(to 23\), then halved for the creature.s "
+        r"Resistance \(and rounded down to 11\), then doubled for its Vulnerability \(to 22\)",
+    ),
+    (
+        17,
+        "Resistance and Vulnerability do not stack with themselves",
+        r"Multiple instances of Resistance or Vulnerability that affect the same damage "
+        r"type count as only one instance",
+    ),
+    (
+        187,
+        "Resistance halves and rounds down, once per instance of damage",
+        r"damage of that type is halved against you \(round down\)\.\s*Resistance is "
+        r"applied only once to an instance of damage",
+    ),
+    (
+        191,
+        "Vulnerability doubles, once per instance of damage",
+        r"damage of that type is doubled against you\.\s*Vulnerability is applied only "
+        r"once to an instance of damage",
+    ),
+    (
+        183,
+        "Immunity is not a reduction",
+        r"If you have Immunity to a damage type or a condition, it doesn.t affect you in any way",
+    ),
+    (
+        180,
+        "damage types carry no rules of their own; other rules key off them",
+        r"Damage types have no rules of their own, but other rules, such as Resistance, "
+        r"rely on the types",
+    ),
+    (
         176,
         "the Rules Glossary states the same cancellation rule",
         r"Advantage and Dis-?\s*advantage on the same roll cancel each other",

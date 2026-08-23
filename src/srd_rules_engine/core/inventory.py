@@ -61,6 +61,12 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "die-applied-to-a-roll": "core.d20.adjust_roll",
         "die-replacement": "core.d20.replace_die",
         "failed-test-overridden-to-success": "core.d20.override_to_success",
+        # Damage application: the types and what the defences do to an amount (#16).
+        "damage-types": "core.damage.DamageType",
+        "resistance": "core.damage.Defences.resistances",
+        "vulnerability": "core.damage.Defences.vulnerabilities",
+        "damage-application-order": "core.damage.after_defences",
+        "damage-modifier-no-stacking": "core.damage.Defences",
         "ability-check": f"core.d20.TestKind.{TestKind.CHECK.name}",
         "saving-throw": f"core.d20.TestKind.{TestKind.SAVE.name}",
         "save": f"core.d20.TestKind.{TestKind.SAVE.name}",

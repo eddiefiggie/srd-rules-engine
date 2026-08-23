@@ -367,7 +367,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 180",
    "kind": "effect",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "darkness",
@@ -871,7 +871,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 187",
    "kind": "effect",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "restrained",
@@ -1127,7 +1127,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 191",
    "kind": "effect",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "weapon-attack",
@@ -1719,7 +1719,7 @@
    "tag": null,
    "reference": "Playing the Game, p. 17 (No Stacking)",
    "kind": "effect",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "damage-application-order",
@@ -1727,7 +1727,7 @@
    "tag": null,
    "reference": "Playing the Game, p. 17 (Order of Application)",
    "kind": "effect",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "multiclass-spell-slots",
