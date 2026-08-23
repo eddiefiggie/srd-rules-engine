@@ -43,6 +43,7 @@ from srd_rules_engine.core import (
 from srd_rules_engine.core.adjudicate import Proposal, _apply, _roll_declared
 from srd_rules_engine.core.d20 import DAMAGE_OFFSET, D20Test, roll
 from srd_rules_engine.core.damage import DamageType
+from srd_rules_engine.core.position import Position
 from srd_rules_engine.memory.store import JsonMemoryStore
 
 STRIKE = Rule(
@@ -737,3 +738,113 @@ def test_graze_never_heals() -> None:
     feeble = encounter_with_scores({"str": 4})
     greataxe = Weapon(name="greataxe", damage_dice=1, damage_sides=12, graze=True)
     assert _propose_with(greataxe, state=feeble).on_failure == ()
+
+
+# --- Reach and weapon range (#20) ----------------------------------------------------
+
+
+def _placed(actor_at: Position, target_at: Position, *, reach: int = 5) -> EncounterState:
+    base = encounter()
+    pc, boar = base.combatant("pc"), base.combatant("boar")
+    return EncounterState.new(
+        [
+            dataclasses.replace(pc, position=actor_at, reach=reach),
+            dataclasses.replace(boar, position=target_at),
+        ]
+    )
+
+
+def test_a_melee_attack_beyond_reach_is_refused() -> None:
+    """p. 186: a creature reaches 5 feet unless a rule says otherwise. An attack on
+    something further away is not a harder attack — it is one that cannot be made."""
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    _propose_with(club, state=_placed(Position(0, 0, 0), Position(5, 0, 0)))
+
+    with pytest.raises(ValueError, match="reach of 5 feet"):
+        _propose_with(club, state=_placed(Position(0, 0, 0), Position(10, 0, 0)))
+
+
+def test_reach_counts_elevation() -> None:
+    """A creature 10 feet overhead is out of reach, which a flat model could not say."""
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    with pytest.raises(ValueError, match="reach of 5 feet"):
+        _propose_with(club, state=_placed(Position(0, 0, 0), Position(0, 0, 10)))
+
+
+def test_a_longer_reach_is_honoured() -> None:
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    _propose_with(club, state=_placed(Position(0, 0, 0), Position(10, 0, 0), reach=10))
+
+
+def test_beyond_normal_range_is_disadvantage_not_a_refusal() -> None:
+    """p. 90: "When attacking a target beyond normal range, you have Disadvantage on the
+    attack roll." """
+    bow = Weapon(
+        name="shortbow",
+        damage_dice=1,
+        damage_sides=6,
+        melee=False,
+        ability="dex",
+        normal_range=80,
+        long_range=320,
+    )
+    near = _propose_with(bow, state=_placed(Position(0, 0, 0), Position(50, 0, 0)))
+    far = _propose_with(bow, state=_placed(Position(0, 0, 0), Position(200, 0, 0)))
+
+    assert not near.test.has_disadvantage
+    assert far.test.has_disadvantage
+
+
+def test_beyond_long_range_no_attack_may_be_made() -> None:
+    """The second sentence of the same rule: "You can't attack a target beyond the long
+    range." Not a penalty, so it is refused rather than resolved — a ruling here would be
+    an outcome for something that never happened.
+    """
+    bow = Weapon(
+        name="shortbow",
+        damage_dice=1,
+        damage_sides=6,
+        melee=False,
+        ability="dex",
+        normal_range=80,
+        long_range=320,
+    )
+    with pytest.raises(ValueError, match="beyond the long range"):
+        _propose_with(bow, state=_placed(Position(0, 0, 0), Position(400, 0, 0)))
+
+
+def test_range_and_heavy_do_not_stack_into_two_disadvantages() -> None:
+    """The d20 takes a single flag, so the cancellation rule holds by construction — two
+    sources of Disadvantage are still one Disadvantage (p. 8)."""
+    heavy_bow = Weapon(
+        name="longbow",
+        damage_dice=1,
+        damage_sides=8,
+        melee=False,
+        ability="dex",
+        heavy=True,
+        normal_range=150,
+        long_range=600,
+    )
+    state = _placed(Position(0, 0, 0), Position(300, 0, 0))
+    proposal = _propose_with(heavy_bow, state=state)
+    assert proposal.test.has_disadvantage is True
+
+
+def test_a_weapon_range_lists_two_numbers() -> None:
+    """p. 90: "The range lists two numbers." One without the other is not a range."""
+    with pytest.raises(ValueError, match="two numbers"):
+        Weapon(name="odd", damage_dice=1, damage_sides=6, melee=False, normal_range=80)
+    with pytest.raises(ValueError, match="not shorter"):
+        Weapon(
+            name="odd", damage_dice=1, damage_sides=6, melee=False, normal_range=80, long_range=40
+        )
+    with pytest.raises(ValueError, match="ranged-weapon property"):
+        Weapon(name="odd", damage_dice=1, damage_sides=6, normal_range=80, long_range=320)
+
+
+def test_an_encounter_without_positions_asks_no_range_question() -> None:
+    """Position is optional. An encounter that tracks none cannot answer a range question,
+    and the honest result is to not ask it rather than to assume everyone is adjacent."""
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    assert _propose_with(club, state=encounter()).test.has_disadvantage is False

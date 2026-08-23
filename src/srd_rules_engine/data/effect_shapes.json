@@ -239,7 +239,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 178",
    "kind": "movement",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "climb-speed",
@@ -287,7 +287,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 179",
    "kind": "movement",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "creature-type",
@@ -431,7 +431,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 181",
    "kind": "movement",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "difficulty-class",
@@ -847,7 +847,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 186",
    "kind": "targeting",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "reaction",
@@ -959,7 +959,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 188",
    "kind": "movement",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "spell-attack",
@@ -1031,7 +1031,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 189",
    "kind": "movement",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "swim-speed",
@@ -1375,7 +1375,7 @@
    "tag": null,
    "reference": "Equipment, p. 90 (Range)",
    "kind": "weapon-property",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "weapon-thrown",
@@ -1687,7 +1687,7 @@
    "tag": null,
    "reference": "Playing the Game, p. 14 (Breaking Up Your Move)",
    "kind": "movement",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "controlled-mount",

@@ -33,6 +33,7 @@ from types import MappingProxyType
 
 from srd_rules_engine.core.adjudicate import EffectKind
 from srd_rules_engine.core.d20 import Advantage, TestKind
+from srd_rules_engine.core.position import MovementMode
 
 _DATA_PACKAGE = "srd_rules_engine.data"
 _DATA_FILE = "effect_shapes.json"
@@ -72,6 +73,15 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "weapon-heavy": "core.combat.Weapon.heavy_disadvantage",
         "weapon-versatile": "core.combat.Weapon.sides_in_use",
         "mastery-graze": "core.combat.Weapon.graze",
+        # Position, movement and range in feet (#17, #20).
+        "speed": "core.position.Speeds.walk",
+        "difficult-terrain": "core.position.movement_cost",
+        "climbing": f"core.position.MovementMode.{MovementMode.CLIMB.name}",
+        "swimming": f"core.position.MovementMode.{MovementMode.SWIM.name}",
+        "crawling": f"core.position.MovementMode.{MovementMode.CRAWL.name}",
+        "split-movement": "core.state.EncounterState.with_movement",
+        "reach": "core.position.DEFAULT_REACH_FEET",
+        "weapon-range": "core.combat.Weapon.normal_range",
         "ability-check": f"core.d20.TestKind.{TestKind.CHECK.name}",
         "saving-throw": f"core.d20.TestKind.{TestKind.SAVE.name}",
         "save": f"core.d20.TestKind.{TestKind.SAVE.name}",

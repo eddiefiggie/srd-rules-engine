@@ -49,9 +49,10 @@ from srd_rules_engine.core.adjudicate import (
 from srd_rules_engine.core.d20 import D20Test, Modifier, TestKind, roll
 from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.memory_port import Resolution
+from srd_rules_engine.core.position import distance_feet, within
 from srd_rules_engine.core.read_surface import attack_target
 from srd_rules_engine.core.rules import Verification, VerificationState
-from srd_rules_engine.core.state import EncounterState
+from srd_rules_engine.core.state import Combatant, EncounterState
 
 INITIATIVE_DIE = 20
 
@@ -97,6 +98,11 @@ class Weapon:
     wielded_two_handed: bool = False
     #: Graze (p. 90), a mastery property: damage on a miss equal to the ability modifier.
     graze: bool = False
+    #: Range (p. 90): "The first is the weapon's normal range in feet, and the second is
+    #: the weapon's long range." Ranged weapons only; a melee weapon uses the wielder's
+    #: reach instead.
+    normal_range: int | None = None
+    long_range: int | None = None
     #: A flat bonus that reaches **both** rolls. Berserker Axe (Magic Items, p. 213) is
     #: the inventory's exemplar: "a +1 bonus to attack rolls and damage rolls made with
     #: this magic weapon". Applying it to only one of the two is the mistake worth
@@ -113,6 +119,13 @@ class Weapon:
             raise ValueError(
                 "Versatile is a melee property: it applies to two-handed melee attacks"
             )
+        if (self.normal_range is None) != (self.long_range is None):
+            raise ValueError("Range lists two numbers (p. 90): a normal range and a long range")
+        if self.normal_range is not None and self.long_range is not None:
+            if self.long_range < self.normal_range:
+                raise ValueError("a weapon's long range is not shorter than its normal range")
+            if self.melee:
+                raise ValueError("Range is a ranged-weapon property; a melee weapon uses reach")
 
     @property
     def sides_in_use(self) -> int:
@@ -172,6 +185,8 @@ def attack_resolver(weapon: Weapon) -> Resolver:
         actor = state.combatant(declaration.actor_id)
         ability = actor.modifier(weapon.ability)
 
+        beyond_normal = _out_of_range(weapon, actor, target)
+
         modifiers = [Modifier(source=f"ability:{weapon.ability}", value=ability)]
         if weapon.proficient:
             modifiers.append(Modifier(source="proficiency", value=actor.proficiency_bonus))
@@ -186,7 +201,10 @@ def attack_resolver(weapon: Weapon) -> Resolver:
                 modifiers=tuple(modifiers),
                 # Heavy (p. 89). The disadvantage is a property of the weapon in these
                 # hands, so it is decided here rather than asked of the caller.
-                has_disadvantage=weapon.heavy_disadvantage(actor.abilities),
+                # Heavy (p. 89), or attacking beyond a ranged weapon's normal range
+                # (p. 90). Both are Disadvantage and they do not stack — the d20 takes a
+                # single flag, which is the cancellation rule holding by construction.
+                has_disadvantage=weapon.heavy_disadvantage(actor.abilities) or beyond_normal,
             ),
             on_success=(
                 DamageDice(
@@ -216,6 +234,37 @@ def attack_resolver(weapon: Weapon) -> Resolver:
         )
 
     return resolve
+
+
+def _out_of_range(weapon: Weapon, actor: Combatant, target: Combatant) -> bool:
+    """Whether the attack is beyond normal range, refusing one beyond long range.
+
+    p. 90: "When attacking a target beyond normal range, you have Disadvantage on the
+    attack roll. You can't attack a target beyond the long range." The second sentence is
+    not a penalty, so it is refused rather than resolved — a ruling for an attack the rules
+    forbid would be an outcome for something that never happened.
+
+    A melee weapon reaches as far as its wielder does (p. 186). An encounter tracking no
+    positions cannot answer the question at all, and says so rather than assuming.
+    """
+    if actor.position is None or target.position is None:
+        return False
+
+    if weapon.normal_range is None:
+        if not within(actor.position, target.position, actor.reach):
+            raise ValueError(
+                f"{target.name} is {distance_feet(actor.position, target.position)} feet "
+                f"away and {actor.name} has a reach of {actor.reach} feet"
+            )
+        return False
+
+    assert weapon.long_range is not None
+    if not within(actor.position, target.position, weapon.long_range):
+        raise ValueError(
+            f"{target.name} is beyond the long range of {weapon.name} "
+            f"({weapon.long_range} feet), and no attack may be made at all (p. 90)"
+        )
+    return not within(actor.position, target.position, weapon.normal_range)
 
 
 def _graze(weapon: Weapon, target_id: str, ability: int) -> tuple[Effect, ...]:
