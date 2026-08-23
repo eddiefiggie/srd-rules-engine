@@ -6,6 +6,31 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.7`
+
+The Gameplay Toolbox sweep (#67, part of #14) — the inventory reaches 201 shapes, 17 implemented.
+
+- **Six shapes**: the four poison delivery types the document enumerates (Contact, Ingested,
+  Inhaled, Injury), an effect fired by a trap trigger, and magical contagions.
+- **Most of this section is guidance for a GM rather than mechanics the engine resolves**, and
+  the declines are recorded with reasons. Fear Effects is declined on the document's own
+  instruction to "use the Frightened condition as the baseline effect". Prolonged Effects is
+  conditions plus `end-magical-effect`. Curses is already a Glossary entry. Travel Pace,
+  Creating a Background, and Combat Encounters are tooling that no Ruling applies.
+- **The nine Environmental Effects are the closest call in the whole sweep series.** Deep Water,
+  Extreme Cold, Extreme Heat, Frigid Water, Heavy Precipitation, High Altitude, Slippery Ice,
+  Strong Wind, and Thin Ice are a closed named set — which is precisely the argument that
+  admitted the eight mastery properties. They are declined because each composes existing shapes
+  (Exhaustion, Difficult Terrain, Prone) and the document presents them as worked examples of
+  applying rules, where Mastery Properties has its own rules subsection. The reasoning sits next
+  to the table so the distinction can be argued with rather than rediscovered.
+- **Citations keep the document's typographic apostrophe.** "Assassin's Blood" is printed with a
+  right single quote, and the citation pattern now accepts both forms rather than normalising it
+  — editing the citation away from the printed name would defeat the one thing it must match.
+  Ruff flags the character as ambiguous; the two sites carry a targeted `noqa` rather than the
+  rule being disabled.
+- **Character Origins (pp. 83-86) is the last unswept section**, and `coverage_scope` names it.
+
 ## Unreleased — 2026-08-23 — build `08232026.6`
 
 The Feats sweep (#67, part of #14) — the inventory reaches 195 shapes, 17 implemented.

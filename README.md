@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.6` — **the Feats sweep adds six shapes, taking the inventory to 195.** All 17 feats were parsed; most compose shapes the earlier sweeps already name, so the six harvested are the ones that introduce vocabulary: a missed attack overridden to a hit, damage that ignores Resistance, a spell slot not expended on casting, initiative positions exchanged, damage dice rolled twice with either result used, and a low die result treated as higher. "Ability Score Increase" recurs in most feats and is deliberately absent on the rule the Classes sweep introduced — no Ruling applies it — which is now doing real work and is flagged for agreement. Character Origins and the Gameplay Toolbox remain unswept.
+**Current build:** `08232026.7` — **the Gameplay Toolbox sweep adds six shapes, taking the inventory to 201.** The four poison delivery types, a trap trigger, and magical contagions are now listed. Most of this section is guidance for a GM rather than mechanics the engine resolves, and the declines are recorded with reasons — including the nine Environmental Effects, the closest call in the whole sweep series: a closed named set, which is what admitted the eight mastery properties, but presented as worked examples rather than a mechanic with its own rules subsection. Character Origins is the last unswept section.
 
 ---
 
@@ -107,7 +107,7 @@ distinct effect shapes SRD v5.2.1 defines, each marked implemented or not. Witho
 "full SRD 5.2 coverage is the definition of done" is unfalsifiable — there is no way to
 tell a complete engine from one whose author stopped noticing gaps.
 
-**17 of 195 shapes resolve today.** The other 178 are listed, not omitted; run
+**17 of 201 shapes resolve today.** The other 184 are listed, not omitted; run
 `python -c "from srd_rules_engine.core import coverage_report; print(coverage_report())"`
 to see exactly which. Entries sit at independently-failable granularity, so each of the
 fifteen conditions counts separately — an engine that resolves Prone and nothing else
@@ -120,8 +120,8 @@ is editorial and lives in that script where it can be reviewed. Nineteen entries
 recorded as vocabulary with a stated reason rather than dropped.
 
 **The inventory is currently swept from the Rules Glossary, Spell Descriptions, Monsters,
-Magic Items, Equipment, Classes, and Feats**, and says so in its own `coverage_scope`
-field. Character Origins and the Gameplay Toolbox are not yet swept, so this still
+Magic Items, Equipment, Classes, Feats, and the Gameplay Toolbox**, and says so in its own
+`coverage_scope` field. Character Origins (pp. 83-86) is not yet swept, so this still
 understates what full coverage requires.
 
 Settled design decisions live in [`docs/decisions/`](docs/decisions/). A gate closes by producing

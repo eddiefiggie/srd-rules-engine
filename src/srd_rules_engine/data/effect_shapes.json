@@ -7,7 +7,7 @@
   "published": "2025-05-01",
   "section": "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175); Monsters (pp. 254-364); Magic Items (pp. 204-253); Equipment (pp. 89-103)"
  },
- "coverage_scope": "Rules Glossary, Spell Descriptions, Monsters, Magic Items, Equipment, Classes, and Feats. Still unswept: Character Origins and the Gameplay Toolbox. Until those land this inventory understates what full coverage requires.",
+ "coverage_scope": "Rules Glossary, Spell Descriptions, Monsters, Magic Items, Equipment, Classes, Feats, and the Gameplay Toolbox. Still unswept: Character Origins (pp. 83-86). Until it lands this inventory understates what full coverage requires.",
  "shapes": [
   {
    "id": "ability-check",
@@ -1567,6 +1567,54 @@
    "tag": null,
    "reference": "Feats, p. 88 (Great Weapon Fighting)",
    "kind": "test-modifier",
+   "implemented": false
+  },
+  {
+   "id": "poison-contact",
+   "name": "Contact Poison",
+   "tag": null,
+   "reference": "Gameplay Toolbox, p. 197 (Crawler Mucus)",
+   "kind": "poison-delivery",
+   "implemented": false
+  },
+  {
+   "id": "poison-ingested",
+   "name": "Ingested Poison",
+   "tag": null,
+   "reference": "Gameplay Toolbox, p. 197 (Assassin’s Blood)",
+   "kind": "poison-delivery",
+   "implemented": false
+  },
+  {
+   "id": "poison-inhaled",
+   "name": "Inhaled Poison",
+   "tag": null,
+   "reference": "Gameplay Toolbox, p. 197 (Burnt Othur Fumes)",
+   "kind": "poison-delivery",
+   "implemented": false
+  },
+  {
+   "id": "poison-injury",
+   "name": "Injury Poison",
+   "tag": null,
+   "reference": "Gameplay Toolbox, p. 198 (Purple Worm Poison)",
+   "kind": "poison-delivery",
+   "implemented": false
+  },
+  {
+   "id": "trap-trigger",
+   "name": "Effect Fired by a Trap Trigger",
+   "tag": null,
+   "reference": "Gameplay Toolbox, p. 200 (Hidden Pit)",
+   "kind": "targeting",
+   "implemented": false
+  },
+  {
+   "id": "magical-contagion",
+   "name": "Magical Contagion",
+   "tag": null,
+   "reference": "Gameplay Toolbox, p. 194 (Cackle Fever)",
+   "kind": "effect",
    "implemented": false
   }
  ],
