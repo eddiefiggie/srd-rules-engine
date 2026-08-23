@@ -6,6 +6,29 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.8`
+
+The Character Origins sweep, and a correction to the coverage disclosure (#67 closes; #14 does not).
+
+- **Four shapes**: dropping to 1 Hit Point instead of 0, damage reduced by a rolled amount, a
+  natural 1 rerolled with the new result binding, and a Long Rest completed in reduced time.
+  Species traits are otherwise composition — Breath Weapon is an area plus a save plus damage,
+  the cantrip traits are spellcasting, Dwarven Resilience and Brave are `Advantage`.
+- **The disclosure was wrong for eight builds, and this is the important part of this build.**
+  Every `coverage_scope` from the spine onward named only the sections remaining from one
+  issue's scope rather than from the document. **Playing the Game (pp. 5-18) and Character
+  Creation (pp. 19-27) were never swept and were never named as unswept.** Mounted Combat,
+  Underwater Combat, Rolling 20 or 1, Level Advancement, and Multiclassing are among the
+  mechanics they define that no entry names.
+- **A field that describes coverage is itself a coverage claim.** Two guards now hold it to the
+  data: one asserts the scope names every section its shapes actually cite, reading the section
+  names back out of the citations rather than hardcoding them, so a future sweep is covered the
+  moment its first shape lands; the other asserts the two outstanding sections stay named. The
+  second was proven red by reproducing the original defect.
+- **#67's five sections are complete** — Equipment, Classes, Character Origins, Feats, and the
+  Gameplay Toolbox — so it closes. **#14 does not**, and would have been closed on a false
+  completeness claim had this audit not run.
+
 ## Unreleased — 2026-08-23 — build `08232026.7`
 
 The Gameplay Toolbox sweep (#67, part of #14) — the inventory reaches 201 shapes, 17 implemented.
