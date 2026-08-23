@@ -571,6 +571,143 @@ def sweep_monsters(pdf: Path) -> list[dict[str, object]]:
     return shapes
 
 
+# Printed pages 204-253 are Magic Items, including the intro sections on charges,
+# attunement, and sentient items.
+MAGIC_ITEM_PAGES = range(203, 253)
+
+#: Effect shapes found by sweeping Magic Items, verified the same way the others are.
+#:
+#: Shapes the earlier sweeps already name are deliberately absent: an item granting a Fly
+#: Speed, Resistance, Advantage, or Proficiency is those shapes, not new ones.
+#:
+#: One candidate was dropped rather than recorded. A "set an ability score to N" shape looked
+#: likely, but the only supporting text in this section is Gauntlets of Ogre Power's negative
+#: clause — "no effect on you if your Strength is 19 or higher" — which states a condition,
+#: not a score being set. Absent clearer wording in the document, it is not recorded: a shape
+#: invented from a plausible reading is exactly the inference the seed decision forbids.
+MAGIC_ITEM_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
+    # id, name, kind, exemplar item, printed page, pattern that must match its text
+    (
+        "item-charges",
+        "Expending Item Charges",
+        "resource",
+        "Cloak of Invisibility",
+        215,
+        r"This cloak has 3 charges",
+    ),
+    (
+        "daily-recharge",
+        "Charges Regained on a Daily Schedule",
+        "resource",
+        "Cloak of Invisibility",
+        215,
+        r"regains 1d3 expended",
+    ),
+    (
+        "numeric-bonus",
+        "Flat Numeric Bonus to Rolls",
+        "test-modifier",
+        "Berserker Axe",
+        213,
+        r"\+1 bonus to attack rolls and damage rolls",
+    ),
+    (
+        "spell-cast-from-item",
+        "Spell Cast from an Item",
+        "spellcasting",
+        "Necklace of Prayer Beads",
+        233,
+        r"contains a spell that you can cast from it",
+    ),
+    (
+        "item-destruction",
+        "Item Destroyed by a Stated Condition",
+        "effect",
+        "Bag of Holding",
+        212,
+        r"it is destroyed, and its contents are scattered",
+    ),
+    (
+        "random-effect-table",
+        "Effect Chosen at Random from a Table",
+        "effect",
+        "Bag of Beans",
+        211,
+        r"determine it randomly",
+    ),
+)
+
+
+def read_magic_items(pdf: Path) -> dict[str, dict[str, object]]:
+    """Return every Magic Items entry as name -> {page, text}, in reading order."""
+    import pymupdf
+
+    doc = pymupdf.open(pdf)
+    entries: dict[str, dict[str, object]] = {}
+    current: dict[str, object] | None = None
+    for pno in MAGIC_ITEM_PAGES:
+        page = doc[pno]
+        mid = page.rect.width / 2
+        columns: dict[int, list[tuple[float, str, bool]]] = {0: [], 1: []}
+        for block in page.get_text("dict")["blocks"]:
+            for line in block.get("lines", []):
+                spans = [s for s in line["spans"] if s["text"].strip()]
+                if not spans:
+                    continue
+                text = "".join(s["text"] for s in spans)
+                if RUNNING_HEADER.match(text):
+                    continue
+                x0 = min(s["bbox"][0] for s in spans)
+                y0 = min(s["bbox"][1] for s in spans)
+                heading = any(
+                    s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
+                )
+                columns[0 if x0 < mid else 1].append((y0, text, heading))
+        for column in (0, 1):
+            for _, text, heading in sorted(columns[column], key=lambda r: r[0]):
+                if heading:
+                    current = {"page": pno + 1, "text": []}
+                    entries[text.strip()] = current
+                elif current is not None:
+                    current["text"].append(text)  # type: ignore[union-attr]
+    for entry in entries.values():
+        joined = " ".join(entry["text"])  # type: ignore[arg-type]
+        joined = joined.replace("\u00ad", "")
+        joined = re.sub(r"(\w)-\s+(\w)", r"\1\2", joined)
+        entry["text"] = re.sub(r"\s+", " ", joined).strip()
+    return entries
+
+
+def sweep_magic_items(pdf: Path) -> list[dict[str, object]]:
+    """Verify every MAGIC_ITEM_SHAPES row against the document, then return the shapes."""
+    entries = read_magic_items(pdf)
+    shapes: list[dict[str, object]] = []
+    for shape_id, name, kind, item, page, pattern in MAGIC_ITEM_SHAPES:
+        entry = entries.get(item)
+        if entry is None:
+            raise SystemExit(f"{shape_id}: cites {item!r}, which is not a Magic Items entry")
+        if entry["page"] != page:
+            raise SystemExit(
+                f"{shape_id}: cites {item} at p. {page}, document has it at p. {entry['page']}"
+            )
+        if not re.search(pattern, str(entry["text"]), re.I):
+            raise SystemExit(
+                f"{shape_id}: pattern {pattern!r} does not match {item} — the citation is "
+                "wrong, or the shape is not in this document"
+            )
+        shapes.append(
+            {
+                "id": shape_id,
+                "name": name,
+                "tag": None,
+                "reference": f"Magic Items, p. {page} ({item})",
+                "kind": kind,
+                "implemented": False,
+            }
+        )
+    return shapes
+
+
 def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
@@ -608,6 +745,7 @@ def build(pdf: Path) -> dict[str, object]:
 
     shapes.extend(sweep_spells(pdf))
     shapes.extend(sweep_monsters(pdf))
+    shapes.extend(sweep_magic_items(pdf))
 
     return {
         "schema_version": 1,
@@ -618,13 +756,15 @@ def build(pdf: Path) -> dict[str, object]:
             "published": "2025-05-01",
             "section": (
                 "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175); "
-                "Monsters (pp. 254-364)"
+                "Monsters (pp. 254-364); Magic Items (pp. 204-253)"
             ),
         },
         "coverage_scope": (
-            "Rules Glossary, Spell Descriptions, and Monsters. The Magic Items sweep is "
-            "tracked separately; until it lands this inventory understates what full "
-            "coverage requires."
+            "Rules Glossary, Spell Descriptions, Monsters, and Magic Items. Still "
+            "unswept: Equipment (its eight weapon mastery properties are effect shapes and "
+            "none are listed here), Classes, Character Origins, Feats, and the Gameplay "
+            "Toolbox. Until those land this inventory understates what full coverage "
+            "requires."
         ),
         "shapes": shapes,
         "vocabulary": vocabulary,

@@ -5,9 +5,9 @@
   "document": "System Reference Document 5.2.1",
   "revision": "5.2.1",
   "published": "2025-05-01",
-  "section": "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175); Monsters (pp. 254-364)"
+  "section": "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175); Monsters (pp. 254-364); Magic Items (pp. 204-253)"
  },
- "coverage_scope": "Rules Glossary, Spell Descriptions, and Monsters. The Magic Items sweep is tracked separately; until it lands this inventory understates what full coverage requires.",
+ "coverage_scope": "Rules Glossary, Spell Descriptions, Monsters, and Magic Items. Still unswept: Equipment (its eight weapon mastery properties are effect shapes and none are listed here), Classes, Character Origins, Feats, and the Gameplay Toolbox. Until those land this inventory understates what full coverage requires.",
  "shapes": [
   {
    "id": "ability-check",
@@ -1271,6 +1271,54 @@
    "tag": null,
    "reference": "Monsters, p. 262 (Basilisk)",
    "kind": "test",
+   "implemented": false
+  },
+  {
+   "id": "item-charges",
+   "name": "Expending Item Charges",
+   "tag": null,
+   "reference": "Magic Items, p. 215 (Cloak of Invisibility)",
+   "kind": "resource",
+   "implemented": false
+  },
+  {
+   "id": "daily-recharge",
+   "name": "Charges Regained on a Daily Schedule",
+   "tag": null,
+   "reference": "Magic Items, p. 215 (Cloak of Invisibility)",
+   "kind": "resource",
+   "implemented": false
+  },
+  {
+   "id": "numeric-bonus",
+   "name": "Flat Numeric Bonus to Rolls",
+   "tag": null,
+   "reference": "Magic Items, p. 213 (Berserker Axe)",
+   "kind": "test-modifier",
+   "implemented": false
+  },
+  {
+   "id": "spell-cast-from-item",
+   "name": "Spell Cast from an Item",
+   "tag": null,
+   "reference": "Magic Items, p. 233 (Necklace of Prayer Beads)",
+   "kind": "spellcasting",
+   "implemented": false
+  },
+  {
+   "id": "item-destruction",
+   "name": "Item Destroyed by a Stated Condition",
+   "tag": null,
+   "reference": "Magic Items, p. 212 (Bag of Holding)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "random-effect-table",
+   "name": "Effect Chosen at Random from a Table",
+   "tag": null,
+   "reference": "Magic Items, p. 211 (Bag of Beans)",
+   "kind": "effect",
    "implemented": false
   }
  ],
