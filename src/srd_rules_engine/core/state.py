@@ -24,7 +24,34 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Final
+
+#: p. 17: "On your third success, you become Stable... On your third failure, you die."
+DEATH_SAVE_THRESHOLD: Final = 3
+
+
+@dataclass(frozen=True)
+class DeathSaves:
+    """How close a creature at 0 hit points is to either end of it.
+
+    Both counts are kept, because p. 17 says "the successes and failures don't need to be
+    consecutive; keep track of both until you collect three of a kind". A single
+    net-progress integer would resolve two successes and two failures to zero, which is a
+    creature one roll from death reported as untouched.
+    """
+
+    successes: int = 0
+    failures: int = 0
+    stable: bool = False
+    dead: bool = False
+
+    def __post_init__(self) -> None:
+        if self.successes < 0 or self.failures < 0:
+            raise ValueError("death save counts do not go backwards; they reset to zero")
+
+    @property
+    def is_resolved(self) -> bool:
+        return self.stable or self.dead
 
 
 @dataclass(frozen=True)
@@ -39,14 +66,34 @@ class Combatant:
     abilities: Mapping[str, int]
     proficiency_bonus: int
     initiative: int | None = None
+    #: p. 17, "Monster Death": a monster "dies the instant it drops to 0 Hit Points",
+    #: while a player character makes Death Saving Throws. The two outcomes are different
+    #: rules, so the engine has to know which it is holding. Defaults to the monster
+    #: reading, because the product is solo play with exactly one player character and a
+    #: combatant nobody marked is far more likely to be the bear.
+    is_player_character: bool = False
+    #: Only meaningful at 0 hit points. Reset rather than carried once healing lands.
+    death_saves: DeathSaves = DeathSaves()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "abilities", MappingProxyType(dict(self.abilities)))
 
     @property
     def is_down(self) -> bool:
-        """At 0 hit points a combatant stops acting. What happens next is R12's business."""
+        """At 0 hit points a combatant stops acting."""
         return self.hit_points <= 0
+
+    @property
+    def makes_death_saves(self) -> bool:
+        """p. 17-18: a **player character** at 0 hit points, unless Stable or dead.
+
+        Three conditions, and each excludes a case the others let through. "A player
+        character must make a Death Saving Throw" — a monster dies instead. "A Stable
+        creature doesn't make Death Saving Throws even though it has 0 Hit Points" — so
+        being down is not sufficient, which is why Stable is tracked separately from the
+        hit point total.
+        """
+        return self.is_player_character and self.is_down and not self.death_saves.is_resolved
 
     def modifier(self, ability: str) -> int:
         """The SRD's ability modifier, floor-divided so negatives round the right way."""
@@ -106,21 +153,121 @@ class EncounterState:
     def _replacing(self, updated: Combatant) -> tuple[Combatant, ...]:
         return tuple(updated if c.id == updated.id else c for c in self.combatants)
 
-    def with_damage(self, combatant_id: str, amount: int) -> EncounterState:
+    def with_damage(
+        self, combatant_id: str, amount: int, *, critical: bool = False
+    ) -> EncounterState:
+        """Apply damage, including what it costs a creature already at 0 hit points.
+
+        p. 18, "Damage at 0 Hit Points": any damage there is a Death Saving Throw failure,
+        two if it came from a Critical Hit, and damage that "equals or exceeds your Hit
+        Point maximum" kills outright. Damage also ends Stable — "it stops being Stable and
+        starts making Death Saving Throws again".
+
+        These live here rather than in a caller for the same reason the thresholds do. A
+        caller able to deal damage to a dying creature *without* the failure would be a
+        caller able to keep it alive by forgetting a rule, which is the exact failure this
+        engine exists to remove.
+        """
         if amount < 0:
             raise ValueError("damage is not negative; healing is a separate change")
         target = self.combatant(combatant_id)
-        reduced = replace(target, hit_points=max(0, target.hit_points - amount))
-        return self._evolve(combatants=self._replacing(reduced))
+        before = target.hit_points
+
+        reduced = replace(target, hit_points=max(0, before - amount))
+        state = self._evolve(combatants=self._replacing(reduced))
+        if amount == 0 or reduced.hit_points > 0 or target.death_saves.dead:
+            return state
+
+        # p. 17, "Monster Death": a monster dies the instant it drops to 0.
+        if not target.is_player_character:
+            return state.with_death(combatant_id)
+
+        # p. 17, "Massive Damage": death if the damage **remaining** after the character
+        # is reduced to 0 equals or exceeds their hit point maximum. The remainder, not
+        # the whole blow — a character on 6 of 12 killed by 18 is the document's own
+        # example, and comparing the full amount instead would kill them on 12.
+        remainder = amount - before
+        if remainder >= target.max_hit_points:
+            return state.with_death(combatant_id)
+
+        # p. 18, "Damage at 0 Hit Points". Only for a character already there: being
+        # reduced to 0 this turn starts the saves, it does not also fail one.
+        if before > 0:
+            return state
+
+        # Stable ends first, or the failure would be recorded against a creature the
+        # engine still believes is not making saves (p. 18, "Stabilizing a Character").
+        if target.death_saves.stable:
+            state = state._evolve(
+                combatants=state._replacing(
+                    replace(state.combatant(combatant_id), death_saves=DeathSaves())
+                )
+            )
+        return state.with_death_save(combatant_id, failures=2 if critical else 1)
 
     def with_healing(self, combatant_id: str, amount: int) -> EncounterState:
+        """Heal, and clear any death saves the healing made irrelevant.
+
+        p. 17: "The number of both is reset to zero when you regain any Hit Points or
+        become Stable." Regaining *any* hit points, so a single point clears the record —
+        and the reset is here rather than at the call sites because a caller that healed
+        without clearing would leave a revived creature two failures from dying.
+        """
         if amount < 0:
             raise ValueError("healing is not negative; damage is a separate change")
         target = self.combatant(combatant_id)
+        healed = min(target.max_hit_points, target.hit_points + amount)
         restored = replace(
-            target, hit_points=min(target.max_hit_points, target.hit_points + amount)
+            target,
+            hit_points=healed,
+            death_saves=DeathSaves() if amount > 0 else target.death_saves,
         )
         return self._evolve(combatants=self._replacing(restored))
+
+    def with_death_save(
+        self, combatant_id: str, *, successes: int = 0, failures: int = 0
+    ) -> EncounterState:
+        """Record a death save, and apply the thresholds it may have crossed.
+
+        The thresholds live here rather than in the caller because reaching three is not a
+        second decision — p. 17 states it as a consequence of the third mark, so a caller
+        able to record a third failure without the creature dying would be a caller able
+        to invent a survival.
+        """
+        target = self.combatant(combatant_id)
+        saves = target.death_saves
+        if saves.is_resolved:
+            return self
+
+        total_successes = saves.successes + successes
+        total_failures = saves.failures + failures
+        stable = total_successes >= DEATH_SAVE_THRESHOLD
+        dead = total_failures >= DEATH_SAVE_THRESHOLD
+
+        updated = DeathSaves(
+            successes=0 if stable else total_successes,
+            failures=total_failures if not stable else 0,
+            stable=stable and not dead,
+            dead=dead,
+        )
+        return self._evolve(combatants=self._replacing(replace(target, death_saves=updated)))
+
+    def with_stabilised(self, combatant_id: str) -> EncounterState:
+        """Stable, and the counts reset with it — p. 17 resets on becoming Stable too."""
+        target = self.combatant(combatant_id)
+        if target.death_saves.dead:
+            return self
+        return self._evolve(
+            combatants=self._replacing(replace(target, death_saves=DeathSaves(stable=True)))
+        )
+
+    def with_death(self, combatant_id: str) -> EncounterState:
+        target = self.combatant(combatant_id)
+        return self._evolve(
+            combatants=self._replacing(
+                replace(target, death_saves=replace(target.death_saves, dead=True, stable=False))
+            )
+        )
 
     def with_initiative(self, rolls: Mapping[str, int]) -> EncounterState:
         """Order the combatants and begin round 1. Ties break by the order given."""

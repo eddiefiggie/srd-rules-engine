@@ -6,6 +6,44 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.15`
+
+Death saving throws, the second slice of #15. Inventory coverage 21 → 23 of 211. #15 stays open.
+
+- **A death save is a d20 test like any other**, resolving through the one adjudication entry
+  point (R1) with the engine rolling it (R4): DC 10, and **tied to no ability score** — "you're in
+  the hands of fate now" (p. 17). The empty modifier tuple is the rule rather than an omission, so
+  a test asserts it against a character who has a Constitution modifier to lose.
+- **Three of a kind resolves it**, and the marks need not be consecutive, so both counts are kept.
+  A single net-progress integer would resolve two successes and two failures to zero and report a
+  character one roll from death as untouched — there is a mutation for exactly that.
+- **A natural 1 costs two failures and a natural 20 restores a hit point** (p. 18). Neither is
+  expressible as "the save succeeded" or "the save failed", so `Proposal` grew `on_natural_20` and
+  `on_natural_1`, selected ahead of the ordinary branches because the rules say *instead of*.
+- **Massive Damage kills on the remainder, not the whole blow** (p. 17). A character with a hit
+  point maximum of 12 on 6 hit points dies to 18 damage and survives 12 — the document's own
+  example. Comparing the full amount would kill them on 12 and would pass any test that only
+  checked a big hit kills, so the surviving case is tested too.
+- **A monster dies the instant it drops to 0** (p. 17) rather than making saves, so `Combatant`
+  carries `is_player_character`. It defaults to the monster reading: the product is solo play with
+  exactly one player character, and an unmarked combatant is far more likely to be the bear.
+- **Damage at 0 hit points is a failure, two from a Critical Hit, and it ends Stable** (p. 18).
+  The blow that *puts* a character at 0 is not also a failure — charging one would kill on two
+  hits. These live in `EncounterState.with_damage` rather than in a caller, because a caller able
+  to damage a dying creature without the failure is a caller able to keep it alive by forgetting a
+  rule.
+- **Three parts of the same pages ship disclosed rather than silently missing.** The Unconscious
+  condition that accompanies 0 hit points (#18); stabilising by the Help action, which needs a DC
+  10 Wisdom (Medicine) check and an action economy to spend from (#16); and "a Stable creature
+  that isn't healed regains 1 Hit Point after 1d4 hours", which has no clock to hang on (#85).
+- **`instant-death` is deliberately *not* claimed.** Two of its three ways are implemented —
+  Monster Death and Massive Damage — but "a creature dies if its Hit Point maximum reaches 0" is
+  not, and a binary flag cannot say two-thirds. Claiming it would overstate coverage, which is the
+  failure R17 exists to prevent.
+- **`scripts/verify_d20_rules.py` now checks 30 clauses rather than 21**, all confirmed against
+  the document, and was seen red by corrupting the massive-damage pattern. Nine mutations were run
+  against the new tests and all nine were caught.
+
 ## Unreleased — 2026-08-23 — build `08232026.14`
 
 The first slice of #15: what a natural 20 or 1 means, and the first scores derived without a roll.

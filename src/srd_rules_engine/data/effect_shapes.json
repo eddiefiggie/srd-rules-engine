@@ -415,7 +415,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 181",
    "kind": "test",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "dehydration",
@@ -991,7 +991,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 188",
    "kind": "state",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "study",

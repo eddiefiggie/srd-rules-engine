@@ -50,6 +50,11 @@ from srd_rules_engine.core.d20 import (
     TestKind,
     replace_die,
 )
+from srd_rules_engine.core.death import (
+    DEATH_SAVE_DC,
+    DEATH_SAVE_VERIFICATION,
+    death_save_resolver,
+)
 from srd_rules_engine.core.inventory import (
     ENGINE_SHAPES,
     Inventory,
@@ -134,6 +139,8 @@ from srd_rules_engine.core.triggers import (
 __all__ = [
     "ATTACK",
     "DAMAGE_OFFSET",
+    "DEATH_SAVE_DC",
+    "DEATH_SAVE_VERIFICATION",
     "DIE_SIDES",
     "END_TURN",
     "ENGINE_SHAPES",
@@ -150,6 +157,7 @@ __all__ = [
     "D20Result",
     "D20Test",
     "DamageDice",
+    "DeathSaves",
     "Declaration",
     "DefaultKind",
     "Effect",
@@ -207,6 +215,7 @@ __all__ = [
     "canonicalize",
     "check_storable",
     "coverage_report",
+    "death_save_resolver",
     "digest",
     "fact_from_payload",
     "fact_write_payload",
