@@ -46,7 +46,7 @@ from srd_rules_engine.core.adjudicate import (
     Proposal,
     Resolver,
 )
-from srd_rules_engine.core.d20 import D20Test, Modifier, TestKind, roll
+from srd_rules_engine.core.d20 import Advantage, D20Test, Modifier, TestKind, roll
 from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.position import distance_feet, within
@@ -186,6 +186,10 @@ def attack_resolver(weapon: Weapon) -> Resolver:
         ability = actor.modifier(weapon.ability)
 
         beyond_normal = _out_of_range(weapon, actor, target)
+        attacker_state = actor.conditions.own_attack_rolls(target_id=target_id)
+        defender_state = target.conditions.attack_rolls_against(
+            attacker=actor.position, target=target.position
+        )
 
         modifiers = [Modifier(source=f"ability:{weapon.ability}", value=ability)]
         if weapon.proficient:
@@ -204,7 +208,18 @@ def attack_resolver(weapon: Weapon) -> Resolver:
                 # Heavy (p. 89), or attacking beyond a ranged weapon's normal range
                 # (p. 90). Both are Disadvantage and they do not stack — the d20 takes a
                 # single flag, which is the cancellation rule holding by construction.
-                has_disadvantage=weapon.heavy_disadvantage(actor.abilities) or beyond_normal,
+                has_disadvantage=(
+                    weapon.heavy_disadvantage(actor.abilities)
+                    or beyond_normal
+                    or attacker_state is Advantage.DISADVANTAGE
+                    or defender_state is Advantage.DISADVANTAGE
+                ),
+                # Conditions on either side reach the same pair of flags, so the
+                # cancellation rule (p. 8) resolves them exactly as it resolves any other
+                # pair of circumstances rather than through a second mechanism.
+                has_advantage=(
+                    attacker_state is Advantage.ADVANTAGE or defender_state is Advantage.ADVANTAGE
+                ),
             ),
             on_success=(
                 DamageDice(

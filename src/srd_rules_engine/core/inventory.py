@@ -32,6 +32,7 @@ from importlib import resources
 from types import MappingProxyType
 
 from srd_rules_engine.core.adjudicate import EffectKind
+from srd_rules_engine.core.conditions import Condition
 from srd_rules_engine.core.d20 import Advantage, TestKind
 from srd_rules_engine.core.position import MovementMode
 
@@ -90,6 +91,8 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "cone": "core.areas.Cone",
         "line": "core.areas.Line",
         "emanation": "core.areas.Emanation",
+        # The fifteen conditions, with their mechanical effects attached (#18).
+        **{c.value: f"core.conditions.Condition.{c.name}" for c in Condition},
         "ability-check": f"core.d20.TestKind.{TestKind.CHECK.name}",
         "saving-throw": f"core.d20.TestKind.{TestKind.SAVE.name}",
         "save": f"core.d20.TestKind.{TestKind.SAVE.name}",

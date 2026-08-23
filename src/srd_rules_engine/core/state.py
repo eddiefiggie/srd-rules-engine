@@ -26,6 +26,7 @@ from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 from typing import Any, Final
 
+from srd_rules_engine.core.conditions import Conditions
 from srd_rules_engine.core.damage import DamageType, Defences, after_defences
 from srd_rules_engine.core.position import (
     DEFAULT_REACH_FEET,
@@ -92,6 +93,8 @@ class Combatant:
     reach: int = DEFAULT_REACH_FEET
     #: Movement spent this turn. Reset when the turn advances, not carried.
     movement_used: int = 0
+    #: Active conditions, with implication already resolved (R14, R18).
+    conditions: Conditions = field(default_factory=Conditions)
     #: Only meaningful at 0 hit points. Reset rather than carried once healing lands.
     death_saves: DeathSaves = DeathSaves()
 
@@ -117,8 +120,13 @@ class Combatant:
 
     @property
     def movement_remaining(self) -> int:
-        """What is left of this creature's Speed on this turn (p. 188)."""
-        return max(0, self.speeds.walk - self.movement_used)
+        """What is left of this creature's Speed on this turn (p. 188).
+
+        Conditions act on the Speed first: Grappled and the rest set it to 0, and
+        Exhaustion reduces it by 5 per level (pp. 182, 181). A creature whose Speed a
+        condition zeroed has no movement left however little it has spent.
+        """
+        return max(0, self.conditions.speed_after(self.speeds.walk) - self.movement_used)
 
     def modifier(self, ability: str) -> int:
         """The SRD's ability modifier, floor-divided so negatives round the right way."""

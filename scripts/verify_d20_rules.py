@@ -380,6 +380,55 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"An Emanation.s origin \(creature or object\) isn.t included in the area of effect",
     ),
     (
+        186,
+        "Prone gives Advantage within 5 feet and DISADVANTAGE beyond — both directions",
+        r"An attack roll against you has Advantage if the attacker is within 5 feet of "
+        r"you\.\s*Otherwise, that attack roll has Disadvantage",
+    ),
+    (
+        191,
+        "Unconscious carries both Incapacitated and Prone",
+        r"You have the Incapacitated and Prone conditions",
+    ),
+    (
+        184,
+        "Incapacitated stops actions, bonus actions and reactions, and breaks Concentration",
+        r"You can.t take any action, Bonus Action, or Reaction\..{0,80}Your Concentration "
+        r"is broken",
+    ),
+    (
+        181,
+        "Exhaustion is cumulative, reduces D20 Tests by 2 per level, and kills at 6",
+        r"You die if your Exhaustion level is 6\..{0,120}the roll is reduced by 2 times "
+        r"your Exhaustion level",
+    ),
+    (
+        181,
+        "and reduces Speed by 5 feet per level",
+        r"Your Speed is reduced by a number of feet equal to 5 times your Exhaustion level",
+    ),
+    (
+        182,
+        "Grappled spares the grappler from the attack penalty",
+        r"You have Disadvantage on attack rolls against any target other than the grappler",
+    ),
+    (
+        186,
+        "Paralyzed hands out automatic Critical Hits within 5 feet",
+        r"Any attack roll that hits you is a Critical Hit if the attacker is within 5 feet",
+    ),
+    (
+        187,
+        "Restrained only hampers Dexterity saves, where four others fail them outright",
+        r"You have Disadvantage on Dexterity saving throws",
+    ),
+    (
+        182,
+        "Frightened's penalty is qualified by line of sight — the clause not enforced",
+        r"You have Disadvantage on ability checks and attack rolls while the source of fear "
+        r"is within line of sight",
+    ),
+    (
         176,
         "the Rules Glossary states the same cancellation rule",
         r"Advantage and Dis-?\s*advantage on the same roll cancel each other",

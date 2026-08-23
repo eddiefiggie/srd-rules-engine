@@ -41,7 +41,9 @@ from srd_rules_engine.core import (
     read,
 )
 from srd_rules_engine.core.adjudicate import Proposal, _apply, _roll_declared
+from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.d20 import DAMAGE_OFFSET, D20Test, roll
+from srd_rules_engine.core.d20 import resolve as roll_d20
 from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.position import Position
 from srd_rules_engine.memory.store import JsonMemoryStore
@@ -848,3 +850,77 @@ def test_an_encounter_without_positions_asks_no_range_question() -> None:
     and the honest result is to not ask it rather than to assume everyone is adjacent."""
     club = Weapon(name="club", damage_dice=1, damage_sides=4)
     assert _propose_with(club, state=encounter()).test.has_disadvantage is False
+
+
+# --- Conditions reach the attack roll (#18) ------------------------------------------
+
+
+def _conditioned(
+    *,
+    attacker: Conditions | None = None,
+    defender: Conditions | None = None,
+    at: Position | None = None,
+) -> EncounterState:
+    base = encounter()
+    pc, boar = base.combatant("pc"), base.combatant("boar")
+    return EncounterState.new(
+        [
+            dataclasses.replace(
+                pc, position=Position(0, 0, 0), conditions=attacker or Conditions()
+            ),
+            dataclasses.replace(
+                boar, position=at or Position(5, 0, 0), conditions=defender or Conditions()
+            ),
+        ]
+    )
+
+
+def test_a_poisoned_attacker_swings_at_disadvantage() -> None:
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    poisoned = Conditions(held=frozenset({Condition.POISONED}))
+    assert _propose_with(club, state=_conditioned(attacker=poisoned)).test.has_disadvantage
+
+
+def test_a_restrained_defender_is_attacked_at_advantage() -> None:
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    restrained = Conditions(held=frozenset({Condition.RESTRAINED}))
+    assert _propose_with(club, state=_conditioned(defender=restrained)).test.has_advantage
+
+
+def test_conditions_on_both_sides_cancel_by_the_d20s_own_rule() -> None:
+    """A poisoned attacker (Disadvantage) against a restrained defender (Advantage) rolls
+    one plain d20 — p. 8, resolved by the same flags every other circumstance uses rather
+    than by a second mechanism.
+    """
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    proposal = _propose_with(
+        club,
+        state=_conditioned(
+            attacker=Conditions(held=frozenset({Condition.POISONED})),
+            defender=Conditions(held=frozenset({Condition.RESTRAINED})),
+        ),
+    )
+    assert proposal.test.has_advantage and proposal.test.has_disadvantage
+    result = roll_d20(proposal.test, seed=7)
+    assert len(result.dice) == 1, "both states, so neither — one plain d20"
+
+
+def test_prone_reaches_the_attack_roll_in_both_directions() -> None:
+    """The rule this whole slice exists to get right: Advantage within 5 feet,
+    Disadvantage beyond, decided by the position the engine already holds."""
+    bow = Weapon(
+        name="shortbow",
+        damage_dice=1,
+        damage_sides=6,
+        melee=False,
+        ability="dex",
+        normal_range=80,
+        long_range=320,
+    )
+    prone = Conditions(held=frozenset({Condition.PRONE}))
+
+    close = _propose_with(bow, state=_conditioned(defender=prone, at=Position(3, 0, 0)))
+    far = _propose_with(bow, state=_conditioned(defender=prone, at=Position(40, 0, 0)))
+
+    assert close.test.has_advantage and not close.test.has_disadvantage
+    assert far.test.has_disadvantage and not far.test.has_advantage
