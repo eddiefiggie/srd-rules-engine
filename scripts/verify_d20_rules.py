@@ -255,6 +255,36 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"rely on the types",
     ),
     (
+        89,
+        "Finesse offers Strength or Dexterity, and the same modifier for both rolls",
+        r"use your choice of your Strength or Dexterity modifier for the attack and damage "
+        r"rolls\.\s*You must use the same modifier for both rolls",
+    ),
+    (
+        89,
+        "Heavy names a SCORE of 13, and a different ability for melee and ranged",
+        r"Disadvantage on attack rolls with a Heavy weapon if it.s a Melee weapon and your "
+        r"Strength score isn.t at least 13 or if it.s a Ranged weapon and your Dexterity "
+        r"score isn.t at least 13",
+    ),
+    (
+        90,
+        "Versatile applies only to a two-handed melee attack",
+        r"The weapon deals that damage when used with two hands to make a melee attack",
+    ),
+    (
+        90,
+        "Graze deals the ability modifier on a miss, and nothing else may raise it",
+        r"If your attack roll with this weapon misses a creature, you can deal damage to "
+        r"that creature equal to the ability modifier you used to make the attack roll",
+    ),
+    (
+        90,
+        "and Graze damage is the weapon's own type",
+        r"This damage is the same type dealt by the weapon, and the damage can be increased "
+        r"only by increasing the ability modifier",
+    ),
+    (
         176,
         "the Rules Glossary states the same cancellation rule",
         r"Advantage and Dis-?\s*advantage on the same roll cancel each other",

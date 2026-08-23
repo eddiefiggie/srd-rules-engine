@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.17` — **damage types, and what Resistance, Vulnerability and Immunity do to an amount** — the first slice of #16. The order is the point: p. 17 fixes adjustments, then Resistance, then Vulnerability, and the two do not commute once rounding enters, so the document's own worked example (28 Fire, reduced by 5, halved to 11, doubled to 22) is the first test and the wrong order is the second. Rounding happens at the halving, not at the end. Neither defence stacks with itself, held as sets so the stacking reading is unrepresentable rather than merely untaken. Defences resolve before hit points move, so a creature immune to the type takes no damage and suffers no death-save failure for it. Condition Immunity ships disclosed as absent (#18). Inventory coverage 27 → 32 of 211.
+**Current build:** `08232026.18` — **four weapon properties, and the thirteen that cannot be built yet named with what each waits on.** Finesse offers Strength or Dexterity and holds the constraint that one modifier reaches *both* rolls; Heavy reads a **score** of 13 — not a modifier — and a different ability for melee and ranged; Versatile takes the larger die only in two hands and only in melee; Graze deals the ability modifier on a **miss**, in the weapon's own damage type, which is the first thing to put damage in the miss branch. The other thirteen are blocked on distance (#20), the action economy, movement (#17), conditions (#18), or cross-turn state, and the module says which. Inventory coverage 32 → 36 of 211.
 
 ---
 

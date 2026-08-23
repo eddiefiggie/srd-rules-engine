@@ -6,6 +6,43 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.18`
+
+Weapon properties and mastery, the second slice of #16. Inventory coverage 32 → 36 of 211; #16 is
+18 of its 67 shapes and stays open.
+
+**Four of the seventeen were implementable. The other thirteen are named with what blocks each**,
+because "not done yet" and "cannot be done yet" are different claims and only one of them is
+schedulable.
+
+- **Finesse** (p. 89) "use your choice of your Strength or Dexterity modifier for the attack **and**
+  damage rolls. You must use the same modifier for both rolls." The *choice* is the wielder's and
+  arrives as the weapon's ability; what the engine holds is the constraint — a Finesse weapon may
+  use either and nothing else, and whichever is chosen reaches both rolls. A weapon attacking on
+  Dexterity and damaging on Strength is the mistake this forbids.
+- **Heavy** (p. 89) reads a **score** of 13, not a modifier, and a different ability for melee than
+  for ranged. Both are easy to get subtly wrong: a modifier comparison puts the boundary somewhere
+  else entirely, and reading Strength for a longbow is the wrong ability. Three mutations cover it.
+- **Versatile** (p. 90) applies "when used with two hands to make a melee attack" — both halves are
+  conditions, so a versatile weapon in one hand rolls its ordinary die.
+- **Graze** (p. 90) deals the ability modifier on a **miss**, in the weapon's own damage type. It is
+  the first thing to put damage in the failure branch, and it never heals: a negative modifier
+  yields nothing, because the document gives no rule for a miss that restores hit points.
+- **A guard caught a rule value.** `HEAVY_SCORE_THRESHOLD = 13` is a rule, not machinery, and
+  `test_no_weapon_list_ships_in_this_module` refuses module constants on the ground that "a rule
+  value hiding in one reads exactly like a verified one". The fix was to make it verified rather
+  than to allowlist it: `WEAPON_PROPERTY_VERIFICATION` now carries the pages, and the guard asserts
+  the citation exists rather than merely permitting the constant.
+- **Thirteen shapes remain, and what each waits on is recorded**: distance in feet for
+  `weapon-range`, `weapon-thrown` and `mastery-cleave` (#20); the action economy for `weapon-light`,
+  `weapon-loading` and `mastery-nick`; movement for `mastery-push` and `mastery-slow` (#17); the
+  Prone condition for `mastery-topple` (#18); cross-turn state for `mastery-sap` and `mastery-vex`;
+  ammunition tracking and a clock for `weapon-ammunition` (#85); and a model of hands for
+  `weapon-two-handed`, which has nothing to enforce against today.
+- **`scripts/verify_d20_rules.py` now checks 47 clauses rather than 42**, all confirmed against the
+  document, seen red by changing Heavy's threshold from 13 to 15. Eight mutations were run against
+  the new tests and all eight were caught.
+
 ## Unreleased — 2026-08-23 — build `08232026.17`
 
 Damage types and the defences that act on them: the first slice of #16. Inventory coverage

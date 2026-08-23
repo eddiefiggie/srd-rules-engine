@@ -11,6 +11,7 @@ while testing something else.
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 
 import pytest
@@ -39,8 +40,9 @@ from srd_rules_engine.core import (
     load_fixture_ruleset,
     read,
 )
-from srd_rules_engine.core.adjudicate import _apply, _roll_declared
+from srd_rules_engine.core.adjudicate import Proposal, _apply, _roll_declared
 from srd_rules_engine.core.d20 import DAMAGE_OFFSET, D20Test, roll
+from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.memory.store import JsonMemoryStore
 
 STRIKE = Rule(
@@ -491,9 +493,22 @@ def test_no_weapon_list_ships_in_this_module() -> None:
         for node in tree.body
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
     }
-    assert constants == {"INITIATIVE_DIE"}, (
-        f"{constants - {'INITIATIVE_DIE'}} are module constants; a rule value hiding in one "
+    # A rule value may live here, but only carrying what it was checked against. The
+    # threshold Heavy names is exactly such a value, and a bare 13 would be
+    # indistinguishable from an invented one — which is the failure this guard names.
+    allowed = {"INITIATIVE_DIE", "HEAVY_SCORE_THRESHOLD", "WEAPON_PROPERTY_VERIFICATION"}
+    assert constants == allowed, (
+        f"{constants - allowed} are module constants; a rule value hiding in one "
         "reads exactly like a verified one"
+    )
+
+    from srd_rules_engine.core.combat import WEAPON_PROPERTY_VERIFICATION
+    from srd_rules_engine.core.rules import VerificationState
+
+    assert WEAPON_PROPERTY_VERIFICATION.state is VerificationState.VERIFIED
+    assert WEAPON_PROPERTY_VERIFICATION.reference is not None
+    assert "pp. 89-90" in WEAPON_PROPERTY_VERIFICATION.reference, (
+        "the rule values in this module cite the pages they were read from"
     )
 
 
@@ -576,3 +591,149 @@ def test_a_weapon_without_a_bonus_adds_no_modifier_at_all() -> None:
         facts={},
     )
     assert not any("bonus" in m.source for m in proposal.test.modifiers)
+
+
+def _dice(proposal: Proposal) -> DamageDice:
+    """The damage the proposal declares, narrowed. A branch holds `Effect | DamageDice`."""
+    declared = proposal.on_success[0]
+    assert isinstance(declared, DamageDice)
+    return declared
+
+
+def _miss_effect(proposal: Proposal) -> Effect:
+    declared = proposal.on_failure[0]
+    assert isinstance(declared, Effect)
+    return declared
+
+
+def encounter_with_scores(scores: dict[str, int]) -> EncounterState:
+    """An encounter whose player character has the given ability scores."""
+    base = encounter()
+    pc = base.combatant("pc")
+    return EncounterState.new(
+        [dataclasses.replace(pc, abilities={**dict(pc.abilities), **scores})]
+        + [c for c in base.combatants if c.id != "pc"]
+    )
+
+
+# --- Weapon properties and mastery (#16) --------------------------------------------
+
+
+def _propose_with(
+    weapon: Weapon,
+    *,
+    actor: str = "pc",
+    target: str = "boar",
+    state: EncounterState | None = None,
+) -> Proposal:
+    return attack_resolver(weapon)(
+        state=state if state is not None else encounter(),
+        declaration=Declaration(
+            actor_id=actor, intent=Intent(action_key=f"attack:{target}"), rule_id="attack"
+        ),
+        facts={},
+    )
+
+
+def test_a_finesse_weapon_may_use_dexterity_and_the_same_modifier_reaches_both_rolls() -> None:
+    """p. 89: "use your choice of your Strength or Dexterity modifier for the attack and
+    damage rolls. You must use the same modifier for both rolls."
+
+    The *choice* is the wielder's and arrives as `ability`. What the engine holds is the
+    constraint, and the half worth testing is that one modifier reaches both rolls — a
+    weapon attacking on Dexterity and damaging on Strength is the mistake this forbids.
+    """
+    rapier = Weapon(name="rapier", damage_dice=1, damage_sides=8, ability="dex", finesse=True)
+    proposal = _propose_with(rapier)
+
+    dex = next(m.value for m in proposal.test.modifiers if m.source == "ability:dex")
+    assert _dice(proposal).modifier == dex, "the same modifier, on both rolls"
+
+
+def test_a_finesse_weapon_may_not_use_a_third_ability() -> None:
+    """The document offers Strength or Dexterity and no others."""
+    with pytest.raises(ValueError, match="Strength or Dexterity"):
+        Weapon(name="odd", damage_dice=1, damage_sides=8, ability="cha", finesse=True)
+
+
+def test_heavy_gives_disadvantage_below_a_strength_of_13() -> None:
+    """p. 89: Disadvantage "if it's a Melee weapon and your Strength score isn't at least
+    13". The **score**, not the modifier — a modifier comparison puts the boundary in a
+    different place, and 13 is where the document puts it.
+    """
+    greataxe = Weapon(name="greataxe", damage_dice=1, damage_sides=12, heavy=True)
+
+    weak = encounter_with_scores({"str": 12, "dex": 14})
+    strong = encounter_with_scores({"str": 13, "dex": 14})
+
+    assert _propose_with(greataxe, state=weak).test.has_disadvantage
+    assert not _propose_with(greataxe, state=strong).test.has_disadvantage, "13 is enough"
+
+
+def test_heavy_reads_dexterity_for_a_ranged_weapon() -> None:
+    """The same sentence's other half: "or if it's a Ranged weapon and your Dexterity score
+    isn't at least 13". Reading Strength for a longbow would be the wrong ability."""
+    longbow = Weapon(
+        name="longbow", damage_dice=1, damage_sides=8, heavy=True, melee=False, ability="dex"
+    )
+    assert _propose_with(
+        longbow, state=encounter_with_scores({"str": 18, "dex": 12})
+    ).test.has_disadvantage
+    assert not _propose_with(
+        longbow, state=encounter_with_scores({"str": 8, "dex": 13})
+    ).test.has_disadvantage
+
+
+def test_a_weapon_without_heavy_never_takes_the_penalty() -> None:
+    plain = Weapon(name="club", damage_dice=1, damage_sides=4)
+    assert not _propose_with(plain, state=encounter_with_scores({"str": 3})).test.has_disadvantage
+
+
+def test_versatile_uses_the_larger_die_only_in_two_hands() -> None:
+    """p. 90: a Versatile weapon "deals that damage when used with two hands to make a
+    melee attack". Both halves are conditions."""
+    one = Weapon(name="longsword", damage_dice=1, damage_sides=8, versatile_sides=10)
+    two = Weapon(
+        name="longsword", damage_dice=1, damage_sides=8, versatile_sides=10, wielded_two_handed=True
+    )
+
+    assert _dice(_propose_with(one)).sides == 8
+    assert _dice(_propose_with(two)).sides == 10
+
+
+def test_versatile_is_a_melee_property() -> None:
+    with pytest.raises(ValueError, match="melee property"):
+        Weapon(name="odd", damage_dice=1, damage_sides=8, versatile_sides=10, melee=False)
+
+
+def test_graze_deals_the_ability_modifier_on_a_miss() -> None:
+    """p. 90: "If your attack roll with this weapon misses a creature, you can deal damage
+    to that creature equal to the ability modifier you used to make the attack roll."
+
+    The miss branch is normally empty, so this is the first thing that puts damage in it.
+    """
+    greataxe = Weapon(
+        name="greataxe", damage_dice=1, damage_sides=12, graze=True, damage_type=DamageType.SLASHING
+    )
+    proposal = _propose_with(greataxe)
+
+    assert proposal.on_failure, "a Graze weapon deals damage on a miss"
+    effect = _miss_effect(proposal)
+    ability = next(m.value for m in proposal.test.modifiers if m.source.startswith("ability:"))
+    assert effect.amount == ability
+    assert effect.damage_type is DamageType.SLASHING, "the same type the weapon deals"
+
+
+def test_a_weapon_without_graze_misses_for_nothing() -> None:
+    plain = Weapon(name="club", damage_dice=1, damage_sides=4)
+    assert _propose_with(plain).on_failure == ()
+
+
+def test_graze_never_heals() -> None:
+    """A negative ability modifier would be negative damage, and the document gives no rule
+    for a miss that heals — "the damage can be increased only by increasing the ability
+    modifier", so nothing else may be folded in either.
+    """
+    feeble = encounter_with_scores({"str": 4})
+    greataxe = Weapon(name="greataxe", damage_dice=1, damage_sides=12, graze=True)
+    assert _propose_with(greataxe, state=feeble).on_failure == ()

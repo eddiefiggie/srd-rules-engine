@@ -67,6 +67,11 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "vulnerability": "core.damage.Defences.vulnerabilities",
         "damage-application-order": "core.damage.after_defences",
         "damage-modifier-no-stacking": "core.damage.Defences",
+        # Weapon properties and the one mastery property nothing else gates (#16).
+        "weapon-finesse": "core.combat.Weapon.finesse",
+        "weapon-heavy": "core.combat.Weapon.heavy_disadvantage",
+        "weapon-versatile": "core.combat.Weapon.sides_in_use",
+        "mastery-graze": "core.combat.Weapon.graze",
         "ability-check": f"core.d20.TestKind.{TestKind.CHECK.name}",
         "saving-throw": f"core.d20.TestKind.{TestKind.SAVE.name}",
         "save": f"core.d20.TestKind.{TestKind.SAVE.name}",
