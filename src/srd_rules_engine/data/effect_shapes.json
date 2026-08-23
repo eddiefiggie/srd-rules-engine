@@ -1343,7 +1343,7 @@
    "tag": null,
    "reference": "Equipment, p. 89 (Finesse)",
    "kind": "weapon-property",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "weapon-heavy",
@@ -1351,7 +1351,7 @@
    "tag": null,
    "reference": "Equipment, p. 89 (Heavy)",
    "kind": "weapon-property",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "weapon-light",
@@ -1399,7 +1399,7 @@
    "tag": null,
    "reference": "Equipment, p. 90 (Versatile)",
    "kind": "weapon-property",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "mastery-cleave",
@@ -1415,7 +1415,7 @@
    "tag": null,
    "reference": "Equipment, p. 90 (Graze)",
    "kind": "weapon-mastery",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "mastery-nick",

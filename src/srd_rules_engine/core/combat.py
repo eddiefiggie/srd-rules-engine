@@ -41,15 +41,35 @@ from dataclasses import dataclass
 from srd_rules_engine.core.adjudicate import (
     DamageDice,
     Declaration,
+    Effect,
+    EffectKind,
     Proposal,
     Resolver,
 )
 from srd_rules_engine.core.d20 import D20Test, Modifier, TestKind, roll
+from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.read_surface import attack_target
+from srd_rules_engine.core.rules import Verification, VerificationState
 from srd_rules_engine.core.state import EncounterState
 
 INITIATIVE_DIE = 20
+
+#: R31. `HEAVY_SCORE_THRESHOLD` is a rule value, not machinery, so it carries what it was
+#: checked against. A bare 13 in this module would read exactly like a verified one, which
+#: is what `test_no_weapon_list_ships_in_this_module` exists to prevent.
+WEAPON_PROPERTY_VERIFICATION = Verification(
+    state=VerificationState.VERIFIED,
+    reference=(
+        'SRD v5.2.1, Equipment ("Properties" -> Finesse, Heavy, Versatile), pp. 89-90; '
+        '("Mastery Properties" -> Graze), p. 90'
+    ),
+    date="2026-08-23",
+)
+
+#: p. 89: Heavy names a *score* of 13, not a modifier. Comparing modifiers would put the
+#: boundary in a different place.
+HEAVY_SCORE_THRESHOLD = 13
 
 
 @dataclass(frozen=True)
@@ -61,11 +81,62 @@ class Weapon:
     damage_sides: int
     ability: str = "str"
     proficient: bool = True
+    #: Melee or Ranged (p. 89). Heavy reads a different ability score for each.
+    melee: bool = True
+    damage_type: DamageType | None = None
+    #: Finesse (p. 89): "use your choice of your Strength or Dexterity modifier for the
+    #: attack **and** damage rolls. You must use the same modifier for both rolls." The
+    #: choice is the wielder's and arrives as `ability`; what the engine holds is the
+    #: constraint — a Finesse weapon may use either, anything else may not, and whichever
+    #: is chosen reaches both rolls.
+    finesse: bool = False
+    #: Heavy (p. 89): Disadvantage unless the relevant score is at least 13.
+    heavy: bool = False
+    #: Versatile (p. 90): the damage die when "used with two hands to make a melee attack".
+    versatile_sides: int | None = None
+    wielded_two_handed: bool = False
+    #: Graze (p. 90), a mastery property: damage on a miss equal to the ability modifier.
+    graze: bool = False
     #: A flat bonus that reaches **both** rolls. Berserker Axe (Magic Items, p. 213) is
     #: the inventory's exemplar: "a +1 bonus to attack rolls and damage rolls made with
     #: this magic weapon". Applying it to only one of the two is the mistake worth
     #: guarding, because an attack-only bonus is invisible in every hit that lands.
     bonus: int = 0
+
+    def __post_init__(self) -> None:
+        if self.finesse and self.ability not in ("str", "dex"):
+            raise ValueError(
+                f"a Finesse weapon uses Strength or Dexterity, not {self.ability!r} — "
+                "p. 89 offers the choice between those two and no others"
+            )
+        if self.versatile_sides is not None and not self.melee:
+            raise ValueError(
+                "Versatile is a melee property: it applies to two-handed melee attacks"
+            )
+
+    @property
+    def sides_in_use(self) -> int:
+        """The damage die this attack rolls.
+
+        p. 90: a Versatile weapon "deals that damage when used with two hands to make a
+        melee attack". Both halves are conditions — a versatile weapon wielded in one hand
+        rolls its ordinary die.
+        """
+        if self.versatile_sides is not None and self.wielded_two_handed and self.melee:
+            return self.versatile_sides
+        return self.damage_sides
+
+    def heavy_disadvantage(self, scores: Mapping[str, int]) -> bool:
+        """p. 89: Disadvantage "if it's a Melee weapon and your Strength score isn't at
+        least 13 or if it's a Ranged weapon and your Dexterity score isn't at least 13".
+
+        The *score*, not the modifier — 13 is the threshold the document names, and a
+        modifier comparison would put the boundary in a different place.
+        """
+        if not self.heavy:
+            return False
+        required = "str" if self.melee else "dex"
+        return scores.get(required, 10) < HEAVY_SCORE_THRESHOLD
 
 
 def initiative_order(
@@ -113,12 +184,18 @@ def attack_resolver(weapon: Weapon) -> Resolver:
                 target=target.armour_class,
                 target_basis=f"armour class {target.armour_class}, worn by {target.name}",
                 modifiers=tuple(modifiers),
+                # Heavy (p. 89). The disadvantage is a property of the weapon in these
+                # hands, so it is decided here rather than asked of the caller.
+                has_disadvantage=weapon.heavy_disadvantage(actor.abilities),
             ),
             on_success=(
                 DamageDice(
                     target_id=target_id,
                     count=weapon.damage_dice,
-                    sides=weapon.damage_sides,
+                    # Versatile (p. 90) selects the die; the ability modifier is whichever
+                    # one Finesse let the wielder choose, and it reaches both rolls.
+                    sides=weapon.sides_in_use,
+                    damage_type=weapon.damage_type,
                     # The same bonus, on the other roll. p. 213 says "attack rolls **and**
                     # damage rolls", so a weapon bonus reaching only the attack would be
                     # half a rule — and the half nobody notices.
@@ -126,6 +203,10 @@ def attack_resolver(weapon: Weapon) -> Resolver:
                     source=weapon.name,
                 ),
             ),
+            # Graze (p. 90): "If your attack roll with this weapon misses a creature, you
+            # can deal damage to that creature equal to the ability modifier you used to
+            # make the attack roll." The same modifier, and the weapon's own damage type.
+            on_failure=_graze(weapon, target_id, ability),
             citations=(f"weapon:{weapon.name}",),
             may_claim=(f"that the attack on {target.name} resolved as the roll says",),
             may_not_claim=(
@@ -135,6 +216,29 @@ def attack_resolver(weapon: Weapon) -> Resolver:
         )
 
     return resolve
+
+
+def _graze(weapon: Weapon, target_id: str, ability: int) -> tuple[Effect, ...]:
+    """A miss that still deals the ability modifier, if the weapon has Graze.
+
+    Clamped at zero because a negative modifier would be negative damage, and the document
+    gives no rule for a miss that heals. "The damage can be increased only by increasing
+    the ability modifier", so nothing else may be folded in here.
+    """
+    if not weapon.graze or ability <= 0:
+        return ()
+    return (
+        Effect(
+            kind=EffectKind.DAMAGE,
+            target_id=target_id,
+            amount=ability,
+            description=(
+                f"{weapon.name} (Graze): a miss still deals {ability}, "
+                "the ability modifier used for the attack roll"
+            ),
+            damage_type=weapon.damage_type,
+        ),
+    )
 
 
 def _target_of(declaration: Declaration) -> str:
