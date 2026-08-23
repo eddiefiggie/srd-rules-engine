@@ -5,12 +5,10 @@
   "document": "System Reference Document 5.2.1",
   "revision": "5.2.1",
   "published": "2025-05-01",
-  "section": "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175); Monsters (pp. 254-364); Magic Items (pp. 204-253); Equipment (pp. 89-103)"
+  "section": "Character Creation; Character Origins; Classes; Equipment; Feats; Gameplay Toolbox; Magic Items; Monsters; Playing the Game; Rules Glossary; Spell Descriptions"
  },
- "unswept_sections": [
-  "Character Creation (pp. 19-27)"
- ],
- "coverage_scope": "Ten of the document's eleven sections: Rules Glossary, Spell Descriptions, Monsters, Magic Items, Equipment, Classes, Character Origins, Feats, the Gameplay Toolbox, and Playing the Game. Still unswept, and authoritative in `unswept_sections`: Character Creation (pp. 19-27), which holds Level Advancement and Multiclassing. Until it lands this inventory understates what full coverage requires.",
+ "unswept_sections": [],
+ "coverage_scope": "All eleven of the document's rules sections are swept. `unswept_sections` is empty, which is the only form of this claim a guard can check, and `section` lists what the shapes actually cite. Complete coverage of the document is not the same as a correct inventory: the granularity and consolidation questions raised across the sweeps are tracked separately.",
  "shapes": [
   {
    "id": "ability-check",
@@ -1714,6 +1712,22 @@
    "tag": null,
    "reference": "Playing the Game, p. 17 (Order of Application)",
    "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "multiclass-spell-slots",
+   "name": "Spell Slots Derived from Combined Class Levels",
+   "tag": null,
+   "reference": "Character Creation, p. 25 (Spellcasting)",
+   "kind": "resource",
+   "implemented": false
+  },
+  {
+   "id": "feature-does-not-stack",
+   "name": "The Same Feature from Two Classes Does Not Stack",
+   "tag": null,
+   "reference": "Character Creation, p. 25 (Extra Attack)",
+   "kind": "state",
    "implemented": false
   }
  ],
