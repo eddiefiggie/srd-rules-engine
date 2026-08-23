@@ -67,6 +67,7 @@ rejected options and the reason survive, not the exact headings.
 | [0010](0010-blocked-loop.md) | A block is a suspension, and the loop bounds itself | [#33](https://github.com/eddiefiggie/srd-rules-engine/issues/33) |
 | [0011](0011-module-layout-and-versioning.md) | Layer boundaries are a guard test, and schemas carry a min-reader floor | [#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13) |
 | [0012](0012-fixture-provenance.md) | Provenance selects the entry point, not a branch inside one | [#41](https://github.com/eddiefiggie/srd-rules-engine/issues/41) |
+| [0013](0013-effect-shape-normalisation.md) | **DRAFT, not accepted** — evidence workup on the effect-shape vocabulary; normalise on mechanism, not on the feature that exhibits it | [#76](https://github.com/eddiefiggie/srd-rules-engine/issues/76) |
 
 ## What belongs here, and what doesn't
 

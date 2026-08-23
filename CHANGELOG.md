@@ -6,6 +6,33 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 (documentation)
+
+Documentation only; no build stamp change, because nothing a consumer runs was altered.
+
+- **The evidence for #76's five vocabulary questions is worked up** into a draft decision record,
+  `0013`. It is explicitly **not accepted** — four of the five have a defensible answer either way,
+  and #76 says none should be settled by whoever touches the file next. Every claim is checked
+  against the official SRD v5.2.1 PDF and recorded as the pattern that must match the cited printed
+  page, following `scripts/verify_d20_rules.py`, so no SRD prose enters the repository.
+- **Two questions came out against the issue's own framing.** Poisons and contagions are *not*
+  inconsistent (Q4) — the document enumerates poison's four types as a closed named set with its own
+  subsection and gives contagions one shared mechanic with the instances as content, so each sweep
+  mirrored the source. And the reroll family is three rather than four (Q5): Savage Attacker rolls
+  damage dice twice up front and keeps either, so nothing is replaced and nothing is binding, which
+  is the advantage pattern rather than the reroll one.
+- **#78 has its answer.** Its API seam must serve three callers, and Wish is the binding constraint —
+  it can force the replacement die to be rolled with Advantage or Disadvantage, so the seam cannot
+  return a single substitute value. Designing against Heroic Inspiration alone would have missed it.
+- **Three findings not in the issue.** Only 17 of 215 shapes are implemented and none of them appear
+  in any of the five questions, so the normalisation migrates no caller today and stops being free
+  once #15–#20 land. The Q2 exclusion criterion exists only as generator comments and is invisible in
+  `effect_shapes.json`, where all 19 `vocabulary` reasons record the *glossary-term* exclusion
+  instead. And that criterion is phrased as an API test — "no Ruling applies it" — which couples the
+  vocabulary to a surface #78 is about to change.
+- **`kind` drifted while the issue was open**, from the "roughly fifteen" values #76 estimated to 19,
+  which is the unguarded-enum failure the issue predicts, observed rather than hypothesised.
+
 ## Unreleased — 2026-08-23 — build `08232026.11`
 
 The d20 advantage rules are verified against SRD v5.2.1. They were machinery the M1 plan asserted;
