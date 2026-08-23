@@ -6,6 +6,31 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.9`
+
+The Playing the Game sweep (#73, part of #14) — 213 shapes, 17 implemented.
+
+- **Eight shapes.** The chapter is largely the narrative form of what the Rules Glossary defines
+  formally, so the decline ratio is high by design. What it holds alone: natural 20 hits and
+  natural 1 misses regardless of modifiers, Advantage and Disadvantage not stacking, movement
+  broken up around actions, a controlled mount sharing your Initiative, underwater attack
+  penalties, death without death saving throws, damage modifiers of a kind counting once, and
+  the order damage modifiers are applied.
+- **The coverage disclosure is now structured data.** `unswept_sections` is a list; an empty one
+  is the only thing that may be read as complete coverage. The prose `coverage_scope` remains for
+  a human reader, and a guard asserts the two agree.
+- **The first repair of that disclosure was itself wrong, and this build fixes it.** Build
+  `08232026.8` added a test asserting "Playing the Game" appeared in the scope string. That test
+  would have passed for the wrong reason the moment this sweep landed, because the name stays in
+  the string as part of the *swept* list — a substring check cannot tell the two apart. Only a
+  separate field can.
+- **A repeated heading is now a proven trap rather than a latent one.** "They Don't Stack" heads
+  both the Advantage rule (p. 8) and the Temporary Hit Points rule (p. 18). The parser keeps the
+  first, and the page assertion was proven red by citing the second — so a row that meant the
+  other one fails the derivation instead of silently citing the wrong rule.
+- **Character Creation (pp. 19-27) is the last unswept section**, holding Level Advancement and
+  Multiclassing.
+
 ## Unreleased — 2026-08-23 — build `08232026.8`
 
 The Character Origins sweep, and a correction to the coverage disclosure (#67 closes; #14 does not).

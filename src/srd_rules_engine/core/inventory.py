@@ -84,12 +84,20 @@ class Shape:
 
 @dataclass(frozen=True)
 class Inventory:
-    """The published inventory. `scope` states what it does not yet cover, on purpose."""
+    """The published inventory.
+
+    `scope` reads for a human; `unswept_sections` is the machine-readable form of the same
+    claim and is the one a guard checks. Both exist because the prose alone was wrong for
+    eight builds: a substring check on it could not distinguish a section named as *swept*
+    from one named as *still outstanding*. An empty `unswept_sections` is the only thing
+    that may be read as complete coverage.
+    """
 
     schema_version: int
     compat: int
     source: MappingProxyType[str, str]
     scope: str
+    unswept_sections: tuple[str, ...]
     shapes: tuple[Shape, ...]
     vocabulary: tuple[str, ...]
 
@@ -128,6 +136,7 @@ def load_inventory() -> Inventory:
         compat=raw["compat"],
         source=MappingProxyType(dict(raw["source"])),
         scope=raw["coverage_scope"],
+        unswept_sections=tuple(raw["unswept_sections"]),
         shapes=shapes,
         vocabulary=tuple(v["name"] for v in raw["vocabulary"]),
     )
@@ -140,6 +149,11 @@ def coverage_report() -> str:
         f"{inv.source['document']} effect-shape coverage: "
         f"{len(inv.implemented)}/{len(inv.shapes)} shapes resolve.",
         f"Scope: {inv.scope}",
+        (
+            "Sections still unswept: " + ", ".join(inv.unswept_sections)
+            if inv.unswept_sections
+            else "Every section of the document has been swept."
+        ),
         "",
         "Not yet implemented:",
     ]

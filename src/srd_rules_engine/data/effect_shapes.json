@@ -7,7 +7,10 @@
   "published": "2025-05-01",
   "section": "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175); Monsters (pp. 254-364); Magic Items (pp. 204-253); Equipment (pp. 89-103)"
  },
- "coverage_scope": "Nine of the document's eleven sections: Rules Glossary, Spell Descriptions, Monsters, Magic Items, Equipment, Classes, Character Origins, Feats, and the Gameplay Toolbox. STILL UNSWEPT: Playing the Game (pp. 5-18) and Character Creation (pp. 19-27). Those two were omitted from every earlier statement of this field, which named only the sections remaining from one issue's scope rather than the whole document; Mounted Combat, Underwater Combat, Rolling 20 or 1, Level Advancement, and Multiclassing are among the mechanics they define that no entry here names. Until they land this inventory understates what full coverage requires.",
+ "unswept_sections": [
+  "Character Creation (pp. 19-27)"
+ ],
+ "coverage_scope": "Ten of the document's eleven sections: Rules Glossary, Spell Descriptions, Monsters, Magic Items, Equipment, Classes, Character Origins, Feats, the Gameplay Toolbox, and Playing the Game. Still unswept, and authoritative in `unswept_sections`: Character Creation (pp. 19-27), which holds Level Advancement and Multiclassing. Until it lands this inventory understates what full coverage requires.",
  "shapes": [
   {
    "id": "ability-check",
@@ -1647,6 +1650,70 @@
    "tag": null,
    "reference": "Character Origins, p. 84 (Elf)",
    "kind": "resource",
+   "implemented": false
+  },
+  {
+   "id": "natural-20-auto-hit",
+   "name": "Natural 20 Hits and Natural 1 Misses Regardless",
+   "tag": null,
+   "reference": "Playing the Game, p. 7 (Rolling 20 or 1)",
+   "kind": "test-modifier",
+   "implemented": false
+  },
+  {
+   "id": "advantage-does-not-stack",
+   "name": "Advantage and Disadvantage Do Not Stack",
+   "tag": null,
+   "reference": "Playing the Game, p. 8 (They Don’t Stack)",
+   "kind": "test-modifier",
+   "implemented": false
+  },
+  {
+   "id": "split-movement",
+   "name": "Movement Broken Up Around Actions",
+   "tag": null,
+   "reference": "Playing the Game, p. 14 (Breaking Up Your Move)",
+   "kind": "movement",
+   "implemented": false
+  },
+  {
+   "id": "controlled-mount",
+   "name": "Controlled Mount Sharing Your Initiative",
+   "tag": null,
+   "reference": "Playing the Game, p. 16 (Controlling a Mount)",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "underwater-combat-penalties",
+   "name": "Underwater Attack Penalties",
+   "tag": null,
+   "reference": "Playing the Game, p. 16 (Impeded Weapons)",
+   "kind": "test-modifier",
+   "implemented": false
+  },
+  {
+   "id": "instant-death",
+   "name": "Death Without Death Saving Throws",
+   "tag": null,
+   "reference": "Playing the Game, p. 17 (Instant Death)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "damage-modifier-no-stacking",
+   "name": "Damage Modifiers of a Kind Count Once",
+   "tag": null,
+   "reference": "Playing the Game, p. 17 (No Stacking)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "damage-application-order",
+   "name": "Order Damage Modifiers Are Applied",
+   "tag": null,
+   "reference": "Playing the Game, p. 17 (Order of Application)",
+   "kind": "effect",
    "implemented": false
   }
  ],

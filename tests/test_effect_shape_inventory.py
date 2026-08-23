@@ -85,7 +85,7 @@ def test_the_inventory_states_the_scope_it_does_not_cover(inventory: Inventory) 
 #: entry makes, and a pattern loose enough to accept free text would stop checking it.
 SECTIONS = (
     "Rules Glossary|Spell Descriptions|Monsters|Magic Items|Equipment|Classes|Feats|"
-    "Gameplay Toolbox|Character Origins"
+    "Gameplay Toolbox|Character Origins|Playing the Game"
 )
 #: Some exemplar names carry the document's typographic right single quote rather than the
 #: ASCII apostrophe, so the class allows both. Normalising instead would edit the citation
@@ -162,15 +162,33 @@ def test_the_scope_names_every_section_the_shapes_actually_cite(inventory: Inven
     )
 
 
-def test_the_scope_discloses_that_the_sweep_is_incomplete(inventory: Inventory) -> None:
-    """While any section is unswept, the scope must say so in terms a reader can act on.
+def test_the_unswept_sections_are_declared_structurally(inventory: Inventory) -> None:
+    """The outstanding sections are data, not prose, and the data is what is asserted.
 
-    Deliberately not a word match on a fixed phrase: it asserts the two sections known to
-    be outstanding are named. When they are swept this test is what tells you to update it,
-    rather than the claim quietly becoming false.
+    The prose version of this claim was wrong for eight builds. The first repair — checking
+    that a section name appeared in the scope string — would have passed for the wrong
+    reason the moment that section was swept, because its name stays in the string as part
+    of the *swept* list. Only a separate field can tell the two apart.
+
+    Character Creation is the last outstanding section. When it lands, this list empties and
+    this assertion is what tells you to update it.
     """
-    for section in ("Playing the Game", "Character Creation"):
-        assert section in inventory.scope, (
-            f"{section} is unswept and coverage_scope no longer names it — either it was "
-            "swept (update this test) or the disclosure regressed"
+    assert inventory.unswept_sections == ("Character Creation (pp. 19-27)",), (
+        f"unswept_sections is {inventory.unswept_sections!r} — either a sweep landed "
+        "(update this test) or the disclosure regressed"
+    )
+
+
+def test_the_prose_scope_agrees_with_the_structured_list(inventory: Inventory) -> None:
+    """Two statements of the same claim must not drift apart."""
+    for section in inventory.unswept_sections:
+        name = section.split(" (")[0]
+        assert name in inventory.scope, (
+            f"{name} is listed as unswept but the prose scope does not mention it"
         )
+
+
+def test_the_disclosure_surface_reports_the_outstanding_sections() -> None:
+    """A reader of the report must be told what is missing, not just the ratio."""
+    report = coverage_report()
+    assert "Character Creation" in report, "the report hides an unswept section"
