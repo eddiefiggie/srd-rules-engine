@@ -1460,6 +1460,168 @@ def sweep_origins(pdf: Path) -> list[dict[str, object]]:
     return shapes
 
 
+# Printed pages 5-18 are Playing the Game.
+PLAYING_PAGES = range(4, 18)
+
+#: Effect shapes found by sweeping Playing the Game, verified as the others are.
+#:
+#: This chapter is largely the narrative form of what the Rules Glossary defines formally,
+#: so the decline ratio is high by design: Difficulty Class, Armor Class, Initiative, Range,
+#: Reach, Opportunity Attacks, Difficult Terrain, Breaking Objects, Death Saving Throws,
+#: Stabilizing, Dropping Prone, Creature Size, and the Temporary Hit Points rules are all
+#: Glossary entries already. Moving around Other Creatures composes `Occupied Space` and
+#: `Difficult Terrain`; Ranged Attacks in Close Combat is `Disadvantage`.
+#:
+#: What is left is genuinely absent everywhere else — the roll-resolution overrides, the
+#: two stacking rules, the damage application order, and the mounted and underwater combat
+#: variants, none of which the Glossary states.
+PLAYING_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
+    # id, name, kind, exemplar entry, printed page, pattern that must match its text
+    (
+        "natural-20-auto-hit",
+        "Natural 20 Hits and Natural 1 Misses Regardless",
+        "test-modifier",
+        "Rolling 20 or 1",
+        7,
+        r"the attack hits regardless of any modifiers or the target.s AC",
+    ),
+    (
+        "advantage-does-not-stack",
+        "Advantage and Disadvantage Do Not Stack",
+        "test-modifier",
+        "They Don’t Stack",  # noqa: RUF001 — the document's own apostrophe
+        8,
+        r"you still roll only two d20s",
+    ),
+    (
+        "split-movement",
+        "Movement Broken Up Around Actions",
+        "movement",
+        "Breaking Up Your Move",
+        14,
+        r"movement before and after any action",
+    ),
+    (
+        "controlled-mount",
+        "Controlled Mount Sharing Your Initiative",
+        "state",
+        "Controlling a Mount",
+        16,
+        r"Initiative of a controlled mount changes to match yours",
+    ),
+    (
+        "underwater-combat-penalties",
+        "Underwater Attack Penalties",
+        "test-modifier",
+        "Impeded Weapons",
+        16,
+        r"Disadvantage on the attack roll unless the weapon deals Piercing",
+    ),
+    (
+        "instant-death",
+        "Death Without Death Saving Throws",
+        "effect",
+        "Instant Death",
+        17,
+        r"A monster dies the instant it drops to 0 Hit Points",
+    ),
+    (
+        "damage-modifier-no-stacking",
+        "Damage Modifiers of a Kind Count Once",
+        "effect",
+        "No Stacking",
+        17,
+        r"affect the same damage type count as only one instance",
+    ),
+    (
+        "damage-application-order",
+        "Order Damage Modifiers Are Applied",
+        "effect",
+        "Order of Application",
+        17,
+        r"Resistance is applied second; and Vulnerability is applied third",
+    ),
+)
+
+
+def read_playing(pdf: Path) -> dict[str, dict[str, object]]:
+    """Return every Playing the Game entry as name -> {page, text}, in reading order.
+
+    Several headings repeat ("They Don't Stack" covers Advantage on p. 8 and Temporary Hit
+    Points on p. 18), so first-wins keeps the citation stable and the page assertion in
+    `sweep_playing` catches a row that meant the other one.
+    """
+    import pymupdf
+
+    doc = pymupdf.open(pdf)
+    entries: dict[str, dict[str, object]] = {}
+    current: dict[str, object] | None = None
+    for pno in PLAYING_PAGES:
+        page = doc[pno]
+        mid = page.rect.width / 2
+        columns: dict[int, list[tuple[float, str, bool]]] = {0: [], 1: []}
+        for block in page.get_text("dict")["blocks"]:
+            for line in block.get("lines", []):
+                spans = [s for s in line["spans"] if s["text"].strip()]
+                if not spans:
+                    continue
+                text = "".join(s["text"] for s in spans)
+                if RUNNING_HEADER.match(text):
+                    continue
+                x0 = min(s["bbox"][0] for s in spans)
+                y0 = min(s["bbox"][1] for s in spans)
+                heading = any(
+                    s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
+                )
+                columns[0 if x0 < mid else 1].append((y0, text, heading))
+        for column in (0, 1):
+            for _, text, heading in sorted(columns[column], key=lambda r: r[0]):
+                if heading:
+                    current = {"page": pno + 1, "text": []}
+                    entries.setdefault(text.strip(), current)
+                elif current is not None:
+                    current["text"].append(text)  # type: ignore[union-attr]
+    for entry in entries.values():
+        joined = " ".join(entry["text"])  # type: ignore[arg-type]
+        joined = joined.replace("\u00ad", "")
+        joined = re.sub(r"(\w)-\s+(\w)", r"\1\2", joined)
+        entry["text"] = re.sub(r"\s+", " ", joined).strip()
+    return entries
+
+
+def sweep_playing(pdf: Path) -> list[dict[str, object]]:
+    """Verify every PLAYING_SHAPES row against the document, then return the shapes."""
+    entries = read_playing(pdf)
+    shapes: list[dict[str, object]] = []
+    for shape_id, name, kind, entry_name, page, pattern in PLAYING_SHAPES:
+        entry = entries.get(entry_name)
+        if entry is None:
+            raise SystemExit(
+                f"{shape_id}: cites {entry_name!r}, which is not a Playing the Game entry"
+            )
+        if entry["page"] != page:
+            raise SystemExit(
+                f"{shape_id}: cites {entry_name} at p. {page}, document has it at "
+                f"p. {entry['page']}"
+            )
+        if not re.search(pattern, str(entry["text"]), re.I):
+            raise SystemExit(
+                f"{shape_id}: pattern {pattern!r} does not match {entry_name} — the citation "
+                "is wrong, or the shape is not in this document"
+            )
+        shapes.append(
+            {
+                "id": shape_id,
+                "name": name,
+                "tag": None,
+                "reference": f"Playing the Game, p. {page} ({entry_name})",
+                "kind": kind,
+                "implemented": False,
+            }
+        )
+    return shapes
+
+
 def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
@@ -1503,6 +1665,7 @@ def build(pdf: Path) -> dict[str, object]:
     shapes.extend(sweep_feats(pdf))
     shapes.extend(sweep_toolbox(pdf))
     shapes.extend(sweep_origins(pdf))
+    shapes.extend(sweep_playing(pdf))
 
     return {
         "schema_version": 1,
@@ -1516,15 +1679,17 @@ def build(pdf: Path) -> dict[str, object]:
                 "Monsters (pp. 254-364); Magic Items (pp. 204-253); Equipment (pp. 89-103)"
             ),
         },
+        # `unswept_sections` is structured rather than prose because the prose version of
+        # this claim was wrong for eight builds and a substring check could not tell a
+        # section named as *swept* from one named as *outstanding*. An empty list is the
+        # only thing that may be read as complete coverage.
+        "unswept_sections": ["Character Creation (pp. 19-27)"],
         "coverage_scope": (
-            "Nine of the document's eleven sections: Rules Glossary, Spell Descriptions, "
-            "Monsters, Magic Items, Equipment, Classes, Character Origins, Feats, and the "
-            "Gameplay Toolbox. STILL UNSWEPT: Playing the Game (pp. 5-18) and Character "
-            "Creation (pp. 19-27). Those two were omitted from every earlier statement of "
-            "this field, which named only the sections remaining from one issue's scope "
-            "rather than the whole document; Mounted Combat, Underwater Combat, Rolling "
-            "20 or 1, Level Advancement, and Multiclassing are among the mechanics they "
-            "define that no entry here names. Until they land this inventory understates "
+            "Ten of the document's eleven sections: Rules Glossary, Spell Descriptions, "
+            "Monsters, Magic Items, Equipment, Classes, Character Origins, Feats, the "
+            "Gameplay Toolbox, and Playing the Game. Still unswept, and authoritative in "
+            "`unswept_sections`: Character Creation (pp. 19-27), which holds Level "
+            "Advancement and Multiclassing. Until it lands this inventory understates "
             "what full coverage requires."
         ),
         "shapes": shapes,
