@@ -37,7 +37,13 @@ from enum import StrEnum
 from typing import Final, Protocol
 
 from srd_rules_engine.core.canonical import MAX_SAFE_INTEGER
-from srd_rules_engine.core.d20 import DAMAGE_OFFSET, Critical, D20Result, D20Test
+from srd_rules_engine.core.d20 import (
+    DAMAGE_OFFSET,
+    DIE_SIDES,
+    Critical,
+    D20Result,
+    D20Test,
+)
 from srd_rules_engine.core.d20 import resolve as roll_d20
 from srd_rules_engine.core.d20 import roll as dice
 from srd_rules_engine.core.ledger import COMPAT, Ledger
@@ -90,6 +96,12 @@ class RejectionCode(StrEnum):
 class EffectKind(StrEnum):
     DAMAGE = "damage"
     HEALING = "healing"
+    #: Death saves (p. 17-18). Marks rather than hit points: a success or failure "has no
+    #: effect by itself", so they are their own effect rather than a healing of zero.
+    DEATH_SAVE_SUCCESS = "death-save-success"
+    DEATH_SAVE_FAILURE = "death-save-failure"
+    STABILISED = "stabilised"
+    DEATH = "death"
 
 
 @dataclass(frozen=True)
@@ -100,6 +112,9 @@ class Effect:
     target_id: str
     amount: int
     description: str
+    #: Damage only. p. 18 makes a Critical Hit cost two death save failures rather than
+    #: one, so the state transition has to know where the damage came from.
+    critical: bool = False
 
 
 @dataclass(frozen=True)
@@ -184,6 +199,12 @@ class Proposal:
     test: D20Test
     citations: tuple[str, ...] = ()
     on_success: tuple[Declared, ...] = ()
+    #: Branches selected by the **natural die** rather than by success or failure. The
+    #: death save needs them and nothing else does yet: p. 18 makes a natural 1 cost two
+    #: failures and a natural 20 restore a hit point, neither of which is "the save
+    #: succeeded" or "the save failed". Left `None`, the ordinary branch runs.
+    on_natural_20: tuple[Declared, ...] | None = None
+    on_natural_1: tuple[Declared, ...] | None = None
     on_failure: tuple[Declared, ...] = ()
     may_claim: tuple[str, ...] = ()
     may_not_claim: tuple[str, ...] = ()
@@ -411,7 +432,7 @@ class Adjudicator:
         )
         seed = _checked_seed(self._seed_source())
         result = roll_d20(proposal.test, seed=seed)
-        branch = proposal.on_success if result.succeeded else proposal.on_failure
+        branch = _branch(proposal, result)
         effects = _roll_declared(branch, seed=seed, critical=result.critical)
         next_state = _apply(state, effects)
 
@@ -589,6 +610,20 @@ def _checked_seed(seed: int) -> int:
     return seed
 
 
+def _branch(proposal: Proposal, result: D20Result) -> Sequence[Declared]:
+    """Which branch the roll selected.
+
+    The natural-die branches win where a resolver supplied one, because the rules that
+    need them say so in terms: a natural 1 on a death save costs two failures *instead of*
+    the one an ordinary failure costs, not as well as.
+    """
+    if result.used == DIE_SIDES and proposal.on_natural_20 is not None:
+        return proposal.on_natural_20
+    if result.used == 1 and proposal.on_natural_1 is not None:
+        return proposal.on_natural_1
+    return proposal.on_success if result.succeeded else proposal.on_failure
+
+
 def _roll_declared(
     branch: Sequence[Declared], *, seed: int, critical: Critical = Critical.NONE
 ) -> tuple[Effect, ...]:
@@ -621,6 +656,7 @@ def _roll_declared(
                 kind=EffectKind.DAMAGE,
                 target_id=declared.target_id,
                 amount=total,
+                critical=critical is Critical.HIT,
                 description=(
                     f"{declared.source}: {count}d{declared.sides}"
                     f"{_signed(declared.modifier)}{crit} -> "
@@ -639,9 +675,17 @@ def _signed(modifier: int) -> str:
 def _apply(state: EncounterState, effects: Sequence[Effect]) -> EncounterState:
     for effect in effects:
         if effect.kind is EffectKind.DAMAGE:
-            state = state.with_damage(effect.target_id, effect.amount)
-        else:
+            state = state.with_damage(effect.target_id, effect.amount, critical=effect.critical)
+        elif effect.kind is EffectKind.HEALING:
             state = state.with_healing(effect.target_id, effect.amount)
+        elif effect.kind is EffectKind.DEATH_SAVE_SUCCESS:
+            state = state.with_death_save(effect.target_id, successes=effect.amount)
+        elif effect.kind is EffectKind.DEATH_SAVE_FAILURE:
+            state = state.with_death_save(effect.target_id, failures=effect.amount)
+        elif effect.kind is EffectKind.STABILISED:
+            state = state.with_stabilised(effect.target_id)
+        else:
+            state = state.with_death(effect.target_id)
     return state
 
 

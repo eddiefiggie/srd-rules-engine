@@ -1,4 +1,4 @@
-"""Verify the d20 advantage and reroll rules in `core.d20` against the official SRD v5.2.1 PDF.
+"""Verify the d20 rules this engine implements against the official SRD v5.2.1 PDF.
 
 This is the reproducible half of `core.d20.ADVANTAGE_VERIFICATION`. Like
 `derive_effect_shapes.py` it is **not** run in CI, because CI has no copy of the document:
@@ -138,6 +138,56 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"You can force the reroll to be made with Advantage or Disadvantage",
     ),
     (
+        17,
+        "a death save is DC 10 and tied to no ability score",
+        r"this one isn.t tied to an ability score",
+    ),
+    (
+        17,
+        "10 or higher succeeds",
+        r"Roll 1d20\.\s*If the roll is 10 or higher, you succeed\.\s*Otherwise, you fail",
+    ),
+    (
+        17,
+        "three of a kind resolves it, and they need not be consecutive",
+        r"On your third success, you become Stable.{0,120}On your third failure, you die\."
+        r"\s*The successes and failures don.t need to be consecutive",
+    ),
+    (
+        17,
+        "the counts reset on regaining any hit points or becoming Stable",
+        r"reset to zero when you regain any Hit Points or become Stable",
+    ),
+    (
+        17,
+        "a monster dies the instant it drops to 0, rather than making saves",
+        r"A monster dies the instant it drops to 0 Hit Points",
+    ),
+    (
+        17,
+        "massive damage kills on the REMAINDER, not on the whole blow",
+        r"When damage reduces a character to 0 Hit Points and damage remains, the character "
+        r"dies if the remainder equals or exceeds their Hit Point maximum",
+    ),
+    (
+        18,
+        "a natural 1 costs two failures and a natural 20 restores a hit point",
+        r"When you roll a 1 on the d20 for a Death Saving Throw, you suffer two failures\."
+        r"\s*If you roll a 20 on the d20, you regain 1 Hit Point",
+    ),
+    (
+        18,
+        "damage at 0 hit points is a failure, and two from a Critical Hit",
+        r"If you take any damage while you have 0 Hit Points, you suffer a Death Saving "
+        r"Throw failure\.\s*If the damage is from a Critical Hit, you suffer two failures",
+    ),
+    (
+        18,
+        "a Stable creature makes no saves, and damage ends that",
+        r"A Stable creature doesn.t make Death Saving Throws.{0,200}If the creature takes "
+        r"damage, it stops being Stable",
+    ),
+    (
         176,
         "the Rules Glossary states the same cancellation rule",
         r"Advantage and Dis-?\s*advantage on the same roll cancel each other",
@@ -202,9 +252,8 @@ def main(argv: list[str]) -> int:
         raise SystemExit(
             "\nthe cited text no longer matches the document:\n\n"
             + "\n".join(failures)
-            + "\n\ncore.d20's advantage semantics and its reroll seam rest on these "
-            "sentences. Re-read the document before touching the implementation to make "
-            "this pass."
+            + "\n\ncore.d20 and core.death rest on these sentences. Re-read the "
+            "document before touching the implementation to make this pass."
         )
 
     print(f"\nall {len(CLAUSES)} clauses verified against {pdf.name}")

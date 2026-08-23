@@ -53,6 +53,9 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "natural-20-auto-hit": "core.d20._critical",
         "advantage-does-not-stack": "core.d20.D20Test.has_advantage",
         "passive-perception": "core.d20.passive_score",
+        # Death saving throws and what follows them (#15).
+        "death-saving-throw": "core.death.death_save_resolver",
+        "stable": "core.state.DeathSaves.stable",
         "ability-check": f"core.d20.TestKind.{TestKind.CHECK.name}",
         "saving-throw": f"core.d20.TestKind.{TestKind.SAVE.name}",
         "save": f"core.d20.TestKind.{TestKind.SAVE.name}",
