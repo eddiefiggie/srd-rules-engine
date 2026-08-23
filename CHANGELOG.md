@@ -6,6 +6,39 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.23`
+
+Spell slots, save DCs, spell attacks and Concentration: the first slice of #19. Inventory coverage
+71 → 76 of 211. #19 stays open — components, rituals, prepared-versus-known and multiclass slots
+all need state or content that does not exist.
+
+- **A spell expends a slot of its own level or higher** (p. 104), so a level 1 spell fits any slot
+  and a level 2 spell fits nothing smaller. `payable_by` returns every option rather than choosing,
+  because upcasting is the caster's decision. Casting with nothing left is **refused**, never
+  improvised.
+- **A cantrip expends no slot at all** (p. 178), so it stays castable when everything else has run
+  out — which is the whole point of one.
+- **Concentration is modelled as replacement, not refusal.** p. 179: the first effect ends "the
+  moment you **start casting**" the second — before the new spell resolves, and whether or not it
+  succeeds. So a caster cannot keep the first by having the second one fail, and holding two is
+  unrepresentable rather than discouraged. This is the rule the README calls the most-forgotten in
+  play, and it is forgotten in exactly that direction.
+- **The Concentration save DC is bounded at both ends**, and both bounds matter. Without the floor
+  of 10 a 2-damage hit sets DC 1 and Concentration becomes effectively unloseable; without the cap
+  of 30 a 90-damage hit sets DC 45, which almost nothing could make.
+- **Incapacitated ends Concentration with no save**, read from `core.conditions`'
+  `concentration_broken` rather than by re-deciding which conditions qualify — one rule, one place,
+  and the two cannot drift apart.
+- **No slot table ships in this module**, and a test enforces that. p. 26 prints slots per class
+  level, which is content; a copy compiled here would be the inferred rule value R31 forbids and
+  would read exactly like a verified one.
+- **Mutation testing found a real hole in these tests.** Every damage value in the first draft was
+  even, so a rounding-up implementation of "half the damage taken (round down)" survived: 22 halves
+  to 11 either way. A test on odd damage now pins it, and the mutation is caught.
+- **`scripts/verify_d20_rules.py` now checks 87 clauses rather than 79.** Ten mutations were run
+  against the new tests; nine were caught on the first pass and the tenth after the rounding hole
+  was closed.
+
 ## Unreleased — 2026-08-23 — build `08232026.22`
 
 The action economy, and decision `0015` answering the architectural question #16 raised about

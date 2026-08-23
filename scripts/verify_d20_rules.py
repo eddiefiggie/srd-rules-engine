@@ -471,6 +471,48 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"reach.{0,140}take a Reaction to make one melee attack",
     ),
     (
+        104,
+        "a spell expends a slot of its own level OR HIGHER",
+        r"When you cast a spell, you expend a slot of that spell.s level or higher",
+    ),
+    (
+        104,
+        "a Long Rest restores every expended slot",
+        r"Finishing a Long Rest restores any expended spell slots",
+    ),
+    (
+        178,
+        "a cantrip is level 0 and costs no slot",
+        r"A cantrip is a level 0 spell, which is cast without a spell slot",
+    ),
+    (
+        106,
+        "the spell save DC is 8 plus the ability modifier plus proficiency",
+        r"Spell save DC = 8 \+ your spellcasting ability modifier \+ your Proficiency Bonus",
+    ),
+    (
+        106,
+        "and the spell attack modifier is the same without the 8",
+        r"Spell attack modifier = your spellcasting ability modifier \+ your Proficiency Bonus",
+    ),
+    (
+        179,
+        "starting another Concentration effect ends the first, at the moment casting starts",
+        r"You lose Concentration on an effect the moment you start casting a spell that "
+        r"requires Concentration",
+    ),
+    (
+        179,
+        "the Concentration save DC has BOTH a floor of 10 and a cap of 30",
+        r"The DC equals 10 or half the damage taken \(round down\), whichever number is "
+        r"higher, up to a maximum DC of 30",
+    ),
+    (
+        179,
+        "Incapacitated ends Concentration with no save at all",
+        r"Your Concentration ends if you have the Incapacitated condition or you die",
+    ),
+    (
         176,
         "the Rules Glossary states the same cancellation rule",
         r"Advantage and Dis-?\s*advantage on the same roll cancel each other",
