@@ -60,9 +60,7 @@ KINDS: dict[str, tuple[str, bool]] = {
         n: ("hazard", False)
         for n in ("Burning", "Dehydration", "Falling", "Malnutrition", "Suffocation")
     },
-    **{
-        n: ("targeting", False) for n in ("Cone", "Cube", "Cylinder", "Emanation", "Line", "Sphere")
-    },
+    **{n: ("targeting", True) for n in ("Cone", "Cube", "Cylinder", "Emanation", "Line", "Sphere")},
     **{n: ("attitude", False) for n in ("Friendly", "Hostile", "Indifferent")},
     "Attack": ("action", True),
     **{
@@ -89,7 +87,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Adventure": ("vocabulary", False),
     "Alignment": ("vocabulary", False),
     "Ally": ("vocabulary", False),
-    "Area of Effect": ("targeting", False),
+    "Area of Effect": ("targeting", True),
     "Armor Class": ("state", True),
     "Armor Training": ("state", False),
     "Attack Roll": ("test", True),

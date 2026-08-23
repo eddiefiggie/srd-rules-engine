@@ -95,7 +95,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 177",
    "kind": "targeting",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "armor-class",
@@ -271,7 +271,7 @@
    "tag": "Area of Effect",
    "reference": "Rules Glossary, p. 179",
    "kind": "targeting",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "cover",
@@ -311,7 +311,7 @@
    "tag": "Area of Effect",
    "reference": "Rules Glossary, p. 179",
    "kind": "targeting",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "curses",
@@ -327,7 +327,7 @@
    "tag": "Area of Effect",
    "reference": "Rules Glossary, p. 180",
    "kind": "targeting",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "d20-test",
@@ -479,7 +479,7 @@
    "tag": "Area of Effect",
    "reference": "Rules Glossary, p. 181",
    "kind": "targeting",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "exhaustion",
@@ -727,7 +727,7 @@
    "tag": "Area of Effect",
    "reference": "Rules Glossary, p. 184",
    "kind": "targeting",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "long-jump",
@@ -983,7 +983,7 @@
    "tag": "Area of Effect",
    "reference": "Rules Glossary, p. 188",
    "kind": "targeting",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "stable",
