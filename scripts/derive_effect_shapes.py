@@ -896,6 +896,168 @@ def sweep_equipment(pdf: Path) -> list[dict[str, object]]:
     return shapes
 
 
+# Printed pages 28-82 are Classes.
+CLASS_PAGES = range(27, 82)
+#: Class-feature headings read "Level 3: Sneak Attack". The level belongs to the class
+#: progression, not to the shape, so the citation drops it.
+LEVEL_PREFIX = re.compile(r"^Level \d+: ")
+
+#: Effect shapes found by sweeping Classes, verified the same way the others are.
+#:
+#: This section is the one where the shape/content line matters most. It holds 294 class
+#: features, and 294 features are not 294 shapes: a class feature is *content written in the
+#: effect vocabulary*, which is the parallel data track, not the vocabulary itself. What is
+#: harvested here is only the mechanisms this section introduces that no earlier sweep can
+#: already express.
+#:
+#: Six candidates were declined as already expressible:
+#:   Extra Attack     -> `multiattack`; both are "the Attack action yields N attacks"
+#:   Second Wind      -> `healing`
+#:   Unarmored Defense-> `Armor Class`, whose Glossary entry already provides for a rule
+#:                       giving you another base AC calculation
+#:   Proficiency Bonus-> `Proficiency`
+#:   Expertise        -> `Expertise`
+#:   Ability Score Improvement -> character progression rather than an adjudicated effect:
+#:                       no Ruling applies it, so it is not a shape the engine resolves
+CLASS_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
+    # id, name, kind, exemplar feature heading, printed page, pattern matching its text
+    (
+        "spell-slot",
+        "Spell Slot",
+        "resource",
+        "Level 1: Spellcasting",
+        32,
+        r"how many spell slots you have",
+    ),
+    (
+        "rest-recharge",
+        "Uses Regained on a Rest",
+        "resource",
+        "Level 1: Rage",
+        28,
+        r"regain all expended uses when you finish a Long Rest",
+    ),
+    (
+        "resource-point-pool",
+        "Spendable Point Pool",
+        "resource",
+        "Level 2: Font of Magic",
+        66,
+        r"Sorcery Points, which allow you to create",
+    ),
+    (
+        "regain-spell-slots",
+        "Expended Spell Slots Recovered",
+        "resource",
+        "Level 1: Arcane Recovery",
+        78,
+        r"choose expended spell slots to recover",
+    ),
+    (
+        "bonus-die-on-roll",
+        "Bonus Die Added to a Roll",
+        "test-modifier",
+        "Level 1: Bardic Inspiration",
+        31,
+        r"Bardic Inspiration die, which is a d6",
+    ),
+    (
+        "conditional-extra-damage",
+        "Conditional Extra Damage",
+        "effect",
+        "Level 1: Sneak Attack",
+        61,
+        r"deal an extra 1d6 damage to one creature you hit",
+    ),
+    (
+        "extra-action",
+        "Additional Action on Your Turn",
+        "action",
+        "Level 2: Action Surge",
+        48,
+        r"take one additional action",
+    ),
+    (
+        "modify-a-spell",
+        "Modifying a Spell as It Is Cast",
+        "spellcasting",
+        "Level 2: Metamagic",
+        66,
+        r"alter your spells to suit your needs",
+    ),
+)
+
+
+def read_classes(pdf: Path) -> dict[str, dict[str, object]]:
+    """Return every class-feature entry as heading -> {page, text}, in reading order."""
+    import pymupdf
+
+    doc = pymupdf.open(pdf)
+    entries: dict[str, dict[str, object]] = {}
+    current: dict[str, object] | None = None
+    for pno in CLASS_PAGES:
+        page = doc[pno]
+        mid = page.rect.width / 2
+        columns: dict[int, list[tuple[float, str, bool]]] = {0: [], 1: []}
+        for block in page.get_text("dict")["blocks"]:
+            for line in block.get("lines", []):
+                spans = [s for s in line["spans"] if s["text"].strip()]
+                if not spans:
+                    continue
+                text = "".join(s["text"] for s in spans)
+                if RUNNING_HEADER.match(text):
+                    continue
+                x0 = min(s["bbox"][0] for s in spans)
+                y0 = min(s["bbox"][1] for s in spans)
+                heading = any(
+                    s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
+                )
+                columns[0 if x0 < mid else 1].append((y0, text, heading))
+        for column in (0, 1):
+            for _, text, heading in sorted(columns[column], key=lambda r: r[0]):
+                if heading:
+                    current = {"page": pno + 1, "text": []}
+                    entries.setdefault(text.strip(), current)
+                elif current is not None:
+                    current["text"].append(text)  # type: ignore[union-attr]
+    for entry in entries.values():
+        joined = " ".join(entry["text"])  # type: ignore[arg-type]
+        joined = joined.replace("\u00ad", "")
+        joined = re.sub(r"(\w)-\s+(\w)", r"\1\2", joined)
+        entry["text"] = re.sub(r"\s+", " ", joined).strip()
+    return entries
+
+
+def sweep_classes(pdf: Path) -> list[dict[str, object]]:
+    """Verify every CLASS_SHAPES row against the document, then return the shapes."""
+    entries = read_classes(pdf)
+    shapes: list[dict[str, object]] = []
+    for shape_id, name, kind, heading, page, pattern in CLASS_SHAPES:
+        entry = entries.get(heading)
+        if entry is None:
+            raise SystemExit(f"{shape_id}: cites {heading!r}, which is not a class feature")
+        if entry["page"] != page:
+            raise SystemExit(
+                f"{shape_id}: cites {heading} at p. {page}, document has it at p. {entry['page']}"
+            )
+        if not re.search(pattern, str(entry["text"]), re.I):
+            raise SystemExit(
+                f"{shape_id}: pattern {pattern!r} does not match {heading} — the citation is "
+                "wrong, or the shape is not in this document"
+            )
+        shapes.append(
+            {
+                "id": shape_id,
+                "name": name,
+                "tag": None,
+                "reference": f"Classes, p. {page} ({LEVEL_PREFIX.sub('', heading)})",
+                "kind": kind,
+                "implemented": False,
+            }
+        )
+    return shapes
+
+
 def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
@@ -935,6 +1097,7 @@ def build(pdf: Path) -> dict[str, object]:
     shapes.extend(sweep_monsters(pdf))
     shapes.extend(sweep_magic_items(pdf))
     shapes.extend(sweep_equipment(pdf))
+    shapes.extend(sweep_classes(pdf))
 
     return {
         "schema_version": 1,
@@ -949,8 +1112,8 @@ def build(pdf: Path) -> dict[str, object]:
             ),
         },
         "coverage_scope": (
-            "Rules Glossary, Spell Descriptions, Monsters, Magic Items, and Equipment. "
-            "Still unswept: Classes, Character Origins, Feats, and the Gameplay Toolbox. "
+            "Rules Glossary, Spell Descriptions, Monsters, Magic Items, Equipment, and "
+            "Classes. Still unswept: Character Origins, Feats, and the Gameplay Toolbox. "
             "Until those land this inventory understates what full coverage requires."
         ),
         "shapes": shapes,

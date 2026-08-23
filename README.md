@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.4` — **the Equipment sweep closes the gap that proved the inventory incomplete.** The eight weapon mastery properties — Cleave, Graze, Nick, Push, Sap, Slow, Topple, Vex — are now listed, along with nine weapon properties, taking the inventory to 181 shapes. The mastery set is a closed set the document enumerates, so a test asserts all eight are present and named as the document names them rather than trusting a comment. `Reach` and the armor subsections were excluded as already covered by the Rules Glossary. Classes, Character Origins, Feats, and the Gameplay Toolbox remain unswept.
+**Current build:** `08232026.5` — **the Classes sweep adds eight shapes, taking the inventory to 189.** All 294 class features were parsed, but 294 features are not 294 shapes: a class feature is content written in the effect vocabulary, so only the mechanisms no earlier sweep could express were harvested — spell slots, uses regained on a rest, spendable point pools, recovered spell slots, a bonus die added to a roll, conditional extra damage, an additional action, and modifying a spell as it is cast. Six candidates were declined as already expressible, including Extra Attack, which is the monster sweep's Multiattack. Character Origins, Feats, and the Gameplay Toolbox remain unswept.
 
 ---
 
@@ -107,7 +107,7 @@ distinct effect shapes SRD v5.2.1 defines, each marked implemented or not. Witho
 "full SRD 5.2 coverage is the definition of done" is unfalsifiable — there is no way to
 tell a complete engine from one whose author stopped noticing gaps.
 
-**17 of 181 shapes resolve today.** The other 164 are listed, not omitted; run
+**17 of 189 shapes resolve today.** The other 172 are listed, not omitted; run
 `python -c "from srd_rules_engine.core import coverage_report; print(coverage_report())"`
 to see exactly which. Entries sit at independently-failable granularity, so each of the
 fifteen conditions counts separately — an engine that resolves Prone and nothing else
@@ -120,7 +120,7 @@ is editorial and lives in that script where it can be reviewed. Nineteen entries
 recorded as vocabulary with a stated reason rather than dropped.
 
 **The inventory is currently swept from the Rules Glossary, Spell Descriptions, Monsters,
-Magic Items, and Equipment**, and says so in its own `coverage_scope` field. Classes,
+Magic Items, Equipment, and Classes**, and says so in its own `coverage_scope` field.
 Character Origins, Feats, and the Gameplay Toolbox are not yet swept, so this still
 understates what full coverage requires.
 

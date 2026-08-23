@@ -7,7 +7,7 @@
   "published": "2025-05-01",
   "section": "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175); Monsters (pp. 254-364); Magic Items (pp. 204-253); Equipment (pp. 89-103)"
  },
- "coverage_scope": "Rules Glossary, Spell Descriptions, Monsters, Magic Items, and Equipment. Still unswept: Classes, Character Origins, Feats, and the Gameplay Toolbox. Until those land this inventory understates what full coverage requires.",
+ "coverage_scope": "Rules Glossary, Spell Descriptions, Monsters, Magic Items, Equipment, and Classes. Still unswept: Character Origins, Feats, and the Gameplay Toolbox. Until those land this inventory understates what full coverage requires.",
  "shapes": [
   {
    "id": "ability-check",
@@ -1455,6 +1455,70 @@
    "tag": null,
    "reference": "Equipment, p. 90 (Vex)",
    "kind": "weapon-mastery",
+   "implemented": false
+  },
+  {
+   "id": "spell-slot",
+   "name": "Spell Slot",
+   "tag": null,
+   "reference": "Classes, p. 32 (Spellcasting)",
+   "kind": "resource",
+   "implemented": false
+  },
+  {
+   "id": "rest-recharge",
+   "name": "Uses Regained on a Rest",
+   "tag": null,
+   "reference": "Classes, p. 28 (Rage)",
+   "kind": "resource",
+   "implemented": false
+  },
+  {
+   "id": "resource-point-pool",
+   "name": "Spendable Point Pool",
+   "tag": null,
+   "reference": "Classes, p. 66 (Font of Magic)",
+   "kind": "resource",
+   "implemented": false
+  },
+  {
+   "id": "regain-spell-slots",
+   "name": "Expended Spell Slots Recovered",
+   "tag": null,
+   "reference": "Classes, p. 78 (Arcane Recovery)",
+   "kind": "resource",
+   "implemented": false
+  },
+  {
+   "id": "bonus-die-on-roll",
+   "name": "Bonus Die Added to a Roll",
+   "tag": null,
+   "reference": "Classes, p. 31 (Bardic Inspiration)",
+   "kind": "test-modifier",
+   "implemented": false
+  },
+  {
+   "id": "conditional-extra-damage",
+   "name": "Conditional Extra Damage",
+   "tag": null,
+   "reference": "Classes, p. 61 (Sneak Attack)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "extra-action",
+   "name": "Additional Action on Your Turn",
+   "tag": null,
+   "reference": "Classes, p. 48 (Action Surge)",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "modify-a-spell",
+   "name": "Modifying a Spell as It Is Cast",
+   "tag": null,
+   "reference": "Classes, p. 66 (Metamagic)",
+   "kind": "spellcasting",
    "implemented": false
   }
  ],
