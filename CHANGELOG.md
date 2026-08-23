@@ -10,6 +10,31 @@ Nothing is released yet. Entries below record builds, not releases.
 
 Documentation only; no build stamp change, because nothing a consumer runs was altered.
 
+- **The CC BY 4.0 attribution gate is settled** (#3). The attribution statement is transcribed
+  into `NOTICE.md` verbatim from the Legal Information page of the official SRD v5.2.1 PDF, and
+  checked against the document programmatically rather than by eye.
+- **The revision was verified at the document, not assumed.** The file self-identifies as
+  "System Reference Document 5.2.1" in its running footer and in 85 occurrences of the version
+  string, with zero occurrences of 5.2.0. Three of decision `0003`'s five fingerprint probes
+  confirm positively — the Knight and the Octopus are present, and Iron Golem appears once
+  rather than twice.
+- **Two constraints from the same page are now recorded**, because both are violated by being
+  helpful: no attribution to Wizards beyond the quoted statement, and compatibility wording
+  ("compatible with fifth edition" / "5E compatible") is permitted. `NOTICE.md`'s own prose no
+  longer names the publisher outside the quoted block.
+- **The "Product Identity" framing was wrong and is removed.** Product Identity is defined in
+  Section 1(e) of the OGL 1.0a; SRD 5.2.1 is CC BY 4.0 and not OGL, and the strings "Product
+  Identity", "Open Game", and "OGL" appear nowhere in the document. The boundary is now the
+  document itself, written as a four-step check a contributor performs before adding a monster,
+  a spell, or a proper noun.
+- **The indication-of-changes wording** names the revision, and states re-expression into effect
+  shapes, reorganisation into per-entry records, exclusion of unverified entries, and the
+  engine's own non-SRD additions.
+
+## Unreleased — 2026-08-22 (documentation)
+
+Documentation only; no build stamp change, because nothing a consumer runs was altered.
+
 - **The verification reference is named as SRD v5.2.1 wherever it is cited as an authority**
   (#30). Decision `0003` settled that v5.2.0 (22 April 2025) is a materially different document —
   it omits fifteen magic items and carries a duplicated Iron Golem stat block where the Knight
