@@ -6,6 +6,40 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.20`
+
+The six areas of effect, the second slice of #20. Inventory coverage 44 → 51 of 211. #20 stays open;
+#17's remaining movement shapes and #91's obstructions are what is left.
+
+- **All six shapes resolve in feet without a grid**, on decision `0014`'s integer geometry. A Cone's
+  widening becomes `4·(|v|²·|d|² − dot²) ≤ dot²` and a Line's width `4·(…) ≤ w²·|d|²`, both cleared
+  of denominators, so **no square root is taken and no float is produced** — the same requirement
+  `core.canonical` already imposes on the ledger.
+- **Whether the origin sits in its own area differs by shape**, and it is a field defaulted per
+  shape rather than a constant. Sphere (p. 188) and Cylinder (p. 180) include it; Cone (p. 179),
+  Cube (p. 179), Line (p. 184) and Emanation (p. 181) do not, each "unless its creator decides
+  otherwise". One answer applied to all six would be right half the time, so there is a test and a
+  mutation for both directions.
+- **A Cone's stated width is the full spread, not a radius.** p. 179's own example — "a Cone is 15
+  feet wide at a point along its length that is 15 feet from the point of origin" — puts the
+  half-width at 7.5 feet there, so an offset of 7 is inside and 8 is outside. Treating the width as
+  a radius produces something that still looks like a cone and admits twice the area.
+- **A Cylinder can extend downward.** Its origin sits "at the center of the circular top **or**
+  bottom", so which of the two has to be sayable rather than assumed.
+- **Obstructions are not modelled, and that is a fidelity gap rather than a missing feature.**
+  p. 177 excludes a location whose every straight line from the point of origin is blocked by Total
+  Cover. These shapes describe unobstructed volume, so a creature behind a wall inside a Sphere's
+  radius is reported as included — a confident wrong answer rather than a declined one. Disclosed in
+  the module docstring, in `creatures_in`, and filed as **#91** (`srd-fidelity`). A test asserts the
+  disclosure is still present, because a limit recorded only in prose is one tidy away from
+  vanishing.
+- **A Cube's placement is narrowed, and it refuses what it cannot model.** p. 179 puts the origin
+  anywhere on a face and constrains orientation no further; this models the centre of a face with
+  the cube axis-aligned, and raises on a diagonal direction rather than silently mis-modelling it.
+- **`scripts/verify_d20_rules.py` now checks 63 clauses rather than 55**, including the obstruction
+  rule the engine deliberately does *not* implement — so the gap is pinned to the document rather
+  than only to a docstring. Ten mutations were run against the new tests and all ten were caught.
+
 ## Unreleased — 2026-08-23 — build `08232026.19`
 
 Positional state becomes real. Decision `0014` settles the model that #17 and #20 both inherit.

@@ -331,6 +331,55 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"roll\.\s*You can.t attack a target beyond the long range",
     ),
     (
+        177,
+        "an area of effect has a point of origin, and there are six shapes",
+        r"An area of effect has a point of origin, a location from which the effect.s "
+        r"energy erupts",
+    ),
+    (
+        177,
+        "a blocked location is excluded — the rule this engine does NOT implement (#91)",
+        r"If all straight lines extending from the point of origin to a location in the "
+        r"area of effect are blocked, that location isn.t included in the area of effect\."
+        r"\s*To block a line, an obstruction must provide Total Cover",
+    ),
+    (
+        188,
+        "a Sphere extends in all directions and INCLUDES its origin",
+        r"A Sphere.s point of origin is included in the Sphere.s area of effect",
+    ),
+    (
+        180,
+        "a Cylinder's origin is at the centre of a circular face, and is included",
+        r"a point of origin located at the center of the circular top or bottom of the "
+        r"Cylinder.{0,180}A Cylinder.s point of origin is included in the area",
+    ),
+    (
+        179,
+        "a Cone's width equals the distance, and its origin is EXCLUDED by default",
+        r"A Cone.s width at any point along its length is equal to that point.s distance "
+        r"from the point of origin.{0,260}A Cone.s point of origin isn.t included in the "
+        r"area of effect unless its creator decides otherwise",
+    ),
+    (
+        179,
+        "a Cube's origin sits on a face, and is excluded by default",
+        r"a point of origin located anywhere on a face of the Cube.{0,160}A Cube.s point of "
+        r"origin isn.t included in the area of effect unless its creator decides otherwise",
+    ),
+    (
+        184,
+        "a Line has a length and a width, and excludes its origin by default",
+        r"A Line.s point of origin isn.t included in the area of effect unless its creator "
+        r"decides otherwise",
+    ),
+    (
+        181,
+        "an Emanation moves with its source and excludes it by default",
+        r"An Emanation moves with the creature or object that is its origin.{0,120}"
+        r"An Emanation.s origin \(creature or object\) isn.t included in the area of effect",
+    ),
+    (
         176,
         "the Rules Glossary states the same cancellation rule",
         r"Advantage and Dis-?\s*advantage on the same roll cancel each other",
