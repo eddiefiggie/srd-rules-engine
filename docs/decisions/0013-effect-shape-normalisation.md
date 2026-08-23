@@ -266,7 +266,8 @@ with *what it applies to*: Heroic Inspiration was `resource` while `reroll-a-nat
 `test-modifier`, though the mechanism is both a resource you expend and a die replacement. Q5's merge
 removes that particular collision, but not the conflation behind it. Splitting `kind` into two fields
 would re-classify all 211 shapes and change the schema, so it is a decision of its own rather than
-something to settle in passing — and closing the enum now stops the drift while it waits.
+something to settle in passing — and closing the enum now stops the drift while it waits. Filed as
+[#84](https://github.com/eddiefiggie/srd-rules-engine/issues/84).
 
 **`damage-reduction` vs `resistance` — keep separate.** Resistance halves (a rule that needs no
 roll); Goliath's Stone's Endurance subtracts a rolled amount (a rule that requires one). A shape that
@@ -304,7 +305,8 @@ and the artifact, a `criteria` block in the data, and one regeneration.
 
 **Follow-on effects.**
 
-- The two-axis `kind` question is left open, above. It wants its own record if it is ever taken up.
+- The two-axis `kind` question is left open, above, and filed as
+  [#84](https://github.com/eddiefiggie/srd-rules-engine/issues/84). It wants its own record.
 - `criteria` and `kind_values` are new top-level fields. The loader reads named fields only, so
   older readers ignore them and `compat` is unchanged.
 - Anything citing a retired id — `recharge`, `daily-recharge`, `rest-recharge`,

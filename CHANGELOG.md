@@ -48,9 +48,9 @@ Decision `0013` settles all five of #76's questions plus the three it left pendi
   reads as subsumed rather than dropped.
 - **`bonus-die-on-roll` is renamed `die-applied-to-a-roll`.** It was named from Bardic Inspiration,
   which only ever adds; Boon of Fate applies its roll as a penalty too.
-- **The two-axis `kind` question is deliberately left open.** `kind` still mixes what a shape is
-  with what it applies to. Splitting it would re-classify all 211 shapes and change the schema, so
-  it wants its own record rather than being settled in passing.
+- **The two-axis `kind` question is deliberately left open**, and filed as #84. `kind` still mixes
+  what a shape is with what it applies to. Splitting it would re-classify all 211 shapes and change
+  the schema, so it wants its own record rather than being settled in passing.
 - **All three new guards were seen red before being trusted**, by four separate corruptions: a stray
   kind value, a retired kind lingering in the declaration, the criteria stripped, and every
   vocabulary reason flattened back to one string. Regeneration is byte-identical on a second run.
