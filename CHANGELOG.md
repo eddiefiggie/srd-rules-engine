@@ -6,6 +6,34 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.6`
+
+The Feats sweep (#67, part of #14) — the inventory reaches 195 shapes, 17 implemented.
+
+- **All 17 feats parsed** across the four categories the document defines: 4 Origin, 2 General,
+  4 Fighting Style, 7 Epic Boon.
+- **Six shapes**: a missed attack overridden to a hit, damage that ignores Resistance, a spell
+  slot not expended on casting, initiative positions exchanged, damage dice rolled twice with
+  either result used, and a low die result treated as higher.
+- **Most feats compose rather than introduce**, and the mapping is recorded next to the table:
+  Archery, Defense, and Two-Weapon Fighting are `numeric-bonus`; Boon of Dimensional Travel is
+  `Teleportation`; Boon of the Night Spirit applies `Invisible`; Boon of Truesight is `Truesight`;
+  Skilled is `Proficiency`; Grappler is `Grappled` plus `Advantage`. Alert contributes only its
+  Initiative Swap — its Initiative Proficiency is another `numeric-bonus`.
+- **`Ability Score Increase` recurs in most feats and is deliberately absent**, on the rule the
+  Classes sweep introduced: no Ruling applies it, so it is character progression rather than an
+  effect the engine resolves. That rule was one edge case when it was written and is now load
+  bearing across two sections, which is exactly why it is flagged for agreement rather than
+  quietly relied on.
+- **A second consolidation question.** `miss-becomes-hit` and the monster sweep's
+  `legendary-resistance` are arguably one shape — "a failed d20 test overridden to a success" —
+  differing only in whether the test is an attack roll or a saving throw. Added separately
+  because they fail independently and the document names them separately, but the merge is worth
+  considering alongside the recharge family.
+- **Boon of Fate is `bonus-die-on-roll`**, but it may apply the rolled total as a *penalty* as
+  well as a bonus, which that entry's name does not currently convey.
+- **Character Origins and the Gameplay Toolbox remain unswept**, and `coverage_scope` names them.
+
 ## Unreleased — 2026-08-23 — build `08232026.5`
 
 The Classes sweep (#67, part of #14) — the inventory reaches 189 shapes, 17 implemented.

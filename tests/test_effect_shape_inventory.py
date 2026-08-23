@@ -83,7 +83,7 @@ def test_the_inventory_states_the_scope_it_does_not_cover(inventory: Inventory) 
 #: A citation names a section of the document and a printed page, and may name the entry
 #: that exhibits the shape. Deliberately strict: "cites the document" is the claim every
 #: entry makes, and a pattern loose enough to accept free text would stop checking it.
-SECTIONS = "Rules Glossary|Spell Descriptions|Monsters|Magic Items|Equipment|Classes"
+SECTIONS = "Rules Glossary|Spell Descriptions|Monsters|Magic Items|Equipment|Classes|Feats"
 CITATION = re.compile(rf"^({SECTIONS}), p\. \d{{1,3}}(?: \([A-Z][\w' -]+\))?$")
 
 
