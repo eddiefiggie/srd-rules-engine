@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.18` — **four weapon properties, and the thirteen that cannot be built yet named with what each waits on.** Finesse offers Strength or Dexterity and holds the constraint that one modifier reaches *both* rolls; Heavy reads a **score** of 13 — not a modifier — and a different ability for melee and ranged; Versatile takes the larger die only in two hands and only in melee; Graze deals the ability modifier on a **miss**, in the weapon's own damage type, which is the first thing to put damage in the miss branch. The other thirteen are blocked on distance (#20), the action economy, movement (#17), conditions (#18), or cross-turn state, and the module says which. Inventory coverage 32 → 36 of 211.
+**Current build:** `08232026.19` — **positional state is real: three integer coordinates in feet, and distance is never a float.** Decision `0014` settles the model for #17 and #20. Range tests compare squares — `dx² + dy² + dz² <= feet²` — because two points 5.83 feet apart round to 5 and a rounded distance would call them within reach, an error that appears only at the boundary where reach and range actually decide things. Speed, Difficult Terrain, climbing, swimming and crawling costs, broken-up movement, reach, and a ranged weapon's normal and long range all resolve in feet. **The SRD states no method for measuring distance**, so straight-line measurement is disclosed as project-authored rather than cited. Inventory coverage 36 → 44 of 211.
 
 ---
 

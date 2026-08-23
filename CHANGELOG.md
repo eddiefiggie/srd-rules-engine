@@ -6,6 +6,46 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.19`
+
+Positional state becomes real. Decision `0014` settles the model that #17 and #20 both inherit.
+Inventory coverage 36 → 44 of 211. Both issues stay open — areas of effect and the shapes gated on
+them are the next slice.
+
+- **A position is three integers in feet**, continuous rather than squared, with `z` as elevation.
+  Three axes because the document's areas are solids — a Sphere extends "in all directions"
+  (p. 188), a Cylinder has a height (p. 180) — and because Fly Speed, Hover, Burrow Speed and Climb
+  Speed are elevation concepts a flat model could hold but not resolve. Adding an axis later would
+  touch every distance computation and every area shape.
+- **Range tests compare squares, and never a rounded distance.** Two points at (0,0,0) and (5,3,0)
+  are 5.83 feet apart; `distance_feet` reports 5, so a range test built on it would call that
+  within reach. The error appears **only at the boundary** — exactly where reach and range decide
+  outcomes — so it would survive any test that did not probe the edge. A test pins the case and a
+  mutation is caught by it.
+- **No float is produced anywhere.** `core.canonical` refuses floats and names distances as
+  integers, so `within` uses exact integer arithmetic and `distance_feet` uses `math.isqrt`.
+- **The SRD states no method for measuring distance.** It gives distances in feet and speaks of
+  straight lines but never says how to measure between two points, so straight-line measurement is
+  **grounded in** the document rather than **cited from** it — the standing decision 0004 gave the
+  trigger catalogue. `core.position` discloses this in its own docstring, and a test asserts the
+  disclosure is still there, because that is the kind of sentence that vanishes when somebody tidies.
+- **Movement costs resolve in feet.** Difficult Terrain costs 1 extra foot per foot and does not
+  stack with itself (p. 181); climbing, swimming and crawling each cost 1 extra (pp. 178, 189, 179);
+  a matching Climb or Swim Speed waives it, and crawling has no such escape. Movement is spent
+  rather than declared, so breaking up a move (p. 14) falls out for free, and it resets when the
+  turn comes round — Speed is what a creature covers "on its turn".
+- **A reading is recorded rather than assumed.** Climbing through Difficult Terrain costs 3 feet per
+  foot, not 4: the parenthetical "2 extra feet in Difficult Terrain" is read as replacing the extra
+  rather than compounding with the terrain's own. The document does not settle it, so the test says
+  which reading was taken.
+- **Reach and weapon range decide attacks.** A creature reaches 5 feet unless told otherwise
+  (p. 186), and elevation counts — a target 10 feet overhead is out of reach, which a flat model
+  could not say. Beyond a ranged weapon's normal range is Disadvantage; beyond its long range the
+  attack is **refused** rather than resolved, because "you can't attack a target beyond the long
+  range" is not a penalty and a ruling there would be an outcome for something that never happened.
+- **`scripts/verify_d20_rules.py` now checks 55 clauses rather than 47.** Ten mutations were run
+  against the new tests and all ten were caught.
+
 ## Unreleased — 2026-08-23 — build `08232026.18`
 
 Weapon properties and mastery, the second slice of #16. Inventory coverage 32 → 36 of 211; #16 is

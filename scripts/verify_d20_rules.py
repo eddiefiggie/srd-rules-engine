@@ -285,6 +285,52 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"only by increasing the ability modifier",
     ),
     (
+        188,
+        "Speed is the distance a creature covers when it moves ON ITS TURN",
+        r"A creature has a Speed, which is the distance in feet the creature can cover "
+        r"when it moves on its turn",
+    ),
+    (
+        181,
+        "Difficult Terrain costs 1 extra foot per foot, and does not stack with itself",
+        r"every foot of movement in that space costs 1 extra foot.{0,140}Difficult Terrain "
+        r"isn.t cumulative; either a space is Difficult Terrain or it isn.t",
+    ),
+    (
+        178,
+        "climbing costs 1 extra foot, waived by a Climb Speed",
+        r"While you.re climbing, each foot of movement costs 1 extra foot \(2 extra feet in "
+        r"Difficult Terrain\)\.\s*You ignore this extra cost if you have a Climb Speed",
+    ),
+    (
+        189,
+        "swimming says the same, waived by a Swim Speed",
+        r"While you.re swimming, each foot of movement costs 1 extra foot \(2 extra feet in "
+        r"Difficult Terrain\)\.\s*You ignore this extra cost if you have a Swim Speed",
+    ),
+    (
+        179,
+        "crawling says the same, and has no speed to waive it",
+        r"While you.re crawling, each foot of movement costs 1 extra foot \(2 extra feet in "
+        r"Difficult Terrain\)",
+    ),
+    (
+        186,
+        "a creature reaches 5 feet unless a rule says otherwise",
+        r"A creature has a reach of 5 feet unless a rule says otherwise",
+    ),
+    (
+        14,
+        "a move may be broken up around actions",
+        r"You can break up your move, using some of its movement before and after any action",
+    ),
+    (
+        90,
+        "beyond normal range is Disadvantage; beyond long range there is no attack",
+        r"When attacking a target beyond normal range, you have Disadvantage on the attack "
+        r"roll\.\s*You can.t attack a target beyond the long range",
+    ),
+    (
         176,
         "the Rules Glossary states the same cancellation rule",
         r"Advantage and Dis-?\s*advantage on the same roll cancel each other",

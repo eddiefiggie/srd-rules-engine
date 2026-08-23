@@ -27,6 +27,14 @@ from types import MappingProxyType
 from typing import Any, Final
 
 from srd_rules_engine.core.damage import DamageType, Defences, after_defences
+from srd_rules_engine.core.position import (
+    DEFAULT_REACH_FEET,
+    MovementMode,
+    Position,
+    Speeds,
+    distance_feet,
+    movement_cost,
+)
 
 #: p. 17: "On your third success, you become Stable... On your third failure, you die."
 DEATH_SAVE_THRESHOLD: Final = 3
@@ -76,6 +84,14 @@ class Combatant:
     is_player_character: bool = False
     #: What this creature resists, is vulnerable to, and is immune to (p. 17).
     defences: Defences = field(default_factory=Defences)
+    #: Where it is, in feet. `None` for an encounter that tracks no positions — the read
+    #: surface then simply cannot answer a range question, which is the honest result.
+    position: Position | None = None
+    speeds: Speeds = field(default_factory=Speeds)
+    #: p. 186: "A creature has a reach of 5 feet unless a rule says otherwise."
+    reach: int = DEFAULT_REACH_FEET
+    #: Movement spent this turn. Reset when the turn advances, not carried.
+    movement_used: int = 0
     #: Only meaningful at 0 hit points. Reset rather than carried once healing lands.
     death_saves: DeathSaves = DeathSaves()
 
@@ -98,6 +114,11 @@ class Combatant:
         hit point total.
         """
         return self.is_player_character and self.is_down and not self.death_saves.is_resolved
+
+    @property
+    def movement_remaining(self) -> int:
+        """What is left of this creature's Speed on this turn (p. 188)."""
+        return max(0, self.speeds.walk - self.movement_used)
 
     def modifier(self, ability: str) -> int:
         """The SRD's ability modifier, floor-divided so negatives round the right way."""
@@ -284,6 +305,41 @@ class EncounterState:
             )
         )
 
+    def with_movement(
+        self,
+        combatant_id: str,
+        to: Position,
+        *,
+        mode: MovementMode = MovementMode.WALK,
+        difficult_terrain: bool = False,
+    ) -> EncounterState:
+        """Move a creature, spending what the distance costs (p. 188, p. 181).
+
+        The engine charges the cost; a caller states only where the creature is going.
+        Refused when the cost exceeds what is left, because a move a creature cannot
+        afford is not a move it makes slowly — it is one the rules do not allow, and the
+        read surface is what a caller consults before proposing it.
+        """
+        target = self.combatant(combatant_id)
+        if target.position is None:
+            raise ValueError(
+                f"{target.name} has no position, so there is no distance to move. An "
+                "encounter that tracks no positions cannot answer a movement question"
+            )
+
+        feet = distance_feet(target.position, to)
+        cost = movement_cost(
+            feet, mode=mode, difficult_terrain=difficult_terrain, speeds=target.speeds
+        )
+        if cost > target.movement_remaining:
+            raise ValueError(
+                f"{target.name} has {target.movement_remaining} feet of movement left and "
+                f"that move costs {cost}"
+            )
+
+        moved = replace(target, position=to, movement_used=target.movement_used + cost)
+        return self._evolve(combatants=self._replacing(moved))
+
     def with_initiative(self, rolls: Mapping[str, int]) -> EncounterState:
         """Order the combatants and begin round 1. Ties break by the order given."""
         missing = [cid for cid in rolls if not self.has(cid)]
@@ -300,10 +356,22 @@ class EncounterState:
         return self._evolve(combatants=ordered, round_number=1, turn_index=0)
 
     def advanced_turn(self) -> EncounterState:
-        """Move to the next combatant, wrapping into the next round."""
+        """Move to the next combatant, wrapping into the next round.
+
+        The incoming creature's movement resets, because Speed is "the distance in feet
+        the creature can cover when it moves **on its turn**" (p. 188). A counter carried
+        across turns would silently shorten every move after the first.
+        """
         if self.turn_index is None:
             raise ValueError("the encounter has no turn order yet")
         following = self.turn_index + 1
         if following < len(self.combatants):
-            return self._evolve(turn_index=following)
-        return self._evolve(turn_index=0, round_number=self.round_number + 1)
+            return self._evolve(turn_index=following, combatants=self._refreshed(following))
+        return self._evolve(
+            turn_index=0, round_number=self.round_number + 1, combatants=self._refreshed(0)
+        )
+
+    def _refreshed(self, turn_index: int) -> tuple[Combatant, ...]:
+        """The combatants with the one whose turn begins given its movement back."""
+        starting = self.combatants[turn_index]
+        return self._replacing(replace(starting, movement_used=0))
