@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.7` — **the Gameplay Toolbox sweep adds six shapes, taking the inventory to 201.** The four poison delivery types, a trap trigger, and magical contagions are now listed. Most of this section is guidance for a GM rather than mechanics the engine resolves, and the declines are recorded with reasons — including the nine Environmental Effects, the closest call in the whole sweep series: a closed named set, which is what admitted the eight mastery properties, but presented as worked examples rather than a mechanic with its own rules subsection. Character Origins is the last unswept section.
+**Current build:** `08232026.8` — **the Character Origins sweep adds four shapes (205 total), and corrects a disclosure that was wrong for eight builds.** Species traits are overwhelmingly composition; the four harvested are dropping to 1 Hit Point instead of 0, damage reduced by a rolled amount, a natural 1 rerolled with the new result binding, and a Long Rest completed in reduced time. The correction matters more: **Playing the Game (pp. 5-18) and Character Creation (pp. 19-27) were never swept and were never named as unswept**, because every `coverage_scope` since the spine listed only the sections left in one issue's scope rather than the whole document. Mounted Combat, Underwater Combat, Rolling 20 or 1, Level Advancement, and Multiclassing are among the mechanics they define that no entry names. Two new guards now hold the disclosure to the data.
 
 ---
 
@@ -107,7 +107,7 @@ distinct effect shapes SRD v5.2.1 defines, each marked implemented or not. Witho
 "full SRD 5.2 coverage is the definition of done" is unfalsifiable — there is no way to
 tell a complete engine from one whose author stopped noticing gaps.
 
-**17 of 201 shapes resolve today.** The other 184 are listed, not omitted; run
+**17 of 205 shapes resolve today.** The other 188 are listed, not omitted; run
 `python -c "from srd_rules_engine.core import coverage_report; print(coverage_report())"`
 to see exactly which. Entries sit at independently-failable granularity, so each of the
 fifteen conditions counts separately — an engine that resolves Prone and nothing else
@@ -119,10 +119,12 @@ memory. Classification — which entries are effect shapes and which merely defi
 is editorial and lives in that script where it can be reviewed. Nineteen entries are
 recorded as vocabulary with a stated reason rather than dropped.
 
-**The inventory is currently swept from the Rules Glossary, Spell Descriptions, Monsters,
-Magic Items, Equipment, Classes, Feats, and the Gameplay Toolbox**, and says so in its own
-`coverage_scope` field. Character Origins (pp. 83-86) is not yet swept, so this still
-understates what full coverage requires.
+**Nine of the document's eleven sections are swept** — Rules Glossary, Spell Descriptions,
+Monsters, Magic Items, Equipment, Classes, Character Origins, Feats, and the Gameplay
+Toolbox — and `coverage_scope` says so. **Playing the Game (pp. 5-18) and Character Creation
+(pp. 19-27) remain unswept**, so this still understates what full coverage requires. Those
+two went unnamed for eight builds; two tests now assert that the scope names every section
+its shapes cite, and that it keeps naming the sections still outstanding.
 
 Settled design decisions live in [`docs/decisions/`](docs/decisions/). A gate closes by producing
 one, and the plan is amended to match:

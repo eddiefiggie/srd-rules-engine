@@ -1341,6 +1341,125 @@ def sweep_toolbox(pdf: Path) -> list[dict[str, object]]:
     return shapes
 
 
+# Printed pages 83-86 are Character Origins: backgrounds and the nine species.
+ORIGIN_PAGES = range(82, 86)
+
+#: Effect shapes found by sweeping Character Origins, verified as the others are.
+#:
+#: Species traits are overwhelmingly composition, and the declines are the bulk of this
+#: section: Dragonborn's Breath Weapon is an area plus a save plus damage; the cantrip-
+#: granting traits are spellcasting; Dwarven Resilience and Brave are `Advantage`; Orcish
+#: Fury's temporary hit points are `Temporary Hit Points`; Darkvision, Speed, Size, and
+#: Creature Type are all Glossary entries already.
+ORIGIN_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
+    # id, name, kind, exemplar species, printed page, pattern that must match its text
+    (
+        "survive-drop-to-zero",
+        "Dropping to 1 Hit Point Instead of 0",
+        "effect",
+        "Orc",
+        86,
+        r"you can drop to 1 Hit Point instead",
+    ),
+    (
+        "damage-reduction",
+        "Damage Reduced by a Rolled Amount",
+        "effect",
+        "Goliath",
+        85,
+        r"reduce the damage by that total",
+    ),
+    (
+        "reroll-a-natural-one",
+        "Natural 1 Rerolled, New Result Binding",
+        "test-modifier",
+        "Halfling",
+        86,
+        r"you can reroll the die, and you must use the new roll",
+    ),
+    (
+        "shortened-long-rest",
+        "Long Rest Completed in Reduced Time",
+        "resource",
+        "Elf",
+        84,
+        r"finish a Long Rest in 4 hours",
+    ),
+)
+
+
+def read_origins(pdf: Path) -> dict[str, dict[str, object]]:
+    """Return every Character Origins entry as name -> {page, text}, in reading order."""
+    import pymupdf
+
+    doc = pymupdf.open(pdf)
+    entries: dict[str, dict[str, object]] = {}
+    current: dict[str, object] | None = None
+    for pno in ORIGIN_PAGES:
+        page = doc[pno]
+        mid = page.rect.width / 2
+        columns: dict[int, list[tuple[float, str, bool]]] = {0: [], 1: []}
+        for block in page.get_text("dict")["blocks"]:
+            for line in block.get("lines", []):
+                spans = [s for s in line["spans"] if s["text"].strip()]
+                if not spans:
+                    continue
+                text = "".join(s["text"] for s in spans)
+                if RUNNING_HEADER.match(text):
+                    continue
+                x0 = min(s["bbox"][0] for s in spans)
+                y0 = min(s["bbox"][1] for s in spans)
+                heading = any(
+                    s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
+                )
+                columns[0 if x0 < mid else 1].append((y0, text, heading))
+        for column in (0, 1):
+            for _, text, heading in sorted(columns[column], key=lambda r: r[0]):
+                if heading:
+                    current = {"page": pno + 1, "text": []}
+                    entries.setdefault(text.strip(), current)
+                elif current is not None:
+                    current["text"].append(text)  # type: ignore[union-attr]
+    for entry in entries.values():
+        joined = " ".join(entry["text"])  # type: ignore[arg-type]
+        joined = joined.replace("\u00ad", "")
+        joined = re.sub(r"(\w)-\s+(\w)", r"\1\2", joined)
+        entry["text"] = re.sub(r"\s+", " ", joined).strip()
+    return entries
+
+
+def sweep_origins(pdf: Path) -> list[dict[str, object]]:
+    """Verify every ORIGIN_SHAPES row against the document, then return the shapes."""
+    entries = read_origins(pdf)
+    shapes: list[dict[str, object]] = []
+    for shape_id, name, kind, species, page, pattern in ORIGIN_SHAPES:
+        entry = entries.get(species)
+        if entry is None:
+            raise SystemExit(
+                f"{shape_id}: cites {species!r}, which is not a Character Origins entry"
+            )
+        if entry["page"] != page:
+            raise SystemExit(
+                f"{shape_id}: cites {species} at p. {page}, document has it at p. {entry['page']}"
+            )
+        if not re.search(pattern, str(entry["text"]), re.I):
+            raise SystemExit(
+                f"{shape_id}: pattern {pattern!r} does not match {species} — the citation is "
+                "wrong, or the shape is not in this document"
+            )
+        shapes.append(
+            {
+                "id": shape_id,
+                "name": name,
+                "tag": None,
+                "reference": f"Character Origins, p. {page} ({species})",
+                "kind": kind,
+                "implemented": False,
+            }
+        )
+    return shapes
+
+
 def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
@@ -1383,6 +1502,7 @@ def build(pdf: Path) -> dict[str, object]:
     shapes.extend(sweep_classes(pdf))
     shapes.extend(sweep_feats(pdf))
     shapes.extend(sweep_toolbox(pdf))
+    shapes.extend(sweep_origins(pdf))
 
     return {
         "schema_version": 1,
@@ -1397,10 +1517,15 @@ def build(pdf: Path) -> dict[str, object]:
             ),
         },
         "coverage_scope": (
-            "Rules Glossary, Spell Descriptions, Monsters, Magic Items, Equipment, "
-            "Classes, Feats, and the Gameplay Toolbox. Still unswept: Character Origins "
-            "(pp. 83-86). Until it lands this inventory understates what full coverage "
-            "requires."
+            "Nine of the document's eleven sections: Rules Glossary, Spell Descriptions, "
+            "Monsters, Magic Items, Equipment, Classes, Character Origins, Feats, and the "
+            "Gameplay Toolbox. STILL UNSWEPT: Playing the Game (pp. 5-18) and Character "
+            "Creation (pp. 19-27). Those two were omitted from every earlier statement of "
+            "this field, which named only the sections remaining from one issue's scope "
+            "rather than the whole document; Mounted Combat, Underwater Combat, Rolling "
+            "20 or 1, Level Advancement, and Multiclassing are among the mechanics they "
+            "define that no entry here names. Until they land this inventory understates "
+            "what full coverage requires."
         ),
         "shapes": shapes,
         "vocabulary": vocabulary,

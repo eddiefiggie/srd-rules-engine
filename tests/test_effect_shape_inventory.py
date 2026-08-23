@@ -85,7 +85,7 @@ def test_the_inventory_states_the_scope_it_does_not_cover(inventory: Inventory) 
 #: entry makes, and a pattern loose enough to accept free text would stop checking it.
 SECTIONS = (
     "Rules Glossary|Spell Descriptions|Monsters|Magic Items|Equipment|Classes|Feats|"
-    "Gameplay Toolbox"
+    "Gameplay Toolbox|Character Origins"
 )
 #: Some exemplar names carry the document's typographic right single quote rather than the
 #: ASCII apostrophe, so the class allows both. Normalising instead would edit the citation
@@ -141,3 +141,36 @@ def test_the_weapon_mastery_set_is_complete(inventory: Inventory) -> None:
     assert found == expected, (
         f"missing {expected - found or 'none'}, unexpected {found - expected or 'none'}"
     )
+
+
+def test_the_scope_names_every_section_the_shapes_actually_cite(inventory: Inventory) -> None:
+    """The scope statement and the citations must agree about what was swept.
+
+    This guard exists because the field was wrong for eight builds and nothing noticed.
+    Every `coverage_scope` from the spine onward listed only the sections remaining from
+    one issue's scope, so Playing the Game and Character Creation — two whole sections of
+    the document — were never named as unswept and never swept. A field that describes
+    coverage is itself a coverage claim, and it needs something that can fail.
+
+    Section names are read back out of the citations rather than hardcoded, so a future
+    sweep is covered by this the moment its first shape lands.
+    """
+    cited = {s.reference.split(", p. ")[0] for s in inventory.shapes}
+    missing = sorted(name for name in cited if name not in inventory.scope)
+    assert not missing, (
+        f"shapes cite these sections, but coverage_scope does not name them: {missing}"
+    )
+
+
+def test_the_scope_discloses_that_the_sweep_is_incomplete(inventory: Inventory) -> None:
+    """While any section is unswept, the scope must say so in terms a reader can act on.
+
+    Deliberately not a word match on a fixed phrase: it asserts the two sections known to
+    be outstanding are named. When they are swept this test is what tells you to update it,
+    rather than the claim quietly becoming false.
+    """
+    for section in ("Playing the Game", "Character Creation"):
+        assert section in inventory.scope, (
+            f"{section} is unswept and coverage_scope no longer names it — either it was "
+            "swept (update this test) or the disclosure regressed"
+        )
