@@ -5,9 +5,9 @@
   "document": "System Reference Document 5.2.1",
   "revision": "5.2.1",
   "published": "2025-05-01",
-  "section": "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175); Monsters (pp. 254-364); Magic Items (pp. 204-253)"
+  "section": "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175); Monsters (pp. 254-364); Magic Items (pp. 204-253); Equipment (pp. 89-103)"
  },
- "coverage_scope": "Rules Glossary, Spell Descriptions, Monsters, and Magic Items. Still unswept: Equipment (its eight weapon mastery properties are effect shapes and none are listed here), Classes, Character Origins, Feats, and the Gameplay Toolbox. Until those land this inventory understates what full coverage requires.",
+ "coverage_scope": "Rules Glossary, Spell Descriptions, Monsters, Magic Items, and Equipment. Still unswept: Classes, Character Origins, Feats, and the Gameplay Toolbox. Until those land this inventory understates what full coverage requires.",
  "shapes": [
   {
    "id": "ability-check",
@@ -1319,6 +1319,142 @@
    "tag": null,
    "reference": "Magic Items, p. 211 (Bag of Beans)",
    "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "weapon-ammunition",
+   "name": "Ammunition",
+   "tag": null,
+   "reference": "Equipment, p. 89 (Ammunition)",
+   "kind": "weapon-property",
+   "implemented": false
+  },
+  {
+   "id": "weapon-finesse",
+   "name": "Finesse",
+   "tag": null,
+   "reference": "Equipment, p. 89 (Finesse)",
+   "kind": "weapon-property",
+   "implemented": false
+  },
+  {
+   "id": "weapon-heavy",
+   "name": "Heavy",
+   "tag": null,
+   "reference": "Equipment, p. 89 (Heavy)",
+   "kind": "weapon-property",
+   "implemented": false
+  },
+  {
+   "id": "weapon-light",
+   "name": "Light",
+   "tag": null,
+   "reference": "Equipment, p. 89 (Light)",
+   "kind": "weapon-property",
+   "implemented": false
+  },
+  {
+   "id": "weapon-loading",
+   "name": "Loading",
+   "tag": null,
+   "reference": "Equipment, p. 90 (Loading)",
+   "kind": "weapon-property",
+   "implemented": false
+  },
+  {
+   "id": "weapon-range",
+   "name": "Range",
+   "tag": null,
+   "reference": "Equipment, p. 90 (Range)",
+   "kind": "weapon-property",
+   "implemented": false
+  },
+  {
+   "id": "weapon-thrown",
+   "name": "Thrown",
+   "tag": null,
+   "reference": "Equipment, p. 90 (Thrown)",
+   "kind": "weapon-property",
+   "implemented": false
+  },
+  {
+   "id": "weapon-two-handed",
+   "name": "Two-Handed",
+   "tag": null,
+   "reference": "Equipment, p. 90 (Two-Handed)",
+   "kind": "weapon-property",
+   "implemented": false
+  },
+  {
+   "id": "weapon-versatile",
+   "name": "Versatile",
+   "tag": null,
+   "reference": "Equipment, p. 90 (Versatile)",
+   "kind": "weapon-property",
+   "implemented": false
+  },
+  {
+   "id": "mastery-cleave",
+   "name": "Cleave",
+   "tag": null,
+   "reference": "Equipment, p. 90 (Cleave)",
+   "kind": "weapon-mastery",
+   "implemented": false
+  },
+  {
+   "id": "mastery-graze",
+   "name": "Graze",
+   "tag": null,
+   "reference": "Equipment, p. 90 (Graze)",
+   "kind": "weapon-mastery",
+   "implemented": false
+  },
+  {
+   "id": "mastery-nick",
+   "name": "Nick",
+   "tag": null,
+   "reference": "Equipment, p. 90 (Nick)",
+   "kind": "weapon-mastery",
+   "implemented": false
+  },
+  {
+   "id": "mastery-push",
+   "name": "Push",
+   "tag": null,
+   "reference": "Equipment, p. 90 (Push)",
+   "kind": "weapon-mastery",
+   "implemented": false
+  },
+  {
+   "id": "mastery-sap",
+   "name": "Sap",
+   "tag": null,
+   "reference": "Equipment, p. 90 (Sap)",
+   "kind": "weapon-mastery",
+   "implemented": false
+  },
+  {
+   "id": "mastery-slow",
+   "name": "Slow",
+   "tag": null,
+   "reference": "Equipment, p. 90 (Slow)",
+   "kind": "weapon-mastery",
+   "implemented": false
+  },
+  {
+   "id": "mastery-topple",
+   "name": "Topple",
+   "tag": null,
+   "reference": "Equipment, p. 90 (Topple)",
+   "kind": "weapon-mastery",
+   "implemented": false
+  },
+  {
+   "id": "mastery-vex",
+   "name": "Vex",
+   "tag": null,
+   "reference": "Equipment, p. 90 (Vex)",
+   "kind": "weapon-mastery",
    "implemented": false
   }
  ],

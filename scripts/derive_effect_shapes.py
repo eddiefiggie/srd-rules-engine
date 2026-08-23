@@ -708,6 +708,194 @@ def sweep_magic_items(pdf: Path) -> list[dict[str, object]]:
     return shapes
 
 
+# Printed pages 89-103 are Equipment.
+EQUIPMENT_PAGES = range(88, 103)
+
+#: Effect shapes found by sweeping Equipment, verified the same way the others are.
+#:
+#: Two exclusions, both deliberate. `Reach` is here as a weapon property but the Rules
+#: Glossary already defines it (p. 186), so it is not re-added. The armor subsections
+#: ("Light, Medium, or Heavy Armor", "Shield") are subdivisions of `Armor Training`, which
+#: the Glossary already names.
+#:
+#: The eight mastery properties are listed individually even though five of them deliver
+#: effects the inventory already names — Push is forced movement, Topple applies Prone, Vex
+#: grants Advantage, Sap imposes Disadvantage, Slow reduces Speed. That looks like the
+#: duplication declined in the monster sweep, and the distinction is deliberate: Pack
+#: Tactics is one creature's trait, while Mastery Properties is a closed, named set the
+#: document enumerates as a mechanic — the same shape as the fifteen conditions and the six
+#: areas of effect, each of which is its own entry. An engine can implement Topple and not
+#: Vex, so they fail independently, which is the granularity rule this inventory uses.
+EQUIPMENT_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
+    # id, name, kind, exemplar entry, printed page, pattern that must match its text
+    (
+        "weapon-ammunition",
+        "Ammunition",
+        "weapon-property",
+        "Ammunition",
+        89,
+        r"you have ammunition to fire from it",
+    ),
+    (
+        "weapon-finesse",
+        "Finesse",
+        "weapon-property",
+        "Finesse",
+        89,
+        r"Strength or Dexterity modifier for the attack and damage rolls",
+    ),
+    ("weapon-heavy", "Heavy", "weapon-property", "Heavy", 89, r"Strength score isn.t at least 13"),
+    (
+        "weapon-light",
+        "Light",
+        "weapon-property",
+        "Light",
+        89,
+        r"make one extra attack as a Bonus Action",
+    ),
+    (
+        "weapon-loading",
+        "Loading",
+        "weapon-property",
+        "Loading",
+        90,
+        r"regardless of the number of attacks you can normally make",
+    ),
+    ("weapon-range", "Range", "weapon-property", "Range", 90, r"normal range in feet"),
+    (
+        "weapon-thrown",
+        "Thrown",
+        "weapon-property",
+        "Thrown",
+        90,
+        r"throw the weapon to make a ranged attack",
+    ),
+    ("weapon-two-handed", "Two-Handed", "weapon-property", "Two-Handed", 90, r"you attack with it"),
+    (
+        "weapon-versatile",
+        "Versatile",
+        "weapon-property",
+        "Versatile",
+        90,
+        r"deals that damage when used with two hands",
+    ),
+    (
+        "mastery-cleave",
+        "Cleave",
+        "weapon-mastery",
+        "Cleave",
+        90,
+        r"against a second creature within 5 feet of the first",
+    ),
+    (
+        "mastery-graze",
+        "Graze",
+        "weapon-mastery",
+        "Graze",
+        90,
+        r"equal to the ability modifier you used to make the attack roll",
+    ),
+    (
+        "mastery-nick",
+        "Nick",
+        "weapon-mastery",
+        "Nick",
+        90,
+        r"as part of the Attack action instead of as a Bonus Action",
+    ),
+    (
+        "mastery-push",
+        "Push",
+        "weapon-mastery",
+        "Push",
+        90,
+        r"up to 10 feet straight away from yourself",
+    ),
+    ("mastery-sap", "Sap", "weapon-mastery", "Sap", 90, r"Disadvantage on its next attack roll"),
+    ("mastery-slow", "Slow", "weapon-mastery", "Slow", 90, r"reduce its Speed by 10 feet"),
+    ("mastery-topple", "Topple", "weapon-mastery", "Topple", 90, r"Constitution saving throw"),
+    (
+        "mastery-vex",
+        "Vex",
+        "weapon-mastery",
+        "Vex",
+        90,
+        r"Advantage on your next attack roll against that creature",
+    ),
+)
+
+
+def read_equipment(pdf: Path) -> dict[str, dict[str, object]]:
+    """Return every Equipment entry as name -> {page, text}, in reading order."""
+    import pymupdf
+
+    doc = pymupdf.open(pdf)
+    entries: dict[str, dict[str, object]] = {}
+    current: dict[str, object] | None = None
+    for pno in EQUIPMENT_PAGES:
+        page = doc[pno]
+        mid = page.rect.width / 2
+        columns: dict[int, list[tuple[float, str, bool]]] = {0: [], 1: []}
+        for block in page.get_text("dict")["blocks"]:
+            for line in block.get("lines", []):
+                spans = [s for s in line["spans"] if s["text"].strip()]
+                if not spans:
+                    continue
+                text = "".join(s["text"] for s in spans)
+                if RUNNING_HEADER.match(text):
+                    continue
+                x0 = min(s["bbox"][0] for s in spans)
+                y0 = min(s["bbox"][1] for s in spans)
+                heading = any(
+                    s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
+                )
+                columns[0 if x0 < mid else 1].append((y0, text, heading))
+        for column in (0, 1):
+            for _, text, heading in sorted(columns[column], key=lambda r: r[0]):
+                if heading:
+                    current = {"page": pno + 1, "text": []}
+                    entries[text.strip()] = current
+                elif current is not None:
+                    current["text"].append(text)  # type: ignore[union-attr]
+    for entry in entries.values():
+        joined = " ".join(entry["text"])  # type: ignore[arg-type]
+        joined = joined.replace("\u00ad", "")
+        joined = re.sub(r"(\w)-\s+(\w)", r"\1\2", joined)
+        entry["text"] = re.sub(r"\s+", " ", joined).strip()
+    return entries
+
+
+def sweep_equipment(pdf: Path) -> list[dict[str, object]]:
+    """Verify every EQUIPMENT_SHAPES row against the document, then return the shapes."""
+    entries = read_equipment(pdf)
+    shapes: list[dict[str, object]] = []
+    for shape_id, name, kind, entry_name, page, pattern in EQUIPMENT_SHAPES:
+        entry = entries.get(entry_name)
+        if entry is None:
+            raise SystemExit(f"{shape_id}: cites {entry_name!r}, which is not an Equipment entry")
+        if entry["page"] != page:
+            raise SystemExit(
+                f"{shape_id}: cites {entry_name} at p. {page}, document has it at "
+                f"p. {entry['page']}"
+            )
+        if not re.search(pattern, str(entry["text"]), re.I):
+            raise SystemExit(
+                f"{shape_id}: pattern {pattern!r} does not match {entry_name} — the citation "
+                "is wrong, or the shape is not in this document"
+            )
+        shapes.append(
+            {
+                "id": shape_id,
+                "name": name,
+                "tag": None,
+                "reference": f"Equipment, p. {page} ({entry_name})",
+                "kind": kind,
+                "implemented": False,
+            }
+        )
+    return shapes
+
+
 def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
@@ -746,6 +934,7 @@ def build(pdf: Path) -> dict[str, object]:
     shapes.extend(sweep_spells(pdf))
     shapes.extend(sweep_monsters(pdf))
     shapes.extend(sweep_magic_items(pdf))
+    shapes.extend(sweep_equipment(pdf))
 
     return {
         "schema_version": 1,
@@ -756,15 +945,13 @@ def build(pdf: Path) -> dict[str, object]:
             "published": "2025-05-01",
             "section": (
                 "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175); "
-                "Monsters (pp. 254-364); Magic Items (pp. 204-253)"
+                "Monsters (pp. 254-364); Magic Items (pp. 204-253); Equipment (pp. 89-103)"
             ),
         },
         "coverage_scope": (
-            "Rules Glossary, Spell Descriptions, Monsters, and Magic Items. Still "
-            "unswept: Equipment (its eight weapon mastery properties are effect shapes and "
-            "none are listed here), Classes, Character Origins, Feats, and the Gameplay "
-            "Toolbox. Until those land this inventory understates what full coverage "
-            "requires."
+            "Rules Glossary, Spell Descriptions, Monsters, Magic Items, and Equipment. "
+            "Still unswept: Classes, Character Origins, Feats, and the Gameplay Toolbox. "
+            "Until those land this inventory understates what full coverage requires."
         ),
         "shapes": shapes,
         "vocabulary": vocabulary,
