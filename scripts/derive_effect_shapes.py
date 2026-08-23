@@ -1622,6 +1622,113 @@ def sweep_playing(pdf: Path) -> list[dict[str, object]]:
     return shapes
 
 
+# Printed pages 19-27 are Character Creation.
+CHARGEN_PAGES = range(18, 27)
+
+#: Effect shapes found by sweeping Character Creation, verified as the others are.
+#:
+#: This is the thinnest section in the document for this purpose, and that is the right
+#: result rather than a shortfall: almost all of it is the procedure for filling in a
+#: character sheet - Choose a Background, Generate Your Scores, Write Your Level - which no
+#: Ruling applies. Trinkets is a d100 table and is `random-effect-table`. Starting at Higher
+#: Levels is procedure. Level Advancement is XP thresholds mapping to levels, declined on
+#: the same ground as Ability Score Increase: no Ruling applies it, so it is character
+#: progression rather than an effect the engine resolves. That rule is unresolved and
+#: flagged on #70; this sweep applies it consistently rather than changing course.
+CHARGEN_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
+    # id, name, kind, exemplar entry, printed page, pattern that must match its text
+    (
+        "multiclass-spell-slots",
+        "Spell Slots Derived from Combined Class Levels",
+        "resource",
+        "Spellcasting",
+        25,
+        r"combined levels in all your spellcasting classes",
+    ),
+    (
+        "feature-does-not-stack",
+        "The Same Feature from Two Classes Does Not Stack",
+        "state",
+        "Extra Attack",
+        25,
+        r"the features don.t stack",
+    ),
+)
+
+
+def read_chargen(pdf: Path) -> dict[str, dict[str, object]]:
+    """Return every Character Creation entry as name -> {page, text}, in reading order."""
+    import pymupdf
+
+    doc = pymupdf.open(pdf)
+    entries: dict[str, dict[str, object]] = {}
+    current: dict[str, object] | None = None
+    for pno in CHARGEN_PAGES:
+        page = doc[pno]
+        mid = page.rect.width / 2
+        columns: dict[int, list[tuple[float, str, bool]]] = {0: [], 1: []}
+        for block in page.get_text("dict")["blocks"]:
+            for line in block.get("lines", []):
+                spans = [s for s in line["spans"] if s["text"].strip()]
+                if not spans:
+                    continue
+                text = "".join(s["text"] for s in spans)
+                if RUNNING_HEADER.match(text):
+                    continue
+                x0 = min(s["bbox"][0] for s in spans)
+                y0 = min(s["bbox"][1] for s in spans)
+                heading = any(
+                    s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
+                )
+                columns[0 if x0 < mid else 1].append((y0, text, heading))
+        for column in (0, 1):
+            for _, text, heading in sorted(columns[column], key=lambda r: r[0]):
+                if heading:
+                    current = {"page": pno + 1, "text": []}
+                    entries.setdefault(text.strip(), current)
+                elif current is not None:
+                    current["text"].append(text)  # type: ignore[union-attr]
+    for entry in entries.values():
+        joined = " ".join(entry["text"])  # type: ignore[arg-type]
+        joined = joined.replace("\u00ad", "")
+        joined = re.sub(r"(\w)-\s+(\w)", r"\1\2", joined)
+        entry["text"] = re.sub(r"\s+", " ", joined).strip()
+    return entries
+
+
+def sweep_chargen(pdf: Path) -> list[dict[str, object]]:
+    """Verify every CHARGEN_SHAPES row against the document, then return the shapes."""
+    entries = read_chargen(pdf)
+    shapes: list[dict[str, object]] = []
+    for shape_id, name, kind, entry_name, page, pattern in CHARGEN_SHAPES:
+        entry = entries.get(entry_name)
+        if entry is None:
+            raise SystemExit(
+                f"{shape_id}: cites {entry_name!r}, which is not a Character Creation entry"
+            )
+        if entry["page"] != page:
+            raise SystemExit(
+                f"{shape_id}: cites {entry_name} at p. {page}, document has it at "
+                f"p. {entry['page']}"
+            )
+        if not re.search(pattern, str(entry["text"]), re.I):
+            raise SystemExit(
+                f"{shape_id}: pattern {pattern!r} does not match {entry_name} - the citation "
+                "is wrong, or the shape is not in this document"
+            )
+        shapes.append(
+            {
+                "id": shape_id,
+                "name": name,
+                "tag": None,
+                "reference": f"Character Creation, p. {page} ({entry_name})",
+                "kind": kind,
+                "implemented": False,
+            }
+        )
+    return shapes
+
+
 def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
@@ -1666,6 +1773,7 @@ def build(pdf: Path) -> dict[str, object]:
     shapes.extend(sweep_toolbox(pdf))
     shapes.extend(sweep_origins(pdf))
     shapes.extend(sweep_playing(pdf))
+    shapes.extend(sweep_chargen(pdf))
 
     return {
         "schema_version": 1,
@@ -1674,23 +1782,24 @@ def build(pdf: Path) -> dict[str, object]:
             "document": "System Reference Document 5.2.1",
             "revision": "5.2.1",
             "published": "2025-05-01",
-            "section": (
-                "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175); "
-                "Monsters (pp. 254-364); Magic Items (pp. 204-253); Equipment (pp. 89-103)"
-            ),
+            # Derived from the shapes rather than hand-written. Five successive edits to
+            # the literal version silently no-opped when the string was reflowed, leaving
+            # it naming five sections while ten had been swept. A field that restates what
+            # the data already says should be computed from the data.
+            "section": "; ".join(sorted({str(sh["reference"]).split(", p. ")[0] for sh in shapes})),
         },
         # `unswept_sections` is structured rather than prose because the prose version of
         # this claim was wrong for eight builds and a substring check could not tell a
         # section named as *swept* from one named as *outstanding*. An empty list is the
         # only thing that may be read as complete coverage.
-        "unswept_sections": ["Character Creation (pp. 19-27)"],
+        "unswept_sections": [],
         "coverage_scope": (
-            "Ten of the document's eleven sections: Rules Glossary, Spell Descriptions, "
-            "Monsters, Magic Items, Equipment, Classes, Character Origins, Feats, the "
-            "Gameplay Toolbox, and Playing the Game. Still unswept, and authoritative in "
-            "`unswept_sections`: Character Creation (pp. 19-27), which holds Level "
-            "Advancement and Multiclassing. Until it lands this inventory understates "
-            "what full coverage requires."
+            "All eleven of the document's rules sections are swept. "
+            "`unswept_sections` is empty, which is the only form of this claim a guard "
+            "can check, and `section` lists what the shapes actually cite. Complete "
+            "coverage of the document is not the same as a correct inventory: the "
+            "granularity and consolidation questions raised across the sweeps are "
+            "tracked separately."
         ),
         "shapes": shapes,
         "vocabulary": vocabulary,

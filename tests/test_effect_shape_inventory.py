@@ -83,16 +83,6 @@ def test_the_inventory_states_the_scope_it_does_not_cover(inventory: Inventory) 
 #: A citation names a section of the document and a printed page, and may name the entry
 #: that exhibits the shape. Deliberately strict: "cites the document" is the claim every
 #: entry makes, and a pattern loose enough to accept free text would stop checking it.
-SECTIONS = (
-    "Rules Glossary|Spell Descriptions|Monsters|Magic Items|Equipment|Classes|Feats|"
-    "Gameplay Toolbox|Character Origins|Playing the Game"
-)
-#: Some exemplar names carry the document's typographic right single quote rather than the
-#: ASCII apostrophe, so the class allows both. Normalising instead would edit the citation
-#: away from the name the document actually prints, which is the one thing it must match.
-CITATION = re.compile(
-    rf"^({SECTIONS}), p\. \d{{1,3}}(?: \([A-Z][\w'’ -]+\))?$"  # noqa: RUF001
-)
 
 
 def test_every_shape_cites_the_document_and_ids_are_unique(inventory: Inventory) -> None:
@@ -143,52 +133,89 @@ def test_the_weapon_mastery_set_is_complete(inventory: Inventory) -> None:
     )
 
 
-def test_the_scope_names_every_section_the_shapes_actually_cite(inventory: Inventory) -> None:
-    """The scope statement and the citations must agree about what was swept.
+#: The eleven rules sections of SRD v5.2.1, read off its table of contents. Legal
+#: Information is excluded: it is the licence page, not rules. This list is the
+#: completeness claim in its checkable form — the sweeps are done when every one of these
+#: is cited by at least one shape.
+DOCUMENT_SECTIONS = frozenset(
+    {
+        "Playing the Game",
+        "Character Creation",
+        "Classes",
+        "Character Origins",
+        "Feats",
+        "Equipment",
+        "Spell Descriptions",
+        "Rules Glossary",
+        "Gameplay Toolbox",
+        "Magic Items",
+        "Monsters",
+    }
+)
 
-    This guard exists because the field was wrong for eight builds and nothing noticed.
-    Every `coverage_scope` from the spine onward listed only the sections remaining from
-    one issue's scope, so Playing the Game and Character Creation — two whole sections of
-    the document — were never named as unswept and never swept. A field that describes
-    coverage is itself a coverage claim, and it needs something that can fail.
 
-    Section names are read back out of the citations rather than hardcoded, so a future
-    sweep is covered by this the moment its first shape lands.
+#: A citation names a section of the document and a printed page, and may name the entry
+#: that exhibits the shape. The alternation is built from DOCUMENT_SECTIONS rather than
+#: written out, so adding a section in one place cannot leave the other behind — which is
+#: how `source.section` drifted for five sweeps.
+#:
+#: Some exemplar names carry the document's typographic right single quote rather than the
+#: ASCII apostrophe, so the class allows both. Normalising instead would edit the citation
+#: away from the name the document actually prints, which is the one thing it must match.
+CITATION = re.compile(
+    rf"^({'|'.join(sorted(DOCUMENT_SECTIONS))}), p\. \d{{1,3}}"
+    rf"(?: \([A-Z][\w'’ -]+\))?$"  # noqa: RUF001
+)
+
+
+def test_every_section_of_the_document_is_represented(inventory: Inventory) -> None:
+    """The completeness claim, in the only form that can fail.
+
+    Coverage was described in prose for eight builds and was wrong the whole time: two
+    sections had never been swept and were never named as outstanding. Prose could not
+    catch that, and neither could a test that checked the prose, because a section's name
+    stays in the string once it moves from the unswept list to the swept one.
+
+    Comparing the sections the shapes actually cite against the document's own table of
+    contents is what catches it. A twelfth section appearing here means the constant is
+    wrong; a missing one means a sweep is outstanding and `unswept_sections` should say so.
     """
     cited = {s.reference.split(", p. ")[0] for s in inventory.shapes}
-    missing = sorted(name for name in cited if name not in inventory.scope)
-    assert not missing, (
-        f"shapes cite these sections, but coverage_scope does not name them: {missing}"
+    assert cited == DOCUMENT_SECTIONS, (
+        f"not swept: {sorted(DOCUMENT_SECTIONS - cited) or 'none'}; "
+        f"cited but not a known section: {sorted(cited - DOCUMENT_SECTIONS) or 'none'}"
     )
 
 
-def test_the_unswept_sections_are_declared_structurally(inventory: Inventory) -> None:
-    """The outstanding sections are data, not prose, and the data is what is asserted.
+def test_the_unswept_list_agrees_with_the_sections_actually_cited(inventory: Inventory) -> None:
+    """`unswept_sections` is the disclosure; the citations are the fact. They must match.
 
-    The prose version of this claim was wrong for eight builds. The first repair — checking
-    that a section name appeared in the scope string — would have passed for the wrong
-    reason the moment that section was swept, because its name stays in the string as part
-    of the *swept* list. Only a separate field can tell the two apart.
-
-    Character Creation is the last outstanding section. When it lands, this list empties and
-    this assertion is what tells you to update it.
+    Empty is a claim of complete coverage, and it is only true while every section of
+    `DOCUMENT_SECTIONS` is cited. Whichever of the two is edited, this fails if the other
+    is not.
     """
-    assert inventory.unswept_sections == ("Character Creation (pp. 19-27)",), (
-        f"unswept_sections is {inventory.unswept_sections!r} — either a sweep landed "
-        "(update this test) or the disclosure regressed"
+    cited = {s.reference.split(", p. ")[0] for s in inventory.shapes}
+    outstanding = {name.split(" (")[0] for name in inventory.unswept_sections}
+    assert outstanding == DOCUMENT_SECTIONS - cited, (
+        f"unswept_sections says {sorted(outstanding) or 'nothing outstanding'}, "
+        f"but the citations say {sorted(DOCUMENT_SECTIONS - cited) or 'nothing outstanding'}"
     )
 
 
-def test_the_prose_scope_agrees_with_the_structured_list(inventory: Inventory) -> None:
-    """Two statements of the same claim must not drift apart."""
-    for section in inventory.unswept_sections:
-        name = section.split(" (")[0]
-        assert name in inventory.scope, (
-            f"{name} is listed as unswept but the prose scope does not mention it"
-        )
+def test_the_source_section_list_matches_the_citations(inventory: Inventory) -> None:
+    """`source.section` is derived, not typed, and this is what keeps it that way.
+
+    The hand-written version silently stopped updating after the Equipment sweep — five
+    successive edits to it no-opped when the string was reflowed — so it named five
+    sections while ten had been swept. Nothing noticed, because nothing compared it to
+    anything.
+    """
+    cited = {s.reference.split(", p. ")[0] for s in inventory.shapes}
+    listed = set(inventory.source["section"].split("; "))
+    assert listed == cited, f"source.section lists {sorted(listed)}, shapes cite {sorted(cited)}"
 
 
-def test_the_disclosure_surface_reports_the_outstanding_sections() -> None:
-    """A reader of the report must be told what is missing, not just the ratio."""
+def test_the_disclosure_surface_states_coverage_is_complete() -> None:
+    """With nothing outstanding, the report must say so rather than going quiet."""
     report = coverage_report()
-    assert "Character Creation" in report, "the report hides an unswept section"
+    assert "Every section of the document has been swept." in report

@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.9` — **the Playing the Game sweep adds eight shapes (213 total), and the coverage disclosure becomes structured data.** The chapter is largely the narrative form of the Rules Glossary, so most of it declines; what it holds alone are the roll-resolution overrides (natural 20 hits regardless of AC), the two stacking rules, the order damage modifiers are applied, and the mounted and underwater combat variants. `unswept_sections` is now a machine-readable field rather than prose, because the first repair of that disclosure would have passed for the wrong reason: a substring check cannot tell a section named as swept from one named as outstanding. Character Creation (pp. 19-27) is the last section.
+**Current build:** `08232026.10` — **the effect-shape inventory covers all eleven rules sections of SRD v5.2.1: 215 shapes, 17 of which the engine resolves.** Character Creation yields only two — spell slots derived from combined class levels, and the same feature from two classes not stacking — because almost all of it is character-sheet procedure no Ruling applies. Completeness is now asserted rather than described: the sections the shapes cite are compared against the document's own table of contents, `unswept_sections` must agree with that comparison, and `source.section` is derived from the shapes after the hand-written version silently stopped updating for five sweeps. Complete coverage is not the same as a correct inventory — the granularity and consolidation questions are tracked separately.
 
 ---
 
@@ -107,7 +107,7 @@ distinct effect shapes SRD v5.2.1 defines, each marked implemented or not. Witho
 "full SRD 5.2 coverage is the definition of done" is unfalsifiable — there is no way to
 tell a complete engine from one whose author stopped noticing gaps.
 
-**17 of 213 shapes resolve today.** The other 196 are listed, not omitted; run
+**17 of 215 shapes resolve today.** The other 198 are listed, not omitted; run
 `python -c "from srd_rules_engine.core import coverage_report; print(coverage_report())"`
 to see exactly which. Entries sit at independently-failable granularity, so each of the
 fifteen conditions counts separately — an engine that resolves Prone and nothing else
@@ -119,11 +119,14 @@ memory. Classification — which entries are effect shapes and which merely defi
 is editorial and lives in that script where it can be reviewed. Nineteen entries are
 recorded as vocabulary with a stated reason rather than dropped.
 
-**Ten of the document's eleven sections are swept.** The outstanding one is named in the
-data, not just in prose: `unswept_sections` lists **Character Creation (pp. 19-27)**, and an
-empty list is the only thing that may be read as complete coverage. That field is structured
-because the prose was wrong for eight builds and the first repair would have passed for the
-wrong reason once the section it named was swept.
+**All eleven rules sections of the document are swept**, and that claim is asserted rather
+than described: `test_every_section_of_the_document_is_represented` compares the sections the
+shapes cite against the document's table of contents, and `unswept_sections` — now empty —
+must agree with it. The prose version of this claim was wrong for eight builds, and its first
+repair would have passed for the wrong reason, which is why it is data with a guard now.
+
+Complete coverage of the document is **not** the same as a correct inventory. The granularity
+and consolidation questions raised across the sweeps are tracked separately.
 
 Settled design decisions live in [`docs/decisions/`](docs/decisions/). A gate closes by producing
 one, and the plan is amended to match:

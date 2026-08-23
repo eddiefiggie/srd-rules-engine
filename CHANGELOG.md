@@ -6,6 +6,30 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.10`
+
+The Character Creation sweep — every rules section of SRD v5.2.1 is now covered. 215 shapes, 17
+implemented.
+
+- **Two shapes**, the thinnest yield of the eleven sweeps and the right result: spell slots
+  derived from combined class levels, and the same feature from two classes not stacking. Almost
+  all of this section is the procedure for filling in a character sheet, which no Ruling applies.
+  Level Advancement is declined on the same ground as Ability Score Increase — that rule remains
+  unresolved on #70, and this sweep applies it consistently rather than changing course.
+- **Completeness is asserted, not described.** The sections the shapes cite are compared against
+  the document's own table of contents; `unswept_sections` must agree with that comparison in
+  both directions; and the disclosure surface must state that coverage is complete. Proven red
+  by deleting a section's shapes, by claiming a swept section was outstanding, and by the
+  reverse.
+- **`source.section` had been wrong for five sweeps and nothing noticed.** Five successive edits
+  to the hand-written literal silently no-opped when the string was reflowed, so it named five
+  sections while ten had been swept. It is now derived from the shapes, and a guard compares the
+  two. The citation pattern's section alternation is likewise derived from one constant rather
+  than maintained in two places.
+- **Complete coverage of the document is not the same as a correct inventory**, and
+  `coverage_scope` now says so. Five granularity and consolidation questions accumulated across
+  the sweeps and are tracked separately.
+
 ## Unreleased — 2026-08-23 — build `08232026.9`
 
 The Playing the Game sweep (#73, part of #14) — 213 shapes, 17 implemented.
