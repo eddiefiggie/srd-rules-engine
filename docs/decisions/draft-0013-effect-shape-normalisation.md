@@ -1,7 +1,9 @@
-# 0013 — The effect-shape vocabulary normalises on mechanism, not on the feature that exhibits it
+# draft-0013 — The effect-shape vocabulary normalises on mechanism, not on the feature that exhibits it
 
 - **Status:** DRAFT — evidence workup for review. Not accepted; four of the five questions have a
-  defensible answer either way and the calls are the maintainer's.
+  defensible answer either way and the calls are the maintainer's. Filed under `draft-0013` rather
+  than `0013` because a number is allocated on acceptance; renaming to `0013-…` is part of accepting
+  it, and the decisions index records the reservation.
 - **Settles:** [#76](https://github.com/eddiefiggie/srd-rules-engine/issues/76)
 - **Requirements:** R17 · touches R31, R32
 - **Related:** [0003 — seed and verification](0003-seed-and-verification.md), whose rule governs

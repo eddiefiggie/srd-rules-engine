@@ -11,7 +11,8 @@ Nothing is released yet. Entries below record builds, not releases.
 Documentation only; no build stamp change, because nothing a consumer runs was altered.
 
 - **The evidence for #76's five vocabulary questions is worked up** into a draft decision record,
-  `0013`. It is explicitly **not accepted** — four of the five have a defensible answer either way,
+  `draft-0013`, which takes the number `0013` on acceptance. It is explicitly **not accepted** —
+  four of the five have a defensible answer either way,
   and #76 says none should be settled by whoever touches the file next. Every claim is checked
   against the official SRD v5.2.1 PDF and recorded as the pattern that must match the cited printed
   page, following `scripts/verify_d20_rules.py`, so no SRD prose enters the repository.
