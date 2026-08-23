@@ -6,6 +6,31 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.3`
+
+The magic-item sweep (closes #63; #14 stays open) — the inventory reaches 164 shapes, 17 implemented.
+
+- **All 267 Magic Items entries were parsed**, reconciled in both directions. The reconciliation
+  caught a bug in the extractor rather than in the document: two headings sitting at the same
+  vertical position in different columns — "Apparatus of the Crab" and "Armor, +1, +2, or +3" —
+  were glued into one name by a merge that keyed on `y` alone. Merging on column as well as
+  position fixed it. Every sweep in this series has had its parse caught by reconciliation.
+- **Six shapes**: expending item charges, charges regained on a daily schedule, flat numeric
+  bonuses to rolls, spells cast from an item, items destroyed by a stated condition, and effects
+  chosen at random from a table.
+- **A seventh candidate was dropped rather than recorded.** A "set an ability score to N" shape
+  looked likely, but the only supporting text is Gauntlets of Ogre Power's negative clause — "no
+  effect on you if your Strength is 19 or higher" — which states a condition, not a score being
+  set. A shape invented from a plausible reading is the inference `0003` forbids, so it is absent
+  and the reasoning sits next to the table.
+- **Duplicates again declined**: an item granting a Fly Speed, Resistance, Advantage, or
+  Proficiency is those shapes, not new ones.
+- **The inventory is not complete, and now says exactly why.** Equipment's eight weapon mastery
+  properties — Cleave, Graze, Nick, Push, Sap, Slow, Topple, Vex — are plainly effect shapes, and
+  none of the 164 entries names one. Equipment, Classes, Character Origins, Feats, and the
+  Gameplay Toolbox are unswept, and `coverage_scope` names them. #63's three sweeps are done;
+  #14 is not.
+
 ## Unreleased — 2026-08-23 — build `08232026.2`
 
 The monster sweep (#63, part of #14) — the inventory reaches 158 shapes, 17 implemented.

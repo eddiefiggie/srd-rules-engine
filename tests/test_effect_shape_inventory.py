@@ -83,9 +83,8 @@ def test_the_inventory_states_the_scope_it_does_not_cover(inventory: Inventory) 
 #: A citation names a section of the document and a printed page, and may name the entry
 #: that exhibits the shape. Deliberately strict: "cites the document" is the claim every
 #: entry makes, and a pattern loose enough to accept free text would stop checking it.
-CITATION = re.compile(
-    r"^(Rules Glossary|Spell Descriptions|Monsters), p\. \d{1,3}(?: \([A-Z][\w' -]+\))?$"
-)
+SECTIONS = "Rules Glossary|Spell Descriptions|Monsters|Magic Items"
+CITATION = re.compile(rf"^({SECTIONS}), p\. \d{{1,3}}(?: \([A-Z][\w' -]+\))?$")
 
 
 def test_every_shape_cites_the_document_and_ids_are_unique(inventory: Inventory) -> None:
