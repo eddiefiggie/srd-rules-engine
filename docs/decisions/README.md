@@ -69,6 +69,7 @@ rejected options and the reason survive, not the exact headings.
 | [0012](0012-fixture-provenance.md) | Provenance selects the entry point, not a branch inside one | [#41](https://github.com/eddiefiggie/srd-rules-engine/issues/41) |
 | [0013](0013-effect-shape-normalisation.md) | The effect-shape vocabulary normalises on mechanism, not on the feature that exhibits it | [#76](https://github.com/eddiefiggie/srd-rules-engine/issues/76) |
 | [0014](0014-positional-state.md) | Position is three integer coordinates in feet, and distance is never a float | [#17](https://github.com/eddiefiggie/srd-rules-engine/issues/17), [#20](https://github.com/eddiefiggie/srd-rules-engine/issues/20) |
+| [0015](0015-reactions-and-the-agent-seam.md) | The generator seam already serves reactions; what they need is state and triggers | [#16](https://github.com/eddiefiggie/srd-rules-engine/issues/16), [#4](https://github.com/eddiefiggie/srd-rules-engine/issues/4) |
 
 ## What belongs here, and what doesn't
 

@@ -26,6 +26,7 @@ from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 from typing import Any, Final
 
+from srd_rules_engine.core.actions import ActionBudget, still_dodging
 from srd_rules_engine.core.conditions import Conditions
 from srd_rules_engine.core.damage import DamageType, Defences, after_defences
 from srd_rules_engine.core.position import (
@@ -95,6 +96,8 @@ class Combatant:
     movement_used: int = 0
     #: Active conditions, with implication already resolved (R14, R18).
     conditions: Conditions = field(default_factory=Conditions)
+    #: What is left of the action economy this turn (p. 176-177, 186).
+    actions: ActionBudget = field(default_factory=ActionBudget)
     #: Only meaningful at 0 hit points. Reset rather than carried once healing lands.
     death_saves: DeathSaves = DeathSaves()
 
@@ -105,6 +108,17 @@ class Combatant:
     def is_down(self) -> bool:
         """At 0 hit points a combatant stops acting."""
         return self.hit_points <= 0
+
+    @property
+    def is_dodging(self) -> bool:
+        """Whether a Dodge taken earlier still stands (p. 181).
+
+        Re-checked rather than trusted: a creature can be grappled or stunned after
+        Dodging, and both end the benefit.
+        """
+        return still_dodging(
+            self.actions, self.conditions, self.conditions.speed_after(self.speeds.walk)
+        )
 
     @property
     def makes_death_saves(self) -> bool:
@@ -126,7 +140,8 @@ class Combatant:
         Exhaustion reduces it by 5 per level (pp. 182, 181). A creature whose Speed a
         condition zeroed has no movement left however little it has spent.
         """
-        return max(0, self.conditions.speed_after(self.speeds.walk) - self.movement_used)
+        allowance = self.conditions.speed_after(self.speeds.walk) + self.actions.extra_movement
+        return max(0, allowance - self.movement_used)
 
     def modifier(self, ability: str) -> int:
         """The SRD's ability modifier, floor-divided so negatives round the right way."""
@@ -380,6 +395,14 @@ class EncounterState:
         )
 
     def _refreshed(self, turn_index: int) -> tuple[Combatant, ...]:
-        """The combatants with the one whose turn begins given its movement back."""
+        """The combatants with the one whose turn begins given its turn back.
+
+        Movement, the action economy, and the Reaction all reset here. The Reaction is the
+        one that matters for timing: it refreshes at "the start of your next turn" (p. 186)
+        rather than at the end of the round, and those differ whenever a creature acts late
+        in one round and early in the next.
+        """
         starting = self.combatants[turn_index]
-        return self._replacing(replace(starting, movement_used=0))
+        return self._replacing(
+            replace(starting, movement_used=0, actions=starting.actions.refreshed())
+        )

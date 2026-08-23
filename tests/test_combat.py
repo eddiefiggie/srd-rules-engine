@@ -40,6 +40,7 @@ from srd_rules_engine.core import (
     load_fixture_ruleset,
     read,
 )
+from srd_rules_engine.core.actions import ActionBudget, dodging
 from srd_rules_engine.core.adjudicate import Proposal, _apply, _roll_declared
 from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.d20 import DAMAGE_OFFSET, D20Test, roll
@@ -924,3 +925,45 @@ def test_prone_reaches_the_attack_roll_in_both_directions() -> None:
 
     assert close.test.has_advantage and not close.test.has_disadvantage
     assert far.test.has_disadvantage and not far.test.has_advantage
+
+
+# --- Dodge reaches the attack roll (#16) ---------------------------------------------
+
+
+def test_a_dodging_defender_is_attacked_at_disadvantage() -> None:
+    """p. 181, through the resolver rather than only in the budget."""
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    base = encounter()
+    pc, boar = base.combatant("pc"), base.combatant("boar")
+    state = EncounterState.new(
+        [
+            dataclasses.replace(pc, position=Position(0, 0, 0)),
+            dataclasses.replace(
+                boar,
+                position=Position(5, 0, 0),
+                actions=dodging(ActionBudget(), Conditions(), 30),
+            ),
+        ]
+    )
+    assert _propose_with(club, state=state).test.has_disadvantage
+
+
+def test_a_dodge_that_no_longer_stands_does_not_reach_the_roll() -> None:
+    """Grappled sets Speed to 0, and p. 181 ends the Dodge with it. The flag is still set;
+    the benefit is gone, and the resolver reads the benefit rather than the flag."""
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    base = encounter()
+    pc, boar = base.combatant("pc"), base.combatant("boar")
+    state = EncounterState.new(
+        [
+            dataclasses.replace(pc, position=Position(0, 0, 0)),
+            dataclasses.replace(
+                boar,
+                position=Position(5, 0, 0),
+                actions=dodging(ActionBudget(), Conditions(), 30),
+                conditions=Conditions(held=frozenset({Condition.GRAPPLED})),
+            ),
+        ]
+    )
+    proposal = _propose_with(club, state=state)
+    assert not proposal.test.has_disadvantage

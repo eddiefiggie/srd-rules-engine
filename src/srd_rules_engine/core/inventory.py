@@ -93,6 +93,12 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "emanation": "core.areas.Emanation",
         # The fifteen conditions, with their mechanical effects attached (#18).
         **{c.value: f"core.conditions.Condition.{c.name}" for c in Condition},
+        # The action economy: what may be spent and when it refreshes (#16).
+        "bonus-action": "core.actions.ActionKind.BONUS_ACTION",
+        "reaction": "core.actions.ActionKind.REACTION",
+        "dash": "core.actions.ActionBudget.dashed",
+        "dodge": "core.actions.dodging",
+        "disengage": "core.actions.ActionBudget.disengaged",
         "ability-check": f"core.d20.TestKind.{TestKind.CHECK.name}",
         "saving-throw": f"core.d20.TestKind.{TestKind.SAVE.name}",
         "save": f"core.d20.TestKind.{TestKind.SAVE.name}",

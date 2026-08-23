@@ -63,12 +63,12 @@ KINDS: dict[str, tuple[str, bool]] = {
     **{n: ("targeting", True) for n in ("Cone", "Cube", "Cylinder", "Emanation", "Line", "Sphere")},
     **{n: ("attitude", False) for n in ("Friendly", "Hostile", "Indifferent")},
     "Attack": ("action", True),
+    # Dash, Disengage and Dodge need only the action economy and movement, both of which
+    # exist. The other eight wait on skills, attitudes, spellcasting or reaction triggers.
+    **{n: ("action", True) for n in ("Dash", "Disengage", "Dodge")},
     **{
         n: ("action", False)
         for n in (
-            "Dash",
-            "Disengage",
-            "Dodge",
             "Help",
             "Hide",
             "Influence",
@@ -95,7 +95,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Attunement": ("state", False),
     "Blindsight": ("sense", False),
     "Bloodied": ("state", False),
-    "Bonus Action": ("action", False),
+    "Bonus Action": ("action", True),
     "Breaking Objects": ("effect", False),
     "Bright Light": ("environment", False),
     "Burrow Speed": ("movement", False),
@@ -163,7 +163,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Possession": ("effect", False),
     "Proficiency": ("state", False),
     "Reach": ("targeting", True),
-    "Reaction": ("action", False),
+    "Reaction": ("action", True),
     "Resistance": ("effect", True),
     "Ritual": ("spellcasting", False),
     "Round Down": ("vocabulary", False),

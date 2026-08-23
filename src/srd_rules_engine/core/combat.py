@@ -190,6 +190,10 @@ def attack_resolver(weapon: Weapon) -> Resolver:
         defender_state = target.conditions.attack_rolls_against(
             attacker=actor.position, target=target.position
         )
+        # p. 181: while Dodging, attacks against you have Disadvantage. It reaches the same
+        # pair of flags as everything else, so it cancels against Advantage rather than
+        # accumulating beside it.
+        dodging = target.is_dodging
 
         modifiers = [Modifier(source=f"ability:{weapon.ability}", value=ability)]
         if weapon.proficient:
@@ -213,6 +217,7 @@ def attack_resolver(weapon: Weapon) -> Resolver:
                     or beyond_normal
                     or attacker_state is Advantage.DISADVANTAGE
                     or defender_state is Advantage.DISADVANTAGE
+                    or dodging
                 ),
                 # Conditions on either side reach the same pair of flags, so the
                 # cancellation rule (p. 8) resolves them exactly as it resolves any other

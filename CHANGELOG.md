@@ -6,6 +6,42 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.22`
+
+The action economy, and decision `0015` answering the architectural question #16 raised about
+reactions. Inventory coverage 66 → 71 of 211. #16 stays open.
+
+- **Reactions need no redesign, and that is now recorded rather than assumed.** #16 warned that "a
+  design that assumed one agent invocation per turn will not survive" opportunity attacks. That
+  design was never built: `TurnLoop.run` is a generator yielding typed requests, and
+  `DeclarationRequest` carries its own `actor_id`, so yielding one for a different creature
+  mid-resolution is an operation the loop already performs. Decision `0001` chose the generator for
+  an unrelated reason — avoiding a second async loop — and that choice is what makes this free.
+- **What reactions actually need is three things, none architectural**: a budget, which now exists;
+  trigger detection, which is a movement-time question; and a rule for how interleaved entries are
+  grouped into turns by `session_report`. `0015` names the third as the piece that will bite.
+- **A Bonus Action exists only if a rule grants one** (p. 177). Having none is a *different state*
+  from having spent one, and a model with only a spent flag would let every creature take one every
+  turn.
+- **A Reaction is free of the other two and refreshes at the start of your next turn** (p. 186), not
+  at the end of the round. Those differ whenever a creature acts late in one round and early in the
+  next, and the end-of-round reading hands it two Reactions in quick succession. Tested through a
+  whole encounter, because the timing only shows up in sequence.
+- **Incapacitated removes all three** (p. 184), asked inside the budget rather than at the call
+  site, so a caller cannot spend one by forgetting to check.
+- **Dash adds Speed *after modifiers*** (p. 180), so a creature slowed by Exhaustion Dashes the
+  shorter distance rather than the printed one.
+- **Dodge is re-checked rather than trusted.** p. 181 ends the benefit if the creature becomes
+  Incapacitated or its Speed drops to 0 — which can happen *after* it Dodged. The flag stays set and
+  the benefit does not, so the resolver reads the benefit. Its "if you can see the attacker"
+  qualifier needs #91 and is named in `unenforced_clauses`.
+- **Dodge and Disengage clear at different moments for different reasons.** Disengage lasts "for the
+  rest of the current turn"; Dodge "until the start of your next turn". A single clear-at-end-of-turn
+  would silently remove Dodge before the attacks it exists to blunt.
+- **`scripts/verify_d20_rules.py` now checks 79 clauses rather than 72**, including the Opportunity
+  Attack trigger the engine deliberately does not detect. Ten mutations were run against the new
+  tests and all ten were caught.
+
 ## Unreleased — 2026-08-23 — build `08232026.21`
 
 The fifteen SRD conditions. Closes nothing on its own — #18 also wants application, duration and
