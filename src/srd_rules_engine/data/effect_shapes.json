@@ -5,9 +5,9 @@
   "document": "System Reference Document 5.2.1",
   "revision": "5.2.1",
   "published": "2025-05-01",
-  "section": "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175)"
+  "section": "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175); Monsters (pp. 254-364)"
  },
- "coverage_scope": "Rules Glossary and Spell Descriptions. The Monsters and Magic Items sweeps are tracked separately; until they land this inventory understates what full coverage requires.",
+ "coverage_scope": "Rules Glossary, Spell Descriptions, and Monsters. The Magic Items sweep is tracked separately; until it lands this inventory understates what full coverage requires.",
  "shapes": [
   {
    "id": "ability-check",
@@ -1191,6 +1191,86 @@
    "tag": null,
    "reference": "Spell Descriptions, p. 116 (Commune with Nature)",
    "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "multiattack",
+   "name": "Multiattack",
+   "tag": null,
+   "reference": "Monsters, p. 258 (Aboleth)",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "recharge",
+   "name": "Recharging Ability",
+   "tag": null,
+   "reference": "Monsters, p. 258 (Air Elemental)",
+   "kind": "resource",
+   "implemented": false
+  },
+  {
+   "id": "legendary-resistance",
+   "name": "Legendary Resistance",
+   "tag": null,
+   "reference": "Monsters, p. 258 (Aboleth)",
+   "kind": "test-modifier",
+   "implemented": false
+  },
+  {
+   "id": "legendary-action",
+   "name": "Legendary Action",
+   "tag": null,
+   "reference": "Monsters, p. 258 (Aboleth)",
+   "kind": "action",
+   "implemented": false
+  },
+  {
+   "id": "regeneration",
+   "name": "Regeneration",
+   "tag": null,
+   "reference": "Monsters, p. 333 (Troll)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "hit-point-maximum-reduction",
+   "name": "Hit Point Maximum Reduction",
+   "tag": null,
+   "reference": "Monsters, p. 274 (Clay Golem)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "death-triggered-effect",
+   "name": "Effect Triggered by Death",
+   "tag": null,
+   "reference": "Monsters, p. 305 (Magmin)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "swarm-space-sharing",
+   "name": "Swarm Occupying Another Creature's Space",
+   "tag": null,
+   "reference": "Monsters, p. 361 (Swarm of Bats)",
+   "kind": "targeting",
+   "implemented": false
+  },
+  {
+   "id": "escape-dc",
+   "name": "Escape DC for an Applied Grapple",
+   "tag": null,
+   "reference": "Monsters, p. 258 (Aboleth)",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "repeat-save-to-end-effect",
+   "name": "Repeated Save to End an Effect",
+   "tag": null,
+   "reference": "Monsters, p. 262 (Basilisk)",
+   "kind": "test",
    "implemented": false
   }
  ],

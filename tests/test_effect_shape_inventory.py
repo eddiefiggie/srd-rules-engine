@@ -83,7 +83,9 @@ def test_the_inventory_states_the_scope_it_does_not_cover(inventory: Inventory) 
 #: A citation names a section of the document and a printed page, and may name the entry
 #: that exhibits the shape. Deliberately strict: "cites the document" is the claim every
 #: entry makes, and a pattern loose enough to accept free text would stop checking it.
-CITATION = re.compile(r"^(Rules Glossary|Spell Descriptions), p\. \d{1,3}(?: \([A-Z][\w' -]+\))?$")
+CITATION = re.compile(
+    r"^(Rules Glossary|Spell Descriptions|Monsters), p\. \d{1,3}(?: \([A-Z][\w' -]+\))?$"
+)
 
 
 def test_every_shape_cites_the_document_and_ids_are_unique(inventory: Inventory) -> None:
@@ -94,13 +96,18 @@ def test_every_shape_cites_the_document_and_ids_are_unique(inventory: Inventory)
         assert CITATION.match(shape.reference), f"{shape.id} cites {shape.reference!r}"
 
 
-def test_spell_sourced_shapes_name_the_spell_that_exhibits_them(inventory: Inventory) -> None:
-    """The Glossary sweep could cite a heading. Spell effects are body text, so a bare
-    page number would not be checkable by a reader — the exemplar is what makes it so."""
-    from_spells = [s for s in inventory.shapes if s.reference.startswith("Spell Descriptions")]
-    assert from_spells, "the spell sweep landed; its shapes should be present"
-    for shape in from_spells:
-        assert shape.reference.endswith(")"), f"{shape.id} cites no exemplar spell"
+def test_body_text_shapes_name_the_entry_that_exhibits_them(inventory: Inventory) -> None:
+    """A Glossary shape can cite its own heading. A shape found in spell or stat-block
+    prose cannot: a bare page number into body text is not something a reader can check,
+    so those must name the entry that exhibits them.
+
+    Written against "not the Glossary" rather than against a list of section names, so a
+    later sweep inherits the requirement instead of quietly escaping it.
+    """
+    from_body = [s for s in inventory.shapes if not s.reference.startswith("Rules Glossary")]
+    assert from_body, "the spell and monster sweeps landed; their shapes should be present"
+    for shape in from_body:
+        assert shape.reference.endswith(")"), f"{shape.id} cites no exemplar entry"
 
 
 def test_vocabulary_entries_are_recorded_with_a_reason() -> None:
