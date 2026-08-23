@@ -37,6 +37,7 @@ from srd_rules_engine.core.position import (
     distance_feet,
     movement_cost,
 )
+from srd_rules_engine.core.spellcasting import SpellSlots
 
 #: p. 17: "On your third success, you become Stable... On your third failure, you die."
 DEATH_SAVE_THRESHOLD: Final = 3
@@ -98,6 +99,9 @@ class Combatant:
     conditions: Conditions = field(default_factory=Conditions)
     #: What is left of the action economy this turn (p. 176-177, 186).
     actions: ActionBudget = field(default_factory=ActionBudget)
+    #: Spell slots, for a creature that has any. `None` for one that does not, which is a
+    #: different thing from having none left.
+    slots: SpellSlots | None = None
     #: Only meaningful at 0 hit points. Reset rather than carried once healing lands.
     death_saves: DeathSaves = DeathSaves()
 

@@ -42,8 +42,12 @@ from enum import StrEnum
 from types import MappingProxyType
 from typing import Final
 
+from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.canonical import CanonicalizationError, digest
-from srd_rules_engine.core.state import EncounterState
+from srd_rules_engine.core.conditions import Condition
+from srd_rules_engine.core.d20 import Advantage
+from srd_rules_engine.core.position import distance_feet
+from srd_rules_engine.core.state import Combatant, EncounterState
 
 #: Marks the token's encoding. An unrecognised prefix yields `unread` rather than an
 #: error — 0007 already has the right verdict for "no usable token".
@@ -58,6 +62,14 @@ END_TURN: Final = "end-turn"
 #: Attack keys are `attack:<target-id>`. The target rides in the key and in `detail`, so
 #: adjudication reads it from the structure a token commits to rather than from prose.
 ATTACK: Final = "attack"
+
+
+#: Actions the economy can offer once an Action is available. Each is defined in the
+#: Rules Glossary and implemented in `core.actions`; the eight that are not here need
+#: skills, attitudes, spellcasting or reaction triggers.
+DASH: Final = "dash"
+DODGE: Final = "dodge"
+DISENGAGE: Final = "disengage"
 
 
 def attack_key(target_id: str) -> str:
@@ -102,6 +114,41 @@ class LegalAction:
 
 
 @dataclass(frozen=True)
+class Situation:
+    """The actor's own state, in typed values (R18).
+
+    R18 asks for "active conditions **with their mechanical effects**", because a name
+    alone puts the agent back to recalling 5e from training. So every field here is a value
+    the agent can act on rather than a label it has to interpret, and nothing is prose.
+
+    Not covered by the read token, and deliberately. The token commits to the *offered set*
+    — the alternatives a declaration claims it was shown (decision 0007). A situation is
+    not a menu. Staleness is still caught, because it is derived from the same generation
+    the token carries, so a stale read fails the generation check either way.
+    """
+
+    hit_points: int
+    max_hit_points: int
+    #: Held conditions, with implication already resolved.
+    conditions: tuple[Condition, ...]
+    #: What an attack against this creature has, before the attacker's own state.
+    attack_rolls_against_you: Advantage
+    #: What this creature's attacks have, before the target is known — Grappled's
+    #: "any target other than the grappler" cannot be answered without one.
+    your_attack_rolls: Advantage
+    cannot_act: bool
+    speed: int
+    movement_remaining: int
+    action_available: bool
+    bonus_action_available: bool
+    reaction_available: bool
+    #: Level to slots remaining. Empty for a creature with no spellcasting.
+    spell_slots: Mapping[int, int]
+    #: Rules the engine holds but does not enforce, named rather than left to discovery.
+    unenforced_clauses: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ReadResult:
     """What a read-surface call returns: the offered set, and the token committing to it."""
 
@@ -109,6 +156,7 @@ class ReadResult:
     generation: int
     actions: tuple[LegalAction, ...]
     token: str
+    situation: Situation | None = None
 
     @property
     def keys(self) -> tuple[str, ...]:
@@ -146,16 +194,54 @@ def legal_actions(state: EncounterState, actor_id: str) -> tuple[LegalAction, ..
                 detail={"round": state.round_number},
             )
         )
+
+    # p. 184: "You can't take any action, Bonus Action, or Reaction." Ending the turn
+    # survives, because a creature that can do nothing must still be able to stop —
+    # offering nothing at all would strand the loop with no legal answer.
+    if actor.conditions.cannot_act():
+        return tuple(actions)
+
+    has_action = actor.actions.available(ActionKind.ACTION, actor.conditions)
+
     actions.extend(
         LegalAction(
             key=attack_key(other.id),
             label=f"Attack {other.name}",
-            detail={"target": other.id, "armour_class": other.armour_class},
+            detail=_attack_detail(actor, other),
         )
         for other in state.combatants
         if other.id != actor_id and not other.is_down
     )
+
+    if has_action:
+        speed = actor.conditions.speed_after(actor.speeds.walk)
+        actions.append(
+            LegalAction(
+                key=DASH,
+                label="Dash",
+                detail={"extra_movement": speed},
+            )
+        )
+        actions.append(LegalAction(key=DODGE, label="Dodge", detail={"holds": speed > 0}))
+        actions.append(LegalAction(key=DISENGAGE, label="Disengage", detail={}))
+
     return tuple(actions)
+
+
+def _attack_detail(actor: Combatant, target: Combatant) -> dict[str, object]:
+    """What the agent needs to judge an attack, including the distance to the target.
+
+    The distance is reported rather than used to gate the offer. Whether a target is in
+    range depends on the *weapon* — reach for a melee one, normal and long range for a
+    ranged one — and the read surface does not know which weapon an attack will use. So it
+    supplies the fact and leaves the judgement, rather than filtering on an assumption.
+    Adjudication still refuses an attack beyond reach or long range.
+    """
+    detail: dict[str, object] = {"target": target.id, "armour_class": target.armour_class}
+    if actor.position is not None and target.position is not None:
+        detail["distance"] = distance_feet(actor.position, target.position)
+        detail["reach"] = actor.reach
+    return detail
 
 
 def read(state: EncounterState, actor_id: str) -> ReadResult:
@@ -166,6 +252,47 @@ def read(state: EncounterState, actor_id: str) -> ReadResult:
         generation=state.generation,
         actions=actions,
         token=issue_token(state.generation, actions),
+        situation=situation(state, actor_id),
+    )
+
+
+def situation(state: EncounterState, actor_id: str) -> Situation:
+    """The actor's own state, with every condition's effects already resolved (R18).
+
+    Everything here is derived, never stored, and the call mutates nothing (R19). The
+    aggregates are what the agent needs to *decide* with: it should not have to know that
+    Unconscious implies Prone, or that Prone's effect on incoming attacks depends on the
+    attacker's distance, in order to read what its own attacks currently have.
+
+    `your_attack_rolls` is reported without a target, so Grappled's "any target other than
+    the grappler" is not folded in — that question needs a target and is answered when one
+    is named. Reporting the unconditional part is honest; guessing a target would not be.
+    """
+    actor = state.combatant(actor_id)
+    conditions = actor.conditions
+    speed = conditions.speed_after(actor.speeds.walk)
+
+    unenforced = list(conditions.unenforced_clauses())
+    unenforced.extend(c for c in actor.actions.unenforced_clauses() if c not in unenforced)
+
+    return Situation(
+        hit_points=actor.hit_points,
+        max_hit_points=actor.max_hit_points,
+        conditions=tuple(sorted(conditions.held, key=lambda c: c.value)),
+        attack_rolls_against_you=conditions.attack_rolls_against(attacker=None, target=None),
+        your_attack_rolls=conditions.own_attack_rolls(),
+        cannot_act=conditions.cannot_act(),
+        speed=speed,
+        movement_remaining=actor.movement_remaining,
+        action_available=actor.actions.available(ActionKind.ACTION, conditions),
+        bonus_action_available=actor.actions.available(ActionKind.BONUS_ACTION, conditions),
+        reaction_available=actor.actions.available(ActionKind.REACTION, conditions),
+        spell_slots=MappingProxyType(
+            {level: actor.slots.remaining(level) for level in sorted(actor.slots.total)}
+            if actor.slots is not None
+            else {}
+        ),
+        unenforced_clauses=tuple(unenforced),
     )
 
 

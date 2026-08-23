@@ -18,7 +18,14 @@ from collections.abc import Callable
 
 import pytest
 
+from srd_rules_engine.core.actions import ActionBudget, ActionKind
+from srd_rules_engine.core.conditions import Condition, Conditions
+from srd_rules_engine.core.d20 import Advantage
+from srd_rules_engine.core.position import Position, Speeds
 from srd_rules_engine.core.read_surface import (
+    DASH,
+    DISENGAGE,
+    DODGE,
     END_TURN,
     TOKEN_SCHEME,
     LegalAction,
@@ -29,6 +36,7 @@ from srd_rules_engine.core.read_surface import (
     read,
     verify,
 )
+from srd_rules_engine.core.spellcasting import SpellSlots
 from srd_rules_engine.core.state import Combatant, EncounterState
 
 ABILITIES = {"str": 16, "dex": 12, "con": 14}
@@ -129,9 +137,10 @@ def test_a_mutator_cannot_override_the_generation() -> None:
 
 
 def test_the_active_combatant_is_offered_actions() -> None:
-    """Ending the turn, and one attack per opponent still standing."""
+    """Ending the turn, an attack per opponent still standing, and the three actions the
+    economy can now offer while an Action remains (p. 180, p. 181)."""
     state = encounter()
-    assert read(state, "pc").keys == (END_TURN, attack_key("boar"))
+    assert read(state, "pc").keys == (END_TURN, attack_key("boar"), DASH, DODGE, DISENGAGE)
 
 
 def test_a_combatant_whose_turn_it_is_not_is_offered_nothing() -> None:
@@ -336,3 +345,144 @@ def test_the_ability_modifier_rounds_down_for_negatives() -> None:
     assert weak.modifier("dex") == 0
     assert weak.modifier("con") == 5
     assert weak.modifier("absent") == 0, "an unrecorded ability defaults to 10"
+
+
+# --- The situation the agent decides from (R18) --------------------------------------
+
+
+def _rich(**kw: object) -> EncounterState:
+    """An encounter whose player character has conditions, slots and a spent economy."""
+    pc = Combatant(
+        id="pc",
+        name="Wizard",
+        hit_points=9,
+        max_hit_points=22,
+        armour_class=13,
+        abilities={"str": 8, "dex": 14},
+        proficiency_bonus=2,
+        is_player_character=True,
+        position=Position(0, 0, 0),
+        speeds=Speeds(walk=30),
+        **kw,  # type: ignore[arg-type]
+    )
+    boar = Combatant(
+        id="boar",
+        name="Boar",
+        hit_points=11,
+        max_hit_points=11,
+        armour_class=12,
+        abilities={"str": 12},
+        proficiency_bonus=2,
+        position=Position(25, 0, 0),
+    )
+    return EncounterState.new([pc, boar]).with_initiative({"pc": 18, "boar": 6})
+
+
+def test_the_situation_reports_effects_rather_than_condition_names_alone() -> None:
+    """R18 asks for "active conditions **with their mechanical effects**", because a name
+    alone puts the agent back to recalling 5e from training — which is the capability this
+    engine exists to remove.
+
+    So the agent is told it attacks at Disadvantage, not merely that it is Poisoned.
+    """
+    result = read(_rich(conditions=Conditions(held=frozenset({Condition.POISONED}))), "pc")
+    assert result.situation is not None
+    assert Condition.POISONED in result.situation.conditions
+    assert result.situation.your_attack_rolls is Advantage.DISADVANTAGE
+
+
+def test_implied_conditions_are_reported_too() -> None:
+    """The agent should not have to know that Unconscious implies Prone and Incapacitated
+    in order to read what it can do."""
+    situation = read(_rich(conditions=Conditions(held=frozenset({Condition.UNCONSCIOUS}))), "pc")
+    assert situation.situation is not None
+    assert Condition.PRONE in situation.situation.conditions
+    assert Condition.INCAPACITATED in situation.situation.conditions
+    assert situation.situation.cannot_act
+
+
+def test_the_situation_reports_speed_after_conditions_have_acted_on_it() -> None:
+    """Exhaustion reduces Speed by 5 per level (p. 181), and the agent is told the number
+    it actually has rather than the one on its sheet."""
+    result = read(_rich(conditions=Conditions(exhaustion_level=1)), "pc")
+    assert result.situation is not None
+    assert result.situation.speed == 25
+    assert result.situation.movement_remaining == 25
+
+
+def test_the_situation_reports_the_action_economy_and_remaining_slots() -> None:
+    spent = ActionBudget(bonus_action_granted=True).spend(ActionKind.ACTION)
+    result = read(_rich(actions=spent, slots=SpellSlots(total={1: 4, 2: 2}).cast(1)), "pc")
+
+    assert result.situation is not None
+    assert not result.situation.action_available
+    assert result.situation.bonus_action_available
+    assert result.situation.reaction_available
+    assert dict(result.situation.spell_slots) == {1: 3, 2: 2}
+
+
+def test_a_creature_with_no_spellcasting_reports_no_slots() -> None:
+    """`None` slots and no slots left are different states, and neither is an empty lie."""
+    result = read(_rich(), "pc")
+    assert result.situation is not None
+    assert dict(result.situation.spell_slots) == {}
+
+
+def test_unenforced_clauses_reach_the_agent() -> None:
+    """A rule the engine holds but does not apply is something the agent needs to know, or
+    it will assume the engine handled it."""
+    frightened = Conditions(held=frozenset({Condition.FRIGHTENED}))
+    result = read(_rich(conditions=frightened), "pc")
+    assert result.situation is not None
+    assert "line-of-sight-qualifier" in result.situation.unenforced_clauses
+
+
+# --- What the economy now puts on the menu -------------------------------------------
+
+
+def test_dash_dodge_and_disengage_are_offered_while_an_action_remains() -> None:
+    state = _rich()
+    assert {DASH, DODGE, DISENGAGE} <= set(read(state, "pc").keys)
+
+
+def test_they_are_withdrawn_once_the_action_is_spent() -> None:
+    """The menu is what is legal, so an action already spent is not on it."""
+    spent = ActionBudget().spend(ActionKind.ACTION)
+    keys = set(read(_rich(actions=spent), "pc").keys)
+    assert not {DASH, DODGE, DISENGAGE} & keys
+    assert END_TURN in keys, "ending the turn survives"
+
+
+def test_dash_offers_the_speed_the_creature_actually_has() -> None:
+    """p. 180: "The increase equals your Speed **after applying any modifiers**.\""""
+    state = _rich(conditions=Conditions(exhaustion_level=1))
+    dash = next(a for a in read(state, "pc").actions if a.key == DASH)
+    assert dash.detail["extra_movement"] == 25
+
+
+def test_an_incapacitated_creature_is_offered_only_the_end_of_its_turn() -> None:
+    """p. 184 removes every action, but a creature that can do nothing must still be able
+    to stop — offering nothing at all would strand the loop with no legal answer."""
+    stunned = Conditions(held=frozenset({Condition.STUNNED}))
+    assert read(_rich(conditions=stunned), "pc").keys == (END_TURN,)
+
+
+def test_an_attack_reports_the_distance_without_gating_on_it() -> None:
+    """Whether a target is in range depends on the *weapon*, which the read surface does not
+    know. So it supplies the distance and leaves the judgement — and adjudication still
+    refuses an attack beyond reach or long range.
+    """
+    attack = next(a for a in read(_rich(), "pc").actions if a.key == attack_key("boar"))
+    assert attack.detail["distance"] == 25
+    assert attack.detail["reach"] == 5
+
+
+def test_the_token_still_commits_only_to_the_offered_set() -> None:
+    """Decision 0007: the token is about the *menu*, because that is what a declaration's
+    alternatives claim. A situation is not a menu — and staleness is caught anyway, since
+    both are derived from the same generation the token carries.
+    """
+    state = _rich()
+    first, second = read(state, "pc"), read(state, "pc")
+    assert first.token == second.token
+    assert verify(first.token, first.actions, state.generation) is Verdict.FRESH
