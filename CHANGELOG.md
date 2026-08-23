@@ -6,6 +6,45 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.21`
+
+The fifteen SRD conditions. Closes nothing on its own — #18 also wants application, duration and
+removal — but it is the bulk of R14. Inventory coverage 51 → 66 of 211.
+
+- **Effects are typed fields, not names.** R18 requires the read surface to report conditions
+  "with their mechanical effects", because a name alone puts the agent back to recalling 5e from
+  training — which is the capability this engine exists to remove. Every clause that can be
+  expressed mechanically is a field; every clause that cannot is named in `unenforced_clauses`
+  rather than omitted.
+- **Conditions imply other conditions, transitively.** Paralyzed, Petrified, Stunned and
+  Unconscious each carry Incapacitated, and Unconscious carries Prone as well (p. 191).
+  Implication resolves when the set is built, so a caller asking about Incapacitated never has to
+  know that Stunned implies it.
+- **Prone works in both directions.** p. 186: an attack against a Prone creature "has Advantage if
+  the attacker is within 5 feet of you. **Otherwise, that attack roll has Disadvantage.**" The
+  second sentence is the one played wrong, and a flat Advantage helps the attacker at every range.
+  Decided by the position decision `0014` already holds.
+- **An unconscious creature attacked from range has neither Advantage nor Disadvantage.**
+  Unconscious grants Advantage on attacks against it; its implied Prone imposes Disadvantage beyond
+  5 feet; p. 8 says a roll with both "has neither of them". Nobody wrote that interaction — it
+  falls out of the rules being modelled separately and cancelled by the engine's existing rule, and
+  it is the kind of thing a table misses every time.
+- **Exhaustion is arithmetic, not Disadvantage.** p. 181 reduces the roll "by 2 times your
+  Exhaustion level" and Speed "by 5 times" it, and kills at 6. Modelling the penalty as
+  Disadvantage would be a different rule with a different distribution.
+- **Speed zero beats Exhaustion's reduction.** Five conditions set Speed to 0 and say it "can't
+  increase", so no later arithmetic lifts it.
+- **Grappled spares the grappler.** Disadvantage applies "against any target other than the
+  grappler" (p. 182), which is computable because the grappler is recorded with the condition.
+- **Frightened takes the stricter reading, disclosed.** Its penalty is qualified by line of sight
+  (p. 182), which needs #91's obstructions, so the engine applies the penalty whenever the
+  condition is held. Erring toward applying a penalty cannot invent a success, and the qualifier is
+  named in `unenforced_clauses` rather than left to be discovered.
+- **`core.death`'s disclosure is narrowed rather than left stale.** The Unconscious condition now
+  exists with its effects; nothing yet applies it at 0 hit points, and the module says so.
+- **`scripts/verify_d20_rules.py` now checks 72 clauses rather than 63.** Ten mutations were run
+  against the new tests and all ten were caught.
+
 ## Unreleased — 2026-08-23 — build `08232026.20`
 
 The six areas of effect, the second slice of #20. Inventory coverage 44 → 51 of 211. #20 stays open;

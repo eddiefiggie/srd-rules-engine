@@ -24,9 +24,10 @@ Two things about it are unusual and both are stated rather than inferred:
 Three parts of the same pages are **not** modelled here, and they ship disclosed rather
 than silently missing:
 
-* **The Unconscious condition.** A creature at 0 hit points has it, and a Stable creature
-  keeps it. Conditions are [#18](https://github.com/eddiefiggie/srd-rules-engine/issues/18);
-  the engine tracks Stable but not the condition that accompanies it.
+* **The Unconscious condition is modelled but not applied here.** `core.conditions` now
+  carries it with its effects, and p. 18 says a Stable creature "still has the Unconscious
+  condition" — but nothing in this module applies it when a creature reaches 0 hit points.
+  A caller must set it. That is a narrower gap than before and still a gap.
 * **Stabilizing by the Help action**, which needs a DC 10 Wisdom (Medicine) check and an
   action economy to spend the action from — [#16](https://github.com/eddiefiggie/srd-rules-engine/issues/16).
   `EncounterState.with_stabilised` exists, so the state transition is there; nothing yet

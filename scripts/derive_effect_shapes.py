@@ -37,7 +37,7 @@ HEADING_SIZE = 12.0
 KINDS: dict[str, tuple[str, bool]] = {
     # --- tagged by the document itself -------------------------------------------------
     **{
-        n: ("condition", False)
+        n: ("condition", True)
         for n in (
             "Blinded",
             "Charmed",

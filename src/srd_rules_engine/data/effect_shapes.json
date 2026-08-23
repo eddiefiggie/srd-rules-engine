@@ -151,7 +151,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 177",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "blindsight",
@@ -231,7 +231,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 178",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "climbing",
@@ -407,7 +407,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 181",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "death-saving-throw",
@@ -487,7 +487,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 181",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "expertise",
@@ -535,7 +535,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 182",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "grappled",
@@ -543,7 +543,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 182",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "grappling",
@@ -663,7 +663,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 184",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "indifferent",
@@ -695,7 +695,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 184",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "jumping",
@@ -783,7 +783,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 186",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "passive-perception",
@@ -807,7 +807,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 186",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "poisoned",
@@ -815,7 +815,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 186",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "possession",
@@ -839,7 +839,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 186",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "reach",
@@ -879,7 +879,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 187",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "ritual",
@@ -1007,7 +1007,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 189",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "suffocation",
@@ -1103,7 +1103,7 @@
    "tag": "Condition",
    "reference": "Rules Glossary, p. 191",
    "kind": "condition",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "unoccupied-space",
