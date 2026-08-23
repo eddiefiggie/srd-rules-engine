@@ -6,6 +6,48 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.12`
+
+The d20 primitive can reroll or replace one die of an advantage pair. This was the gap #52
+disclosed and #78 filed: the record was already sufficient — both dice are retained — and the
+API was not. Closes #78.
+
+- **`replace_die` is a seam, not a second roller.** A caller names which die moved and why; the
+  engine rolls the replacement. R4 is unchanged, which matters most here because "You choose
+  which one" is the one place the document is explicit that the *choice* belongs to the holder.
+- **The new roll is binding.** Heroic Inspiration (p. 183) and Halfling Luck (p. 86) both say so
+  in terms, so nothing compares the replacement against what it replaced. Proven on a seed where
+  the reroll comes out *worse* — a take-the-better-of-two implementation would pass any test that
+  only checked the total went up.
+- **The replacement comes from the roll's own seed**, in an index band of its own starting at
+  `REPLACEMENT_OFFSET`. Drawing it from a fresh seed would reproduce the roll and not the reroll,
+  which is a replay that fails in the quiet direction. There is a test that goes red if the
+  derivation ever stops using `result.seed`.
+- **A forced reroll may itself carry Advantage or Disadvantage**, because Wish (p. 175) can force
+  that. This is why a `Replacement` records dice rather than one face, and it is the requirement
+  that would have been missed by designing the seam against Heroic Inspiration alone —
+  `draft-0013` found it while answering how many callers the seam must serve.
+- **The lineage is kept rather than overwritten.** `dice` is the pair as it now stands,
+  `replacements` records each position with the die that was there and what replaced it, and
+  `original_dice` walks back to the pair as first rolled.
+- **One cancellation rule, not two.** `_cancel` is now shared between the original roll and the
+  replacement, so the presence-versus-count question #52 settled cannot be answered differently
+  in the new path.
+- **`REROLL_VERIFICATION` is a separate citation from `ADVANTAGE_VERIFICATION`**, because it rests
+  on different sentences in different sections; folding them together would let a revision reword
+  one while the other's date vouched for both. `scripts/verify_d20_rules.py` now checks 16 clauses
+  rather than 10, all confirmed against the document.
+- **The tests were checked for bite, not just for green.** Six mutations of the new code were run
+  against them; the first pass caught five. The survivor was a wrong `REPLACEMENT_OFFSET`, which
+  slipped through because the assertions derived their expectations *from* that constant and so
+  moved with it. The band ordering is now asserted against the constants themselves.
+- **The disclosed limit in `core.d20` is removed rather than reworded.** No shape in the inventory
+  becomes `implemented` — this is the seam those shapes need, not the shapes.
+- **A new limit ships disclosed in its place.** The index bands are a convention rather than an
+  enforced invariant: `roll` takes an arbitrary `count` and `offset`, so a large enough damage roll
+  would cross into the replacement band and silently alias one onto the other. No caller does that
+  and nothing checks. Recorded at both constants and filed as #82.
+
 ## Unreleased — 2026-08-23 (documentation)
 
 Documentation only; no build stamp change, because nothing a consumer runs was altered.

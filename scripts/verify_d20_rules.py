@@ -1,4 +1,4 @@
-"""Verify the d20 advantage rules in `core.d20` against the official SRD v5.2.1 PDF.
+"""Verify the d20 advantage and reroll rules in `core.d20` against the official SRD v5.2.1 PDF.
 
 This is the reproducible half of `core.d20.ADVANTAGE_VERIFICATION`. Like
 `derive_effect_shapes.py` it is **not** run in CI, because CI has no copy of the document:
@@ -76,6 +76,39 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"you can reroll or replace only one die, not both\.\s*You choose which one",
     ),
     (
+        8,
+        "the reroll rule has a subsection of its own, which is what makes it a rule",
+        r"Interactions with Rerolls",
+    ),
+    (
+        8,
+        "the document's worked reroll example names Heroic Inspiration",
+        r"expend your Heroic Inspiration to reroll one of those dice, not both of them",
+    ),
+    (
+        183,
+        "Heroic Inspiration replaces one die and the new roll is binding",
+        r"expend it to reroll any die immediately after rolling it, and you must use the "
+        r"new roll",
+    ),
+    (
+        86,
+        "Halfling Luck replaces a natural 1, and is likewise binding",
+        r"When you roll a 1 on the d20 of a D20 Test, you can reroll the die, and you must "
+        r"use the new roll",
+    ),
+    (
+        175,
+        "Wish forces a reroll of a die already rolled",
+        r"forcing a reroll of any die roll made within the last round",
+    ),
+    (
+        175,
+        "a forced reroll may itself be made with Advantage or Disadvantage — the clause "
+        "that decides replace_die returns dice rather than one face",
+        r"You can force the reroll to be made with Advantage or Disadvantage",
+    ),
+    (
         176,
         "the Rules Glossary states the same cancellation rule",
         r"Advantage and Dis-?\s*advantage on the same roll cancel each other",
@@ -140,8 +173,9 @@ def main(argv: list[str]) -> int:
         raise SystemExit(
             "\nthe cited text no longer matches the document:\n\n"
             + "\n".join(failures)
-            + "\n\ncore.d20's advantage semantics rest on these sentences. Re-read the "
-            "document before touching the implementation to make this pass."
+            + "\n\ncore.d20's advantage semantics and its reroll seam rest on these "
+            "sentences. Re-read the document before touching the implementation to make "
+            "this pass."
         )
 
     print(f"\nall {len(CLAUSES)} clauses verified against {pdf.name}")

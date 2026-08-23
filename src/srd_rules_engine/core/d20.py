@@ -38,19 +38,37 @@ Two of the four questions #52 raised had answers the implementation could have g
   You choose which one." `dice` therefore carries the pair rather than the one that
   counted, and that is a requirement rather than a convenience.
 
-## A disclosed limit
+## Replacing one die of a pair
 
-Nothing here can yet *act* on that second point. Rerolling or replacing one die of a pair —
-Heroic Inspiration is the document's own example, and it makes the new roll binding — is
-unmodelled. The record is sufficient for it and the API is not, so the gap is filed rather
-than assumed away. See
-[#78](https://github.com/eddiefiggie/srd-rules-engine/issues/78).
+`replace_die` is the seam the second point requires (#78). "Interactions with Rerolls"
+(p. 8) governs it: with Advantage or Disadvantage, anything that lets you reroll or replace
+the d20 replaces **one** die, not both, and the holder chooses which. The replacement is
+*binding* — Heroic Inspiration (p. 183) and Halfling Luck (p. 86) both say the new roll must
+be used — so this is a replacement, not a take-the-better-of-two.
+
+Three properties make it a seam rather than a second roller:
+
+* **The replacement comes from the same seed**, in an index space of its own
+  (`REPLACEMENT_OFFSET`). Replay reproduces a rerolled result from the original seed plus
+  the record of what was replaced. Drawing it from a fresh seed would reproduce the roll and
+  not the reroll — a replay that fails in the quiet direction, which is worse than one that
+  fails loudly.
+* **The lineage is kept, not overwritten.** `dice` is the pair as it now stands, and
+  `replacements` records each position, the die that was there, and what replaced it.
+  `original_dice` walks that back to the pair as first rolled. R5 wants the arithmetic
+  shown, and a reroll that erased what it replaced would assert its outcome instead.
+* **The replacement may itself carry Advantage or Disadvantage.** Wish (p. 175) can force a
+  reroll and force it to be rolled with either, so a seam returning a single substitute
+  value cannot serve it. The same cancellation rule applies to the replacement as to the
+  original roll, because it is the same rule.
+
+The engine still rolls (R4): a caller names *which* die and *why*, never what it became.
 """
 
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Final
 
@@ -70,12 +88,44 @@ ADVANTAGE_VERIFICATION: Final = Verification(
     date="2026-08-23",
 )
 
+#: R31, and separate from the advantage citation above because it rests on different
+#: sentences: the reroll rules govern `replace_die`, and a revision could reword one set
+#: without touching the other. `scripts/verify_d20_rules.py` re-checks both.
+REROLL_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference=(
+        'SRD v5.2.1, "Playing the Game" ("D20 Tests" -> "Interactions with Rerolls"), '
+        "p. 8; Rules Glossary, Heroic Inspiration p. 183; Character Origins, Halfling "
+        "Luck p. 86; Spell Descriptions, Wish p. 175"
+    ),
+    date="2026-08-23",
+)
+
 #: The width of the hash slice a single die consumes.
 _BITS: Final = 32
 
 #: Where damage dice start in a seed's index space. One adjudication draws its d20 from
 #: the low indices and its damage from here, so the two can never collide on a die.
 DAMAGE_OFFSET: Final = 100
+
+#: Where replacement dice start. The seed's index space is banded — d20 at 0-1, damage from
+#: 100, replacements from 200 — so a rerolled die is drawn from the same seed as the roll it
+#: replaces without ever landing on a die that seed has already produced.
+#:
+#: The bands are a **convention, not an enforced invariant**: `roll` takes an arbitrary
+#: `count` and `offset`, so a large enough damage roll would cross into this band and
+#: silently alias a replacement onto a damage die. No caller does, and nothing checks.
+#: Disclosed rather than assumed away — see
+#: https://github.com/eddiefiggie/srd-rules-engine/issues/82.
+REPLACEMENT_OFFSET: Final = 200
+
+#: Indices a single replacement consumes: two, because the replacement may itself be rolled
+#: with Advantage or Disadvantage (Wish, p. 175).
+_REPLACEMENT_STRIDE: Final = 2
+
+#: `die` packs the index into two bytes, which bounds how many times one roll can be
+#: rerolled. The bound is far past any real sequence and is checked rather than assumed.
+_MAX_GENERATION: Final = (2**16 - REPLACEMENT_OFFSET) // (_REPLACEMENT_STRIDE * 2) - 1
 
 
 class TestKind(StrEnum):
@@ -129,6 +179,30 @@ class D20Test:
 
 
 @dataclass(frozen=True)
+class Replacement:
+    """One die swapped out, and everything needed to see that it was not invented.
+
+    `dice` is what the *replacement* rolled — two faces when the reroll itself carried
+    Advantage or Disadvantage, one otherwise — so the new value reads back as arithmetic
+    the same way the original roll does.
+    """
+
+    position: int
+    original: int
+    dice: tuple[int, ...]
+    effective: Advantage
+    value: int
+    source: str
+
+    def __post_init__(self) -> None:
+        if not self.source:
+            raise ValueError(
+                "a replacement names what replaced the die. A reroll whose cause is not "
+                "recorded is indistinguishable from a result the engine chose to like"
+            )
+
+
+@dataclass(frozen=True)
 class D20Result:
     """The roll, its inputs, and enough of both to reconstruct it from the record."""
 
@@ -144,10 +218,20 @@ class D20Result:
     modifiers: tuple[Modifier, ...]
     total: int
     succeeded: bool
+    #: Applied in order. Empty for a roll nothing has rerolled, which is almost all of them.
+    replacements: tuple[Replacement, ...] = ()
 
     @property
     def modifier_total(self) -> int:
         return sum(modifier.value for modifier in self.modifiers)
+
+    @property
+    def original_dice(self) -> tuple[int, ...]:
+        """The pair as first rolled, before any replacement."""
+        dice = list(self.dice)
+        for replacement in reversed(self.replacements):
+            dice[replacement.position] = replacement.original
+        return tuple(dice)
 
     def derivation(self) -> str:
         """The arithmetic in one line, in the order the modifiers were supplied."""
@@ -163,12 +247,7 @@ def resolve(test: D20Test, *, seed: int) -> D20Result:
     count = 1 if effective is Advantage.NONE else 2
     dice = tuple(die(seed, index) for index in range(count))
 
-    if effective is Advantage.ADVANTAGE:
-        used = max(dice)
-    elif effective is Advantage.DISADVANTAGE:
-        used = min(dice)
-    else:
-        used = dice[0]
+    used = _pick(dice, effective)
 
     total = used + sum(modifier.value for modifier in test.modifiers)
     return D20Result(
@@ -189,13 +268,107 @@ def resolve(test: D20Test, *, seed: int) -> D20Result:
 
 def _effective_advantage(test: D20Test) -> Advantage:
     """Advantage and disadvantage cancel to a plain roll rather than accumulating."""
-    if test.has_advantage and test.has_disadvantage:
+    return _cancel(test.has_advantage, test.has_disadvantage)
+
+
+def _cancel(has_advantage: bool, has_disadvantage: bool) -> Advantage:
+    """The cancellation rule itself, in one place.
+
+    A forced reroll may be made with Advantage or Disadvantage (Wish, p. 175), and the rule
+    that resolves those two flags is the same rule that resolves them on the original roll.
+    Two copies of it would be two chances to answer the count-versus-presence question
+    differently.
+    """
+    if has_advantage and has_disadvantage:
         return Advantage.NONE
-    if test.has_advantage:
+    if has_advantage:
         return Advantage.ADVANTAGE
-    if test.has_disadvantage:
+    if has_disadvantage:
         return Advantage.DISADVANTAGE
     return Advantage.NONE
+
+
+def _pick(dice: tuple[int, ...], effective: Advantage) -> int:
+    """Which of the dice counts, given the effective state."""
+    if effective is Advantage.ADVANTAGE:
+        return max(dice)
+    if effective is Advantage.DISADVANTAGE:
+        return min(dice)
+    return dice[0]
+
+
+def _replacement_index(generation: int, position: int) -> int:
+    """The first index a replacement draws from.
+
+    Banded so that no two replacements of the same roll can land on the same die: each
+    generation gets its own block, each position its own pair inside that block, and the
+    pair is what lets a forced reroll carry Advantage or Disadvantage.
+    """
+    block = generation * _REPLACEMENT_STRIDE * 2
+    return REPLACEMENT_OFFSET + block + position * _REPLACEMENT_STRIDE
+
+
+def replace_die(
+    result: D20Result,
+    *,
+    position: int,
+    source: str,
+    with_advantage: bool = False,
+    with_disadvantage: bool = False,
+) -> D20Result:
+    """Replace one die of a result and return the result that follows from it (R4, R5).
+
+    The caller names *which* die and *why*. It never supplies what the die became — the
+    engine rolls the replacement, from `result`'s own seed in the replacement index space,
+    so replay reproduces the reroll rather than only the roll it replaced.
+
+    The new roll is binding. Heroic Inspiration (p. 183) and Halfling Luck (p. 86) both say
+    so in terms, so nothing here compares the replacement against what it replaced; the
+    advantage rule then picks from the pair as it now stands, exactly as it did before.
+
+    `with_advantage` / `with_disadvantage` roll the *replacement* with that state, which
+    Wish (p. 175) can force. They cancel by the same rule as the original roll.
+    """
+    if not 0 <= position < len(result.dice):
+        raise ValueError(
+            f"a result with {len(result.dice)} dice has no die at position {position}. "
+            f'"You choose which one" presumes the die exists'
+        )
+
+    generation = len(result.replacements) + 1
+    if generation > _MAX_GENERATION:
+        raise ValueError(f"a roll cannot be replaced more than {_MAX_GENERATION} times")
+
+    effective = _cancel(with_advantage, with_disadvantage)
+    count = 1 if effective is Advantage.NONE else 2
+    base = _replacement_index(generation, position)
+    rolled = tuple(die(result.seed, base + n) for n in range(count))
+    value = _pick(rolled, effective)
+
+    dice = list(result.dice)
+    original = dice[position]
+    dice[position] = value
+
+    used = _pick(tuple(dice), result.effective)
+    total = used + result.modifier_total
+    return replace(
+        result,
+        dice=tuple(dice),
+        used=used,
+        total=total,
+        succeeded=total >= result.target,
+        replacements=(
+            *result.replacements,
+            Replacement(
+                position=position,
+                original=original,
+                dice=rolled,
+                effective=effective,
+                value=value,
+                source=source,
+            ),
+        ),
+    )
 
 
 def die(seed: int, index: int, sides: int = DIE_SIDES) -> int:
@@ -237,7 +410,11 @@ def die(seed: int, index: int, sides: int = DIE_SIDES) -> int:
 
 
 def roll(seed: int, *, count: int, sides: int, offset: int = 0) -> tuple[int, ...]:
-    """Several dice of one size from one seed. `offset` keeps separate rolls apart."""
+    """Several dice of one size from one seed. `offset` keeps separate rolls apart.
+
+    `offset` is not checked against the band it lands in, so a large enough `count` runs
+    past the next band's start and aliases onto its dice. See #82.
+    """
     if count < 0:
         raise ValueError("a roll has a non-negative number of dice")
     return tuple(die(seed, offset + n, sides) for n in range(count))
