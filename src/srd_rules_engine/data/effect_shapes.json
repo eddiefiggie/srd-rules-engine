@@ -8,7 +8,54 @@
   "section": "Character Creation; Character Origins; Classes; Equipment; Feats; Gameplay Toolbox; Magic Items; Monsters; Playing the Game; Rules Glossary; Spell Descriptions"
  },
  "unswept_sections": [],
- "coverage_scope": "All eleven of the document's rules sections are swept. `unswept_sections` is empty, which is the only form of this claim a guard can check, and `section` lists what the shapes actually cite. Complete coverage of the document is not the same as a correct inventory: the granularity and consolidation questions raised across the sweeps are tracked separately.",
+ "coverage_scope": "All eleven of the document's rules sections are swept. `unswept_sections` is empty, which is the only form of this claim a guard can check, and `section` lists what the shapes actually cite. Complete coverage of the document is not the same as a correct inventory: the granularity and consolidation questions raised across the sweeps were settled by decision 0013.",
+ "criteria": [
+  {
+   "id": "engine-held-state",
+   "rule": "A shape names a mechanical change to state the engine holds. Character progression that no engine operation resolves does not — level advancement maps experience to a level, and the engine holds the level rather than the mapping.",
+   "supersedes": "'No Ruling applies it', which asked whether the adjudication entry point happened to touch the shape and so moved whenever that surface grew.",
+   "decided_by": "0013, Q2"
+  },
+  {
+   "id": "closed-named-set",
+   "rule": "A closed named set with its own rules subsection is vocabulary. Worked examples that compose shapes already inventoried are content.",
+   "admitted": [
+    "the eight weapon mastery properties",
+    "the four poison delivery types"
+   ],
+   "declined": [
+    "the nine environmental effects",
+    "the three magical contagions"
+   ],
+   "decided_by": "0013, Q4"
+  },
+  {
+   "id": "mechanism-not-exemplar",
+   "rule": "A shape is named for the mechanism it is, not for the feature that exhibits it. Two features whose rules differ only in a parameter are one shape.",
+   "decided_by": "0013, Q1, Q3 and Q5"
+  }
+ ],
+ "kind_values": [
+  "action",
+  "affliction",
+  "attitude",
+  "condition",
+  "convention",
+  "effect",
+  "environment",
+  "equipment",
+  "hazard",
+  "movement",
+  "resource",
+  "sense",
+  "spellcasting",
+  "state",
+  "targeting",
+  "test",
+  "test-modifier",
+  "weapon-mastery",
+  "weapon-property"
+ ],
  "shapes": [
   {
    "id": "ability-check",
@@ -536,14 +583,6 @@
    "tag": "Action",
    "reference": "Rules Glossary, p. 182",
    "kind": "action",
-   "implemented": false
-  },
-  {
-   "id": "heroic-inspiration",
-   "name": "Heroic Inspiration",
-   "tag": null,
-   "reference": "Rules Glossary, p. 183",
-   "kind": "resource",
    "implemented": false
   },
   {
@@ -1179,14 +1218,6 @@
    "implemented": false
   },
   {
-   "id": "reroll",
-   "name": "Forced Reroll",
-   "tag": null,
-   "reference": "Spell Descriptions, p. 175 (Wish)",
-   "kind": "test-modifier",
-   "implemented": false
-  },
-  {
    "id": "information-granted",
    "name": "Information Granted to the Caster",
    "tag": null,
@@ -1200,22 +1231,6 @@
    "tag": null,
    "reference": "Monsters, p. 258 (Aboleth)",
    "kind": "action",
-   "implemented": false
-  },
-  {
-   "id": "recharge",
-   "name": "Recharging Ability",
-   "tag": null,
-   "reference": "Monsters, p. 258 (Air Elemental)",
-   "kind": "resource",
-   "implemented": false
-  },
-  {
-   "id": "legendary-resistance",
-   "name": "Legendary Resistance",
-   "tag": null,
-   "reference": "Monsters, p. 258 (Aboleth)",
-   "kind": "test-modifier",
    "implemented": false
   },
   {
@@ -1277,14 +1292,6 @@
   {
    "id": "item-charges",
    "name": "Expending Item Charges",
-   "tag": null,
-   "reference": "Magic Items, p. 215 (Cloak of Invisibility)",
-   "kind": "resource",
-   "implemented": false
-  },
-  {
-   "id": "daily-recharge",
-   "name": "Charges Regained on a Daily Schedule",
    "tag": null,
    "reference": "Magic Items, p. 215 (Cloak of Invisibility)",
    "kind": "resource",
@@ -1467,8 +1474,8 @@
    "implemented": false
   },
   {
-   "id": "rest-recharge",
-   "name": "Uses Regained on a Rest",
+   "id": "resource-recharge",
+   "name": "Resource Recharge",
    "tag": null,
    "reference": "Classes, p. 28 (Rage)",
    "kind": "resource",
@@ -1491,8 +1498,8 @@
    "implemented": false
   },
   {
-   "id": "bonus-die-on-roll",
-   "name": "Bonus Die Added to a Roll",
+   "id": "die-applied-to-a-roll",
+   "name": "Rolled Die Applied to a D20 Test in Either Direction",
    "tag": null,
    "reference": "Classes, p. 31 (Bardic Inspiration)",
    "kind": "test-modifier",
@@ -1523,8 +1530,16 @@
    "implemented": false
   },
   {
-   "id": "miss-becomes-hit",
-   "name": "Missed Attack Overridden to a Hit",
+   "id": "ability-score-increase",
+   "name": "Ability Score Increased to a Bounded Maximum",
+   "tag": null,
+   "reference": "Feats, p. 88 (Boon of Combat Prowess)",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "failed-test-overridden-to-success",
+   "name": "Failed D20 Test Overridden to a Success",
    "tag": null,
    "reference": "Feats, p. 88 (Boon of Combat Prowess)",
    "kind": "test-modifier",
@@ -1575,7 +1590,7 @@
    "name": "Contact Poison",
    "tag": null,
    "reference": "Gameplay Toolbox, p. 197 (Crawler Mucus)",
-   "kind": "poison-delivery",
+   "kind": "affliction",
    "implemented": false
   },
   {
@@ -1583,7 +1598,7 @@
    "name": "Ingested Poison",
    "tag": null,
    "reference": "Gameplay Toolbox, p. 197 (Assassin’s Blood)",
-   "kind": "poison-delivery",
+   "kind": "affliction",
    "implemented": false
   },
   {
@@ -1591,7 +1606,7 @@
    "name": "Inhaled Poison",
    "tag": null,
    "reference": "Gameplay Toolbox, p. 197 (Burnt Othur Fumes)",
-   "kind": "poison-delivery",
+   "kind": "affliction",
    "implemented": false
   },
   {
@@ -1599,7 +1614,7 @@
    "name": "Injury Poison",
    "tag": null,
    "reference": "Gameplay Toolbox, p. 198 (Purple Worm Poison)",
-   "kind": "poison-delivery",
+   "kind": "affliction",
    "implemented": false
   },
   {
@@ -1615,7 +1630,7 @@
    "name": "Magical Contagion",
    "tag": null,
    "reference": "Gameplay Toolbox, p. 194 (Cackle Fever)",
-   "kind": "effect",
+   "kind": "affliction",
    "implemented": false
   },
   {
@@ -1635,8 +1650,8 @@
    "implemented": false
   },
   {
-   "id": "reroll-a-natural-one",
-   "name": "Natural 1 Rerolled, New Result Binding",
+   "id": "die-replacement",
+   "name": "Rolled Die Replaced, New Roll Binding",
    "tag": null,
    "reference": "Character Origins, p. 86 (Halfling)",
    "kind": "test-modifier",
@@ -1801,6 +1816,13 @@
    "tag": null,
    "reference": "Rules Glossary, p. 182",
    "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "heroic-inspiration",
+   "name": "Heroic Inspiration",
+   "tag": null,
+   "reference": "Rules Glossary, p. 183",
+   "reason": "Mechanical, but not a separate shape: it is the document's own name for one instance of `die-replacement`, differing from Halfling Luck and Wish in trigger and cost rather than in mechanism. Decision 0013, Q5."
   },
   {
    "id": "magical-effect",

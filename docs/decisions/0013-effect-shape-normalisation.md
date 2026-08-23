@@ -1,14 +1,11 @@
-# draft-0013 — The effect-shape vocabulary normalises on mechanism, not on the feature that exhibits it
+# 0013 — The effect-shape vocabulary normalises on mechanism, not on the feature that exhibits it
 
-- **Status:** DRAFT — evidence workup for review. Not accepted; four of the five questions have a
-  defensible answer either way and the calls are the maintainer's. Filed under `draft-0013` rather
-  than `0013` because a number is allocated on acceptance; renaming to `0013-…` is part of accepting
-  it, and the decisions index records the reservation.
+- **Status:** Accepted, 2026-08-23
 - **Settles:** [#76](https://github.com/eddiefiggie/srd-rules-engine/issues/76)
 - **Requirements:** R17 · touches R31, R32
 - **Related:** [0003 — seed and verification](0003-seed-and-verification.md), whose rule governs
-  every citation below; [#78](https://github.com/eddiefiggie/srd-rules-engine/issues/78) depends on
-  Q5's answer for the number of callers its API seam must serve
+  every citation below; [#78](https://github.com/eddiefiggie/srd-rules-engine/issues/78) took Q5's
+  answer for the number of callers its API seam must serve, and shipped before this was accepted
 
 ## Context
 
@@ -47,6 +44,20 @@ monster patterns against **whole stat-block text**, and a stat block spans pages
 Air Elemental at p. 258 and its Whirlwind trait is printed on p. 259. A page-scoped search reports a
 false miss. The citation is correct; a naive re-check is not.
 
+### Three mechanics that acceptance forced
+
+The draft recommended merges without saying how a merged shape carries a citation, which the data
+model allows only one of. Settling that is part of settling the questions:
+
+1. **A merged shape cites the exemplar that appears earliest in the document**, because that is
+   where a reader first meets the mechanism. The other exemplars become content, which is the
+   shape-versus-content line the sweeps already draw.
+2. **Where the document's own Rules Glossary names one instance of a merged mechanism, that entry
+   moves to `vocabulary` with a reason of its own** — naming which shape subsumes it. It is not
+   dropped, because silent omission is the failure R17 exists to name.
+3. **The criteria move into the artifact.** Q2's finding is that a rule applied across eleven
+   sweeps while living only in generator comments is not a record. `criteria` is now a field.
+
 ---
 
 ## Q1 — Three recharge shapes
@@ -68,7 +79,7 @@ The rest rules do not describe *how much* is regained or *when* — they say the
 description settles it. Magic-item charges are introduced once as a general mechanism on p. 206;
 "1d3 at dawn" is Cloak of Invisibility's own text, not a rule about dawn.
 
-### Recommendation — **merge into one `resource-recharge`, parameterised by trigger**
+### Decision — **merged into one `resource-recharge`, parameterised by trigger**
 
 The three differ only in a trigger value (`die-roll-at-turn-start`, `dawn`, `short-rest` /
 `long-rest`) and a quantity. The document itself treats the trigger as a per-feature parameter
@@ -112,7 +123,7 @@ The state axis asks instead: **does the shape name a mechanical change to state 
 Ability scores: yes. XP-to-level thresholds: no — the engine holds a level, and the threshold table
 is the procedure for arriving at one, resolved by no engine operation.
 
-### Recommendation — **restate on the state axis; admit `ability-score-increase`; keep Level Advancement excluded; `split-movement` stays**
+### Decision — **restated on the state axis; `ability-score-increase` admitted; Level Advancement stays excluded; `split-movement` stays**
 
 The repair is the mechanical one #76 already names: one `ability-score-increase` entry cited to
 Boon of Combat Prowess, p. 88. `split-movement` survives on either axis — it is resolved during a
@@ -142,7 +153,7 @@ success, at the holder's choice.* They differ in the test kind (attack roll / sa
 the usage budget (once per turn / 3 per day, 4 in lair). Both differences are parameters that other
 shapes already carry.
 
-### Recommendation — **merge into one shape, named for the mechanism**
+### Decision — **merged into one shape, named for the mechanism**
 
 Something like `failed-test-overridden-to-success`, parameterised by test kind. #76's own diagnosis
 is confirmed: `legendary-resistance` is named after the monster feature that exhibits the mechanic
@@ -166,7 +177,7 @@ genuine granularity trade-off.
 | 197 | `Poisons come in the following four types` | The four types are an explicitly enumerated closed set, in their own subsection, each with its own exposure rule |
 | 194 | `Magical Contagions` … `If a creature infected with a magical contagion spends 3 days recuperating` | Contagions get **one shared mechanic** (Rest and Recuperation, a DC 15 Constitution save), then named instances |
 
-### Recommendation — **keep both as they are; record the criterion**
+### Decision — **both kept as they are; the criterion is recorded in the artifact**
 
 This is the question where the evidence contradicts the issue. The two treatments are not
 inconsistent — they mirror an asymmetry in the document. The SRD itself enumerates poison's four
@@ -201,7 +212,7 @@ list among them but #78 does.
 | 175 (Wish) | `forcing a reroll of any die roll made within the last round` · `You can force the reroll to be made with Advantage or Dis` | Replace another creature's die · retroactive within a round · **and may impose Advantage/Disadvantage on the replacement** |
 | 87 (Savage Attacker) | `you can roll the weapon's damage dice twice and use either roll against the target` | Roll **damage dice** twice up front · **choose either** · nothing is replaced |
 
-### Recommendation — **the family is three, not four, and it is wrong in both directions**
+### Decision — **the family is three, not four, and becomes one parameterised shape**
 
 **`roll-twice-take-either` is not a reroll.** Savage Attacker rolls damage dice — not a d20 test —
 twice up front and lets you choose. Both results exist simultaneously and the result is not binding.
@@ -214,15 +225,23 @@ It belongs to Q3.
 
 **The genuine family is Halfling Luck, Heroic Inspiration, and Wish**, which share "an already-rolled
 die is replaced, and the replacement is binding" and differ in trigger, cost, whose die, and how far
-back. Whether that becomes one parameterised shape or stays three is the open call; the evidence
-says these three and only these three are the candidates.
+back. They become **one `die-replacement`**, parameterised on those four axes, cited to Halfling
+(Character Origins, p. 86) as the earliest exemplar. Wish's Forced Reroll is declined as expressible
+by it. Heroic Inspiration is a Rules Glossary entry, so by mechanic 2 above it moves to `vocabulary`
+carrying a reason that names `die-replacement` — the document's own word for one instance of the
+mechanism, kept visible rather than dropped.
 
-### This is the answer #78 is waiting on
+`#81` is the argument that closed this. It shipped `replace_die`, **one** seam serving all three
+callers, so a single shape is what the engine actually exposes; three shapes would have described a
+distinction the implementation does not make.
 
-#78 asks how many callers its API seam must serve. On this reading: **three**, and Wish sets the
-hardest requirement — the replacement die may itself be rolled with Advantage or Disadvantage, so the
-seam cannot simply return a single substitute value. That constraint is not visible from the other
-two and would likely have been missed by designing the seam against Heroic Inspiration alone.
+### This was the answer #78 was waiting on
+
+#78 asked how many callers its API seam must serve. Three — and Wish set the hardest requirement,
+since the replacement die may itself be rolled with Advantage or Disadvantage, so the seam cannot
+return a single substitute value. That constraint is invisible from the other two and would have
+been missed by designing against Heroic Inspiration alone. #78 shipped on this reading in #81,
+before this record was accepted; that ordering was deliberate and is noted in its PR.
 
 ---
 
@@ -233,18 +252,22 @@ which only ever adds. The Feats sweep recorded in its own generator comment that
 its roll "as a penalty as well as a bonus, which that entry does not currently say." Rename toward
 direction-neutrality — the mechanism is *a rolled die applied to a d20 test in either direction*.
 
-**`kind` should become a closed vocabulary with a guard.** 19 values, no check, drifted by four while
-#76 was open. Two conflations are worth fixing in the same pass rather than freezing:
+**`kind` is now a closed vocabulary with a guard, on one axis.** 19 values, no check, drifted by
+four while #76 was open. `KIND_VALUES` closes it, the generator refuses to emit a stray value, and
+`tests/test_effect_shape_inventory.py` checks the published artifact in **both** directions — a
+one-way check would let a retired value sit in the declaration forever, which is the same drift
+running backwards. Both directions were seen red before being trusted.
 
-- `kind` currently mixes *what the shape is* with *what it applies to*. `heroic-inspiration` is
-  `resource` while `reroll-a-natural-one` is `test-modifier`, though Heroic Inspiration is both — a
-  resource you expend *and* a die replacement. One axis cannot carry both.
-- `poison-delivery` is a one-section kind serving four shapes, where `magical-contagion` — its
-  structural peer — is `effect` (Q4).
+The Q4 defect is fixed with it: `poison-delivery` becomes `affliction`, and `magical-contagion` —
+its structural peer, previously `effect` — takes the same kind.
 
-If a closed enum is adopted, the guard belongs in `tests/test_effect_shape_inventory.py`, which
-currently checks ids, citations, sections, and the mastery set, but never `kind`. Per the standing
-rule, corrupt a `kind` value and confirm the new guard goes red before trusting it.
+**The two-axis question is deliberately not settled here.** `kind` still mixes *what a shape is*
+with *what it applies to*: Heroic Inspiration was `resource` while `reroll-a-natural-one` was
+`test-modifier`, though the mechanism is both a resource you expend and a die replacement. Q5's merge
+removes that particular collision, but not the conflation behind it. Splitting `kind` into two fields
+would re-classify all 211 shapes and change the schema, so it is a decision of its own rather than
+something to settle in passing — and closing the enum now stops the drift while it waits. Filed as
+[#84](https://github.com/eddiefiggie/srd-rules-engine/issues/84).
 
 **`damage-reduction` vs `resistance` — keep separate.** Resistance halves (a rule that needs no
 roll); Goliath's Stone's Endurance subtracts a rolled amount (a rule that requires one). A shape that
@@ -253,18 +276,19 @@ downstream.
 
 ---
 
-## If all recommendations are taken
+## What changed
 
 | Question | Change | Net shapes |
 |---|---|---|
-| Q1 | 3 recharge → 1 | −2 |
+| Q1 | 3 recharge → 1 `resource-recharge` | −2 |
 | Q2 | admit `ability-score-increase` | +1 |
-| Q3 | 2 override → 1 | −1 |
-| Q4 | no shape change; fix one `kind` | 0 |
-| Q5 | no count change; reclassify 2 out of the family | 0 |
+| Q3 | 2 override → 1 `failed-test-overridden-to-success` | −1 |
+| Q4 | no shape change; `poison-delivery` → `affliction`, and `magical-contagion` joins it | 0 |
+| Q5 | 3 reroll shapes → 1 `die-replacement`; Heroic Inspiration → `vocabulary` | −2 |
 
-**215 → 213**, plus one rename (`bonus-die-on-roll`), one merge-rename (`legendary-resistance` →
-mechanism name), a closed `kind` enum with a guard, and one regeneration of `effect_shapes.json`.
+**215 → 211**, 17 still implemented, `vocabulary` 19 → 20. Plus one rename
+(`bonus-die-on-roll` → `die-applied-to-a-roll`), a closed `kind` enum guarded in both the generator
+and the artifact, a `criteria` block in the data, and one regeneration.
 
 ## Consequences
 
@@ -274,15 +298,21 @@ mechanism name), a closed `kind` enum with a guard, and one regeneration of `eff
   enumerated parameter, so an inexpressible trigger still earns its own shape.
 - Q2's state axis is broader than the API axis and will admit shapes the engine cannot resolve.
   That is what `implemented: false` is for.
-- Two shape ids change meaning. Free today because both are unimplemented; not free after #15–#20.
+- Seven shape ids change or retire. Free today because none of them are implemented — 17 of 211
+  are, and none appear here — and not free after #15–#20 land against these names.
+- A merged shape now cites one exemplar where two or three features exhibit it. The others are
+  content, findable through the decision rather than through the inventory.
 
 **Follow-on effects.**
 
-- #78 can proceed once Q5 is settled, with three callers and Wish as the binding constraint.
-- The Q2 criterion, once restated, should be recorded in the artifact — a second `vocabulary` reason
-  or an `excluded` block — so it is visible to a consumer rather than only to a reader of the
-  generator.
-- `effect_shapes.json` is regenerated once, per #76's batching argument.
+- The two-axis `kind` question is left open, above, and filed as
+  [#84](https://github.com/eddiefiggie/srd-rules-engine/issues/84). It wants its own record.
+- `criteria` and `kind_values` are new top-level fields. The loader reads named fields only, so
+  older readers ignore them and `compat` is unchanged.
+- Anything citing a retired id — `recharge`, `daily-recharge`, `rest-recharge`,
+  `legendary-resistance`, `miss-becomes-hit`, `reroll`, `reroll-a-natural-one`,
+  `bonus-die-on-roll`, `heroic-inspiration` — is now citing something that does not exist. Nothing
+  in the engine does; this record is the map for anything outside it.
 
 ## Evidence
 
@@ -303,6 +333,8 @@ printed on p. 259. Any re-check of a monster citation must match the block, not 
 
 ## Status of implementation
 
-**None.** No shape named in this record is implemented — 17 of 215 are, and none of them appear
-here. Nothing in the engine changes when it is accepted; `effect_shapes.json` is regenerated and
-`KINDS` is edited.
+**Implemented with this record.** `effect_shapes.json` is regenerated (211 shapes, 17 implemented,
+20 vocabulary), `KINDS` and `KIND_VALUES` are edited, and three guards are added to
+`tests/test_effect_shape_inventory.py` — each seen red before being trusted. No engine behaviour
+changes: none of the shapes touched here is implemented, and the seam their callers need shipped
+separately in #81.
