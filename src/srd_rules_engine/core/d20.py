@@ -112,6 +112,18 @@ CRITICAL_VERIFICATION: Final = Verification(
     date="2026-08-23",
 )
 
+#: R31. The ways a resolved d20 test can still move: a flat bonus on both rolls, dice
+#: applied afterwards in either direction, and a failure overridden to a success.
+MODIFIER_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference=(
+        "SRD v5.2.1, Magic Items, Berserker Axe p. 213; Classes, Bardic Inspiration "
+        "p. 32; Feats, Boon of Fate p. 88 and Boon of Combat Prowess p. 88; Monsters, "
+        "Aboleth p. 258"
+    ),
+    date="2026-08-23",
+)
+
 #: The width of the hash slice a single die consumes.
 _BITS: Final = 32
 
@@ -134,9 +146,30 @@ REPLACEMENT_OFFSET: Final = 200
 #: with Advantage or Disadvantage (Wish, p. 175).
 _REPLACEMENT_STRIDE: Final = 2
 
-#: `die` packs the index into two bytes, which bounds how many times one roll can be
-#: rerolled. The bound is far past any real sequence and is checked rather than assumed.
-_MAX_GENERATION: Final = (2**16 - REPLACEMENT_OFFSET) // (_REPLACEMENT_STRIDE * 2) - 1
+#: How many times one roll may be replaced. Bounded so the replacement band *ends*, which
+#: is what lets another band start above it — an unbounded band leaves no room for a
+#: neighbour and is the shape of the problem #82 describes. Sixteen is far past any real
+#: sequence: the document's rerolls cost a resource each.
+_MAX_GENERATION: Final = 16
+
+#: Where dice applied to an already-resolved roll start. Bardic Inspiration (p. 32) and
+#: Boon of Fate (p. 88) both roll dice *after* the d20 and apply the total to it.
+ADJUSTMENT_OFFSET: Final = 300
+
+#: The most dice one adjustment may roll, and so the width of a generation's block.
+MAX_ADJUSTMENT_DICE: Final = 8
+_MAX_ADJUSTMENTS: Final = 16
+
+# The seed's index bands, in one place rather than as constants a reader must compare:
+#
+#     0   - 1     the d20 itself, one die or two
+#     100 - 199   damage (DAMAGE_OFFSET)
+#     200 - 267   replacements, 16 generations of 4 (REPLACEMENT_OFFSET)
+#     300 - 427   adjustments, 16 generations of 8 (ADJUSTMENT_OFFSET)
+#
+# Nothing enforces that a caller stays inside its band — `roll` still takes an arbitrary
+# `count` and `offset`, which is #82. Bounding the two upper bands is what makes them
+# finite enough to sit next to each other at all.
 
 
 class TestKind(StrEnum):
@@ -145,6 +178,46 @@ class TestKind(StrEnum):
     CHECK = "ability-check"
     SAVE = "saving-throw"
     ATTACK = "attack-roll"
+
+
+@dataclass(frozen=True)
+class Adjustment:
+    """Dice rolled after the d20 and applied to it.
+
+    Bardic Inspiration (p. 32) adds; Boon of Fate (p. 88) "apply the total rolled as a
+    bonus **or penalty**", which is why `penalty` exists rather than the caller passing a
+    negative count. The dice are kept, because R5 wants the arithmetic shown.
+    """
+
+    dice: tuple[int, ...]
+    value: int
+    penalty: bool
+    source: str
+
+    def __post_init__(self) -> None:
+        if not self.source:
+            raise ValueError("an adjustment names its source, or the total cannot be read")
+
+    @property
+    def applied(self) -> int:
+        """Signed, as it lands on the total."""
+        return -self.value if self.penalty else self.value
+
+
+@dataclass(frozen=True)
+class Override:
+    """A failed test made to succeed, without touching a die.
+
+    Peerless Aim (p. 88) — "When you miss with an attack roll, you can hit instead" — and
+    Legendary Resistance (p. 258) — "If the aboleth fails a saving throw, it can choose to
+    succeed instead". One shape since decision 0013; the test kind is the only difference.
+    """
+
+    source: str
+
+    def __post_init__(self) -> None:
+        if not self.source:
+            raise ValueError("an override names what granted it; otherwise it is an assertion")
 
 
 class Critical(StrEnum):
@@ -247,6 +320,10 @@ class D20Result:
     critical: Critical = Critical.NONE
     #: Applied in order. Empty for a roll nothing has rerolled, which is almost all of them.
     replacements: tuple[Replacement, ...] = ()
+    #: Dice applied to the roll after it resolved, in order.
+    adjustments: tuple[Adjustment, ...] = ()
+    #: Set when a failed test was overridden to a success.
+    override: Override | None = None
 
     @property
     def modifier_total(self) -> int:
@@ -264,8 +341,16 @@ class D20Result:
         """The arithmetic in one line, in the order the modifiers were supplied."""
         parts = [str(self.used)]
         parts += [f"{m.value:+d} ({m.source})" for m in self.modifiers]
+        parts += [f"{a.applied:+d} ({a.source})" for a in self.adjustments]
         outcome = "meets or beats" if self.succeeded else "falls short of"
-        return f"{' '.join(parts)} = {self.total}, {outcome} {self.target} ({self.target_basis})"
+        line = f"{' '.join(parts)} = {self.total}, {outcome} {self.target} ({self.target_basis})"
+        if self.override is not None:
+            line += f" — overridden to a success by {self.override.source}"
+        elif self.critical is Critical.HIT:
+            line += " — natural 20, hits regardless"
+        elif self.critical is Critical.MISS:
+            line += " — natural 1, misses regardless"
+        return line
 
 
 def resolve(test: D20Test, *, seed: int) -> D20Result:
@@ -290,7 +375,7 @@ def resolve(test: D20Test, *, seed: int) -> D20Result:
         effective=effective,
         modifiers=test.modifiers,
         total=total,
-        succeeded=_succeeded(total, test.target, critical),
+        succeeded=_outcome(total, test.target, critical, None),
         critical=critical,
     )
 
@@ -316,8 +401,17 @@ def _critical(kind: TestKind, used: int) -> Critical:
     return Critical.NONE
 
 
-def _succeeded(total: int, target: int, critical: Critical) -> bool:
-    """A natural 20 or 1 settles an attack before the arithmetic is consulted."""
+def _outcome(total: int, target: int, critical: Critical, override: Override | None) -> bool:
+    """Whether the test succeeded, with the things that outrank arithmetic applied first.
+
+    Order matters and is the document's rather than convenient. An override is a decision
+    to succeed and nothing later un-makes it. A natural 20 or 1 then settles an attack
+    "regardless of any modifiers" (p. 7) — so a die applied to a natural 1 raises the
+    total and the attack still misses, which is the clause doing real work rather than
+    decorating the docstring.
+    """
+    if override is not None:
+        return True
     if critical is Critical.HIT:
         return True
     if critical is Critical.MISS:
@@ -366,6 +460,74 @@ def _pick(dice: tuple[int, ...], effective: Advantage) -> int:
     if effective is Advantage.DISADVANTAGE:
         return min(dice)
     return dice[0]
+
+
+def adjust_roll(
+    result: D20Result,
+    *,
+    count: int,
+    sides: int,
+    source: str,
+    penalty: bool = False,
+) -> D20Result:
+    """Roll dice and apply their total to a d20 test that has already resolved (R4, R5).
+
+    Bardic Inspiration (p. 32): when a creature "fails a D20 Test, the creature can roll
+    the Bardic Inspiration die and add the number rolled to the d20, potentially turning
+    the failure into a success". Boon of Fate (p. 88) is the same shape in either
+    direction — "apply the total rolled as a bonus or penalty to the d20 roll" — which is
+    what `penalty` is for.
+
+    Applied *after* the roll on purpose. Both features let the holder see the result before
+    spending the resource, so folding these into `D20Test.modifiers` would resolve them a
+    step too early and lose the choice the rules give.
+
+    A natural 1 on an attack still misses. p. 7 says so "regardless of any modifiers", and
+    a die applied afterwards is a modifier — so the total rises and the attack does not
+    land. That is the rule, not an oversight.
+    """
+    if not source:
+        raise ValueError("an adjustment names its source, or the total cannot be read")
+    if not 1 <= count <= MAX_ADJUSTMENT_DICE:
+        raise ValueError(
+            f"an adjustment rolls between 1 and {MAX_ADJUSTMENT_DICE} dice, not {count}"
+        )
+
+    generation = len(result.adjustments) + 1
+    if generation > _MAX_ADJUSTMENTS:
+        raise ValueError(f"a roll cannot be adjusted more than {_MAX_ADJUSTMENTS} times")
+
+    base = ADJUSTMENT_OFFSET + (generation - 1) * MAX_ADJUSTMENT_DICE
+    rolled = tuple(die(result.seed, base + n, sides) for n in range(count))
+    adjustment = Adjustment(dice=rolled, value=sum(rolled), penalty=penalty, source=source)
+
+    total = result.total + adjustment.applied
+    return replace(
+        result,
+        total=total,
+        succeeded=_outcome(total, result.target, result.critical, result.override),
+        adjustments=(*result.adjustments, adjustment),
+    )
+
+
+def override_to_success(result: D20Result, *, source: str) -> D20Result:
+    """Make a failed test succeed, without touching a die (R5).
+
+    One shape since decision 0013, because Peerless Aim and Legendary Resistance are the
+    same sentence with the test kind changed: a failed d20 test overridden to a success at
+    the holder's choice.
+
+    Refuses a test that already succeeded. Both features are written as a response to
+    failing — "When you miss", "If the aboleth fails a saving throw" — so overriding a
+    success is not a no-op, it is a record of something that never happened.
+    """
+    if result.succeeded:
+        raise ValueError(
+            "only a failed test is overridden to a success. Recording one against a test "
+            "that already succeeded would put a use of the feature in the ledger that the "
+            "rules never called for"
+        )
+    return replace(result, succeeded=True, override=Override(source=source))
 
 
 def _replacement_index(generation: int, position: int) -> int:
@@ -428,7 +590,7 @@ def replace_die(
         dice=tuple(dice),
         used=used,
         total=total,
-        succeeded=_succeeded(total, result.target, critical),
+        succeeded=_outcome(total, result.target, critical, result.override),
         critical=critical,
         replacements=(
             *result.replacements,

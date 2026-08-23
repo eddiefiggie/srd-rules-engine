@@ -40,7 +40,7 @@ from srd_rules_engine.core import (
     read,
 )
 from srd_rules_engine.core.adjudicate import _apply, _roll_declared
-from srd_rules_engine.core.d20 import DAMAGE_OFFSET, roll
+from srd_rules_engine.core.d20 import DAMAGE_OFFSET, D20Test, roll
 from srd_rules_engine.memory.store import JsonMemoryStore
 
 STRIKE = Rule(
@@ -533,3 +533,46 @@ def test_the_bounds_forbid_asserting_a_death_or_a_different_number(tmp_path: Pat
     forbidden = " ".join(ruling.bounds.may_not).lower()
     assert "dead" in forbidden
     assert "damage number" in forbidden
+
+
+# --- A weapon's numeric bonus reaches both rolls (#15) -------------------------------
+
+
+def test_a_weapon_bonus_reaches_the_attack_roll_and_the_damage_roll() -> None:
+    """Magic Items p. 213, Berserker Axe: "a +1 bonus to attack rolls **and** damage rolls
+    made with this magic weapon".
+
+    Both halves are asserted because a bonus that reached only the attack would be
+    invisible in every hit that lands — the damage would simply be one lower than the
+    rules say, in a number nobody has anything to compare against.
+    """
+    plain = attack_resolver(Weapon(name="axe", damage_dice=1, damage_sides=12))
+    magic = attack_resolver(Weapon(name="axe +1", damage_dice=1, damage_sides=12, bonus=1))
+
+    state = encounter()
+    declaration = Declaration(
+        actor_id="pc", intent=Intent(action_key="attack:boar"), rule_id="attack"
+    )
+    without = plain(state=state, declaration=declaration, facts={})
+    with_bonus = magic(state=state, declaration=declaration, facts={})
+
+    def modifier_total(test: D20Test) -> int:
+        return sum(m.value for m in test.modifiers)
+
+    assert modifier_total(with_bonus.test) == modifier_total(without.test) + 1
+    assert any("bonus" in m.source for m in with_bonus.test.modifiers)
+
+    assert with_bonus.on_success[0].modifier == without.on_success[0].modifier + 1  # type: ignore[union-attr]
+
+
+def test_a_weapon_without_a_bonus_adds_no_modifier_at_all() -> None:
+    """A zero bonus is absent rather than recorded as +0, so the derivation stays readable."""
+    plain = attack_resolver(Weapon(name="axe", damage_dice=1, damage_sides=12))
+    proposal = plain(
+        state=encounter(),
+        declaration=Declaration(
+            actor_id="pc", intent=Intent(action_key="attack:boar"), rule_id="attack"
+        ),
+        facts={},
+    )
+    assert not any("bonus" in m.source for m in proposal.test.modifiers)

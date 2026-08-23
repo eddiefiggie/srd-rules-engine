@@ -56,6 +56,11 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # Death saving throws and what follows them (#15).
         "death-saving-throw": "core.death.death_save_resolver",
         "stable": "core.state.DeathSaves.stable",
+        # Modifiers applied to a d20 test, and the two ways a resolved one can move (#15).
+        "numeric-bonus": "core.combat.Weapon.bonus",
+        "die-applied-to-a-roll": "core.d20.adjust_roll",
+        "die-replacement": "core.d20.replace_die",
+        "failed-test-overridden-to-success": "core.d20.override_to_success",
         "ability-check": f"core.d20.TestKind.{TestKind.CHECK.name}",
         "saving-throw": f"core.d20.TestKind.{TestKind.SAVE.name}",
         "save": f"core.d20.TestKind.{TestKind.SAVE.name}",

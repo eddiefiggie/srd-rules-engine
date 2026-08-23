@@ -1303,7 +1303,7 @@
    "tag": null,
    "reference": "Magic Items, p. 213 (Berserker Axe)",
    "kind": "test-modifier",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "spell-cast-from-item",
@@ -1503,7 +1503,7 @@
    "tag": null,
    "reference": "Classes, p. 31 (Bardic Inspiration)",
    "kind": "test-modifier",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "conditional-extra-damage",
@@ -1543,7 +1543,7 @@
    "tag": null,
    "reference": "Feats, p. 88 (Boon of Combat Prowess)",
    "kind": "test-modifier",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "ignore-resistance",
@@ -1655,7 +1655,7 @@
    "tag": null,
    "reference": "Character Origins, p. 86 (Halfling)",
    "kind": "test-modifier",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "shortened-long-rest",
