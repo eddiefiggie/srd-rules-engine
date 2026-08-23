@@ -6,6 +6,32 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.11`
+
+The d20 advantage rules are verified against SRD v5.2.1. They were machinery the M1 plan asserted;
+they are now read off the document, with the citation carried in code and re-checkable against the
+PDF. Closes #52.
+
+- **The semantics were already correct.** Two dice taking the higher, disadvantage taking the
+  lower, and the two cancelling to a single plain roll — all confirmed verbatim. Four of the five
+  new tests therefore pass against the pre-change tree, which is the honest result for
+  verification work rather than a sign they cover nothing.
+- **Cancellation is presence-based, not count-based**, which is the question #52 raised and the
+  one a reasonable implementer gets wrong. The document rules it out in terms: the roll has
+  neither state "even if multiple circumstances impose Disadvantage and only one grants Advantage
+  or vice versa". `D20Test` carries two booleans rather than two counters, so the count-based
+  reading is unrepresentable rather than merely untaken.
+- **The unused die is not discarded.** Anything that lets you reroll or replace the d20 replaces
+  "only one die, not both. You choose which one." — so the pair stays individually addressable.
+  `dice` carrying both is a requirement, and now has a test saying so.
+- **`ADVANTAGE_VERIFICATION`** carries the sections and the date, reusing the `Verification`
+  block R31 already defines rather than inventing a second provenance vocabulary.
+- **`scripts/verify_d20_rules.py`** re-checks all ten cited sentences against the PDF, so a dated
+  claim cannot go stale unnoticed. It caught a wrong page number on its first run — the glossary
+  Disadvantage entry is on printed p. 181, not p. 180.
+- **Disclosed and filed:** the primitive cannot yet reroll or replace one die of a pair, which
+  every reroll shape in the inventory will need. #78.
+
 ## Unreleased — 2026-08-23 — build `08232026.10`
 
 The Character Creation sweep — every rules section of SRD v5.2.1 is now covered. 215 shapes, 17

@@ -13,6 +13,7 @@ outcomes is not a defect anyone would find by inspection.
 
 from __future__ import annotations
 
+import dataclasses
 import subprocess
 import sys
 from collections import Counter
@@ -20,6 +21,7 @@ from collections import Counter
 import pytest
 
 from srd_rules_engine.core.d20 import (
+    ADVANTAGE_VERIFICATION,
     DIE_SIDES,
     Advantage,
     D20Test,
@@ -28,6 +30,7 @@ from srd_rules_engine.core.d20 import (
     die,
     resolve,
 )
+from srd_rules_engine.core.rules import VerificationState
 
 STRENGTH = Modifier(source="ability:strength", value=3)
 PROFICIENCY = Modifier(source="proficiency", value=2)
@@ -317,3 +320,88 @@ def test_the_raw_dice_are_returned_alongside_the_total() -> None:
     assert result.dice
     assert result.used in result.dice
     assert result.total == result.used + 3
+
+
+# --- What the document says, checked against what the primitive does ------------------
+#
+# #52 asked four questions about the advantage rules, which until now were machinery the
+# M1 plan asserted rather than behaviour read off SRD v5.2.1. These encode the answers.
+# `scripts/verify_d20_rules.py` checks the other half — that the cited sentences still say
+# what these tests assume — against the document, which CI does not carry.
+
+
+def test_the_advantage_semantics_carry_a_verified_citation() -> None:
+    """R31: SRD-derived machinery names what it was checked against, or it is not trusted."""
+    assert ADVANTAGE_VERIFICATION.state is VerificationState.VERIFIED
+    assert ADVANTAGE_VERIFICATION.reference is not None
+    assert "SRD v5.2.1" in ADVANTAGE_VERIFICATION.reference
+    # The pages the sentences actually sit on. A citation naming the wrong page is the
+    # defect scripts/verify_d20_rules.py caught on its first run against the document.
+    for cited in ("pp. 7-8", "p. 176", "p. 181"):
+        assert cited in ADVANTAGE_VERIFICATION.reference
+
+
+def test_the_documents_own_worked_example_resolves_as_it_says() -> None:
+    """p. 8: "if you have Disadvantage and roll an 18 and a 3, use the 3. If you instead
+    have Advantage and roll those numbers, use the 18."
+
+    The seed search finds a real pair rather than stubbing the dice, so this exercises the
+    same path a ruling takes.
+    """
+    seed = next(
+        s
+        for s in range(10_000)
+        if sorted(resolve(check(has_advantage=True), seed=s).dice) == [3, 18]
+    )
+
+    assert resolve(check(has_disadvantage=True), seed=seed).used == 3
+    assert resolve(check(has_advantage=True), seed=seed).used == 18
+
+
+def test_cancellation_is_presence_based_rather_than_count_based() -> None:
+    """p. 8: the roll has neither state "even if multiple circumstances impose
+    Disadvantage and only one grants Advantage or vice versa".
+
+    This is the question #52 raised, and the reading it rules out — that four sources of
+    Disadvantage against one of Advantage leaves you with Disadvantage — is the one a
+    reasonable implementer would reach for. It is unrepresentable here: the test carries
+    two booleans rather than two counters, so a caller cannot state a count for the
+    engine to get wrong. That is asserted as a property of the type, not just of a roll.
+    """
+    fields = {f.name for f in dataclasses.fields(D20Test)}
+    assert {"has_advantage", "has_disadvantage"} <= fields
+    for name in ("has_advantage", "has_disadvantage"):
+        assert D20Test.__annotations__[name] == "bool"
+
+    both = resolve(check(has_advantage=True, has_disadvantage=True), seed=11)
+    assert both.effective is Advantage.NONE
+    assert len(both.dice) == 1
+
+
+def test_sources_on_the_same_side_do_not_accumulate_into_more_dice() -> None:
+    """p. 8: "If multiple situations affect a roll and they all grant Advantage on it, you
+    still roll only two d20s." Two is the ceiling as well as the floor.
+    """
+    for state in ({"has_advantage": True}, {"has_disadvantage": True}):
+        assert len(resolve(check(**state), seed=11).dice) == 2
+
+
+def test_both_dice_are_retained_so_neither_can_be_called_the_discarded_one() -> None:
+    """p. 8, Interactions with Rerolls: something that lets you reroll or replace the d20
+    replaces "only one die, not both. You choose which one."
+
+    So the pair is individually addressable and the unused die is not spent. Recording
+    only `used` would foreclose every reroll shape in the inventory (#78). This guards the
+    record rather than the arithmetic, which is why it is separate from the tests above.
+    """
+    result = resolve(check(has_advantage=True), seed=11)
+    assert len(result.dice) == 2
+    assert result.used in result.dice
+
+    remaining = list(result.dice)
+    remaining.remove(result.used)
+    assert remaining == [min(result.dice)], "the die that lost is still on the record"
+
+    # And it is a real second die, not a copy of the one that counted. A pair that always
+    # agreed would satisfy every assertion above while making a reroll meaningless.
+    assert any(len(set(resolve(check(has_advantage=True), seed=s).dice)) == 2 for s in range(50))
