@@ -61,6 +61,11 @@ class Weapon:
     damage_sides: int
     ability: str = "str"
     proficient: bool = True
+    #: A flat bonus that reaches **both** rolls. Berserker Axe (Magic Items, p. 213) is
+    #: the inventory's exemplar: "a +1 bonus to attack rolls and damage rolls made with
+    #: this magic weapon". Applying it to only one of the two is the mistake worth
+    #: guarding, because an attack-only bonus is invisible in every hit that lands.
+    bonus: int = 0
 
 
 def initiative_order(
@@ -99,6 +104,8 @@ def attack_resolver(weapon: Weapon) -> Resolver:
         modifiers = [Modifier(source=f"ability:{weapon.ability}", value=ability)]
         if weapon.proficient:
             modifiers.append(Modifier(source="proficiency", value=actor.proficiency_bonus))
+        if weapon.bonus:
+            modifiers.append(Modifier(source=f"{weapon.name} bonus", value=weapon.bonus))
 
         return Proposal(
             test=D20Test(
@@ -112,7 +119,10 @@ def attack_resolver(weapon: Weapon) -> Resolver:
                     target_id=target_id,
                     count=weapon.damage_dice,
                     sides=weapon.damage_sides,
-                    modifier=ability,
+                    # The same bonus, on the other roll. p. 213 says "attack rolls **and**
+                    # damage rolls", so a weapon bonus reaching only the attack would be
+                    # half a rule — and the half nobody notices.
+                    modifier=ability + weapon.bonus,
                     source=weapon.name,
                 ),
             ),

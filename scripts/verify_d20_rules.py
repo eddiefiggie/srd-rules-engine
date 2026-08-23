@@ -188,6 +188,32 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"damage, it stops being Stable",
     ),
     (
+        213,
+        "a weapon bonus applies to attack rolls AND damage rolls, not one of them",
+        r"You gain a \+1 bonus to attack rolls and damage rolls made with this magic weapon",
+    ),
+    (
+        32,
+        "a die may be rolled after a failed test and added to the d20",
+        r"the creature can roll the Bardic Inspiration die and add the number rolled to "
+        r"the d20, potentially turning the failure into a success",
+    ),
+    (
+        88,
+        "the same shape applies as a bonus OR a penalty",
+        r"you can roll 2d4 and apply the total rolled as a bonus or penalty to the d20 roll",
+    ),
+    (
+        88,
+        "a missed attack may be overridden to a hit",
+        r"When you miss with an attack roll, you can hit instead",
+    ),
+    (
+        258,
+        "and a failed save to a success — the same shape, a different test kind",
+        r"If the aboleth fails a saving throw, it can choose to suc-?\s*ceed instead",
+    ),
+    (
         176,
         "the Rules Glossary states the same cancellation rule",
         r"Advantage and Dis-?\s*advantage on the same roll cancel each other",

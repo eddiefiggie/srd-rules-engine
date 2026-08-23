@@ -228,6 +228,10 @@ IMPLEMENTED_SECTION_SHAPES: frozenset[str] = frozenset(
     {
         "natural-20-auto-hit",
         "advantage-does-not-stack",
+        "numeric-bonus",
+        "die-applied-to-a-roll",
+        "die-replacement",
+        "failed-test-overridden-to-success",
     }
 )
 

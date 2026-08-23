@@ -21,18 +21,23 @@ from collections import Counter
 import pytest
 
 from srd_rules_engine.core.d20 import (
+    ADJUSTMENT_OFFSET,
     ADVANTAGE_VERIFICATION,
     CRITICAL_VERIFICATION,
     DAMAGE_OFFSET,
     DIE_SIDES,
+    MAX_ADJUSTMENT_DICE,
     REPLACEMENT_OFFSET,
     REROLL_VERIFICATION,
+    Adjustment,
     Advantage,
     Critical,
     D20Test,
     Modifier,
     TestKind,
+    adjust_roll,
     die,
+    override_to_success,
     passive_score,
     replace_die,
     resolve,
@@ -814,3 +819,144 @@ def test_the_critical_semantics_carry_their_own_verified_citation() -> None:
     )
     for cited in ("p. 7", "p. 179", "p. 186"):
         assert cited in CRITICAL_VERIFICATION.reference
+
+
+# --- Dice applied after the roll, and failures overridden (#15) ----------------------
+
+
+def test_a_die_applied_after_the_roll_can_turn_a_failure_into_a_success() -> None:
+    """p. 32, Bardic Inspiration: when a creature "fails a D20 Test, the creature can roll
+    the Bardic Inspiration die and add the number rolled to the d20, potentially turning
+    the failure into a success"."""
+    failed = next(
+        r
+        for seed in range(2000)
+        for r in [resolve(check(target=15), seed=seed)]
+        if not r.succeeded and r.total >= 9
+    )
+    adjusted = adjust_roll(failed, count=1, sides=6, source="Bardic Inspiration")
+
+    assert adjusted.total > failed.total
+    assert adjusted.adjustments[0].source == "Bardic Inspiration"
+    assert adjusted.adjustments[0].value == sum(adjusted.adjustments[0].dice)
+    assert adjusted.succeeded == (adjusted.total >= adjusted.target)
+
+
+def test_the_same_shape_applies_as_a_penalty() -> None:
+    """p. 88, Boon of Fate: "apply the total rolled as a bonus **or penalty** to the d20
+    roll". A caller passing a negative count could not express this, which is why the
+    direction is its own flag."""
+    rolled = resolve(check(target=5), seed=11)
+    worse = adjust_roll(rolled, count=2, sides=4, source="Boon of Fate", penalty=True)
+
+    assert worse.total == rolled.total - worse.adjustments[0].value
+    assert worse.adjustments[0].penalty
+    assert worse.adjustments[0].applied == -worse.adjustments[0].value
+
+
+def test_a_die_applied_to_a_natural_1_still_misses() -> None:
+    """p. 7: a natural 1 on an attack misses "regardless of any modifiers", and a die
+    applied afterwards is a modifier. The total rises and the attack does not land.
+
+    This is the clause doing real work rather than decorating a docstring — an
+    implementation that recomputed `total >= target` would quietly turn it into a hit.
+    """
+    missed = resolve(attack(target=2), seed=_seed_where(attack(target=2), 1))
+    assert missed.critical is Critical.MISS and not missed.succeeded
+
+    adjusted = adjust_roll(missed, count=8, sides=6, source="Bardic Inspiration")
+    assert adjusted.total > adjusted.target
+    assert not adjusted.succeeded, "a natural 1 misses regardless of any modifiers"
+
+
+def test_applied_dice_come_from_the_rolls_own_seed_and_their_own_band() -> None:
+    """Replay reproduces the adjustment, and it cannot land on a die the seed already
+    produced — the bands are stated in one place in `core.d20`."""
+    rolled = resolve(check(), seed=4242)
+    first = adjust_roll(rolled, count=2, sides=4, source="Boon of Fate")
+    again = adjust_roll(resolve(check(), seed=4242), count=2, sides=4, source="Boon of Fate")
+    assert first == again
+
+    base = ADJUSTMENT_OFFSET
+    assert first.adjustments[0].dice == (die(4242, base, 4), die(4242, base + 1, 4))
+    assert ADJUSTMENT_OFFSET > REPLACEMENT_OFFSET > DAMAGE_OFFSET > 1
+
+
+def test_adjustments_accumulate_and_each_draws_from_its_own_block() -> None:
+    rolled = resolve(check(), seed=8)
+    once = adjust_roll(rolled, count=1, sides=6, source="Bardic Inspiration")
+    twice = adjust_roll(once, count=2, sides=4, source="Boon of Fate")
+
+    assert [a.source for a in twice.adjustments] == ["Bardic Inspiration", "Boon of Fate"]
+    assert twice.total == rolled.total + twice.adjustments[0].applied + twice.adjustments[1].applied
+    assert twice.adjustments[1].dice[0] == die(8, ADJUSTMENT_OFFSET + MAX_ADJUSTMENT_DICE, 4)
+
+
+def test_an_adjustment_names_its_source_and_rolls_a_sane_number_of_dice() -> None:
+    rolled = resolve(check(), seed=8)
+    with pytest.raises(ValueError, match="names its source"):
+        adjust_roll(rolled, count=1, sides=6, source="")
+    with pytest.raises(ValueError, match="between 1 and"):
+        adjust_roll(rolled, count=0, sides=6, source="Bardic Inspiration")
+    with pytest.raises(ValueError, match="between 1 and"):
+        adjust_roll(rolled, count=MAX_ADJUSTMENT_DICE + 1, sides=6, source="Bardic Inspiration")
+
+
+def test_a_failed_test_can_be_overridden_to_a_success() -> None:
+    """p. 88 Peerless Aim — "When you miss with an attack roll, you can hit instead" — and
+    p. 258 Legendary Resistance — "If the aboleth fails a saving throw, it can choose to
+    succeed instead". One shape since decision 0013; only the test kind differs.
+    """
+    for test in (attack(target=99), check(target=99)):
+        failed = resolve(test, seed=3)
+        assert not failed.succeeded
+
+        overridden = override_to_success(failed, source="Peerless Aim")
+        assert overridden.succeeded
+        assert overridden.override is not None
+        assert overridden.override.source == "Peerless Aim"
+        assert overridden.total == failed.total, "no die moved; only the outcome did"
+
+
+def test_overriding_a_test_that_already_succeeded_is_refused() -> None:
+    """Both features are written as a response to failing. Recording one against a success
+    would put a use of the feature in the ledger that the rules never called for."""
+    succeeded = resolve(check(target=2), seed=3)
+    assert succeeded.succeeded
+    with pytest.raises(ValueError, match="only a failed test"):
+        override_to_success(succeeded, source="Peerless Aim")
+
+
+def test_an_override_outranks_a_later_penalty() -> None:
+    """An override is a decision to succeed and nothing later un-makes it. A penalty
+    applied afterwards lowers the total and the test still succeeded."""
+    failed = resolve(check(target=99), seed=3)
+    overridden = override_to_success(failed, source="Legendary Resistance")
+    worse = adjust_roll(overridden, count=2, sides=4, source="Boon of Fate", penalty=True)
+
+    assert worse.total < overridden.total
+    assert worse.succeeded
+
+
+def test_an_override_names_what_granted_it() -> None:
+    failed = resolve(check(target=99), seed=3)
+    with pytest.raises(ValueError, match="names what granted it"):
+        override_to_success(failed, source="")
+
+
+def test_the_derivation_shows_what_happened_after_the_roll() -> None:
+    """R5: the Ruling shows the arithmetic. A total that silently grew by 4 would be a
+    number the record cannot explain."""
+    failed = resolve(check(target=99), seed=3)
+    adjusted = adjust_roll(failed, count=1, sides=6, source="Bardic Inspiration")
+    assert "(Bardic Inspiration)" in adjusted.derivation()
+
+    overridden = override_to_success(failed, source="Peerless Aim")
+    assert "overridden to a success by Peerless Aim" in overridden.derivation()
+
+
+def test_an_unadjusted_result_carries_an_empty_record() -> None:
+    rolled = resolve(check(), seed=8)
+    assert rolled.adjustments == ()
+    assert rolled.override is None
+    assert Adjustment(dice=(3,), value=3, penalty=False, source="x").applied == 3

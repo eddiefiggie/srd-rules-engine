@@ -6,6 +6,40 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.16`
+
+The unified d20 test is complete. Closes #15. Inventory coverage 23 → 27 of 211, and 19 of the 25
+`test` and `test-modifier` shapes — the remaining six are #16's, #18's and #19's, not this issue's.
+
+- **A weapon's flat bonus reaches both rolls.** Berserker Axe (p. 213): "a +1 bonus to attack rolls
+  **and** damage rolls made with this magic weapon". A bonus reaching only the attack is invisible
+  in every hit that lands — the damage is simply one lower than the rules say, with nothing to
+  compare it against — so both halves are asserted and both one-sided mutations are caught.
+- **Dice can be applied to a test that has already resolved.** Bardic Inspiration (p. 32) rolls
+  after a failure and adds "potentially turning the failure into a success"; Boon of Fate (p. 88)
+  applies its 2d4 "as a bonus **or penalty**". Applied afterwards on purpose: both let the holder
+  see the result before spending the resource, so folding them into `D20Test.modifiers` would
+  resolve them a step too early and lose the choice the rules give.
+- **A failed test can be overridden to a success**, one shape since decision 0013 — Peerless Aim
+  (p. 88) and Legendary Resistance (p. 258) are the same sentence with the test kind changed.
+  Overriding a test that already succeeded is refused: both features are written as a response to
+  failing, so recording one against a success would put a use of the feature in the ledger that the
+  rules never called for.
+- **A natural 1 still misses through all of it.** p. 7 settles an attack "regardless of any
+  modifiers", and a die applied afterwards is a modifier — so eight d6 on a natural 1 raise the
+  total past the AC and the attack does not land. `_outcome` puts the override, then the critical,
+  then the arithmetic in that order, which is the document's order rather than a convenient one.
+- **The seed's index bands are now stated in one place** and the upper two are bounded, which is
+  what lets a fourth band exist at all: an unbounded band leaves no room for a neighbour. That is
+  part of #82's third checkbox; the enforcement it asks for is still absent and #82 stays open.
+- **`apply_die` was renamed `adjust_roll`** because a guard refused it. `test_there_is_no_public_way
+  _to_apply_a_rulings_effects` keeps anything named like an applier off the public surface, and it
+  is a deliberately coarse net — weakening it to admit an unrelated function would have cost more
+  than the rename.
+- **`scripts/verify_d20_rules.py` now checks 35 clauses rather than 30**, all confirmed against the
+  document, and was seen red by corrupting the Berserker Axe pattern. Seven mutations were run
+  against the new tests and all seven were caught.
+
 ## Unreleased — 2026-08-23 — build `08232026.15`
 
 Death saving throws, the second slice of #15. Inventory coverage 21 → 23 of 211. #15 stays open.
