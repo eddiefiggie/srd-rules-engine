@@ -6,6 +6,32 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.5`
+
+The Classes sweep (#67, part of #14) — the inventory reaches 189 shapes, 17 implemented.
+
+- **294 class features parsed and reconciled, and 294 features are not 294 shapes.** This is the
+  section where the shape/content line matters most: a class feature is *content written in the
+  effect vocabulary*, which `CONCEPTS.md` names as the parallel data track. Listing each feature
+  would have grown the inventory by 294 entries while adding almost no vocabulary. Only the
+  mechanisms no earlier sweep could express were harvested.
+- **Eight shapes**: spell slots, uses regained on a rest, spendable point pools, expended spell
+  slots recovered, a bonus die added to a roll, conditional extra damage, an additional action on
+  your turn, and modifying a spell as it is cast.
+- **Six candidates declined as already expressible**, with the mapping recorded next to the table:
+  Extra Attack is the monster sweep's `multiattack` (both are "the Attack action yields N
+  attacks"), Second Wind is `healing`, Unarmored Defense is covered by `Armor Class` — whose
+  Glossary entry already provides for a rule giving another base AC calculation — and Proficiency
+  Bonus and Expertise are already entries. Ability Score Improvement was declined on a different
+  ground: no Ruling applies it, so it is character progression rather than an effect the engine
+  resolves.
+- **Three recharge shapes now exist** — the monster sweep's roll-triggered `recharge`, the
+  magic-item sweep's `daily-recharge`, and this sweep's `rest-recharge`. Each has a different
+  trigger and they fail independently, which is the stated granularity rule, but the family is
+  now large enough that consolidating it is a real question rather than a hypothetical one.
+- **Character Origins, Feats, and the Gameplay Toolbox remain unswept**, and `coverage_scope`
+  names them.
+
 ## Unreleased — 2026-08-23 — build `08232026.4`
 
 The Equipment sweep (#67, part of #14) — the inventory reaches 181 shapes, 17 implemented.
