@@ -5,9 +5,9 @@
   "document": "System Reference Document 5.2.1",
   "revision": "5.2.1",
   "published": "2025-05-01",
-  "section": "Rules Glossary (pp. 176-191)"
+  "section": "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175)"
  },
- "coverage_scope": "Rules Glossary only. The sweeps of Spell Descriptions, Monsters, and Magic Items are tracked separately; until they land this inventory understates what full coverage requires.",
+ "coverage_scope": "Rules Glossary and Spell Descriptions. The Monsters and Magic Items sweeps are tracked separately; until they land this inventory understates what full coverage requires.",
  "shapes": [
   {
    "id": "ability-check",
@@ -1095,6 +1095,102 @@
    "tag": null,
    "reference": "Rules Glossary, p. 191",
    "kind": "test",
+   "implemented": false
+  },
+  {
+   "id": "half-damage-on-save",
+   "name": "Half Damage on a Successful Save",
+   "tag": null,
+   "reference": "Spell Descriptions, p. 113 (Blade Barrier)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "ongoing-damage",
+   "name": "Damage on a Recurring Schedule",
+   "tag": null,
+   "reference": "Spell Descriptions, p. 107 (Acid Arrow)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "forced-movement",
+   "name": "Forced Movement",
+   "tag": null,
+   "reference": "Spell Descriptions, p. 169 (Thunderwave)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "summon-creature",
+   "name": "Summoned Creature",
+   "tag": null,
+   "reference": "Spell Descriptions, p. 117 (Conjure Animals)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "create-object",
+   "name": "Created Object or Material",
+   "tag": null,
+   "reference": "Spell Descriptions, p. 121 (Creation)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "control-creature",
+   "name": "Commanded Creature",
+   "tag": null,
+   "reference": "Spell Descriptions, p. 108 (Animate Objects)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "end-magical-effect",
+   "name": "Ending or Suppressing a Magical Effect",
+   "tag": null,
+   "reference": "Spell Descriptions, p. 124 (Dispel Magic)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "planar-travel",
+   "name": "Planar Travel",
+   "tag": null,
+   "reference": "Spell Descriptions, p. 153 (Plane Shift)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "resurrection",
+   "name": "Returning a Dead Creature to Life",
+   "tag": null,
+   "reference": "Spell Descriptions, p. 157 (Raise Dead)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "damage-transfer",
+   "name": "Damage Transferred to Another Creature",
+   "tag": null,
+   "reference": "Spell Descriptions, p. 173 (Warding Bond)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "reroll",
+   "name": "Forced Reroll",
+   "tag": null,
+   "reference": "Spell Descriptions, p. 175 (Wish)",
+   "kind": "test-modifier",
+   "implemented": false
+  },
+  {
+   "id": "information-granted",
+   "name": "Information Granted to the Caster",
+   "tag": null,
+   "reference": "Spell Descriptions, p. 116 (Commune with Nature)",
+   "kind": "effect",
    "implemented": false
   }
  ],

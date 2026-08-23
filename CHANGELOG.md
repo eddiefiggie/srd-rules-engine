@@ -6,6 +6,38 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.1`
+
+The spell sweep (#63, part of #14) — the inventory reaches 148 shapes, 17 implemented.
+
+- **All 338 Spell Descriptions entries were parsed**, and the count is reconciled against the
+  heading list rather than assumed. The first pass silently dropped 25 spells — Fire Bolt, Wish,
+  Earthquake and 22 others — because the running-header filter keyed on position (`y < 40`) and
+  those headings sit at y=38.9. Filtering on content instead brought the count to 338/338 with
+  none empty. A sweep that quietly loses 7% of its corpus is the failure this work exists to
+  prevent, and it nearly shipped.
+- **Twelve shapes the Glossary never names**: half damage on a successful save, damage on a
+  recurring schedule, forced movement, summoned creatures, created objects, commanded creatures,
+  ending or suppressing a magical effect, planar travel, resurrection, transferred damage, forced
+  rerolls, and information granted to the caster.
+- **Candidates were verified against the text, not accepted from a pattern match.** Summoning
+  first read as absent because the corpus does not use the word "summon" in the spells that do
+  it — the mechanic is written as conjuring a spirit that "appears in an unoccupied space". It
+  would have been dropped on the regex alone. In the other direction, the detector for
+  information effects matched "languages you know", which is not one, so its exemplar is a spell
+  that genuinely exhibits the shape rather than the raw count.
+- **Editorial rows are kept honest by verification rather than trust.** The Glossary could be
+  enumerated by typography; spell effects are body text and cannot. So every `SPELL_SHAPES` row
+  names a spell, its printed page, and a pattern that must match that spell's text in the PDF,
+  and the derivation refuses to run if any of the three is wrong. Proven red three ways: wrong
+  page, spell absent from the document, pattern that does not match.
+- **The citation test was widened, not weakened.** It previously required every reference to
+  start with "Rules Glossary, p. ", which the spell shapes correctly broke. It now matches a
+  section and printed page against a strict pattern, and a second test requires spell-sourced
+  shapes to name the exemplar that exhibits them — a bare page number into body text is not
+  something a reader can check.
+- **Monsters and Magic Items remain unswept**, and `coverage_scope` says so.
+
 ## Unreleased — 2026-08-22 — build `08222026.15`
 
 The effect-shape inventory (#14, R17) — partial: the Rules Glossary sweep.

@@ -15,6 +15,7 @@ A test that checked one direction would pass through the other.
 from __future__ import annotations
 
 import json
+import re
 from importlib import resources
 
 import pytest
@@ -79,12 +80,27 @@ def test_the_inventory_states_the_scope_it_does_not_cover(inventory: Inventory) 
     assert inventory.source["revision"] == "5.2.1"
 
 
+#: A citation names a section of the document and a printed page, and may name the entry
+#: that exhibits the shape. Deliberately strict: "cites the document" is the claim every
+#: entry makes, and a pattern loose enough to accept free text would stop checking it.
+CITATION = re.compile(r"^(Rules Glossary|Spell Descriptions), p\. \d{1,3}(?: \([A-Z][\w' -]+\))?$")
+
+
 def test_every_shape_cites_the_document_and_ids_are_unique(inventory: Inventory) -> None:
     """Provenance per entry, per the exclude-until-verified rule."""
     ids = [s.id for s in inventory.shapes]
     assert len(ids) == len(set(ids)), "shape ids must be unique — they are the join key"
     for shape in inventory.shapes:
-        assert shape.reference.startswith("Rules Glossary, p. "), shape
+        assert CITATION.match(shape.reference), f"{shape.id} cites {shape.reference!r}"
+
+
+def test_spell_sourced_shapes_name_the_spell_that_exhibits_them(inventory: Inventory) -> None:
+    """The Glossary sweep could cite a heading. Spell effects are body text, so a bare
+    page number would not be checkable by a reader — the exemplar is what makes it so."""
+    from_spells = [s for s in inventory.shapes if s.reference.startswith("Spell Descriptions")]
+    assert from_spells, "the spell sweep landed; its shapes should be present"
+    for shape in from_spells:
+        assert shape.reference.endswith(")"), f"{shape.id} cites no exemplar spell"
 
 
 def test_vocabulary_entries_are_recorded_with_a_reason() -> None:

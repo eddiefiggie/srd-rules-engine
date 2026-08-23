@@ -232,6 +232,187 @@ def read_glossary(pdf: Path) -> list[dict[str, object]]:
     return entries
 
 
+# Printed pages 107-175 are Spell Descriptions.
+SPELL_PAGES = range(106, 175)
+#: Lines that are the running header rather than content. Filtering these by position
+#: rather than by content silently dropped 25 spell headings sitting at y=38.9.
+RUNNING_HEADER = re.compile(r"^\s*(System Reference Document 5\.2\.1|\d{1,3})\s*$")
+
+#: Effect shapes the Rules Glossary never names, found by sweeping Spell Descriptions.
+#:
+#: The Glossary could be enumerated by typography — its entry headings are the only 12pt
+#: GillSans-SemiBold in the document. Spell *effects* have no such handle: they are body
+#: text, so which shapes exist here is editorial in a way the Glossary pass was not.
+#:
+#: What keeps that honest is `verify`: every row names a spell, its printed page, and a
+#: pattern that must match that spell's text in the PDF. `sweep_spells` asserts all three,
+#: so a row invented at a desk, a mis-transcribed page, or a shape the document stopped
+#: supporting fails the derivation instead of shipping. The exemplar is the citation, not
+#: the whole population — several of these appear in dozens of spells.
+SPELL_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
+    # id, name, kind, exemplar spell, printed page, pattern that must match its text
+    (
+        "half-damage-on-save",
+        "Half Damage on a Successful Save",
+        "effect",
+        "Blade Barrier",
+        113,
+        r"half as much damage on a successful",
+    ),
+    (
+        "ongoing-damage",
+        "Damage on a Recurring Schedule",
+        "effect",
+        "Acid Arrow",
+        107,
+        r"damage at the end of its next turn",
+    ),
+    (
+        "forced-movement",
+        "Forced Movement",
+        "effect",
+        "Thunderwave",
+        169,
+        r"pushed 10 feet away from you",
+    ),
+    (
+        "summon-creature",
+        "Summoned Creature",
+        "effect",
+        "Conjure Animals",
+        117,
+        r"appear as a Large",
+    ),
+    (
+        "create-object",
+        "Created Object or Material",
+        "effect",
+        "Creation",
+        121,
+        r"You pull wisps of shadow material",
+    ),
+    (
+        "control-creature",
+        "Commanded Creature",
+        "effect",
+        "Animate Objects",
+        108,
+        r"Objects animate at your command",
+    ),
+    (
+        "end-magical-effect",
+        "Ending or Suppressing a Magical Effect",
+        "effect",
+        "Dispel Magic",
+        124,
+        r"spell of level 3 or lower on the target ends",
+    ),
+    (
+        "planar-travel",
+        "Planar Travel",
+        "effect",
+        "Plane Shift",
+        153,
+        r"attuned to a plane of existence",
+    ),
+    (
+        "resurrection",
+        "Returning a Dead Creature to Life",
+        "effect",
+        "Raise Dead",
+        157,
+        r"you revive a dead creature",
+    ),
+    (
+        "damage-transfer",
+        "Damage Transferred to Another Creature",
+        "effect",
+        "Warding Bond",
+        173,
+        r"you take the same amount of damage",
+    ),
+    ("reroll", "Forced Reroll", "test-modifier", "Wish", 175, r"forcing a reroll of any die roll"),
+    (
+        "information-granted",
+        "Information Granted to the Caster",
+        "effect",
+        "Commune with Nature",
+        116,
+        r"you learn those facts",
+    ),
+)
+
+
+def read_spells(pdf: Path) -> dict[str, dict[str, object]]:
+    """Return every Spell Descriptions entry as name -> {page, text}, in reading order."""
+    import pymupdf
+
+    doc = pymupdf.open(pdf)
+    spells: dict[str, dict[str, object]] = {}
+    current: dict[str, object] | None = None
+    for pno in SPELL_PAGES:
+        page = doc[pno]
+        mid = page.rect.width / 2
+        columns: dict[int, list[tuple[float, str, bool]]] = {0: [], 1: []}
+        for block in page.get_text("dict")["blocks"]:
+            for line in block.get("lines", []):
+                spans = [s for s in line["spans"] if s["text"].strip()]
+                if not spans:
+                    continue
+                text = "".join(s["text"] for s in spans)
+                if RUNNING_HEADER.match(text):
+                    continue
+                x0 = min(s["bbox"][0] for s in spans)
+                y0 = min(s["bbox"][1] for s in spans)
+                heading = any(
+                    s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
+                )
+                columns[0 if x0 < mid else 1].append((y0, text, heading))
+        for column in (0, 1):
+            for _, text, heading in sorted(columns[column], key=lambda r: r[0]):
+                if heading:
+                    current = {"page": pno + 1, "text": []}
+                    spells[text.strip()] = current
+                elif current is not None:
+                    current["text"].append(text)  # type: ignore[union-attr]
+    for entry in spells.values():
+        joined = " ".join(entry["text"])  # type: ignore[arg-type]
+        joined = joined.replace("\u00ad", "")
+        joined = re.sub(r"(\w)-\s+(\w)", r"\1\2", joined)
+        entry["text"] = re.sub(r"\s+", " ", joined).strip()
+    return spells
+
+
+def sweep_spells(pdf: Path) -> list[dict[str, object]]:
+    """Verify every SPELL_SHAPES row against the document, then return the shapes."""
+    spells = read_spells(pdf)
+    shapes: list[dict[str, object]] = []
+    for shape_id, name, kind, spell, page, pattern in SPELL_SHAPES:
+        entry = spells.get(spell)
+        if entry is None:
+            raise SystemExit(f"{shape_id}: cites {spell!r}, which is not a spell in the document")
+        if entry["page"] != page:
+            raise SystemExit(
+                f"{shape_id}: cites {spell} at p. {page}, document has it at p. {entry['page']}"
+            )
+        if not re.search(pattern, str(entry["text"]), re.I):
+            raise SystemExit(
+                f"{shape_id}: pattern {pattern!r} does not match {spell} — the citation is "
+                "wrong, or the shape is not in this document"
+            )
+        shapes.append(
+            {
+                "id": shape_id,
+                "name": name,
+                "tag": None,
+                "reference": f"Spell Descriptions, p. {page} ({spell})",
+                "kind": kind,
+                "implemented": False,
+            }
+        )
+    return shapes
+
+
 def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
@@ -267,6 +448,8 @@ def build(pdf: Path) -> dict[str, object]:
             f"letting them vanish: {unclassified}"
         )
 
+    shapes.extend(sweep_spells(pdf))
+
     return {
         "schema_version": 1,
         "compat": 1,
@@ -274,12 +457,12 @@ def build(pdf: Path) -> dict[str, object]:
             "document": "System Reference Document 5.2.1",
             "revision": "5.2.1",
             "published": "2025-05-01",
-            "section": "Rules Glossary (pp. 176-191)",
+            "section": "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175)",
         },
         "coverage_scope": (
-            "Rules Glossary only. The sweeps of Spell Descriptions, Monsters, and Magic "
-            "Items are tracked separately; until they land this inventory understates "
-            "what full coverage requires."
+            "Rules Glossary and Spell Descriptions. The Monsters and Magic Items sweeps "
+            "are tracked separately; until they land this inventory understates what full "
+            "coverage requires."
         ),
         "shapes": shapes,
         "vocabulary": vocabulary,

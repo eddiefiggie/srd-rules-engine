@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08222026.15` — **the effect-shape inventory is published.** The 155 Rules Glossary entries of SRD v5.2.1 are read off the official document and published as `src/srd_rules_engine/data/effect_shapes.json`: 136 effect shapes, 17 of which this engine resolves, plus 19 entries recorded as vocabulary rather than dropped. Coverage is now falsifiable in both directions — `tests/test_effect_shape_inventory.py` fails when the inventory claims a shape the engine cannot resolve, and when the engine resolves one the inventory never lists. Each of its six guards was proven red before being trusted; the first attempt at that proof was itself inspecting nothing, because an editable install shadowed the corrupted copy. The sweep so far covers the Rules Glossary only, and the inventory says so in its own `coverage_scope` field.
+**Current build:** `08232026.1` — **the spell sweep extends the effect-shape inventory to 148 shapes.** All 338 Spell Descriptions entries were parsed and swept for effect shapes the Rules Glossary never names, adding twelve: half damage on a successful save, recurring damage, forced movement, summoned creatures, created objects, commanded creatures, ending a magical effect, planar travel, resurrection, transferred damage, forced rerolls, and information granted to the caster. Spell effects are body text with no typographic handle, so the editorial table is kept honest by verification rather than trust: every row names a spell, its page, and a pattern that must match that spell's text in the PDF, and the derivation fails if any of the three is wrong. Monsters and Magic Items are still unswept.
 
 ---
 
@@ -107,7 +107,7 @@ distinct effect shapes SRD v5.2.1 defines, each marked implemented or not. Witho
 "full SRD 5.2 coverage is the definition of done" is unfalsifiable — there is no way to
 tell a complete engine from one whose author stopped noticing gaps.
 
-**17 of 136 shapes resolve today.** The other 119 are listed, not omitted; run
+**17 of 148 shapes resolve today.** The other 131 are listed, not omitted; run
 `python -c "from srd_rules_engine.core import coverage_report; print(coverage_report())"`
 to see exactly which. Entries sit at independently-failable granularity, so each of the
 fifteen conditions counts separately — an engine that resolves Prone and nothing else
@@ -119,9 +119,9 @@ memory. Classification — which entries are effect shapes and which merely defi
 is editorial and lives in that script where it can be reviewed. Nineteen entries are
 recorded as vocabulary with a stated reason rather than dropped.
 
-**The inventory is currently swept from the Rules Glossary only**, and says so in its own
-`coverage_scope` field. Spell Descriptions, Monsters, and Magic Items are not yet swept,
-so this understates what full coverage requires.
+**The inventory is currently swept from the Rules Glossary and Spell Descriptions**, and
+says so in its own `coverage_scope` field. Monsters and Magic Items are not yet swept, so
+this understates what full coverage requires.
 
 Settled design decisions live in [`docs/decisions/`](docs/decisions/). A gate closes by producing
 one, and the plan is amended to match:
