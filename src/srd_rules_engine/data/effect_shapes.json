@@ -7,7 +7,7 @@
   "published": "2025-05-01",
   "section": "Rules Glossary (pp. 176-191); Spell Descriptions (pp. 107-175); Monsters (pp. 254-364); Magic Items (pp. 204-253); Equipment (pp. 89-103)"
  },
- "coverage_scope": "Rules Glossary, Spell Descriptions, Monsters, Magic Items, Equipment, and Classes. Still unswept: Character Origins, Feats, and the Gameplay Toolbox. Until those land this inventory understates what full coverage requires.",
+ "coverage_scope": "Rules Glossary, Spell Descriptions, Monsters, Magic Items, Equipment, Classes, and Feats. Still unswept: Character Origins and the Gameplay Toolbox. Until those land this inventory understates what full coverage requires.",
  "shapes": [
   {
    "id": "ability-check",
@@ -1519,6 +1519,54 @@
    "tag": null,
    "reference": "Classes, p. 66 (Metamagic)",
    "kind": "spellcasting",
+   "implemented": false
+  },
+  {
+   "id": "miss-becomes-hit",
+   "name": "Missed Attack Overridden to a Hit",
+   "tag": null,
+   "reference": "Feats, p. 88 (Boon of Combat Prowess)",
+   "kind": "test-modifier",
+   "implemented": false
+  },
+  {
+   "id": "ignore-resistance",
+   "name": "Damage That Ignores Resistance",
+   "tag": null,
+   "reference": "Feats, p. 88 (Boon of Irresistible Offense)",
+   "kind": "effect",
+   "implemented": false
+  },
+  {
+   "id": "slot-not-expended",
+   "name": "Spell Slot Not Expended on Casting",
+   "tag": null,
+   "reference": "Feats, p. 88 (Boon of Spell Recall)",
+   "kind": "resource",
+   "implemented": false
+  },
+  {
+   "id": "initiative-swap",
+   "name": "Initiative Positions Exchanged",
+   "tag": null,
+   "reference": "Feats, p. 87 (Alert)",
+   "kind": "state",
+   "implemented": false
+  },
+  {
+   "id": "roll-twice-take-either",
+   "name": "Damage Dice Rolled Twice, Either Result Used",
+   "tag": null,
+   "reference": "Feats, p. 87 (Savage Attacker)",
+   "kind": "test-modifier",
+   "implemented": false
+  },
+  {
+   "id": "minimum-die-value",
+   "name": "Low Die Result Treated as Higher",
+   "tag": null,
+   "reference": "Feats, p. 88 (Great Weapon Fighting)",
+   "kind": "test-modifier",
    "implemented": false
   }
  ],

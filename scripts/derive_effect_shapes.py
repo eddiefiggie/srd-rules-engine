@@ -1058,6 +1058,146 @@ def sweep_classes(pdf: Path) -> list[dict[str, object]]:
     return shapes
 
 
+# Printed pages 87-88 are Feats: 17 entries across four categories.
+FEAT_PAGES = range(86, 88)
+
+#: Effect shapes found by sweeping Feats, verified the same way the others are.
+#:
+#: Most feats compose shapes the earlier sweeps already name: Archery, Defense, and
+#: Two-Weapon Fighting are `numeric-bonus`; Boon of Dimensional Travel is `Teleportation`;
+#: Boon of the Night Spirit applies `Invisible`; Boon of Truesight is `Truesight`; Magic
+#: Initiate is spellcasting; Skilled is `Proficiency`; Grappler is `Grappled` plus
+#: `Advantage`; and Alert's Initiative Proficiency is another `numeric-bonus` — only its
+#: Initiative Swap is new. Boon of Fate is `bonus-die-on-roll`, though it may apply the
+#: rolled total as a penalty as well as a bonus, which that entry does not currently say.
+#:
+#: "Ability Score Increase" recurs in most feats here and is deliberately absent, on the
+#: same ground the Classes sweep used: no Ruling applies it, so it is character progression
+#: rather than an effect the engine resolves. That rule is doing real work now rather than
+#: settling one edge case, and it is flagged for agreement on #70.
+FEAT_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
+    # id, name, kind, exemplar feat, printed page, pattern that must match its text
+    (
+        "miss-becomes-hit",
+        "Missed Attack Overridden to a Hit",
+        "test-modifier",
+        "Boon of Combat Prowess",
+        88,
+        r"When you miss with an attack roll, you can hit instead",
+    ),
+    (
+        "ignore-resistance",
+        "Damage That Ignores Resistance",
+        "effect",
+        "Boon of Irresistible Offense",
+        88,
+        r"always ignores Resistance",
+    ),
+    (
+        "slot-not-expended",
+        "Spell Slot Not Expended on Casting",
+        "resource",
+        "Boon of Spell Recall",
+        88,
+        r"the slot isn.t expended",
+    ),
+    (
+        "initiative-swap",
+        "Initiative Positions Exchanged",
+        "state",
+        "Alert",
+        87,
+        r"swap your Initiative with the Initiative of one willing ally",
+    ),
+    (
+        "roll-twice-take-either",
+        "Damage Dice Rolled Twice, Either Result Used",
+        "test-modifier",
+        "Savage Attacker",
+        87,
+        r"roll the weapon.s damage dice twice and use either roll",
+    ),
+    (
+        "minimum-die-value",
+        "Low Die Result Treated as Higher",
+        "test-modifier",
+        "Great Weapon Fighting",
+        88,
+        r"treat any 1 or 2 on a damage die as a 3",
+    ),
+)
+
+
+def read_feats(pdf: Path) -> dict[str, dict[str, object]]:
+    """Return every Feats entry as name -> {page, text}, in reading order."""
+    import pymupdf
+
+    doc = pymupdf.open(pdf)
+    entries: dict[str, dict[str, object]] = {}
+    current: dict[str, object] | None = None
+    for pno in FEAT_PAGES:
+        page = doc[pno]
+        mid = page.rect.width / 2
+        columns: dict[int, list[tuple[float, str, bool]]] = {0: [], 1: []}
+        for block in page.get_text("dict")["blocks"]:
+            for line in block.get("lines", []):
+                spans = [s for s in line["spans"] if s["text"].strip()]
+                if not spans:
+                    continue
+                text = "".join(s["text"] for s in spans)
+                if RUNNING_HEADER.match(text):
+                    continue
+                x0 = min(s["bbox"][0] for s in spans)
+                y0 = min(s["bbox"][1] for s in spans)
+                heading = any(
+                    s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
+                )
+                columns[0 if x0 < mid else 1].append((y0, text, heading))
+        for column in (0, 1):
+            for _, text, heading in sorted(columns[column], key=lambda r: r[0]):
+                if heading:
+                    current = {"page": pno + 1, "text": []}
+                    entries.setdefault(text.strip(), current)
+                elif current is not None:
+                    current["text"].append(text)  # type: ignore[union-attr]
+    for entry in entries.values():
+        joined = " ".join(entry["text"])  # type: ignore[arg-type]
+        joined = joined.replace("\u00ad", "")
+        joined = re.sub(r"(\w)-\s+(\w)", r"\1\2", joined)
+        entry["text"] = re.sub(r"\s+", " ", joined).strip()
+    return entries
+
+
+def sweep_feats(pdf: Path) -> list[dict[str, object]]:
+    """Verify every FEAT_SHAPES row against the document, then return the shapes."""
+    entries = read_feats(pdf)
+    shapes: list[dict[str, object]] = []
+    for shape_id, name, kind, feat, page, pattern in FEAT_SHAPES:
+        entry = entries.get(feat)
+        if entry is None:
+            raise SystemExit(f"{shape_id}: cites {feat!r}, which is not a feat in the document")
+        if entry["page"] != page:
+            raise SystemExit(
+                f"{shape_id}: cites {feat} at p. {page}, document has it at p. {entry['page']}"
+            )
+        if not re.search(pattern, str(entry["text"]), re.I):
+            raise SystemExit(
+                f"{shape_id}: pattern {pattern!r} does not match {feat} — the citation is "
+                "wrong, or the shape is not in this document"
+            )
+        shapes.append(
+            {
+                "id": shape_id,
+                "name": name,
+                "tag": None,
+                "reference": f"Feats, p. {page} ({feat})",
+                "kind": kind,
+                "implemented": False,
+            }
+        )
+    return shapes
+
+
 def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
@@ -1098,6 +1238,7 @@ def build(pdf: Path) -> dict[str, object]:
     shapes.extend(sweep_magic_items(pdf))
     shapes.extend(sweep_equipment(pdf))
     shapes.extend(sweep_classes(pdf))
+    shapes.extend(sweep_feats(pdf))
 
     return {
         "schema_version": 1,
@@ -1112,9 +1253,10 @@ def build(pdf: Path) -> dict[str, object]:
             ),
         },
         "coverage_scope": (
-            "Rules Glossary, Spell Descriptions, Monsters, Magic Items, Equipment, and "
-            "Classes. Still unswept: Character Origins, Feats, and the Gameplay Toolbox. "
-            "Until those land this inventory understates what full coverage requires."
+            "Rules Glossary, Spell Descriptions, Monsters, Magic Items, Equipment, "
+            "Classes, and Feats. Still unswept: Character Origins and the Gameplay "
+            "Toolbox. Until those land this inventory understates what full coverage "
+            "requires."
         ),
         "shapes": shapes,
         "vocabulary": vocabulary,
