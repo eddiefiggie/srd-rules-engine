@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.10` — **the effect-shape inventory covers all eleven rules sections of SRD v5.2.1: 215 shapes, 17 of which the engine resolves.** Character Creation yields only two — spell slots derived from combined class levels, and the same feature from two classes not stacking — because almost all of it is character-sheet procedure no Ruling applies. Completeness is now asserted rather than described: the sections the shapes cite are compared against the document's own table of contents, `unswept_sections` must agree with that comparison, and `source.section` is derived from the shapes after the hand-written version silently stopped updating for five sweeps. Complete coverage is not the same as a correct inventory — the granularity and consolidation questions are tracked separately.
+**Current build:** `08232026.11` — **the d20 advantage rules are verified against SRD v5.2.1 and no longer asserted by a plan.** The semantics were already correct, and two of them could have gone the other way: cancellation is presence-based rather than count-based — both states cancel even when four sources impose Disadvantage and one grants Advantage — and the unused die is retained rather than discarded, because a reroll may replace only one die of the pair. `scripts/verify_d20_rules.py` re-checks all ten cited sentences against the document, so the citation's date is falsifiable. Rerolling one die of a pair remains unmodelled and is disclosed in the primitive.
 
 ---
 

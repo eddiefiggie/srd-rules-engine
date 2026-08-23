@@ -18,14 +18,33 @@ sampling keeps the distribution flat rather than introducing modulo bias.
 The result carries the raw dice alongside the total, because R5 requires a Ruling to show
 the arithmetic rather than assert the outcome.
 
+## The advantage rules are verified
+
+They were machinery asserted by the M1 plan until #52. They are now read off SRD v5.2.1 —
+"Playing the Game" ("D20 Tests", pp. 7-8), and the Rules Glossary entries for Advantage
+(p. 176) and Disadvantage (p. 181) — and `ADVANTAGE_VERIFICATION` carries the citation.
+`scripts/verify_d20_rules.py` re-checks every sentence they rest on against the document,
+so the date is falsifiable rather than decorative.
+
+Two of the four questions #52 raised had answers the implementation could have got wrong:
+
+* **Cancellation is presence-based, not count-based.** The document settles it outright:
+  the roll has neither state "even if multiple circumstances impose Disadvantage and only
+  one grants Advantage or vice versa". `has_advantage` and `has_disadvantage` are booleans
+  rather than counters, so the count-based reading is not merely untaken here — it is
+  unrepresentable, which holds more firmly than a test.
+* **The unused die is not discarded.** Both dice stay individually addressable, because
+  anything that lets you reroll or replace the d20 may replace "only one die, not both.
+  You choose which one." `dice` therefore carries the pair rather than the one that
+  counted, and that is a requirement rather than a convenience.
+
 ## A disclosed limit
 
-The advantage rules implemented here — two dice taking the higher, disadvantage taking the
-lower, and the two cancelling to a single roll — are specified by the M1 plan and are
-**not yet verified against SRD v5.2.1**, which is gated behind
-[#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3). They are load-bearing on
-every roll the engine makes, so the gap is filed rather than assumed away. See
-[#52](https://github.com/eddiefiggie/srd-rules-engine/issues/52).
+Nothing here can yet *act* on that second point. Rerolling or replacing one die of a pair —
+Heroic Inspiration is the document's own example, and it makes the new roll binding — is
+unmodelled. The record is sufficient for it and the API is not, so the gap is filed rather
+than assumed away. See
+[#78](https://github.com/eddiefiggie/srd-rules-engine/issues/78).
 """
 
 from __future__ import annotations
@@ -35,7 +54,21 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
 
+from srd_rules_engine.core.rules import Verification, VerificationState
+
 DIE_SIDES: Final = 20
+
+#: R31: the advantage semantics below are SRD-derived, so what they were checked against is
+#: the whole basis for trusting them. `scripts/verify_d20_rules.py` re-checks the cited text
+#: against the document — a date alone cannot notice a revision that reworded the rule.
+ADVANTAGE_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference=(
+        'SRD v5.2.1, "Playing the Game" ("D20 Tests" -> "Advantage/Disadvantage"), '
+        "pp. 7-8; Rules Glossary, Advantage p. 176 and Disadvantage p. 181"
+    ),
+    date="2026-08-23",
+)
 
 #: The width of the hash slice a single die consumes.
 _BITS: Final = 32
