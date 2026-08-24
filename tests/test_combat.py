@@ -417,7 +417,7 @@ def test_the_state_the_ruling_returns_already_has_the_damage(tmp_path: Path) -> 
     ruling, after = build(tmp_path / "r", seed=seed_that(True, state, tmp_path)).adjudicate(
         state, strike(state)
     )
-    reapplied = _apply(after, ruling.effects, seed=1)
+    reapplied, _ = _apply(after, ruling.effects, seed=1)
     assert reapplied.combatant("boar").hit_points < after.combatant("boar").hit_points, (
         "the private applier is not idempotent — which is exactly why it is not public"
     )

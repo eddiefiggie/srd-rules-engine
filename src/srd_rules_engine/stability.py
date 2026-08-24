@@ -41,7 +41,14 @@ from __future__ import annotations
 from typing import Final
 
 #: Raised when a committed surface breaks. Monotonic, and independent of everything else.
-API_VERSION: Final = 1
+#:
+#: 2: `Effect.amount` for damage changed from the amount rolled to the amount the target
+#: took, once p. 17's Immunity, Resistance and Vulnerability had acted (#105). Nothing was
+#: renamed and nothing stopped resolving, so this is the case clause 2 of decision 0018
+#: describes — a committed name whose *behaviour* changed, which is the other half of the
+#: one bit this integer carries. The old meaning was not kept alongside the new one,
+#: because a consumer reading `amount` was reading the defect.
+API_VERSION: Final = 2
 
 #: The committed surface, by qualified name. Enumerated rather than described, because a
 #: policy in prose degrades the moment somebody renames a symbol and nobody connects it to

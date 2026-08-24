@@ -6,6 +6,39 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.32`
+
+A ruling reports the damage that actually happened. #105 — a bug the damage rules did not have
+and the *path from them to the record* did.
+
+- **The reproduction.** A creature with Immunity to Fire, hit for 12: the state applied 0, the
+  `Ruling` said 12. `EncounterState.with_damage` called `after_defences(...).amount` and dropped
+  the `DamageOutcome.steps`, and it did so downstream of the `Effect` the ruling carries — the
+  dice are rolled before a target is consulted, so nothing upstream knew a defence had acted.
+- **Why that is worse than a display bug.** R7 makes narration bounds advisory: the engine states
+  what may be asserted and does not enforce it, so the agent narrates from `Effect.amount`. An
+  invented outcome was arriving through the one object built to make inventing one impossible.
+- **`Effect.amount` is now what the target took.** `rolled` carries the pre-defence figure when a
+  defence changed the number, and stays `None` when none did — so a populated `rolled` means
+  something rather than being a second copy of the same integer. The number that is easiest to
+  read had to be the number that is true; keeping the old meaning alongside the new one would have
+  kept a naive read wrong, and a naive read *is* the defect.
+- **One call decides both numbers.** `EncounterState.damage_after_defences` is a read (R19) that
+  answers what a blow will come to; `with_damage` is written in terms of it and stays the single
+  place p. 17 is ever applied. The alternative — pre-adjusting an amount and handing the result
+  down — needs an "already adjusted" flag, and a flag that skips defences is a flag that skips
+  defences. It would also double-halve `resists_all`, which matches an amount with no type at all.
+- **The ledger records `damage_type` and `rolled`.** It recorded neither before, so the permanent
+  account of a session was not merely wrong but uncheckable: without the type there is no way to
+  recompute the arithmetic. `RULING_VERSION` moves to 3, because `amount` *means* something
+  different in a v3 payload — a v2 reader summing it gets a different total for the same fight.
+- **`API_VERSION` moves to 2.** `Effect` is on the committed surface, and this changed its
+  behaviour without renaming anything — the case decision `0018` describes, and the first time the
+  integer has had to carry it.
+- **Found alongside:** #106, every ruling entry the engine writes reads as uninterpretable, because
+  the payload's `compat` floor is set from `RULING_VERSION` while the reader is versioned
+  separately. Left exactly as it is here rather than entangled with this fix.
+
 ## Unreleased — 2026-08-23 — build `08232026.31`
 
 The engine has a clock. Decision `0020` settles #85 — not "how does a Stable creature wake up"

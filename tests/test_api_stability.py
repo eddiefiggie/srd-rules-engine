@@ -107,22 +107,26 @@ def test_the_api_version_is_independent_of_the_build_stamp() -> None:
     different questions and must not be derived from one another."""
     from srd_rules_engine import __version__
 
+    stamp, iteration = __version__.split(".")
     assert isinstance(API_VERSION, int)
-    assert str(API_VERSION) not in __version__.split(".")[0]
+    # Not a *component* of the build stamp. Plain substring containment is the obvious
+    # check and the wrong one: a single-digit API version matches any date carrying that
+    # digit, so the assertion would pass or fail on the calendar rather than on the code.
+    assert str(API_VERSION) not in {stamp, iteration}
 
 
 def test_the_api_version_is_independent_of_the_schema_versions() -> None:
     """A schema bump need not be an API break, and an API break need not touch a schema.
-    `RULING_VERSION` is already 2 while the API is at 1, which is the distinction in the
-    data rather than only in the record.
+    `RULING_VERSION` is 3 while the API is at 2, which is the distinction in the data rather
+    than only in the record.
     """
     from srd_rules_engine.core.adjudicate import RULING_VERSION
 
-    # The Ruling payload is already at 2 while the API is at 1. That divergence is the
-    # distinction made visible in the data rather than only asserted in the record — and it
-    # would be impossible if the two axes were derived from one another.
-    assert RULING_VERSION == 2
-    assert API_VERSION == 1
+    # The two moved together once — #105 changed what an effect's `amount` means, which is
+    # both a payload change and a committed-behaviour change — and they still hold different
+    # values, because they have counted different things since before that.
+    assert RULING_VERSION == 3
+    assert API_VERSION == 2
     assert RULING_VERSION != API_VERSION
 
 
