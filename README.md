@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08242026.6` — **every verification block swept after #129, and the sweep found one real gap and corrected the guard that suggested it.** `DURATION_VERIFICATION` did not name p. 63, the page `SaveEnds` is built from — same shape as #129, check already asserted, so the citation is added and the date stays. The sweep's other finding is filed rather than fixed: `MAX_SPELL_LEVEL = 9` transcribes p. 26 and **p. 26 is verified nowhere** — not in a block, not in the verifier — so unlike #129 the check does not exist and cannot be written without the document ([#130](https://github.com/eddiefiggie/srd-rules-engine/issues/130)). The rest of what the sweep flagged is not a defect and is recorded so a later audit does not re-raise it: cross-module citations, page-range artifacts, and illustrative references. That also **corrects a suggestion made in #126** — #129's per-module guard must not be generalised, because a module legitimately cites pages verified where the rule lives; applied to `core.combat` it would raise four false alarms at once. 915 tests.
+**Current build:** `08242026.7` — **the status table said 76 of 211 and stopped, which understated the gaps and hid the work.** One row for "full SRD 5.2 coverage" measured mechanics only, so a reader could not see that `data/` holds **six monsters and no spells** — Spell Descriptions is 0/11, so no SRD spell can be cast — or that **one of R34's three adapters** exists, or that **senses, light and obscurement are 0 of 23**, a coupled subsystem nothing has been built toward. It also could not show the opposite error: the counter measures resolved shapes, so building a **route** moves nothing, and #119 and #110 both landed without touching it while changing what the engine structurally permits. The table now carries mechanics, content, adapters and the two open `srd-fidelity` gaps separately, with a note on what the number cannot count. Every figure in it was verified against the data before shipping. 915 tests.
 
 ---
 
@@ -107,9 +107,26 @@ the issue number beside each one.
 
 | Milestone | Where it stands |
 |---|---|
-| **M0 — Design gates settled** | **Closed.** Every [`gate`](https://github.com/eddiefiggie/srd-rules-engine/issues?q=is%3Aissue+label%3Agate) question was answered and folded back into the plan, each producing a record in [`docs/decisions/`](docs/decisions/). None is open. |
-| **M1 — Playable vertical slice** | **Demonstrated, not validated.** The encounter runs end to end and the report flags every defect condition it is shown. The live-agent half is [#42](https://github.com/eddiefiggie/srd-rules-engine/issues/42) and is still open. |
-| **v1.0 — Full SRD 5.2 coverage** | **76 of 211 effect shapes.** Every entry in the inventory ([#14](https://github.com/eddiefiggie/srd-rules-engine/issues/14)) must resolve. Partial coverage is an incomplete release, not a smaller one. |
+| **M0 — Design gates settled** | **Closed.** Every [`gate`](https://github.com/eddiefiggie/srd-rules-engine/issues?q=is%3Aissue+label%3Agate) question was answered and folded back into the plan, producing 23 records in [`docs/decisions/`](docs/decisions/). None is open. A gate closing does **not** mean its design is built — see [#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126). |
+| **M1 — Playable vertical slice** | **Demonstrated, not validated.** The encounter runs end to end and the report flags every defect condition it is shown. The live-agent half is [#42](https://github.com/eddiefiggie/srd-rules-engine/issues/42) and is still open — it is the primary criterion, and nothing below substitutes for it. |
+| **v1.0 — mechanics** | **76 of 211 effect shapes.** Every entry in the inventory ([#14](https://github.com/eddiefiggie/srd-rules-engine/issues/14)) must resolve. Conditions are 15/15 and the d20 test 12/14; senses, light and obscurement are **0 of 23** and are a coupled subsystem nothing has been built toward. |
+| **v1.0 — content** | **Six monsters, no spells.** `data/` holds the effect-shape inventory and six stat blocks ([#99](https://github.com/eddiefiggie/srd-rules-engine/issues/99)). Spell Descriptions is 0/11 shapes, so no SRD spell can currently be cast. Tracked as [#21](https://github.com/eddiefiggie/srd-rules-engine/issues/21). |
+| **v1.0 — adapters** | **One of the three R34 names.** MCP ships behind the `mcp` extra; HTTP and CLI do not exist. (`HumanCliDriver` is R8's reference *driver*, not R34's CLI adapter — an easy pair to conflate.) |
+| **SRD fidelity** | **Two open gaps, both blocked on the document rather than on design.** A downed player character makes no death saves ([#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124)), and `MAX_SPELL_LEVEL` transcribes a page verified nowhere ([#130](https://github.com/eddiefiggie/srd-rules-engine/issues/130)). Each needs the sentence found and asserted before it can close. |
+
+**What the shape counter does not count, and why the number can stand still while work lands.**
+The inventory measures *resolved effect shapes*, so building a **route** moves nothing. Two landed
+recently and both were structural: a condition can now be applied or ended only through a ruling
+([#119](https://github.com/eddiefiggie/srd-rules-engine/issues/119)), and the end of a turn is a
+phase the loop owns rather than something a caller must remember to drive
+([#110](https://github.com/eddiefiggie/srd-rules-engine/issues/110)). Before them, every condition
+in the engine arrived by a caller reaching past the adjudicator, and a save the engine reported as
+due was never rolled. Neither shows up as a shape, and reading 76 as "unchanged, so nothing
+happened" is the misreading this table most invites.
+
+#110 also narrowed a limitation this project ships disclosed. "The skip guarantee holds only for
+callers the turn loop drives" still holds, but `advanced_turn` now **refuses** while an end-of-turn
+save is owed, so a caller the loop does drive can no longer skip one by forgetting.
 
 ## Effect-shape coverage
 
@@ -261,4 +278,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-24 — build `08242026.6`._
+_Last updated: 2026-08-24 — build `08242026.7`._
