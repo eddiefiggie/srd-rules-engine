@@ -45,7 +45,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
 
-from srd_rules_engine.core.rules import Verification, VerificationState
+from srd_rules_engine.core.rules import (
+    Verification,
+    VerificationMethod,
+    VerificationState,
+)
 
 #: p. 186: "A creature has a reach of 5 feet unless a rule says otherwise."
 DEFAULT_REACH_FEET: Final = 5
@@ -60,6 +64,7 @@ MOVEMENT_VERIFICATION: Final = Verification(
         '("Breaking Up Your Move"), p. 14'
     ),
     date="2026-08-23",
+    method=VerificationMethod.ASSERTED,
 )
 
 

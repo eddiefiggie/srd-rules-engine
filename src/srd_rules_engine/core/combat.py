@@ -51,7 +51,11 @@ from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.position import distance_feet, within
 from srd_rules_engine.core.read_surface import attack_target
-from srd_rules_engine.core.rules import Verification, VerificationState
+from srd_rules_engine.core.rules import (
+    Verification,
+    VerificationMethod,
+    VerificationState,
+)
 from srd_rules_engine.core.state import Combatant, EncounterState
 
 INITIATIVE_DIE = 20
@@ -66,6 +70,7 @@ WEAPON_PROPERTY_VERIFICATION = Verification(
         '("Mastery Properties" -> Graze), p. 90'
     ),
     date="2026-08-23",
+    method=VerificationMethod.ASSERTED,
 )
 
 #: p. 89: Heavy names a *score* of 13, not a modifier. Comparing modifiers would put the

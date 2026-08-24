@@ -161,6 +161,7 @@ def build(pdf: Path) -> dict[str, Any]:
                         "reference": f"Monsters, p. {printed}",
                         "date": VERIFIED_ON,
                         "reason": f"the stat block did not parse: {parsed}",
+                        "method": "asserted",
                     },
                 }
             )
@@ -178,6 +179,7 @@ def build(pdf: Path) -> dict[str, Any]:
                     "reference": f"SRD v5.2.1, Monsters, p. {printed} ({name})",
                     "date": VERIFIED_ON,
                     "reason": None,
+                    "method": "asserted",
                 },
             }
         )

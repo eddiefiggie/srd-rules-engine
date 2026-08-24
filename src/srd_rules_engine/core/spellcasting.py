@@ -45,7 +45,11 @@ from typing import Final
 
 from srd_rules_engine.core.conditions import Conditions
 from srd_rules_engine.core.d20 import D20Test, TestKind
-from srd_rules_engine.core.rules import Verification, VerificationState
+from srd_rules_engine.core.rules import (
+    Verification,
+    VerificationMethod,
+    VerificationState,
+)
 
 #: p. 178: "A cantrip is a level 0 spell, which is cast without a spell slot."
 CANTRIP_LEVEL: Final = 0
@@ -67,6 +71,7 @@ SPELLCASTING_VERIFICATION: Final = Verification(
         "p. 179, Spell Attack p. 188"
     ),
     date="2026-08-23",
+    method=VerificationMethod.ASSERTED,
 )
 
 

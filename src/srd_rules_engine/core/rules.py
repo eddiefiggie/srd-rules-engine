@@ -57,6 +57,23 @@ class VerificationState(StrEnum):
     EXCLUDED = "excluded"
 
 
+class VerificationMethod(StrEnum):
+    """How an entry was checked. Decision 0017.
+
+    `ASSERTED` is a pattern that must match a cited page of the official PDF — machine-run,
+    re-runnable, and what every SRD-derived value in this engine carries. It proves the
+    value appears where it says; it proves nothing about whether the value was put in the
+    right field or the rule read the way the document meant.
+
+    `EDITORIAL` is a human modelling judgement: which effect shape a rule is, whether a
+    glossary entry is vocabulary or a mechanic. Recorded as having been made, not as having
+    been made correctly.
+    """
+
+    ASSERTED = "asserted"
+    EDITORIAL = "editorial"
+
+
 @dataclass(frozen=True)
 class Verification:
     """What was checked, against what, and when — or why the entry was excluded."""
@@ -65,6 +82,9 @@ class Verification:
     reference: str | None = None
     date: str | None = None
     reason: str | None = None
+    #: How it was checked (0017). `None` means the method was never recorded, which is
+    #: honest where a guess would not be.
+    method: VerificationMethod | None = None
 
     def __post_init__(self) -> None:
         if self.state is VerificationState.VERIFIED:

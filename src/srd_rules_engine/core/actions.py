@@ -50,7 +50,11 @@ from typing import Final
 
 from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.d20 import Advantage
-from srd_rules_engine.core.rules import Verification, VerificationState
+from srd_rules_engine.core.rules import (
+    Verification,
+    VerificationMethod,
+    VerificationState,
+)
 
 #: R31.
 ACTION_VERIFICATION: Final = Verification(
@@ -60,6 +64,7 @@ ACTION_VERIFICATION: Final = Verification(
         "Disengage p. 181, Dodge p. 181, Opportunity Attacks p. 185, Reaction p. 186"
     ),
     date="2026-08-23",
+    method=VerificationMethod.ASSERTED,
 )
 
 

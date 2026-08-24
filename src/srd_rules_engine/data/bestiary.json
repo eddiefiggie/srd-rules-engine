@@ -34,7 +34,8 @@
     "state": "verified",
     "reference": "SRD v5.2.1, Monsters, p. 258 (Aboleth)",
     "date": "2026-08-23",
-    "reason": null
+    "reason": null,
+    "method": "asserted"
    }
   },
   {
@@ -61,7 +62,8 @@
     "state": "verified",
     "reference": "SRD v5.2.1, Monsters, p. 261 (Bandit)",
     "date": "2026-08-23",
-    "reason": null
+    "reason": null,
+    "method": "asserted"
    }
   },
   {
@@ -88,7 +90,8 @@
     "state": "verified",
     "reference": "SRD v5.2.1, Monsters, p. 275 (Commoner)",
     "date": "2026-08-23",
-    "reason": null
+    "reason": null,
+    "method": "asserted"
    }
   },
   {
@@ -115,7 +118,8 @@
     "state": "verified",
     "reference": "SRD v5.2.1, Monsters, p. 296 (Guard)",
     "date": "2026-08-23",
-    "reason": null
+    "reason": null,
+    "method": "asserted"
    }
   },
   {
@@ -142,7 +146,8 @@
     "state": "verified",
     "reference": "SRD v5.2.1, Monsters, p. 347 (Wolf)",
     "date": "2026-08-23",
-    "reason": null
+    "reason": null,
+    "method": "asserted"
    }
   },
   {
@@ -170,7 +175,8 @@
     "state": "verified",
     "reference": "SRD v5.2.1, Monsters, p. 353 (Giant Rat)",
     "date": "2026-08-23",
-    "reason": null
+    "reason": null,
+    "method": "asserted"
    }
   }
  ],

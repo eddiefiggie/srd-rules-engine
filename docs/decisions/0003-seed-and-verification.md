@@ -1,6 +1,8 @@
 # 0003 — No structured seed for mechanics; the official SRD 5.2.1 is the verification reference
 
-- **Status:** Accepted, 2026-08-22
+- **Status:** Accepted, 2026-08-22 · **superseded in part** by
+  [0017 — verification is asserted, not read](0017-verification-is-asserted-not-read.md),
+  which replaces clause 2's "verified by a human against it". Everything else here stands.
 - **Settles:** [#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6)
 - **Requirements:** R31, R32 · touches R36
 - **Related:** [0002 — ledger durability](0002-ledger-durability.md); attribution wording is

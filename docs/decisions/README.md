@@ -57,7 +57,7 @@ rejected options and the reason survive, not the exact headings.
 |---|---|---|
 | [0001](0001-agent-seam.md) | The agent seam is a generator of typed requests | [#4](https://github.com/eddiefiggie/srd-rules-engine/issues/4) |
 | [0002](0002-ledger-durability.md) | Nothing escapes the engine before its record is durable | [#5](https://github.com/eddiefiggie/srd-rules-engine/issues/5) |
-| [0003](0003-seed-and-verification.md) | No structured seed for mechanics; the official SRD 5.2.1 is the verification reference | [#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6) |
+| [0003](0003-seed-and-verification.md) | No structured seed for mechanics; the official SRD 5.2.1 is the verification reference — **superseded in part by [0017](0017-verification-is-asserted-not-read.md)** | [#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6) |
 | [0004](0004-trigger-catalogue.md) | The trigger catalogue is data, and over-firing is a fidelity defect | [#7](https://github.com/eddiefiggie/srd-rules-engine/issues/7) |
 | [0005](0005-retry-bounds.md) | Retry bounds belong to the turn loop, and exhaustion is not a rules outcome | [#11](https://github.com/eddiefiggie/srd-rules-engine/issues/11) |
 | [0006](0006-ledger-format.md) | JSONL with a fixed envelope, and a reader API rather than a public file format | [#10](https://github.com/eddiefiggie/srd-rules-engine/issues/10) |
@@ -71,6 +71,7 @@ rejected options and the reason survive, not the exact headings.
 | [0014](0014-positional-state.md) | Position is three integer coordinates in feet, and distance is never a float | [#17](https://github.com/eddiefiggie/srd-rules-engine/issues/17), [#20](https://github.com/eddiefiggie/srd-rules-engine/issues/20) |
 | [0015](0015-reactions-and-the-agent-seam.md) | The generator seam already serves reactions; what they need is state and triggers | [#16](https://github.com/eddiefiggie/srd-rules-engine/issues/16), [#4](https://github.com/eddiefiggie/srd-rules-engine/issues/4) |
 | [0016](0016-adapters-hold-the-turn.md) | An adapter holds the suspended turn, and never exposes adjudication | [#97](https://github.com/eddiefiggie/srd-rules-engine/issues/97) |
+| [0017](0017-verification-is-asserted-not-read.md) | Verification is a pattern asserted against the document, and it does not cover modelling — supersedes [0003](0003-seed-and-verification.md) in part | [#21](https://github.com/eddiefiggie/srd-rules-engine/issues/21) |
 
 ## What belongs here, and what doesn't
 

@@ -23,10 +23,12 @@ today, because none of them are — an honest field rather than a silent omissio
 
 Every field is asserted against the printed page at derivation time by
 `scripts/derive_bestiary.py`: the pattern must match, or the derivation fails. That is the
-same standard the effect-shape inventory holds itself to, and it is stronger than an eye
-passing over a number — but it is **mechanical assertion, not a human reading**, and
-decision 0003's wording says "verified by a human against it". The difference is recorded
-rather than glossed: see that decision's status and this module's entry in `CHANGELOG.md`.
+same standard the effect-shape inventory holds itself to. Decision
+[0017](../../../docs/decisions/0017-verification-is-asserted-not-read.md) settles what that
+means: verification is a pattern asserted against the document, it is re-runnable where a
+human read is not, and it covers **transcription rather than modelling** — a pattern would
+confirm that `AC 17` appears on p. 258 while the derivation wrote 17 into `hit_points`.
+Every entry records `method: asserted` so the claim is legible rather than assumed.
 
 ## The gate
 
@@ -46,7 +48,11 @@ from types import MappingProxyType
 from typing import Final
 
 from srd_rules_engine.core.position import Speeds
-from srd_rules_engine.core.rules import Verification, VerificationState
+from srd_rules_engine.core.rules import (
+    Verification,
+    VerificationMethod,
+    VerificationState,
+)
 
 _DATA_PACKAGE: Final = "srd_rules_engine.data"
 _DATA_FILE: Final = "bestiary.json"
@@ -175,9 +181,14 @@ def _statistics(entry: Mapping[str, object]) -> Statistics:
             reference=_text(verification.get("reference")),
             date=_text(verification.get("date")),
             reason=_text(verification.get("reason")),
+            method=_method(verification.get("method")),
         ),
         traits_modelled=bool(entry.get("traits_modelled", False)),
     )
+
+
+def _method(value: object) -> VerificationMethod | None:
+    return None if value is None else VerificationMethod(str(value))
 
 
 def _optional(value: object) -> int | None:
