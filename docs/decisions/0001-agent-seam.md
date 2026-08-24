@@ -183,6 +183,14 @@ statements with `await` stripped, then wrap a driver's `answer` to record and re
 
 ## Status of implementation
 
-**None, deliberately.** M0 holds that nothing is implemented until the gates close, because an
-open gate otherwise gets settled by whoever writes the code first. This record specifies the
-seam; the module lands when M1 opens.
+**Implemented.** `loop/turn.py`: `TurnLoop.run` is a generator yielding the three typed requests
+this record specifies — `DeclarationRequest`, `NarrationRequest`, `BlockedFactRequest` — answered
+by `Declared`, `Narrated`, `FactsSupplied`. Both reference drivers ship in `loop/drivers.py`
+(`ScriptedDriver`, `HumanCliDriver`), and `adapters.Session` is the object-shaped adapter, held
+between calls per [0016](0016-adapters-hold-the-turn.md).
+
+The seam gained a second entry point it did not have here: `TurnLoop.end_turn`, added by
+[0023](0023-the-turns-end-is-a-loop-owned-phase.md) for the turn's end. That extends this record's
+shape rather than revising it — same generator, same request types, same drivers.
+
+_Corrected 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). This section read **"None"** for every build between this record landing and that date, while the work it specifies had shipped — a dated claim that could not notice its own staleness._

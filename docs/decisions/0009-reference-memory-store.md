@@ -161,6 +161,9 @@ value, and property 3 above is the executable statement of that.
 
 ## Status of implementation
 
-**None.** M0 holds that nothing is built until the gates close. This record specifies the format,
-the store's relationship to the ledger, and what "sufficient" means concretely; it lands with the
-memory port when M1 opens.
+**Implemented.** `memory/store.py`: `JsonMemoryStore` is the flat-JSON store and
+`rebuild_from_ledger` is the projection this record's argument turns on — the ledger is the system
+of record for fact history, and the store rebuilds from it. All five properties this record calls
+"sufficient" are asserted in `tests/test_reference_store.py`.
+
+_Corrected 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). This section read **"None"** for every build between this record landing and that date, while the work it specifies had shipped — a dated claim that could not notice its own staleness._

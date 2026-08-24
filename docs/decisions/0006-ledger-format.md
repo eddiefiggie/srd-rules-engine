@@ -262,6 +262,13 @@ exact wording rather than a summary of it, including one's own.
 
 ## Status of implementation
 
-**None.** M0 holds that nothing is built until the gates close. This record specifies the
-container, the canonical form, the version boundaries, and the reader's obligations; the ledger
-lands with the adjudication core when M1 opens.
+**Implemented.** `core/ledger.py` carries the JSONL container, `ENVELOPE_FIELDS`, and
+`FORMAT_VERSION`; `core/canonical.py` is the RFC 8785 canonical form with floats excluded;
+`core/ledger_reader.py` is the reader API, with `LedgerReport`, `Finding`, `CHAIN_BREAK` and
+`CHECKSUM_MISMATCH`. Entry `seq` 0 is the `session` entry carrying the format, engine and
+catalogue versions.
+
+One clause has been amended since: [0022](0022-compat-is-a-reader-version.md) settles that `compat`
+is a **reader** version and no payload derives it from its own schema version.
+
+_Corrected 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). This section read **"None"** for every build between this record landing and that date, while the work it specifies had shipped — a dated claim that could not notice its own staleness._

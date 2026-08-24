@@ -223,6 +223,13 @@ made strong by the same addition.
 
 ## Status of implementation
 
-**None.** M0 holds that nothing is built until the gates close. This record specifies the token's
-contents, the verdict vocabulary, and where the verdict is recorded; it lands with the read
-surface and the adjudication core when M1 opens.
+**Implemented.** `core/read_surface.py`: every result carries an opaque read token, and `Verdict`
+holds exactly the four values this record specifies — `verified-fresh`, `verified-stale`,
+`unverified`, `unread`. The verdict rides on the Ruling and its ledger entry, and a failed
+verification is recorded and reported rather than refused (R19 intact).
+
+`unread` earned a second use it was not designed for: an engine-authored obligation declaration
+([0023](0023-the-turns-end-is-a-loop-owned-phase.md)) carries no token, because nothing offered it
+and nothing was choosing.
+
+_Corrected 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). This section read **"None"** for every build between this record landing and that date, while the work it specifies had shipped — a dated claim that could not notice its own staleness._

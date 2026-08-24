@@ -151,5 +151,9 @@ choice.
 
 ## Status of implementation
 
-**None.** M0 holds that nothing is built until the gates close. This record specifies the
-durability contract; the ledger lands when M1 opens, against the format #10 settles.
+**Implemented.** `core/ledger.py`: `Ledger.escape_boundary` is the synchronising write, so no
+Ruling, challenge or rejection returns before its entry is durable. A failed append raises rather
+than returning a status, because infrastructure failure is not a rules outcome.
+`tests/test_ledger_writer.py` carries the guards.
+
+_Corrected 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). This section read **"None"** for every build between this record landing and that date, while the work it specifies had shipped — a dated claim that could not notice its own staleness._

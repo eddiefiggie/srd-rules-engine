@@ -285,6 +285,13 @@ being original prose. If that ever stops being true the conclusion goes with it.
 
 ## Status of implementation
 
-**None.** M0 holds that nothing is built until the gates close. This record specifies the
-catalogue's form, its provenance vocabulary, its growth process, and its relationship to replay;
-the matcher and the first rows land when M1 opens.
+**Implemented.** `core/triggers.py`: `Catalogue` carries a `version` and its rows, `MatchCondition`
+is the closed operator set, and `MatchContext` is the projection the matcher sees — which excludes
+the declaration's free-text label, so a skip cannot be waved through by how it was worded. The
+version in force is recorded on the declaration's ledger entry and replay uses the recorded one.
+
+The catalogue remains **known-incomplete** and `AGENTS.md` discloses it: the SRD supplies explicit
+triggers only for forced saves, attacks and stated hazards, and catalogue recall is unmeasurable
+from play alone because a missed skip leaves no trace.
+
+_Corrected 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). This section read **"None"** for every build between this record landing and that date, while the work it specifies had shipped — a dated claim that could not notice its own staleness._

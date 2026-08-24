@@ -145,4 +145,9 @@ it.
 
 ## Status of implementation
 
-**None at time of writing.** Both entry points and their guards land with U7.
+**Implemented.** `core/rules.py` carries both entry points — `load_ruleset` admits verified
+SRD-derived rules and refuses a fixture outright; `load_fixture_ruleset` refuses an SRD-derived
+rule in turn, and requires a name so a fixture ruleset is never reached by default. The guard this
+record names is `tests/test_rule_loader.py::test_no_fixture_rule_is_defined_anywhere_under_src`.
+
+_Corrected 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). This section read **"None"** for every build between this record landing and that date, while the work it specifies had shipped — a dated claim that could not notice its own staleness._

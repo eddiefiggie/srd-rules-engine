@@ -276,7 +276,19 @@ unusable rests on the missing Rules Glossary, which is a coverage fact, not on t
 
 ## Status of implementation
 
-**None.** M0 holds that nothing is built until the gates close. This record settles what seeds
-the mechanics and what "verified" means; the verification block schema lands with the first data
-to carry it, which remains gated behind
-[#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3).
+**Implemented, and superseded in part.** The verification block landed in `core/rules.py` as
+`Verification` — `state`, `reference`, `date`, `reason`, plus the `method` that
+[0017](0017-verification-is-asserted-not-read.md) added — with `VerificationState` carrying
+`verified`, `unverified` and `excluded`. `load_ruleset` refuses anything not verified, and
+`core.bestiary.load_bestiary` does the same for data — it is not re-exported from `core`, so
+an adapter cannot reach it.
+
+The gate this record named as blocking, #3, is closed, and the first SRD-derived content has
+landed: six monsters, statistics only (#99). The community-dataset question is unchanged — no
+dataset seeds the mechanics.
+
+[0017](0017-verification-is-asserted-not-read.md) supersedes this record's account of what
+"verified" means: verification is a **pattern asserted against the document**, re-runnable by
+`scripts/verify_d20_rules.py`, and it does not cover modelling.
+
+_Corrected 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). This section read **"None"** for every build between this record landing and that date, while the work it specifies had shipped — a dated claim that could not notice its own staleness._

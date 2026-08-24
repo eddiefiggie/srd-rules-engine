@@ -40,7 +40,7 @@ FACT_WRITE: Final = "fact-write"
 FACT_PAYLOAD_VERSION: Final = 1
 #: The lowest reader version that can read a fact payload, which is not the same number as
 #: the schema version above (#106, decision 0022). This one was a live landmine rather than
-#: a latent one: `memory.store.rebuild` **raises** on an uninterpretable fact write, so
+#: a latent one: `memory.store.rebuild_from_ledger` **raises** on an uninterpretable fact write, so
 #: bumping `FACT_PAYLOAD_VERSION` would have made every store rebuild fail outright.
 FACT_PAYLOAD_COMPAT: Final = 1
 
