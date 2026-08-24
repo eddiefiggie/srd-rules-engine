@@ -202,5 +202,10 @@ wrong scope.**
 
 ## Status of implementation
 
-**None.** M0 holds that nothing is built until the gates close. This record specifies the blocked
-loop's shape and termination; it lands with the memory port and the turn loop when M1 opens.
+**Implemented.** `loop/turn.py`: `TurnLoop._resolve` suspends on `BlockedFactRequest` and resumes
+the *same* declaration, so the agent is not asked again and 0005's budget is not charged. The loop
+is self-terminating because the unresolved set can only shrink; a round that fails to shrink it
+ends the turn with `TerminalReason.FACT_UNAVAILABLE`. The engine never invents a default at that
+terminal.
+
+_Corrected 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). This section read **"None"** for every build between this record landing and that date, while the work it specifies had shipped — a dated claim that could not notice its own staleness._

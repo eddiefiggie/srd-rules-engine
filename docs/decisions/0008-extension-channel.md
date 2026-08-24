@@ -168,6 +168,9 @@ discovering that neither is needed.
 
 ## Status of implementation
 
-**None.** M0 holds that nothing is built until the gates close. This record specifies the namespace
-form, the core/extension boundary, and what the engine will and will not do with an extension; it
-lands with the memory port when M1 opens.
+**Implemented.** `core/memory_port.py`: `is_extension` decides on the reverse-DNS namespace, the
+core set is unnamespaced, and `Rule.__post_init__` raises at load time if a rule declares a
+namespaced type — so no consumer-defined fact can move an outcome and R31 stays intact. Extension
+facts round-trip opaquely, including unknown namespaces, and the engine never interprets one.
+
+_Corrected 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). This section read **"None"** for every build between this record landing and that date, while the work it specifies had shipped — a dated claim that could not notice its own staleness._

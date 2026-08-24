@@ -248,5 +248,12 @@ would each have had to be bent to fit.
 
 ## Status of implementation
 
-**None.** M0 holds that nothing is built until the gates close, and this is the last of them.
-Layout and both guard tests land with the first code, when M1 opens.
+**Implemented.** The four packages exist — `core`, `loop`, `memory`, `adapters` — and both guard
+tests ship: `tests/test_layer_boundaries.py` enforces the import direction in each direction, and
+`tests/test_core_has_no_runtime_dependencies.py` holds `[project].dependencies` empty. Schemas
+carry the min-reader floor as `compat`.
+
+One clause has been amended: [0022](0022-compat-is-a-reader-version.md) settles that `compat` is a
+reader version rather than a restatement of the payload's own schema version.
+
+_Corrected 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). This section read **"None"** for every build between this record landing and that date, while the work it specifies had shipped — a dated claim that could not notice its own staleness._

@@ -241,6 +241,11 @@ taking that framing at face value would have put a deployment concern inside the
 
 ## Status of implementation
 
-**None.** M0 holds that nothing is built until the gates close. This record specifies where the
-bound lives, its shape and defaults, and the terminal outcome's contents; it lands with the turn
-loop when M1 opens.
+**Implemented.** `loop/turn.py`: `DEFAULT_BUDGET` is 3, `None` means unbounded, and
+`TerminalReason` carries all five outcomes this record and [0010](0010-blocked-loop.md) name —
+`no-progress`, `challenge-churn`, `rejection-churn`, `mixed-churn`, `fact-unavailable`. Two
+structurally identical refusals terminate ahead of the budget, compared on signature rather than
+message text. `TurnLoop._terminated` records the termination to the ledger, so a slot that produced
+no Ruling still leaves a trace R30's report can reach.
+
+_Corrected 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). This section read **"None"** for every build between this record landing and that date, while the work it specifies had shipped — a dated claim that could not notice its own staleness._
