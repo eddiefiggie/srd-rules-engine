@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.36` — **`core.Condition` is now the SRD condition (#112).** It was the *trigger* predicate: two different types under one name, and R34 sends every outer layer to `core` for its names, so a consumer following the rule got the wrong one. Loud only where an enum member was looked up — silent anywhere both satisfied a signature. The trigger type is now `MatchCondition`, which is decision `0004`'s own term for it ("match conditions over the closed operator set"); `Predicate` was rejected because `0004` uses that word for the callable design it *declined*. `Condition`, `Conditions` and `ConditionEffects` are exported from `core` for the first time, and a test pins the resolution **by identity**, so re-exporting the wrong module cannot satisfy it.
+**Current build:** `08232026.37` — **the README's Status section was eight builds stale, and the coverage figure it published was wrong by a factor of four.** It said *"Requirements-only. Nothing built yet"* over a tree with fourteen implementation units and 840 tests, and *"17 of 215 shapes resolve"* where `coverage_report()` says **76 of 211** — the measuring stick R17 requires, quoted wrong in the one place a reader meets it. Also corrected: the decision list stopped at `0012` of twenty-two, *"Next up"* pointed at an issue closed weeks ago, and Attribution claimed no SRD-derived content had been committed after six monsters landed in `#99`. `tests/test_readme_reports_real_coverage.py` now derives both coverage figures from the inventory, so that number cannot drift again — the build stamp was the only line of this README CI was reading.
 
 ---
 
@@ -83,22 +83,33 @@ backlog.
 
 ## Status
 
-**Requirements-only. Nothing built yet — but every design gate is now settled.**
+**The vertical slice runs: one character, one encounter, end to end, with no model and no
+network.**
 
 [`docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`](docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md)
-carries 36 requirements, 4 flows, 5 acceptance examples, and 10 settled design decisions. Two
-`ce-doc-review` rounds applied 24 findings; round 2 found none.
+carries 36 requirements, 4 flows, 5 acceptance examples, and the fourteen implementation units
+behind them. All fourteen exist. `tests/test_vertical_slice.py` asserts the slice **through its
+session-review report** rather than through intermediate states — every unit's own tests were
+green while the report was silently mis-flagging an answered challenge, which is exactly the
+failure a per-step assertion cannot see.
+
+**What a green suite here does not prove.** The slice runs a scripted driver, which asserts
+exactly what it is told to and therefore cannot produce an unprompted silent skip. It shows the
+report *detects* each defect condition when one is injected. It does not show that a live agent
+*cannot evade* it — that is the product contract's primary criterion, it needs a real model, and
+it is filed as [#42](https://github.com/eddiefiggie/srd-rules-engine/issues/42). Reading the
+slice as having met the contract's bar is the misreading this milestone most invites.
 
 Open work lives in **[GitHub Issues](https://github.com/eddiefiggie/srd-rules-engine/issues)** —
-the single source of truth. The plan's ten outstanding questions, its attribution dependency, and
-its four deferred scope items are all filed there rather than left as prose, and the plan itself
-carries the issue number beside each one.
+the single source of truth. The plan's outstanding questions, its attribution dependency, and its
+deferred scope items are all filed there rather than left as prose, and the plan itself carries
+the issue number beside each one.
 
-| Milestone | What closes it |
+| Milestone | Where it stands |
 |---|---|
-| **M0 — Design gates settled** | Every [`gate`](https://github.com/eddiefiggie/srd-rules-engine/issues?q=is%3Aissue+is%3Aopen+label%3Agate) question answered and folded back into the plan. Nothing is implemented until this closes, because each open gate would otherwise be settled by whoever writes the code first. |
-| **M1 — Playable vertical slice** | One character, one encounter, end to end. A development milestone, not a release. |
-| **v1.0 — Full SRD 5.2 coverage** | Every entry in the effect-shape inventory ([#14](https://github.com/eddiefiggie/srd-rules-engine/issues/14)) resolves. Partial coverage is an incomplete release, not a smaller one. |
+| **M0 — Design gates settled** | **Closed.** Every [`gate`](https://github.com/eddiefiggie/srd-rules-engine/issues?q=is%3Aissue+label%3Agate) question was answered and folded back into the plan, each producing a record in [`docs/decisions/`](docs/decisions/). None is open. |
+| **M1 — Playable vertical slice** | **Demonstrated, not validated.** The encounter runs end to end and the report flags every defect condition it is shown. The live-agent half is [#42](https://github.com/eddiefiggie/srd-rules-engine/issues/42) and is still open. |
+| **v1.0 — Full SRD 5.2 coverage** | **76 of 211 effect shapes.** Every entry in the inventory ([#14](https://github.com/eddiefiggie/srd-rules-engine/issues/14)) must resolve. Partial coverage is an incomplete release, not a smaller one. |
 
 ## Effect-shape coverage
 
@@ -107,7 +118,7 @@ distinct effect shapes SRD v5.2.1 defines, each marked implemented or not. Witho
 "full SRD 5.2 coverage is the definition of done" is unfalsifiable — there is no way to
 tell a complete engine from one whose author stopped noticing gaps.
 
-**17 of 215 shapes resolve today.** The other 198 are listed, not omitted; run
+**76 of 211 shapes resolve today.** The other 135 are listed, not omitted; run
 `python -c "from srd_rules_engine.core import coverage_report; print(coverage_report())"`
 to see exactly which. Entries sit at independently-failable granularity, so each of the
 fifteen conditions counts separately — an engine that resolves Prone and nothing else
@@ -116,7 +127,7 @@ reports 1/15 rather than reporting conditions done.
 Enumeration is mechanical: `scripts/derive_effect_shapes.py` reads the Rules Glossary's
 155 entry headings straight off the official PDF, so nothing in the list is recalled from
 memory. Classification — which entries are effect shapes and which merely define a term —
-is editorial and lives in that script where it can be reviewed. Nineteen entries are
+is editorial and lives in that script where it can be reviewed. Twenty entries are
 recorded as vocabulary with a stated reason rather than dropped.
 
 **All eleven rules sections of the document are swept**, and that claim is asserted rather
@@ -165,19 +176,45 @@ one, and the plan is amended to match:
 - [0012 — fixture provenance](docs/decisions/0012-fixture-provenance.md) — provenance selects the
   entry point, not a branch inside one
   (closed [#41](https://github.com/eddiefiggie/srd-rules-engine/issues/41))
+- [0013 — effect-shape normalisation](docs/decisions/0013-effect-shape-normalisation.md) — the
+  vocabulary normalises on mechanism, not on the feature that exhibits it
+  (closed [#76](https://github.com/eddiefiggie/srd-rules-engine/issues/76))
+- [0014 — positional state](docs/decisions/0014-positional-state.md) — position is three integer
+  coordinates in feet, and distance is never a float
+  (settles the positional model for [#17](https://github.com/eddiefiggie/srd-rules-engine/issues/17) and [#20](https://github.com/eddiefiggie/srd-rules-engine/issues/20))
+- [0015 — reactions and the agent seam](docs/decisions/0015-reactions-and-the-agent-seam.md) — the
+  generator seam already serves reactions; what they need is state and triggers
+  (settles the architectural question [#16](https://github.com/eddiefiggie/srd-rules-engine/issues/16) raised)
+- [0016 — adapters hold the turn](docs/decisions/0016-adapters-hold-the-turn.md) — an adapter holds
+  the suspended turn, and never exposes adjudication
+  (settles the adapter shape for [#97](https://github.com/eddiefiggie/srd-rules-engine/issues/97))
+- [0017 — verification is asserted, not read](docs/decisions/0017-verification-is-asserted-not-read.md)
+  — verification is a pattern asserted against the document, and it does not cover modelling
+  (supersedes [0003](docs/decisions/0003-seed-and-verification.md) in part)
+- [0018 — API stability](docs/decisions/0018-api-stability.md) — three stability tiers, an integer
+  API version, and a committed surface that is enumerated
+  (closed [#39](https://github.com/eddiefiggie/srd-rules-engine/issues/39))
+- [0019 — `kind` is a filing label](docs/decisions/0019-kind-is-a-filing-label.md) — a filing label,
+  not a model, and it stays one axis
+  (closed [#84](https://github.com/eddiefiggie/srd-rules-engine/issues/84))
+- [0020 — two kinds of time](docs/decisions/0020-two-kinds-of-time.md) — the encounter axis and the
+  campaign clock, and a turn never advances the clock
+  (closed [#85](https://github.com/eddiefiggie/srd-rules-engine/issues/85))
+- [0021 — a round is six seconds](docs/decisions/0021-a-round-is-six-seconds.md) — the document does
+  print the conversion (p. 98), which amends 0020's first clause
+  (closed [#108](https://github.com/eddiefiggie/srd-rules-engine/issues/108))
+- [0022 — `compat` is a reader version](docs/decisions/0022-compat-is-a-reader-version.md) — no
+  payload derives `compat` from its own schema version
+  (closed [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106))
 
-**Next up:** [#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3) — the last thing
-holding M0 open, and the only one that is not a design question. It needs the official SRD v5.2.1
-document, and its attribution statement transcribed from the front matter rather than
-reconstructed. It gates SRD-derived **data**, not the mechanics code.
-
-**Every design gate is settled.** The eleven records in
-[`docs/decisions/`](docs/decisions/) answer them, and the plan is amended to match each one. Then
-`/ce-plan` to turn the requirements artifact into an implementation plan.
-
-M1's machinery issues are deliberately **not** filed yet: the adjudication core, ledger, and memory
-port would all be reshaped by the gates above, so filing them now would file the wrong work. The
-coverage epics are filed, because the SRD defines those regardless of how the gates land.
+**Next up:** condition duration on the campaign axis.
+[#111](https://github.com/eddiefiggie/srd-rules-engine/issues/111) — a span in hours or days has
+no way to retire, so 92 entries read as until-removed when the clock they resolve against already
+exists. Then [#110](https://github.com/eddiefiggie/srd-rules-engine/issues/110) — the engine
+reports that a save-ends save is due and nothing ever rolls it, which is deliberate rather than an oversight: a save is an outcome, and
+R1 leaves outcomes to the one adjudication entry point. Joining the two ends means an end-of-turn
+request at the agent seam, and an end-of-turn save is not a declaration — so it wants a decision
+record before it wants code.
 
 ## Development
 
@@ -195,9 +232,11 @@ CI runs that same gate on every pull request across Python 3.11–3.13. See
 
 Mechanics derive from the **System Reference Document 5.2** by Wizards of the Coast, licensed
 under **CC BY 4.0**. The engine's own code is **MIT**. Those are two different licences over
-two different things — read [`NOTICE.md`](NOTICE.md) before landing any rules data. No
-SRD-derived content has been committed yet, and the attribution wording must be verified
-against the published document before the first entry lands.
+two different things — read [`NOTICE.md`](NOTICE.md) before landing any rules data. The
+attribution statement there is transcribed from the published document's front matter rather
+than reconstructed, and the first SRD-derived content has landed: six monsters, statistics only
+([#99](https://github.com/eddiefiggie/srd-rules-engine/issues/99)). Each entry carries its own
+verification state, and the loader refuses anything `unverified` — a seed is never a source.
 
 ---
 
@@ -225,4 +264,4 @@ against the published document before the first entry lands.
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-22 — build `08222026.11`._
+_Last updated: 2026-08-23 — build `08232026.37`._
