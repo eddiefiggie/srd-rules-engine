@@ -210,3 +210,21 @@ def test_a_stat_block_missing_an_ability_is_refused() -> None:
 def test_every_published_entry_has_all_six_abilities() -> None:
     for entry in _raw()["entries"]:
         assert set(entry["abilities"]) == set(ABILITIES), entry["id"]
+
+
+# --- How an entry was checked (0017) --------------------------------------------------
+
+
+def test_every_published_entry_records_how_it_was_verified() -> None:
+    """Decision 0017. An entry saying `verified` without saying *how* invites the next
+    reader to assume whichever meaning suits them — which is the drift that decision exists
+    to close.
+    """
+    for entry in _raw()["entries"]:
+        assert entry["verification"]["method"] == "asserted", entry["id"]
+
+
+def test_the_method_survives_the_loader() -> None:
+    from srd_rules_engine.core.rules import VerificationMethod
+
+    assert published_bestiary()["wolf"].verification.method is VerificationMethod.ASSERTED

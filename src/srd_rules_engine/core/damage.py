@@ -42,7 +42,11 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Final
 
-from srd_rules_engine.core.rules import Verification, VerificationState
+from srd_rules_engine.core.rules import (
+    Verification,
+    VerificationMethod,
+    VerificationState,
+)
 
 #: R31. The order and the no-stacking rule are the whole of this module's fidelity.
 DAMAGE_VERIFICATION: Final = Verification(
@@ -53,6 +57,7 @@ DAMAGE_VERIFICATION: Final = Verification(
         "p. 183, Resistance p. 187, Vulnerability p. 191"
     ),
     date="2026-08-23",
+    method=VerificationMethod.ASSERTED,
 )
 
 

@@ -6,6 +6,36 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.27`
+
+Decision `0017` settles what verification means, superseding `0003` **in part**. Inventory coverage
+unchanged; this is a correction to the record and the vocabulary, not to a rule.
+
+- **The record and the practice disagreed.** 0003 said every entry "is verified by a human against
+  it". Nothing in this project works that way: every SRD-derived value is checked by a pattern that
+  must match a cited printed page, run by a script against the PDF. `verify_d20_rules.py` holds 87
+  such clauses and exits non-zero if one stops matching. That gap was found while landing #21 and it
+  gets a record rather than a quiet edit.
+- **0003's argument was never about humanity.** Read in context, "a human compared this to a named
+  section of a named document" is doing its work in the second half — the reference is the *official
+  document*, not a seed of unknown fidelity mixing two revisions under one version string. That
+  property is untouched by who does the comparing, so only the wording is superseded.
+- **"Verification is mechanical" would have been an overclaim**, and the record says so. A pattern
+  proves a value appears on the cited page. It cannot prove the value went into the right field, that
+  the effect shape chosen is the right one, or that a rule was read the way the document meant. Those
+  are editorial judgements and they stay human — the split the derivation scripts already stated in
+  their docstrings, promoted from a comment to a decision.
+- **`Verification` records which was done.** `method` is `asserted`, `editorial`, or `None` where
+  neither was recorded — honest where a default would be a claim nobody made. All twelve SRD blocks
+  in the engine and every bestiary entry now say `asserted`.
+- **0003 is not edited.** Records are immutable, so its Status line points at 0017 and the decisions
+  index shows the supersession. A reader arriving at the old record is not misled.
+- **The counter-example is this session's own history.** Three guards passed while inspecting
+  nothing — a self-referential band assertion, a corrupted clause description rather than its
+  pattern, and a no-prose content heuristic. Each was mechanical and each was satisfied. Mechanical
+  checks confirm precisely what they were pointed at and say nothing about whether that was the right
+  thing to point at.
+
 ## Unreleased — 2026-08-23 — build `08232026.26`
 
 The first SRD-derived content: six monsters, statistics only. #21's gates (#3 attribution, #6

@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.26` — **the first SRD content: six monsters, statistics only.** Decision `0003` governs it — no dataset seeds anything, the official PDF is the only verification reference, and **only `verified` entries reach the engine**, refused loudly rather than filtered. Every field is asserted against the printed page at derivation time, and a stat block that does not parse is *excluded with its reason* rather than guessed at. **Traits and actions are absent by construction**: they are rules prose, `NOTICE.md` commits this repository to not redistributing it, and `Statistics` has nowhere to put a sentence — `traits_modelled` is `false` on every entry so no consumer can mistake a statistics-only monster for a complete one.
+**Current build:** `08232026.27` — **decision `0017` says what verification actually means, superseding `0003` in part.** 0003 claimed every entry is "verified by a human against it"; nothing here works that way. Every SRD-derived value is checked by a **pattern that must match a cited printed page** — re-runnable where a human read is not, and the reason a dated claim cannot go stale unnoticed. But it covers **transcription, not modelling**: a pattern would happily confirm `AC 17` appears on p. 258 while the derivation wrote 17 into `hit_points`. So `Verification` now records `method` — `asserted` or `editorial` — and every SRD block in the engine says which. 0003's Status line points here rather than being edited, because records are immutable.
 
 ---
 

@@ -49,7 +49,11 @@ from typing import Final
 
 from srd_rules_engine.core.d20 import Advantage
 from srd_rules_engine.core.position import Position, within
-from srd_rules_engine.core.rules import Verification, VerificationState
+from srd_rules_engine.core.rules import (
+    Verification,
+    VerificationMethod,
+    VerificationState,
+)
 
 #: p. 186, Prone; p. 191, Unconscious — both name 5 feet.
 ADJACENT_FEET: Final = 5
@@ -67,6 +71,7 @@ CONDITION_VERIFICATION: Final = Verification(
         "p. 186, Restrained p. 187, Stunned p. 189, Unconscious p. 191"
     ),
     date="2026-08-23",
+    method=VerificationMethod.ASSERTED,
 )
 
 

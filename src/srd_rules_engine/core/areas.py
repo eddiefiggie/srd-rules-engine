@@ -61,7 +61,11 @@ from dataclasses import dataclass
 from typing import Final, Protocol
 
 from srd_rules_engine.core.position import Position, squared_distance
-from srd_rules_engine.core.rules import Verification, VerificationState
+from srd_rules_engine.core.rules import (
+    Verification,
+    VerificationMethod,
+    VerificationState,
+)
 
 #: R31.
 AREA_VERIFICATION: Final = Verification(
@@ -71,6 +75,7 @@ AREA_VERIFICATION: Final = Verification(
         "Cylinder p. 180, Emanation p. 181, Line p. 184, Sphere p. 188"
     ),
     date="2026-08-23",
+    method=VerificationMethod.ASSERTED,
 )
 
 

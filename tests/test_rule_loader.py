@@ -299,3 +299,61 @@ def test_both_loaders_apply_the_same_shape_and_duplicate_checks() -> None:
     for ruleset in (load_ruleset([srd_rule()]), load_fixture_ruleset("s", [fixture_rule()])):
         assert isinstance(ruleset, Ruleset)
         assert "d20-test" in ruleset or "invented-check" in ruleset
+
+
+# --- Verification records its method (0017) ------------------------------------------
+
+
+def test_a_verification_may_record_how_it_was_checked() -> None:
+    """0017 splits the claim in two: `asserted` is a pattern that must match a cited page,
+    `editorial` is a human modelling judgement. Both are recorded; neither is assumed."""
+    from srd_rules_engine.core.rules import VerificationMethod
+
+    asserted = Verification(
+        state=VerificationState.VERIFIED,
+        reference="SRD v5.2.1, Monsters, p. 347",
+        date="2026-08-23",
+        method=VerificationMethod.ASSERTED,
+    )
+    assert asserted.method is VerificationMethod.ASSERTED
+    assert {m.value for m in VerificationMethod} == {"asserted", "editorial"}
+
+
+def test_an_unrecorded_method_is_none_rather_than_a_guess() -> None:
+    """Honest where a default would not be: `asserted` on an unchecked entry would be a
+    claim nobody made."""
+    assert Verification(state=VerificationState.UNVERIFIED).method is None
+
+
+def test_every_srd_verification_in_the_engine_says_it_was_asserted() -> None:
+    """Each of these rests on a pattern in `scripts/verify_d20_rules.py` or a derivation
+    script, so `asserted` is the true answer and an unrecorded one would understate it."""
+    from srd_rules_engine.core.actions import ACTION_VERIFICATION
+    from srd_rules_engine.core.areas import AREA_VERIFICATION
+    from srd_rules_engine.core.conditions import CONDITION_VERIFICATION
+    from srd_rules_engine.core.d20 import (
+        ADVANTAGE_VERIFICATION,
+        CRITICAL_VERIFICATION,
+        MODIFIER_VERIFICATION,
+        REROLL_VERIFICATION,
+    )
+    from srd_rules_engine.core.damage import DAMAGE_VERIFICATION
+    from srd_rules_engine.core.death import DEATH_SAVE_VERIFICATION
+    from srd_rules_engine.core.position import MOVEMENT_VERIFICATION
+    from srd_rules_engine.core.rules import VerificationMethod
+    from srd_rules_engine.core.spellcasting import SPELLCASTING_VERIFICATION
+
+    for verification in (
+        ACTION_VERIFICATION,
+        ADVANTAGE_VERIFICATION,
+        AREA_VERIFICATION,
+        CONDITION_VERIFICATION,
+        CRITICAL_VERIFICATION,
+        DAMAGE_VERIFICATION,
+        DEATH_SAVE_VERIFICATION,
+        MODIFIER_VERIFICATION,
+        MOVEMENT_VERIFICATION,
+        REROLL_VERIFICATION,
+        SPELLCASTING_VERIFICATION,
+    ):
+        assert verification.method is VerificationMethod.ASSERTED, verification.reference

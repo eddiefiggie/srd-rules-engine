@@ -51,7 +51,11 @@ from srd_rules_engine.core.adjudicate import (
 )
 from srd_rules_engine.core.d20 import D20Test, TestKind
 from srd_rules_engine.core.memory_port import Resolution
-from srd_rules_engine.core.rules import Verification, VerificationState
+from srd_rules_engine.core.rules import (
+    Verification,
+    VerificationMethod,
+    VerificationState,
+)
 from srd_rules_engine.core.state import EncounterState
 
 #: p. 17: "Roll 1d20. If the roll is 10 or higher, you succeed. Otherwise, you fail."
@@ -67,6 +71,7 @@ DEATH_SAVE_VERIFICATION: Final = Verification(
         "p. 181"
     ),
     date="2026-08-23",
+    method=VerificationMethod.ASSERTED,
 )
 
 

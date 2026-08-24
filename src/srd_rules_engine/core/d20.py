@@ -72,7 +72,11 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Final
 
-from srd_rules_engine.core.rules import Verification, VerificationState
+from srd_rules_engine.core.rules import (
+    Verification,
+    VerificationMethod,
+    VerificationState,
+)
 
 DIE_SIDES: Final = 20
 
@@ -86,6 +90,7 @@ ADVANTAGE_VERIFICATION: Final = Verification(
         "pp. 7-8; Rules Glossary, Advantage p. 176 and Disadvantage p. 181"
     ),
     date="2026-08-23",
+    method=VerificationMethod.ASSERTED,
 )
 
 #: R31, and separate from the advantage citation above because it rests on different
@@ -99,6 +104,7 @@ REROLL_VERIFICATION: Final = Verification(
         "Luck p. 86; Spell Descriptions, Wish p. 175"
     ),
     date="2026-08-23",
+    method=VerificationMethod.ASSERTED,
 )
 
 #: R31. The natural-20 rules and the two scores derived without a roll rest on their own
@@ -110,6 +116,7 @@ CRITICAL_VERIFICATION: Final = Verification(
         "Rules Glossary, Critical Hit p. 179 and Passive Perception p. 186"
     ),
     date="2026-08-23",
+    method=VerificationMethod.ASSERTED,
 )
 
 #: R31. The ways a resolved d20 test can still move: a flat bonus on both rolls, dice
@@ -122,6 +129,7 @@ MODIFIER_VERIFICATION: Final = Verification(
         "Aboleth p. 258"
     ),
     date="2026-08-23",
+    method=VerificationMethod.ASSERTED,
 )
 
 #: The width of the hash slice a single die consumes.
