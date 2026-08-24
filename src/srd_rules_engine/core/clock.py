@@ -97,6 +97,15 @@ TIME_VERIFICATION: Final = Verification(
 #: Not an SRD value — the unit the clock counts in, and the conversion into it.
 MINUTES_PER_HOUR: Final = 60
 
+#: Also not an SRD value, and worth saying why it is allowed to be here. The document uses
+#: "day" in a Duration line without ever defining it as a game term, the way it defines a
+#: round. So this is the ordinary meaning of the word — calendar arithmetic of exactly the
+#: same class as the 60 above — rather than a rule value inferred from a mechanic the
+#: document declined to state. A reader who disagrees is disagreeing about a unit, and can
+#: see the assumption here instead of finding it inside a retired condition.
+HOURS_PER_DAY: Final = 24
+MINUTES_PER_DAY: Final = HOURS_PER_DAY * MINUTES_PER_HOUR
+
 #: p. 98, the Oil entry: the oil burns "2 rounds from when the oil was lit (or 12 seconds)".
 #: Two rounds is twelve seconds, so a round is six — stated exactly, in a sentence doing rules
 #: work, rather than the *about* p. 13 uses to describe what a round feels like. Decision 0021
@@ -153,6 +162,13 @@ def hours(count: int) -> int:
     if count < 0:
         raise ValueError("a duration is not negative")
     return count * MINUTES_PER_HOUR
+
+
+def days(count: int) -> int:
+    """Minutes in `count` days. See `HOURS_PER_DAY` for why a day is 24 hours here."""
+    if count < 0:
+        raise ValueError("a duration is not negative")
+    return count * MINUTES_PER_DAY
 
 
 def stable_recovery_minute(now: Clock, *, seed: int) -> int:
