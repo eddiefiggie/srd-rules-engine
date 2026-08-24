@@ -6,6 +6,37 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.26`
+
+The first SRD-derived content: six monsters, statistics only. #21's gates (#3 attribution, #6
+dataset and per-entry verification) were both closed, so this is the largest body of SRD-derived
+material to land here and it lands under decision `0003`'s rules.
+
+- **Only `verified` entries reach the engine**, refused loudly rather than filtered. A silently
+  dropped entry is a gap nobody can see; a stat block the engine never checked would otherwise sit
+  in a campaign looking exactly like one it did.
+- **Every field is asserted against the printed page** at derivation time by
+  `scripts/derive_bestiary.py` — AC, HP with its hit dice, speeds, all six ability scores, CR and
+  proficiency bonus. A stat block that does not parse is **excluded with its reason** (R32) rather
+  than guessed at or dropped.
+- **Traits and actions are absent by construction.** They are rules prose, and `NOTICE.md` commits
+  this repository to not redistributing it: "Mechanics are modelled by hand... Rules prose is not
+  redistributed." `Statistics` has no field a sentence could go in, and `traits_modelled` is `false`
+  on every entry so a consumer can tell a statistics-only monster from a complete one.
+- **The admitted set is named, not swept.** `WANTED` lists each monster and the page it is expected
+  on, so what ships is a decision somebody made rather than whatever the parser survived.
+- **Fractions and dice stay strings.** A challenge rating of `1/8` and hit dice of `20d10 + 40` are
+  printed expressions; dividing either would produce a float, which `core.canonical` refuses.
+- **A guard looked reasonable and inspected nothing.** The first version of the no-prose test asked
+  whether a value "looked like a sentence" by checking for an internal full stop — and adding
+  `"traits": "The aboleth can breathe air and water."` walked straight past it: one sentence, one
+  trailing period, nothing internal. It is now an exact key-set assertion, which a content
+  heuristic can never be. Found by the standing rule that a guard must be seen red.
+- **Verification here is mechanical assertion, not a human reading.** Decision `0003` says "verified
+  by a human against it", and a pattern that must match the printed page is a stronger check than an
+  eye passing over a number — but it is a different one. The difference is recorded rather than
+  glossed, and the wording is worth revisiting.
+
 ## Unreleased — 2026-08-23 — build `08232026.25`
 
 The first adapter: an MCP server over the turn loop. Decision `0016` settles its shape. Inventory
