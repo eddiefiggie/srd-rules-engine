@@ -6,6 +6,44 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.25`
+
+The first adapter: an MCP server over the turn loop. Decision `0016` settles its shape. Inventory
+coverage is unchanged at 76 of 211 — this adds no rules, it adds a way to reach them. Filed and
+tracked as #97.
+
+- **A `Session` holds the suspended turn.** The loop is a generator yielding typed requests
+  (decision `0001`); MCP calls are stateless. A call cannot resume a generator a previous call left
+  suspended, so one session owns one live loop and answers what the engine is waiting for:
+  `AwaitingDeclaration`, `AwaitingFacts`, `AwaitingNarration`, `Finished`. Answering the wrong
+  question raises rather than being coerced, because a coerced response is a declaration nobody made.
+- **There is no `adjudicate` tool, and the absence is the design.** `AGENTS.md`: "a consumer calling
+  adjudication directly gets outcome authority without skip prevention." An adapter offering it
+  would ship a supported route to an outcome with no challenge detection — the exact failure this
+  engine exists to remove, presented as a feature. `FORBIDDEN_TOOL_NAMES` names the shapes and a
+  test asserts none is on the list.
+- **The stateless alternative was rejected for being a different product, not a worse one.**
+  Re-deriving the loop position from the ledger cannot work either: the ledger records what
+  happened, not where the generator was suspended, and reconstructing that would mean a second
+  implementation of the loop's control flow.
+- **`begin_turn` carries the situation.** The trigger catalogue matches against what is physically
+  around the actor, so a tool that could not carry it would leave the challenge mechanism silently
+  unreachable — the product's central feature disabled by an omitted parameter. Caught by running
+  the adapter rather than by reading it.
+- **A refusal carries the triggers that fired.** An agent told only "challenged" has nothing to
+  re-declare against. Each trigger carries its message, its reference, and its `grounding`, so an
+  agent can tell an authored trigger from a cited one (decision `0004`).
+- **The transport is an extra, never a dependency.** The MCP SDK is imported inside `build_server`,
+  so importing the adapters never requires it and `[project].dependencies` stays empty (R33). A test
+  parses the module's AST and fails if the SDK appears at module scope.
+- **A lost session costs the position within a turn, not the record.** Entries are durable before
+  anything escapes the engine (decision `0002`), and R29's narration debt is what notices anything
+  dangling — so a lost session surfaces as a refusal rather than a silently skipped turn. The debt
+  lives on the loop rather than the session, which is a real limit and is disclosed.
+- **`supply_facts` is declared and raises.** Wiring it needs the memory port's typed value
+  constructor, which is the next slice of #97. A tool that fails loudly beats one quietly missing
+  from the list an agent plans against.
+
 ## Unreleased — 2026-08-23 — build `08232026.24`
 
 The read surface reports what the engine has learned. **Inventory coverage is unchanged at 76 of
