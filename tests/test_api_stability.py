@@ -14,6 +14,7 @@ diff nobody noticed.
 from __future__ import annotations
 
 import importlib
+import re
 
 import pytest
 
@@ -92,6 +93,9 @@ def test_the_two_tiers_do_not_overlap() -> None:
     assert not set(COMMITTED) & set(PROVISIONAL)
 
 
+BUILD_STAMP = re.compile(r"^\d{8}\.\d+$")
+
+
 def test_the_mcp_tool_names_are_provisional_and_the_session_is_not() -> None:
     """The tool list is six names old. Committing to it would either freeze a first draft or
     make `API_VERSION` meaningless within a month — so a consumer wanting stability builds
@@ -104,15 +108,32 @@ def test_the_mcp_tool_names_are_provisional_and_the_session_is_not() -> None:
 
 def test_the_api_version_is_independent_of_the_build_stamp() -> None:
     """0011 fixed that the build stamp carries no compatibility information. These answer
-    different questions and must not be derived from one another."""
-    from srd_rules_engine import __version__
+    different questions and must not be derived from one another.
 
-    stamp, iteration = __version__.split(".")
+    **Independence is asserted structurally, not by comparing the values.** The earlier
+    version of this test asserted `str(API_VERSION) not in {stamp, iteration}`, which went
+    red on build `08242026.2` — the day's second build, against an API at 2 — while nothing
+    about the code had changed. Its own comment warned about exactly that failure mode for
+    substring containment and then reproduced it one line down: two independent numbers
+    coincide sooner or later, and a test that treats a coincidence as a defect fails on the
+    calendar.
+
+    What "not derived from" actually means is that the module defining `API_VERSION` does
+    not read the build stamp. That is checkable, and it stays true whatever today's date is.
+    """
+    import inspect
+
+    from srd_rules_engine import __version__, stability
+
     assert isinstance(API_VERSION, int)
-    # Not a *component* of the build stamp. Plain substring containment is the obvious
-    # check and the wrong one: a single-digit API version matches any date carrying that
-    # digit, so the assertion would pass or fail on the calendar rather than on the code.
-    assert str(API_VERSION) not in {stamp, iteration}
+    assert BUILD_STAMP.match(__version__), "the stamp is still a stamp"
+
+    source = inspect.getsource(stability)
+    assert "__version__" not in source, (
+        "srd_rules_engine.stability reads the build stamp. The two answer different "
+        "questions — 0011 — and deriving one from the other would make a date carry a "
+        "compatibility claim"
+    )
 
 
 def test_the_api_version_is_independent_of_the_schema_versions() -> None:

@@ -20,6 +20,7 @@ from srd_rules_engine.adapters.session import (
     Pending,
     Session,
     SessionError,
+    TurnEnded,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "Pending",
     "Session",
     "SessionError",
+    "TurnEnded",
 ]

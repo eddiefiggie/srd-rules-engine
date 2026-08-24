@@ -65,6 +65,7 @@ from srd_rules_engine.loop import (
     NarrationRequest,
     Request,
     Response,
+    TurnEnd,
     TurnLoop,
     TurnOutcome,
 )
@@ -113,13 +114,27 @@ class AwaitingNarration:
 
 @dataclass(frozen=True)
 class Finished:
-    """The turn ended. `outcome` carries what it produced, including a terminal reason."""
+    """The declaration slot ended. `outcome` carries what it produced, terminal reason and
+    all.
+
+    **Not the same as the turn being over.** 0023 clause 1 puts the turn's end in its own
+    phase, so a caller finishes here and then calls `end_turn` — which `EncounterState`
+    enforces rather than documents, by refusing to advance while an obligation stands.
+    """
 
     actor_id: str
     outcome: TurnOutcome
 
 
-Pending = AwaitingDeclaration | AwaitingFacts | AwaitingNarration | Finished
+@dataclass(frozen=True)
+class TurnEnded:
+    """Every end-of-turn obligation resolved (0023). The turn may now advance."""
+
+    actor_id: str
+    ended: TurnEnd
+
+
+Pending = AwaitingDeclaration | AwaitingFacts | AwaitingNarration | Finished | TurnEnded
 
 
 @dataclass
@@ -132,7 +147,10 @@ class Session:
 
     loop: TurnLoop
     state: EncounterState
+    #: The live phase — a declaration slot or a turn end. One field rather than two,
+    #: because a session holds at most one suspension and two would let it hold both.
     _turn: Generator[Request, Response, TurnOutcome] | None = field(default=None, repr=False)
+    _ending: Generator[Request, Response, TurnEnd] | None = field(default=None, repr=False)
     _actor: str | None = field(default=None, repr=False)
     _pending: Pending | None = field(default=None, repr=False)
 
@@ -160,6 +178,22 @@ class Session:
         self._turn = self.loop.run(self.state, actor_id, situation=situation)
         return self._advance(None)
 
+    def end_turn(self, actor_id: str) -> Pending:
+        """Resolve the end of `actor_id`'s turn (0023 clause 1).
+
+        Held exactly as a declaration slot is, because an adapter that could suspend one
+        phase and not the other would make the turn's end the one part of a turn a
+        stateless transport could not drive.
+        """
+        if self._turn is not None or self._ending is not None:
+            raise SessionError(
+                f"a phase for {self._actor!r} is already open. Finish it, or the engine "
+                "would be holding two suspensions and answering for the wrong one"
+            )
+        self._actor = actor_id
+        self._ending = self.loop.end_turn(self.state, actor_id)
+        return self._advance(None)
+
     def declare(self, declaration: Declaration) -> Pending:
         """Answer an `AwaitingDeclaration` with the agent's declaration."""
         self._expect(AwaitingDeclaration)
@@ -177,8 +211,8 @@ class Session:
         return self._advance(FactsSupplied(tuple(facts)))
 
     def _expect(self, kind: type[Pending]) -> None:
-        if self._turn is None:
-            raise SessionError("no turn is open; call begin first")
+        if self._turn is None and self._ending is None:
+            raise SessionError("no phase is open; call begin or end_turn first")
         if not isinstance(self._pending, kind):
             raise SessionError(
                 f"the engine is waiting for {type(self._pending).__name__}, not "
@@ -187,15 +221,24 @@ class Session:
             )
 
     def _advance(self, response: Response | None) -> Pending:
-        """Push the generator one step and translate what it asks for next."""
-        assert self._turn is not None and self._actor is not None
+        """Push whichever phase is live one step and translate what it asks for next."""
+        assert self._actor is not None
+        phase: Generator[Request, Response, TurnOutcome] | Generator[Request, Response, TurnEnd]
+        phase = self._turn if self._turn is not None else self._ending  # type: ignore[assignment]
+        assert phase is not None
         try:
-            request = self._turn.send(response) if response is not None else next(self._turn)
+            request = phase.send(response) if response is not None else next(phase)
         except StopIteration as stop:
-            outcome: TurnOutcome = stop.value
-            self.state = outcome.state
+            produced = stop.value
+            self.state = produced.state
+            finishing = self._turn is not None
             self._turn = None
-            self._pending = Finished(actor_id=self._actor, outcome=outcome)
+            self._ending = None
+            self._pending = (
+                Finished(actor_id=self._actor, outcome=produced)
+                if finishing
+                else TurnEnded(actor_id=self._actor, ended=produced)
+            )
             self._actor = None
             return self._pending
 

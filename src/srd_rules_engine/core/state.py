@@ -61,6 +61,10 @@ from srd_rules_engine.core.spellcasting import SpellSlots
 DEATH_SAVE_THRESHOLD: Final = 3
 
 
+class ObligationOutstanding(Exception):
+    """0023 clause 6. The departing creature owes a repeated save this turn (p. 63)."""
+
+
 @dataclass(frozen=True)
 class DeathSaves:
     """How close a creature at 0 hit points is to either end of it.
@@ -217,6 +221,16 @@ class EncounterState:
     #: convert into it — p. 13 says a round represents *about* 6 seconds, which is the
     #: document declining an exact conversion. `core.clock` has the reasoning.
     clock: Clock = field(default_factory=Clock)
+    #: Obligations already discharged during the current turn, as `(actor_id, condition)`
+    #: (0023 clause 6, #110). Cleared by `advanced_turn`, because an obligation is owed
+    #: once per turn rather than once per encounter.
+    #:
+    #: This exists because "is an obligation outstanding" is *not* the same question as
+    #: "does the creature still hold a save-ends condition". A **failed** save leaves the
+    #: condition in place, so a guard reading `saves_due_after` alone would refuse to
+    #: advance the turn forever — the obligation was met, and p. 63 states no penalty and
+    #: no second attempt.
+    discharged: frozenset[tuple[str, str]] = frozenset()
 
     # --- Reading ------------------------------------------------------------------
 
@@ -246,6 +260,30 @@ class EncounterState:
 
     def is_active(self, combatant_id: str) -> bool:
         return self.active_id == combatant_id
+
+    def obligations_outstanding(self, combatant_id: str) -> tuple[Condition, ...]:
+        """Repeated saves this creature owes at the end of its current turn (p. 63).
+
+        Derived from state and never declared (0023 clause 2): p. 63 gives the creature no
+        choice about repeating the save, so offering it through a declaration slot would be
+        offering a decision the document does not give.
+        """
+        due = self.combatant(combatant_id).conditions.saves_due_after(combatant_id)
+        return tuple(
+            sorted(
+                (c for c in due if (combatant_id, c.value) not in self.discharged),
+                key=lambda c: c.value,
+            )
+        )
+
+    def with_obligation_discharged(self, combatant_id: str, condition: Condition) -> EncounterState:
+        """Record that this turn's repeated save for that condition has been rolled.
+
+        Discharge is about the *save having happened*, not about its outcome. A failed save
+        discharges the obligation exactly as a successful one does, because p. 63 gives one
+        attempt per turn either way.
+        """
+        return self._evolve(discharged=self.discharged | {(combatant_id, condition.value)})
 
     # --- Evolving -----------------------------------------------------------------
 
@@ -668,26 +706,56 @@ class EncounterState:
         ordered = tuple(replace(c, initiative=rolls[c.id]) for c in order)
         return self._evolve(combatants=ordered, round_number=1, turn_index=0)
 
-    def advanced_turn(self) -> EncounterState:
+    def advanced_turn(self, *, waive_obligations: bool = False) -> EncounterState:
         """Move to the next combatant, wrapping into the next round.
 
         The incoming creature's movement resets, because Speed is "the distance in feet
         the creature can cover when it moves **on its turn**" (p. 188). A counter carried
         across turns would silently shorten every move after the first.
+
+        **Refuses while the departing creature owes a repeated save** (0023 clause 6).
+        That is what makes the skip structurally impossible rather than merely serviced by
+        well-behaved callers: `Conditions.saves_due_after` reported the obligation for
+        eleven days and nothing rolled it, and a missed save leaves no trace — exactly like
+        the missed skip this engine exists to prevent. `TurnLoop.end_turn` discharges the
+        obligations, and the state records that it did.
+
+        `waive_obligations=True` is the explicit escape for a consumer that legitimately
+        wants to fast-forward. It is a parameter rather than silence because the record
+        that mattered is *that a turn advanced unresolved*, and a caller has to say so.
         """
         if self.turn_index is None:
             raise ValueError("the encounter has no turn order yet")
+
+        departing = self.combatants[self.turn_index].id
+        outstanding = self.obligations_outstanding(departing)
+        if outstanding and not waive_obligations:
+            names = ", ".join(c.value for c in outstanding)
+            raise ObligationOutstanding(
+                f"{departing!r} owes a repeated save at the end of this turn for {names} "
+                "(p. 63), and the turn cannot advance past it. Run TurnLoop.end_turn, or "
+                "pass waive_obligations=True to advance without resolving it"
+            )
 
         # Durations retire against the turn that is *ending*, not the one beginning (#18).
         # "Until the end of your next turn" means the condition is still held for the whole
         # of that turn, so the lift happens as it closes.
         ended = self._retired(self.combatants[self.turn_index].id)
 
+        # An obligation is owed once per turn, so the record of having met it does not
+        # outlive the turn it belonged to.
         following = self.turn_index + 1
         if following < len(self.combatants):
-            return ended._evolve(turn_index=following, combatants=ended._refreshed(following))
+            return ended._evolve(
+                turn_index=following,
+                combatants=ended._refreshed(following),
+                discharged=frozenset(),
+            )
         return ended._evolve(
-            turn_index=0, round_number=self.round_number + 1, combatants=ended._refreshed(0)
+            turn_index=0,
+            round_number=self.round_number + 1,
+            combatants=ended._refreshed(0),
+            discharged=frozenset(),
         )
 
     def _retired(self, actor_id: str) -> EncounterState:

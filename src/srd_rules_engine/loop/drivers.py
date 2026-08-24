@@ -30,6 +30,7 @@ from srd_rules_engine.loop.turn import (
     NarrationRequest,
     Request,
     Response,
+    TurnEnd,
     TurnOutcome,
 )
 
@@ -40,18 +41,26 @@ class DriverExhausted(Exception):
     """A scripted driver ran out of answers before the loop ran out of questions."""
 
 
+_R = TypeVar("_R", TurnOutcome, TurnEnd)
+
+
 def drive(
-    loop: Generator[Request, Response, TurnOutcome],
+    loop: Generator[Request, Response, _R],
     driver: Callable[[Request], Response],
-) -> TurnOutcome:
-    """Pump the loop with a driver. The loop asks; the driver answers; nothing else."""
+) -> _R:
+    """Pump a loop phase with a driver. The loop asks; the driver answers; nothing else.
+
+    Generic over what the phase returns, because `TurnLoop.end_turn` is pumped exactly as
+    `run` is (0023 clause 1) and a second pump differing only in its return annotation is
+    a second place for the seam to drift.
+    """
     try:
         request = next(loop)
         while True:
             request = loop.send(driver(request))
     except StopIteration as stop:
-        outcome: TurnOutcome = stop.value
-        return outcome
+        produced: _R = stop.value
+        return produced
 
 
 @dataclass

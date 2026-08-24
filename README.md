@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08242026.1` — **a condition reaches state through a ruling ([#119](https://github.com/eddiefiggie/srd-rules-engine/issues/119)).** `EffectKind` had six members and none touched `Conditions`, so every condition in the engine arrived through `EncounterState.with_condition` called *directly* — a mechanical change with no roll, no seed, no citation and no ledger entry behind it, which is the thing R1 exists to prevent. The vertical slice did not catch it, because the fixture applies conditions directly too. Two new effect kinds close the route, and `Effect` carries the condition, the `Duration` the imposing effect stated, and the grappler `Grappled` needs. `amount` is 0 and refuses to be anything else: R7 leaves narration to the caller, which reads `amount`, so a number riding on a condition would be narrated as though it counted. The restructure also turned out to be a bug fix — `_apply`'s trailing `else` was `DEATH`, so an unrecognised effect kind **silently killed the creature**; it now raises, and a test holds that alarm. 890 tests.
+**Current build:** `08242026.2` — **the turn's end is a phase the loop owns, and it rolls what it owes ([#110](https://github.com/eddiefiggie/srd-rules-engine/issues/110)).** `Conditions.saves_due_after` reported a repeated save (p. 63) from the day it landed and **nothing ever rolled it**: `TurnLoop.run` is a declaration slot, `advanced_turn` is called by the caller, and nothing owned the end of a turn. Decision `0023`'s phase is built — `TurnLoop.end_turn` derives obligations from state, adjudicates each through the one entry point, and yields a narration request per ruling. The obligation is **never declared**: p. 63 gives the creature no choice, and a slot in which declining is expressible is a slot in which the save can fail to happen. `advanced_turn` now **refuses** while a save is owed, which is what turns "the driver should remember" into "the driver cannot forget". Measured before: a DC 1 save — impossible to fail — went unrolled across twelve turns. The **death save stays unwired** and is [#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124): the document's sentence saying *when* it is made is not transcribed here, and assuming it shares p. 63's timing would be inferring a rule value. 913 tests.
 
 ---
 
@@ -207,13 +207,11 @@ one, and the plan is amended to match:
   payload derives `compat` from its own schema version
   (closed [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106))
 
-**Next up:** [#110](https://github.com/eddiefiggie/srd-rules-engine/issues/110) — the engine
-reports that a save-ends save is due and nothing ever rolls it, which is deliberate rather than an oversight: a save is an outcome, and
-R1 leaves outcomes to the one adjudication entry point. Joining the two ends means an end-of-turn
-request at the agent seam, and an end-of-turn save is not a declaration — so it wants a decision
-record before it wants code. The campaign axis it would apply to is now built
-([#111](https://github.com/eddiefiggie/srd-rules-engine/issues/111)); the early-out that ends a
-span before its minute is what remains.
+**Next up:** [#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124) — the death
+save is the other half of the phase #110 built, and it is blocked on the document rather than
+on design: `core.death` cites pp. 17-18 for what a death saving throw *is* and never states
+when it is made. Wiring it on the assumption that it shares p. 63's timing would be inferring a
+rule value, so the sentence has to be found and asserted first.
 
 ## Development
 
@@ -263,4 +261,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-24 — build `08242026.1`._
+_Last updated: 2026-08-24 — build `08242026.2`._

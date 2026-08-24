@@ -60,8 +60,16 @@ def encounter() -> EncounterState:
 
 
 def turns(state: EncounterState, count: int) -> EncounterState:
+    """Advance `count` turns, waiving any end-of-turn obligation (0023 clause 6, #110).
+
+    Every test in this file is about a *span* retiring, and a span retires whether or not
+    the repeated save was rolled. Waiving is the honest call here rather than a workaround:
+    these are exactly the "consumer that legitimately wants to fast-forward" case the
+    waiver exists for, and resolving the saves would have this file rolling dice it is not
+    about. `tests/test_turn_end.py` covers the obligations themselves.
+    """
     for _ in range(count):
-        state = state.advanced_turn()
+        state = state.advanced_turn(waive_obligations=True)
     return state
 
 
@@ -285,6 +293,10 @@ def test_a_repeated_save_is_reported_and_not_resolved() -> None:
 
     The condition surviving many turns is the assertion that matters: if anything here
     rolled a DC 13 save twelve times, one would have succeeded.
+
+    Still true after #110 wired the turn-end phase, and the reason is worth stating: the
+    save is rolled by `TurnLoop.end_turn`, never by `advanced_turn`. `turns` waives, so
+    this asserts what it always did — the *state transition* decides nothing.
     """
     state = encounter()
     state = state.with_condition(
