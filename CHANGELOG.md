@@ -6,6 +6,37 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.28`
+
+Decision `0018` settles the public API stability policy. Closes #39, which `0011` deferred as
+"written blind" before any API existed — and which the MCP adapter made urgent, since the tool list
+is the first thing a consumer could build against without reading any Python.
+
+- **The count decided the shape.** `core` re-exports 110 names, `loop` 17, `adapters` 7. Most of
+  `core`'s exist because R34 requires outer layers to use re-exports rather than reaching into
+  submodules — they satisfy an import rule, not a contract. So the question was never "how stable is
+  the API" but **which of it is an API at all**.
+- **Three tiers.** *Committed* — breaking it raises `API_VERSION`. *Provisional* — named, documented,
+  expected to move. *Internal* — importable, unpromised, which is most of `core.__all__` and is now
+  stated rather than implied.
+- **The committed surface is enumerated, not described**, and a test pins it. A policy in prose
+  degrades the moment somebody renames a symbol and nobody connects it to the document — which this
+  project has watched happen twice, with `source.section` and with a no-prose guard that inspected
+  nothing. The pin is proven against three corruptions: a name removed, a name renamed with the count
+  unchanged, and an MCP tool promoted into the committed tier.
+- **`API_VERSION` is a monotonic integer, not semver.** Semver's minor-versus-patch split answers
+  "may I upgrade without reading"; for this surface either what you built against still resolves and
+  behaves, or it does not. One bit, honestly carried.
+- **It is independent of the build stamp and of every data schema**, permanently. `RULING_VERSION` is
+  already 2 while `API_VERSION` is 1 — the independence visible in the data rather than only asserted
+  in the record.
+- **The MCP tool names are provisional and say so.** Six names old; committing to them would either
+  freeze a first draft or make `API_VERSION` meaningless within a month. `adapters.Session` beneath
+  them is committed, so stability is available to anyone who wants it.
+- **Two fixed points are untouched.** The ledger envelope can never change (`0006`) and the payload's
+  reserved `compat` key is fixed alongside it (`0011`). `0018` explicitly lacks the authority to
+  relax either.
+
 ## Unreleased — 2026-08-23 — build `08232026.27`
 
 Decision `0017` settles what verification means, superseding `0003` **in part**. Inventory coverage
