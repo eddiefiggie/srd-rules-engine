@@ -84,7 +84,9 @@ would be settled differently by each new author.
 
 **4. A guard asserts that no engine code branches on `Shape.kind`.** The claim "it is a label, not a
 model" is only worth making if it stays true, and the way it would stop being true is somebody
-writing `if shape.kind == ...` in a moment of convenience.
+writing `if shape.kind == ...` in a moment of convenience. Both branching forms are checked — an
+`if` and a `match` — because a `match` on a string label is the more natural way to write this in
+modern Python, and the first version of the guard walked only comparisons and let one through.
 
 ## Why
 
@@ -115,6 +117,10 @@ that turn red.
 - **The tie-break points at implementation, so it can move.** If a shape's implementation moves
   between modules, its most natural filing changes. That is acceptable for a coverage index and
   would not be for a schema consumers read.
+- **The guard is a name-keyed AST heuristic.** It recognises a shape by the receiver being called
+  `shape`, `s`, or `entry`, so a branch written with a differently-named variable would pass.
+  Tighter would need type inference. Stated rather than implied, because a guard trusted beyond
+  what it inspects is the failure this project has already had twice.
 - **A future need for real classification is not served.** If something ever genuinely needs to ask
   "what does this shape apply to", it needs a new field designed for that, and this record should be
   superseded rather than stretched.
@@ -133,4 +139,5 @@ Nineteen values, bucketed 88 / 123 by axis. Three sampled shapes (`prone`, `exha
 
 **Implemented with this record**: the filing rule is documented in `scripts/derive_effect_shapes.py`
 and `core.inventory`, and `tests/test_effect_shape_inventory.py` asserts that no module under `src/`
-branches on a shape's `kind`.
+branches on a shape's `kind`, in either an `if` or a `match`. Both were proven red: a comparison
+against the pre-change tree, and a `match shape.kind:` that the comparison-only first draft passed.
