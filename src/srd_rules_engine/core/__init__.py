@@ -74,6 +74,13 @@ from srd_rules_engine.core.death import (
     DEATH_SAVE_VERIFICATION,
     death_save_resolver,
 )
+from srd_rules_engine.core.duration import (
+    DURATION_VERIFICATION,
+    Duration,
+    DurationKind,
+    SaveEnds,
+    rounds_in_minutes,
+)
 from srd_rules_engine.core.inventory import (
     ENGINE_SHAPES,
     Inventory,
@@ -162,6 +169,7 @@ __all__ = [
     "DEATH_SAVE_DC",
     "DEATH_SAVE_VERIFICATION",
     "DIE_SIDES",
+    "DURATION_VERIFICATION",
     "END_TURN",
     "ENGINE_SHAPES",
     "FACT_WRITE",
@@ -190,6 +198,8 @@ __all__ = [
     "Declaration",
     "DefaultKind",
     "Defences",
+    "Duration",
+    "DurationKind",
     "Effect",
     "EffectKind",
     "EncounterState",
@@ -227,6 +237,7 @@ __all__ = [
     "RuleProvenance",
     "Ruleset",
     "Ruling",
+    "SaveEnds",
     "SessionReport",
     "Shape",
     "Status",
@@ -270,6 +281,7 @@ __all__ = [
     "replay_entry",
     "report_from",
     "resolve",
+    "rounds_in_minutes",
     "session_report",
     "stable_recovery_minute",
     "summarize",

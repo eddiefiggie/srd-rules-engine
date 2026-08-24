@@ -535,6 +535,33 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "is 12 seconds, so a round is 6 (decision 0021, amending 0020 clause 1)",
         r"2 rounds from when the oil was lit \(or 12 seconds\)",
     ),
+    # --- Condition duration (#18) ---------------------------------------------------
+    (
+        106,
+        "a Time Span duration is stated in rounds or in minutes — one taxonomy, several "
+        "units, which is why a duration names its own axis",
+        r"A duration that provides a time span specifies how long the spell lasts in "
+        r"rounds, minutes, hours, or the like",
+    ),
+    (
+        98,
+        "counting rounds from an event runs to the end of that turn N rounds later, which "
+        "is the only place the document says what that means",
+        r"burns until the end of the turn 2 rounds from when the oil was lit",
+    ),
+    (
+        191,
+        "Unconscious leaves the creature Prone when it ends, so Prone does not lift with "
+        "the condition that was implying it",
+        r"When this condition ends, you remain Prone",
+    ),
+    (
+        63,
+        "the save-ends shape is stated per-effect, with its own ability and DC — there is "
+        "no general rule to read them from",
+        r"repeats the save at the end of each of its turns, ending the effect on itself "
+        r"on a success",
+    ),
     (
         18,
         "a Stable creature regains 1 hit point after 1d4 hours",

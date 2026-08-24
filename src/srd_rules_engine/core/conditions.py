@@ -43,11 +43,14 @@ obstructions. The conditions are held and reported; those two clauses are not en
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
+from types import MappingProxyType
 from typing import Final
 
 from srd_rules_engine.core.d20 import Advantage
+from srd_rules_engine.core.duration import Duration, SaveEnds
 from srd_rules_engine.core.position import Position, within
 from srd_rules_engine.core.rules import (
     Verification,
@@ -214,6 +217,15 @@ class Conditions:
     exhaustion_level: int = 0
     #: p. 182: who is grappling, so "any target other than the grappler" is computable.
     grappler_id: str | None = None
+    #: How long each **applied** condition lasts (#18). Keyed by condition, and an implied
+    #: one never appears here — it is held because its source is, so it lifts when that
+    #: source does rather than carrying a span of its own. A condition absent from this map
+    #: has no stated duration, which reads as `UNTIL_REMOVED` rather than as permanent.
+    durations: Mapping[Condition, Duration] = field(default_factory=dict)
+    #: What was applied, before implication. `held` is the closure over this and is what
+    #: every reader wants; this is what removal has to work against, because taking a
+    #: condition out of the closure would strand the ones it was implying.
+    applied: frozenset[Condition] = field(default_factory=frozenset)
 
     def __post_init__(self) -> None:
         if not 0 <= self.exhaustion_level <= MAX_EXHAUSTION:
@@ -221,7 +233,18 @@ class Conditions:
                 f"an Exhaustion level runs from 0 to {MAX_EXHAUSTION}, not "
                 f"{self.exhaustion_level} — 6 is death (p. 181)"
             )
+        # `held` is given as what was applied and is replaced by its closure, so a caller
+        # constructing one the ordinary way needs to know nothing about implication.
+        object.__setattr__(self, "applied", self.applied or self.held)
         object.__setattr__(self, "held", _closure(self.held, self.exhaustion_level))
+        unknown = set(self.durations) - set(self.applied)
+        if unknown:
+            raise ValueError(
+                f"durations name {sorted(unknown)}, which this creature was not given. A "
+                "duration belongs to the application that imposed the condition, so one "
+                "for a condition nobody applied has nothing to end"
+            )
+        object.__setattr__(self, "durations", MappingProxyType(dict(self.durations)))
 
     def has(self, condition: Condition) -> bool:
         return condition in self.held
@@ -299,6 +322,78 @@ class Conditions:
             disadvantage = True
 
         return _combine(advantage, disadvantage)
+
+    # --- Duration (#18) ---------------------------------------------------------------
+
+    def expired_after(self, round_number: int, actor_id: str) -> frozenset[Condition]:
+        """Which applied conditions the end of that creature's turn retires.
+
+        A read: it answers the question and changes nothing, so a caller that asks twice
+        gets the same answer and the removal is a separate, deliberate step.
+        """
+        return frozenset(
+            condition
+            for condition, duration in self.durations.items()
+            if duration.expires_at(round_number, actor_id)
+        )
+
+    def saves_due_after(self, actor_id: str) -> Mapping[Condition, SaveEnds]:
+        """Conditions on this creature that repeat a save at the end of its turns (p. 63).
+
+        Reported rather than resolved. A save is an outcome and R1 leaves outcomes to the
+        one adjudication entry point — this is the `makes_death_saves` move, one layer up.
+        The turn loop consults it; the engine rolls it there or not at all.
+        """
+        return MappingProxyType(
+            {
+                condition: duration.save
+                for condition, duration in self.durations.items()
+                if duration.save is not None and condition in self.held
+            }
+        )
+
+    def without(self, ending: frozenset[Condition]) -> Conditions:
+        """The conditions left once these end, with implication recomputed rather than
+        subtracted.
+
+        Removing from the closure would strand what the ending condition was implying — a
+        creature that stopped being Unconscious would keep an Incapacitated nobody applied.
+        So removal works against `applied` and the closure is rebuilt, which also means a
+        condition implied by *two* sources survives losing one of them.
+
+        p. 191 carves out the exception: "When this condition ends, you remain Prone." So
+        Prone is re-applied on its own behalf when Unconscious ends, rather than lifting
+        with the source that was implying it.
+        """
+        if not ending:
+            return self
+        remaining = self.applied - ending
+        if Condition.UNCONSCIOUS in ending and Condition.PRONE in self.held:
+            remaining = remaining | {Condition.PRONE}
+        return Conditions(
+            held=frozenset(remaining),
+            exhaustion_level=self.exhaustion_level,
+            grappler_id=None if Condition.GRAPPLED in ending else self.grappler_id,
+            durations={c: d for c, d in self.durations.items() if c in remaining},
+        )
+
+    def unretirable(self) -> tuple[Condition, ...]:
+        """Held conditions this engine cannot end on its own, named rather than left to
+        look permanent (0021 clause 6).
+
+        Two ways in: a condition applied with no stated duration, and one whose stated span
+        is on an axis the encounter does not count.
+        """
+        return tuple(
+            sorted(
+                (
+                    c
+                    for c in self.held
+                    if c not in self.durations or not self.durations[c].retirable
+                ),
+                key=lambda c: c.value,
+            )
+        )
 
     def unenforced_clauses(self) -> tuple[str, ...]:
         """Everything held but not enforced, so a caller can see the gap rather than find it."""
