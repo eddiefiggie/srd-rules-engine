@@ -14,8 +14,13 @@ that the arithmetic adds up:
 
 from __future__ import annotations
 
+import inspect
+import re
+from pathlib import Path
+
 import pytest
 
+from srd_rules_engine.core import clock
 from srd_rules_engine.core.clock import (
     MINUTES_PER_HOUR,
     RECOVERY_OFFSET,
@@ -258,3 +263,34 @@ def test_every_time_value_is_verified_against_the_document() -> None:
     assert reference is not None
     assert "p. 18" in reference
     assert "p. 13" in reference
+    assert "p. 98" in reference, "SECONDS_PER_ROUND transcribes p. 98 (decision 0021)"
+
+
+def test_every_page_the_module_cites_is_named_in_its_verification_block() -> None:
+    """The gap this closes, and the reason the test above was not enough (#126).
+
+    `SECONDS_PER_ROUND` quoted p. 98 in a `#:` comment beside itself and `TIME_VERIFICATION`
+    named pp. 13, 18, 185 and 187 — so a reader auditing this module's provenance would not
+    find the page its round-to-seconds constant came from, which is where R31 says to look.
+    Nothing was unverified: `scripts/verify_d20_rules.py` asserted the sentence twice. The
+    citation was simply missing, and a test naming two pages by hand could not notice a third
+    going unlisted.
+
+    Stated as a property over the module's own text rather than as a list, because a list is
+    the thing that went stale. A page cited in a comment and absent from the block is either
+    a missing citation or a comment citing a page the block should not claim; both want a
+    person, and both go red here.
+    """
+    source = Path(inspect.getfile(clock)).read_text(encoding="utf-8")
+    reference = TIME_VERIFICATION.reference or ""
+    # The block writes consecutive pages as a range, which covers each page it spans.
+    for start, end in re.findall(r"pp\. (\d+)-(\d+)", reference):
+        reference += "".join(f" p. {n}" for n in range(int(start), int(end) + 1))
+
+    cited = {page for page in re.findall(r"p\. \d+", source)}
+    missing = sorted(page for page in cited if page not in reference)
+    assert not missing, (
+        f"{missing} cited in core/clock.py but absent from TIME_VERIFICATION. A page the "
+        "module reasons from and the block does not name is a provenance claim a reader "
+        "cannot follow"
+    )
