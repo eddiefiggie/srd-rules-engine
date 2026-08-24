@@ -283,3 +283,42 @@ def test_an_entry_set_aside_carries_the_reason_that_actually_applied_to_it() -> 
         "a mechanical entry set aside must say which shape subsumes it, or it reads as "
         "having been dropped"
     )
+
+
+def test_nothing_in_the_engine_branches_on_a_shapes_kind() -> None:
+    """Decision 0019: `kind` is a filing label, not a model.
+
+    That claim is only worth making if it stays true, and the way it stops being true is
+    somebody writing `if shape.kind == ...` when a shortcut needs a category. The behaviour
+    a branch would be reaching for is already modelled in typed code — `ConditionEffects`
+    says what Prone changes — so a branch here would be a second, weaker description beside
+    the real one.
+
+    Scoped to `Shape.kind` specifically: `Finding.kind`, `D20Test.kind` and `Effect.kind` are
+    different types on different objects and are compared freely.
+    """
+    import ast
+    from pathlib import Path
+
+    inventory_source = Path("src/srd_rules_engine/core/inventory.py")
+    offenders: list[str] = []
+
+    for path in sorted(Path("src/srd_rules_engine").rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Compare):
+                continue
+            for operand in (node.left, *node.comparators):
+                if (
+                    isinstance(operand, ast.Attribute)
+                    and operand.attr == "kind"
+                    and isinstance(operand.value, ast.Name)
+                    and operand.value.id in {"shape", "s", "entry"}
+                ):
+                    offenders.append(f"{path}:{node.lineno}")
+
+    assert not offenders, (
+        f"{offenders} compare a shape's kind. 0019 makes it a filing label for coverage "
+        "measurement; behaviour belongs in typed code, not in a catalogue string"
+    )
+    assert "decision 0019" in inventory_source.read_text(encoding="utf-8")

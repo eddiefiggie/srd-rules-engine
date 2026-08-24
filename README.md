@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.29` — **areas no longer reach through walls, closing #91.** p. 177 excludes a location whose straight line from the point of origin is blocked, so `creatures_in` now takes obstructions and applies it: a creature behind a wall is *inside a Fireball's radius* and the effect does not reach it — two questions, and the second decides. **The engine decides Total Cover and refuses to guess the rest.** p. 15 defines Half and Three-Quarters by what fraction of a target is covered and supplies **no method for measuring a fraction**, so any answer would be a house rule wearing a citation; the degrees exist with their +2 and +5 so a caller who has determined one can apply it. Obstructions are axis-aligned boxes, and the slab test uses exact rational arithmetic rather than floats.
+**Current build:** `08232026.30` — **decision `0019` closes #84 by measuring it rather than fixing it.** The conflation is real: `kind` mixes what a shape *is* with what it *applies to*, 88 values to 123. But **"what it applies to" is plural** — Prone applies to attack rolls and movement, Exhaustion to d20 tests and Speed — so a second field cannot express it. And the whole engine reads a shape's `kind` in exactly **one line**, printing it in a coverage report. So it is a filing label, not a model: the behaviour it would describe already lives in typed code. It stays one axis, with a tie-break (file it under the subsystem that implements it) and a guard asserting nothing branches on it.
 
 ---
 

@@ -6,6 +6,35 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.30`
+
+Decision `0019` settles #84 — the `kind` axis question `0013` deferred. No schema change and no
+re-classification, because the measurement inverted the question.
+
+- **The conflation is real.** Bucketing the nineteen values by axis splits them 88 / 123, which is
+  structural rather than a couple of edge cases. So far that argues for splitting.
+- **But "what it applies to" is plural.** `prone` applies to attack rolls *and* movement,
+  `exhaustion` to d20 tests *and* Speed, `weapon-finesse` to attack *and* damage rolls. A second
+  single-valued field cannot express any of them, which leaves a tag set — the option #84 itself
+  called hardest to guard, in the one place this project has been bitten by drift twice.
+- **And `kind` drives nothing.** Every read of a `Shape.kind` across `src/` is a single line in
+  `coverage_report` that prints it in brackets. Every other `.kind` in the engine belongs to a
+  different type. It is a **filing label on a catalogue**, read once, for display.
+- **The model it would build already exists.** `ConditionEffects` says exactly what Prone does to
+  attack rolls, in typed fields, and that is what the engine consults. Splitting `kind` would produce
+  a second, weaker description beside the real one — which is `0013`'s own finding about descriptions
+  living apart from the thing they describe.
+- **So: one axis, a stated purpose, and a tie-break.** Where a shape could be filed two ways it goes
+  under the subsystem that implements it — Prone is `condition` because `core.conditions` holds it.
+  Determinate, and it removes the judgement call #84 predicted each new author would settle
+  differently.
+- **A guard asserts nothing branches on a shape's `kind`.** The claim is only worth making if it
+  stays true, and it would stop being true the moment a shortcut needs a category. Proven red by
+  adding one.
+- **The cost is recorded rather than hidden.** `affliction` still names a delivery route where
+  `condition` names a category. A reader looking for a consistent ontology will not find one, and
+  `0019` says it is not one instead of pretending.
+
 ## Unreleased — 2026-08-23 — build `08232026.29`
 
 Obstructions, closing #91 — the `srd-fidelity` gap `core.areas` shipped disclosed. An area computed
