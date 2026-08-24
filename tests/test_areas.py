@@ -24,6 +24,7 @@ from srd_rules_engine.core.areas import (
     Sphere,
     creatures_in,
 )
+from srd_rules_engine.core.obstructions import Obstruction
 from srd_rules_engine.core.position import Position
 from srd_rules_engine.core.rules import VerificationState
 
@@ -189,21 +190,46 @@ def test_creatures_in_reports_those_inside_in_the_order_supplied() -> None:
     assert caught == ("near", "above")
 
 
-def test_areas_ignore_obstructions_and_say_so() -> None:
-    """p. 177 excludes a location whose every straight line from the origin is blocked by
-    Total Cover. No obstruction model exists, so a creature behind a wall is reported as
-    included — a confident wrong answer rather than a declined one.
+def test_an_area_does_not_reach_through_a_wall() -> None:
+    """p. 177: "If all straight lines extending from the point of origin to a location in
+    the area of effect are blocked, that location isn't included in the area of effect."
 
-    Filed as #91. This test asserts the *disclosure* is present, because a limit recorded
-    only in prose is one docstring tidy away from disappearing.
+    The gap #91 named, now closed. The creature behind the wall is *inside the sphere* and
+    the effect does not reach it — two different questions, and the second is the one that
+    decides.
     """
-    from srd_rules_engine.core import areas
+    origin = Position(0, 0, 0)
+    wall = Obstruction(lo=Position(10, -20, 0), hi=Position(12, 20, 20))
+    sphere = Sphere(origin, 40)
+    sheltered = Position(30, 0, 0)
 
-    assert areas.__doc__ is not None
-    assert "Obstructions, and therefore cover" in areas.__doc__
-    assert "#91" in areas.__doc__
-    assert creatures_in.__doc__ is not None
-    assert "Unobstructed volume only" in creatures_in.__doc__
+    assert sphere.contains(sheltered), "inside the volume"
+    assert creatures_in(sphere, {"hiding": sheltered}, [wall]) == ()
+
+
+def test_the_same_creature_is_caught_with_no_wall_between() -> None:
+    """The control. Without the obstruction the answer flips, so the exclusion is the wall
+    doing work rather than the radius being wrong."""
+    sphere = Sphere(Position(0, 0, 0), 40)
+    assert creatures_in(sphere, {"hiding": Position(30, 0, 0)}) == ("hiding",)
+
+
+def test_a_creature_around_the_end_of_a_wall_is_still_reached() -> None:
+    """Blocking is per-line, not per-region: standing on the far side of a wall that does
+    not lie between you and the origin shelters nobody."""
+    wall = Obstruction(lo=Position(10, -20, 0), hi=Position(12, 20, 20))
+    sphere = Sphere(Position(0, 0, 0), 60)
+    assert creatures_in(sphere, {"exposed": Position(0, 40, 0)}, [wall]) == ("exposed",)
+
+
+def test_supplying_no_obstructions_means_there_are_none() -> None:
+    """Not "ignore them". An encounter that tracks no walls gets unobstructed volume, which
+    is right for an open field and wrong for a dungeon — and the engine cannot tell those
+    apart, so the caller supplies the walls or accepts the open field.
+    """
+    sphere = Sphere(Position(0, 0, 0), 40)
+    everyone = {"a": Position(30, 0, 0), "b": Position(0, 30, 0)}
+    assert set(creatures_in(sphere, everyone)) == {"a", "b"}
 
 
 def test_no_float_is_produced_by_any_membership_test() -> None:
