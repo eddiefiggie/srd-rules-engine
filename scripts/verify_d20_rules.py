@@ -523,11 +523,17 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"roll two d20s and use the lower roll\. A roll can.t be affected by more than one "
         r"Disadvantage",
     ),
-    # --- Time (#85, decision 0020) --------------------------------------------------
+    # --- Time (#85, decisions 0020 and 0021) ----------------------------------------
     (
         13,
-        "the document declines an exact round-to-clock conversion: a round is *about* 6 seconds",
+        "a round represents *about* 6 seconds — the hedge that describes the fiction",
         r"A round represents about 6 seconds in the game world",
+    ),
+    (
+        98,
+        "and the exact conversion the document performs when a rule needs one: 2 rounds "
+        "is 12 seconds, so a round is 6 (decision 0021, amending 0020 clause 1)",
+        r"2 rounds from when the oil was lit \(or 12 seconds\)",
     ),
     (
         18,
