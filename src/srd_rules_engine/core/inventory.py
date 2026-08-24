@@ -133,6 +133,13 @@ class Shape:
 
     id: str
     name: str
+    #: Which part of the rules this shape is filed under, for measuring coverage — **not**
+    #: a claim about what it does (decision 0019). The behaviour lives in typed code:
+    #: `ConditionEffects` says what Prone changes, not this label. Where a shape could be
+    #: filed two ways, it goes under the subsystem that implements it, or would.
+    #:
+    #: Nothing in the engine branches on it, and a guard in
+    #: `tests/test_effect_shape_inventory.py` keeps that true.
     kind: str
     reference: str
     implemented: bool

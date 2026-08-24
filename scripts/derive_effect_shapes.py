@@ -214,6 +214,14 @@ VOCABULARY_REASONS: dict[str, str] = {
     ),
 }
 
+#: `kind` answers a **filing** question — which part of the rules a shape belongs to, for
+#: measuring coverage — and not what the shape does (decision 0019). Where a shape could be
+#: filed two ways, file it under the subsystem that implements it or would: Prone is
+#: `condition` because `core.conditions` holds it, `die-replacement` is `test-modifier`
+#: because `core.d20` does. The axis genuinely conflates "what it is" with "what it applies
+#: to"; 0019 records that this does not matter, because the applies-to is plural for many
+#: shapes and the behaviour is modelled in code rather than here.
+#:
 #: The closed set of `kind` values. Classification is editorial, so this is the reviewable
 #: layer — but it was unguarded through eleven sweeps and drifted from roughly fifteen
 #: values to nineteen without anything noticing. Decision 0013 closes it. Adding a value is

@@ -283,3 +283,63 @@ def test_an_entry_set_aside_carries_the_reason_that_actually_applied_to_it() -> 
         "a mechanical entry set aside must say which shape subsumes it, or it reads as "
         "having been dropped"
     )
+
+
+def test_nothing_in_the_engine_branches_on_a_shapes_kind() -> None:
+    """Decision 0019: `kind` is a filing label, not a model.
+
+    That claim is only worth making if it stays true, and the way it stops being true is
+    somebody writing `if shape.kind == ...` when a shortcut needs a category. The behaviour
+    a branch would be reaching for is already modelled in typed code — `ConditionEffects`
+    says what Prone changes — so a branch here would be a second, weaker description beside
+    the real one.
+
+    Both branching forms are checked. A `match` on a string label is the more natural way to
+    write this in modern Python and is not an `ast.Compare`, so a guard that only walked
+    comparisons would pass while the thing it exists to catch sat in the tree.
+
+    Scoped to `Shape.kind` specifically: `Finding.kind`, `D20Test.kind`, `Effect.kind` and
+    `Fact.kind` are different types on different objects and are compared freely.
+    """
+    import ast
+    from pathlib import Path
+
+    def reads_a_shapes_kind(node: ast.expr) -> bool:
+        # Keyed on the receiver's name, because the alternative is type inference. A branch
+        # written with a differently-named variable would pass — stated in 0019 rather than
+        # implied, and these are the names this codebase actually binds a shape to.
+        return (
+            isinstance(node, ast.Attribute)
+            and node.attr == "kind"
+            and isinstance(node.value, ast.Name)
+            and node.value.id in {"shape", "s", "entry"}
+        )
+
+    offenders: list[str] = []
+
+    for path in sorted(Path("src/srd_rules_engine").rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Compare):
+                operands: list[ast.expr] = [node.left, *node.comparators]
+            elif isinstance(node, ast.Match):
+                operands = [node.subject]
+            else:
+                continue
+            if any(reads_a_shapes_kind(operand) for operand in operands):
+                offenders.append(f"{path}:{node.lineno}")
+
+    assert not offenders, (
+        f"{offenders} branch on a shape's kind. 0019 makes it a filing label for coverage "
+        "measurement; behaviour belongs in typed code, not in a catalogue string"
+    )
+
+
+def test_the_shape_field_says_what_kind_is_for() -> None:
+    """The guard above stops a branch appearing. It cannot stop somebody assuming `kind`
+    means something operational before they write one, and the field's own docstring is
+    where that assumption gets corrected."""
+    from pathlib import Path
+
+    source = Path("src/srd_rules_engine/core/inventory.py").read_text(encoding="utf-8")
+    assert "decision 0019" in source
