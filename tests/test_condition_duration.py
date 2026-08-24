@@ -22,6 +22,7 @@ import pytest
 
 from srd_rules_engine.core import (
     Combatant,
+    Condition,
     Duration,
     DurationKind,
     EncounterState,
@@ -30,10 +31,7 @@ from srd_rules_engine.core import (
     rounds_in_minutes,
 )
 from srd_rules_engine.core.clock import SECONDS_PER_ROUND
-
-# `core.Condition` is the trigger-matching Condition, a different type with the same
-# name, so the condition enum is imported from its own module as the other suites do.
-from srd_rules_engine.core.conditions import Condition, Conditions
+from srd_rules_engine.core.conditions import Conditions
 
 POISON_SAVE = SaveEnds(ability="con", dc=13)
 

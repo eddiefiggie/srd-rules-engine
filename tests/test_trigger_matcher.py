@@ -35,8 +35,8 @@ from srd_rules_engine.core.rules import Rule, RuleProvenance, load_fixture_rules
 from srd_rules_engine.core.state import Combatant, EncounterState
 from srd_rules_engine.core.triggers import (
     Catalogue,
-    Condition,
     Grounding,
+    MatchCondition,
     MatchContext,
     Operator,
     Trigger,
@@ -50,14 +50,14 @@ from srd_rules_engine.memory.store import JsonMemoryStore
 SLICK = Trigger(
     id="fixture-slick-surface",
     grounding=Grounding.AUTHORED,
-    when=(Condition(field="surface_is_slick", operator=Operator.EQUALS, value=True),),
+    when=(MatchCondition(field="surface_is_slick", operator=Operator.EQUALS, value=True),),
     message="a slick surface is a stated hazard; a check is warranted",
     rationale="Invented hazard, standing in for the SRD's stated-hazard family.",
 )
 UNSTEADY = Trigger(
     id="fixture-unsteady",
     grounding=Grounding.AUTHORED,
-    when=(Condition(field="actor_hit_points", operator=Operator.IN, value=(1, 2, 3)),),
+    when=(MatchCondition(field="actor_hit_points", operator=Operator.IN, value=(1, 2, 3)),),
     message="an actor this close to falling should be tested",
     rationale="Invented state-only row, so an improvised intent can still collide.",
 )
@@ -65,8 +65,8 @@ ENDING_TURN = Trigger(
     id="fixture-ending-turn-in-combat",
     grounding=Grounding.AUTHORED,
     when=(
-        Condition(field="action_key", operator=Operator.EQUALS, value=END_TURN),
-        Condition(field="in_combat", operator=Operator.EQUALS, value=True),
+        MatchCondition(field="action_key", operator=Operator.EQUALS, value=END_TURN),
+        MatchCondition(field="in_combat", operator=Operator.EQUALS, value=True),
     ),
     message="ending a turn mid-combat is invented as testable, for the conjunction case",
     rationale="Invented two-condition row, so the conjunction can be exercised.",
@@ -155,7 +155,7 @@ def test_equals_compares_the_projected_value() -> None:
     row = Trigger(
         id="t",
         grounding=Grounding.AUTHORED,
-        when=(Condition(field="round", operator=Operator.EQUALS, value=3),),
+        when=(MatchCondition(field="round", operator=Operator.EQUALS, value=3),),
         message="m",
         rationale="r",
     )
@@ -170,8 +170,8 @@ def test_in_compares_against_a_collection() -> None:
 
 def test_present_and_absent_test_whether_the_field_was_recorded() -> None:
     """A hazard the agent never wrote cannot collide — the guard narrows discretion."""
-    present = Condition(field="hazard", operator=Operator.PRESENT)
-    absent = Condition(field="hazard", operator=Operator.ABSENT)
+    present = MatchCondition(field="hazard", operator=Operator.PRESENT)
+    absent = MatchCondition(field="hazard", operator=Operator.ABSENT)
     assert present.holds(context(situation={"hazard": "pit"}))
     assert not present.holds(context(situation={}))
     assert absent.holds(context(situation={}))
@@ -179,23 +179,23 @@ def test_present_and_absent_test_whether_the_field_was_recorded() -> None:
 
 
 def test_a_condition_on_an_unrecorded_field_does_not_fire() -> None:
-    row = Condition(field="never_recorded", operator=Operator.EQUALS, value=True)
+    row = MatchCondition(field="never_recorded", operator=Operator.EQUALS, value=True)
     assert not row.holds(context(situation={}))
 
 
 def test_an_operator_needing_a_value_is_refused_without_one() -> None:
     with pytest.raises(TriggerError, match="needs a value"):
-        Condition(field="round", operator=Operator.EQUALS)
+        MatchCondition(field="round", operator=Operator.EQUALS)
 
 
 def test_an_operator_taking_no_value_is_refused_with_one() -> None:
     with pytest.raises(TriggerError, match="takes no value"):
-        Condition(field="hazard", operator=Operator.PRESENT, value=True)
+        MatchCondition(field="hazard", operator=Operator.PRESENT, value=True)
 
 
 def test_in_requires_a_collection() -> None:
     with pytest.raises(TriggerError, match="compares against a collection"):
-        Condition(field="round", operator=Operator.IN, value=3)
+        MatchCondition(field="round", operator=Operator.IN, value=3)
 
 
 def test_in_may_not_include_none() -> None:
@@ -206,12 +206,12 @@ def test_in_may_not_include_none() -> None:
     invert that, and the row would look perfectly ordinary.
     """
     with pytest.raises(TriggerError, match="may not include None"):
-        Condition(field="hazard", operator=Operator.IN, value=(None, "pit"))
+        MatchCondition(field="hazard", operator=Operator.IN, value=(None, "pit"))
 
 
 def test_a_condition_names_its_field() -> None:
     with pytest.raises(TriggerError, match="names the field"):
-        Condition(field="", operator=Operator.PRESENT)
+        MatchCondition(field="", operator=Operator.PRESENT)
 
 
 # --- Grounding is two-valued ---------------------------------------------------------
@@ -425,8 +425,8 @@ def test_the_challenge_bounds_permit_no_claim_that_anything_happened(
 # --- Helpers -------------------------------------------------------------------------
 
 
-def _any() -> Condition:
-    return Condition(field="in_combat", operator=Operator.PRESENT)
+def _any() -> MatchCondition:
+    return MatchCondition(field="in_combat", operator=Operator.PRESENT)
 
 
 def _plain(

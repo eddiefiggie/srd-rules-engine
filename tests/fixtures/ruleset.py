@@ -15,10 +15,10 @@ from __future__ import annotations
 
 from srd_rules_engine.core import (
     Catalogue,
-    Condition,
     DefaultKind,
     FactType,
     Grounding,
+    MatchCondition,
     Operator,
     Rule,
     RuleProvenance,
@@ -115,8 +115,8 @@ LOOSE_GROUND = Trigger(
     id="fixture-hazard-loose-ground",
     grounding=Grounding.AUTHORED,
     when=(
-        Condition(field="improvised", operator=Operator.EQUALS, value=True),
-        Condition(field="surface", operator=Operator.EQUALS, value="loose-scree"),
+        MatchCondition(field="improvised", operator=Operator.EQUALS, value=True),
+        MatchCondition(field="surface", operator=Operator.EQUALS, value="loose-scree"),
     ),
     message=(
         "crossing loose scree is a hazard the fixture treats as warranting a check, so a "
@@ -132,8 +132,8 @@ WOUNDED = Trigger(
     id="fixture-hazard-wounded-actor",
     grounding=Grounding.AUTHORED,
     when=(
-        Condition(field="improvised", operator=Operator.EQUALS, value=True),
-        Condition(field="actor_is_down", operator=Operator.EQUALS, value=True),
+        MatchCondition(field="improvised", operator=Operator.EQUALS, value=True),
+        MatchCondition(field="actor_is_down", operator=Operator.EQUALS, value=True),
     ),
     message="a combatant at 0 hit points is not improvising past a check",
     rationale="Invented. A second row, so two rows can be seen firing on one declaration.",

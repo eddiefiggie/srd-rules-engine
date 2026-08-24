@@ -23,7 +23,6 @@ import pytest
 from srd_rules_engine.core import (
     Adjudicator,
     Combatant,
-    Condition,
     D20Test,
     Declaration,
     EncounterState,
@@ -32,6 +31,7 @@ from srd_rules_engine.core import (
     Grounding,
     Intent,
     Ledger,
+    MatchCondition,
     Operator,
     Proposal,
     Provenance,
@@ -89,7 +89,7 @@ RULESET = load_fixture_ruleset("loop", [PLAIN, NEEDY])
 SKIPS_ARE_TESTED = Trigger(
     id="fixture-skips-are-tested",
     grounding=Grounding.AUTHORED,
-    when=(Condition(field="in_combat", operator=Operator.EQUALS, value=True),),
+    when=(MatchCondition(field="in_combat", operator=Operator.EQUALS, value=True),),
     message="an invented row, so any skip in combat collides",
     rationale="Exercises the challenge loop.",
 )
@@ -97,8 +97,8 @@ IMPROVISED_SKIPS = Trigger(
     id="fixture-improvised-skips",
     grounding=Grounding.AUTHORED,
     when=(
-        Condition(field="in_combat", operator=Operator.EQUALS, value=True),
-        Condition(field="improvised", operator=Operator.EQUALS, value=True),
+        MatchCondition(field="in_combat", operator=Operator.EQUALS, value=True),
+        MatchCondition(field="improvised", operator=Operator.EQUALS, value=True),
     ),
     message="an invented row that only an improvised skip collides with",
     rationale="Gives two skips genuinely different signatures, for challenge churn.",

@@ -99,8 +99,19 @@ class MatchContext:
 
 
 @dataclass(frozen=True)
-class Condition:
-    """One test against the projection. Conditions within a row are ANDed."""
+class MatchCondition:
+    """One test against the projection. Conditions within a row are ANDed.
+
+    Named for what decision 0004 calls it — "match conditions over the closed operator set"
+    — rather than `Condition`, which in a rules engine for this document means one of the
+    fifteen the Rules Glossary tags `[Condition]`. Both existed under that name until #112,
+    and `core` re-exported this one, so a consumer following R34 to the package root got the
+    trigger predicate when it wanted the SRD enum.
+
+    `Predicate` was the other candidate and is worse: 0004 uses that word for the registered
+    Python callables it *rejected*, so naming the chosen design after the discarded one would
+    misread the record at a glance.
+    """
 
     field: str
     operator: Operator
@@ -146,7 +157,7 @@ class Trigger:
 
     id: str
     grounding: Grounding
-    when: tuple[Condition, ...]
+    when: tuple[MatchCondition, ...]
     message: str
     reference: str | None = None
     rationale: str | None = None

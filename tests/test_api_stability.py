@@ -142,3 +142,40 @@ def test_most_of_core_is_deliberately_unpromised() -> None:
         "if the committed set ever approaches the export list, the tiers have stopped "
         "meaning anything and 0018 needs revisiting"
     )
+
+
+# --- What a name at the package root resolves to (#112) --------------------------------
+
+
+def test_condition_at_the_package_root_is_the_srd_condition() -> None:
+    """R34 sends every outer layer to `core` for its names, so `core.Condition` is the one
+    a consumer will reach for — and until #112 it was the trigger predicate.
+
+    Both types existed under that name. The failure was loud only where an enum member was
+    looked up; anywhere both satisfied a signature it was silent, and the SRD enum is by far
+    the more likely thing to want, since `Situation.conditions` is full of it.
+
+    Pinned by identity rather than by name, so re-exporting the wrong module cannot satisfy
+    it.
+    """
+    import srd_rules_engine.core as core
+    from srd_rules_engine.core.conditions import Condition as SrdCondition
+
+    assert core.Condition is SrdCondition
+    # Not `is not MatchCondition`: mypy now proves the two types cannot be the same object,
+    # which makes that assertion a tautology it rejects — and the fact that it *can* prove it
+    # is the fix working. The module check still fails at runtime if the export moves back.
+    assert core.Condition.__module__.endswith(".conditions"), "not the trigger module"
+    assert len(core.Condition) == 15, "the fifteen the Rules Glossary tags [Condition]"
+
+
+def test_the_trigger_predicate_is_not_named_condition_anywhere() -> None:
+    """The rename is the fix; re-adding the old alias would restore the collision while
+    every other test kept passing."""
+    from srd_rules_engine.core import triggers
+
+    assert not hasattr(triggers, "Condition"), (
+        "the trigger predicate is `MatchCondition` — decision 0004's own term for it, and "
+        "not `Predicate`, which 0004 uses for the callable design it rejected"
+    )
+    assert "MatchCondition" in triggers.Trigger.__dataclass_fields__["when"].type

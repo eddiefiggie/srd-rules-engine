@@ -48,8 +48,8 @@ from srd_rules_engine.core.rules import Rule, RuleProvenance, load_fixture_rules
 from srd_rules_engine.core.state import Combatant, EncounterState
 from srd_rules_engine.core.triggers import (
     Catalogue,
-    Condition,
     Grounding,
+    MatchCondition,
     Operator,
     Trigger,
 )
@@ -168,7 +168,7 @@ CATALOGUE = Catalogue(
         Trigger(
             id="fixture-never-skip-in-combat",
             grounding=Grounding.AUTHORED,
-            when=(Condition(field="in_combat", operator=Operator.EQUALS, value=True),),
+            when=(MatchCondition(field="in_combat", operator=Operator.EQUALS, value=True),),
             message="an invented row, so a skip mid-combat collides with something",
             rationale="Exercises the challenged path from the adjudication side.",
         ),
