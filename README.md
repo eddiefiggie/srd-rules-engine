@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08242026.3` — **twelve decision records claimed nothing was built, and everything they specify had shipped ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)).** `0001`-`0012` each read *"None. M0 holds that nothing is built until the gates close"* — the agent seam, the ledger and its format, the trigger catalogue, retry bounds, the read token and its verdicts, the extension channel, the reference store, the blocked loop, the layer guards and both rule loaders. All twelve were built; all twelve said otherwise, for every build since they landed. That is the staleness `AGENTS.md` already names for verification dates — *a dated claim cannot notice its own staleness* — in a section nobody wired a guard to, and it cut the wrong way: `AGENTS.md` tells an agent to read the relevant record **before** reopening a question, so a record saying the agent seam is unbuilt makes the next reasonable move the wrong one. Each now names what shipped and where, every symbol verified to resolve. No code changed. 913 tests.
+**Current build:** `08242026.4` — **all twenty-three decision records now state whether they are built ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)).** `0021` and `0022` carried no **Status of implementation** section at all, so "shipped" and "nobody wrote one" were indistinguishable — the last of the three ways that section was unreliable. Both are implemented and each clause is now tabled against what carries it. Writing them found one thing worth knowing: `0021` says `core.clock` carries the six-seconds constant *with its p. 98 citation*, and the constant is there, but `TIME_VERIFICATION` names pp. 13, 18, 185 and 187 — **not** p. 98. The page is verified twice in `verify_d20_rules.py` and cited in `DURATION_VERIFICATION` instead, so nothing is unchecked; but a reader auditing `core.clock`'s provenance would not find it where R31 says to look. Recorded rather than repaired in passing, because a verification block is a claim about what was checked. 913 tests.
 
 ---
 
@@ -261,4 +261,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-24 — build `08242026.3`._
+_Last updated: 2026-08-24 — build `08242026.4`._
