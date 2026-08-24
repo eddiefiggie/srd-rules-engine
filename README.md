@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.37` — **the README's Status section was eight builds stale, and the coverage figure it published was wrong by a factor of four.** It said *"Requirements-only. Nothing built yet"* over a tree with fourteen implementation units and 840 tests, and *"17 of 215 shapes resolve"* where `coverage_report()` says **76 of 211** — the measuring stick R17 requires, quoted wrong in the one place a reader meets it. Also corrected: the decision list stopped at `0012` of twenty-two, *"Next up"* pointed at an issue closed weeks ago, and Attribution claimed no SRD-derived content had been committed after six monsters landed in `#99`. `tests/test_readme_reports_real_coverage.py` now derives both coverage figures from the inventory, so that number cannot drift again — the build stamp was the only line of this README CI was reading.
+**Current build:** `08232026.38` — **a condition whose span is in hours or days can now retire (#111).** The engine had a campaign clock and a condition system and no join between them, so 92 hour- and day-scale spans resolved to `UNTIL_REMOVED` — the value the read surface reports as *nothing will lift this*. A `Duration` now sits on one of two axes: the encounter axis ends at the close of a named creature's turn, and the new campaign axis at a minute `Clock` reaches, via `for_hours` / `for_days` and `with_time_passed`. **The axes deliberately do not retire each other** — an eight-hour condition survives a six-round fight, because taking a turn does not move the clock (0021 clause 2). Retiring stays bookkeeping rather than an outcome: the minute is fixed at application, absolute rather than remaining, so arriving at it decides nothing and rolls nothing (R1, R4). One assumption is disclosed rather than derived — `HOURS_PER_DAY = 24`, which the document never defines as a game term, is calendar arithmetic of the same class as the existing `MINUTES_PER_HOUR`.
 
 ---
 
@@ -207,14 +207,13 @@ one, and the plan is amended to match:
   payload derives `compat` from its own schema version
   (closed [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106))
 
-**Next up:** condition duration on the campaign axis.
-[#111](https://github.com/eddiefiggie/srd-rules-engine/issues/111) — a span in hours or days has
-no way to retire, so 92 entries read as until-removed when the clock they resolve against already
-exists. Then [#110](https://github.com/eddiefiggie/srd-rules-engine/issues/110) — the engine
+**Next up:** [#110](https://github.com/eddiefiggie/srd-rules-engine/issues/110) — the engine
 reports that a save-ends save is due and nothing ever rolls it, which is deliberate rather than an oversight: a save is an outcome, and
 R1 leaves outcomes to the one adjudication entry point. Joining the two ends means an end-of-turn
 request at the agent seam, and an end-of-turn save is not a declaration — so it wants a decision
-record before it wants code.
+record before it wants code. The campaign axis it would apply to is now built
+([#111](https://github.com/eddiefiggie/srd-rules-engine/issues/111)); the early-out that ends a
+span before its minute is what remains.
 
 ## Development
 

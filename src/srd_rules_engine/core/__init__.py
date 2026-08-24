@@ -38,12 +38,15 @@ from srd_rules_engine.core.canonical import (
     digest,
 )
 from srd_rules_engine.core.clock import (
+    HOURS_PER_DAY,
+    MINUTES_PER_DAY,
     MINUTES_PER_HOUR,
     RECOVERY_OFFSET,
     STABLE_RECOVERY_HIT_POINTS,
     STABLE_RECOVERY_SIDES,
     TIME_VERIFICATION,
     Clock,
+    days,
     hours,
     stable_recovery_minute,
 )
@@ -85,9 +88,12 @@ from srd_rules_engine.core.death import (
 )
 from srd_rules_engine.core.duration import (
     DURATION_VERIFICATION,
+    ENCOUNTER_KINDS,
     Duration,
     DurationKind,
     SaveEnds,
+    SpanUnit,
+    StatedSpan,
     rounds_in_minutes,
 )
 from srd_rules_engine.core.inventory import (
@@ -180,10 +186,13 @@ __all__ = [
     "DEATH_SAVE_VERIFICATION",
     "DIE_SIDES",
     "DURATION_VERIFICATION",
+    "ENCOUNTER_KINDS",
     "END_TURN",
     "ENGINE_SHAPES",
     "FACT_WRITE",
+    "HOURS_PER_DAY",
     "MAX_SAFE_INTEGER",
+    "MINUTES_PER_DAY",
     "MINUTES_PER_HOUR",
     "READER_VERSION",
     "RECOVERY_OFFSET",
@@ -253,6 +262,8 @@ __all__ = [
     "SaveEnds",
     "SessionReport",
     "Shape",
+    "SpanUnit",
+    "StatedSpan",
     "Status",
     "TestKind",
     "Trigger",
@@ -272,6 +283,7 @@ __all__ = [
     "canonicalize",
     "check_storable",
     "coverage_report",
+    "days",
     "death_save_resolver",
     "digest",
     "fact_from_payload",

@@ -1,4 +1,4 @@
-"""How long a condition lasts, on the encounter axis (#18, decisions 0020 and 0021).
+"""How long a condition lasts, on both axes (#18, #111, decisions 0020 and 0021).
 
 The shape of this is the finding rather than the code. All fifteen glossary entries state
 *effects*; only Prone (p. 186) and Exhaustion (p. 181) carry an ending rule of their own.
@@ -13,10 +13,13 @@ Two rules run through every test here:
   nothing. A save that could end a condition early is the opposite, and R1 leaves it to
   adjudication — reported here, never resolved.
 * **The clock does not move.** 0021 clause 2: advancing a turn never touches campaign time,
-  however many rounds a duration counts.
+  however many rounds a duration counts. The converse is the campaign axis (#111): a span in
+  hours or days is retired by `with_time_passed` and by nothing an encounter does.
 """
 
 from __future__ import annotations
+
+from dataclasses import replace
 
 import pytest
 
@@ -27,10 +30,12 @@ from srd_rules_engine.core import (
     DurationKind,
     EncounterState,
     SaveEnds,
+    SpanUnit,
+    StatedSpan,
     read,
     rounds_in_minutes,
 )
-from srd_rules_engine.core.clock import SECONDS_PER_ROUND
+from srd_rules_engine.core.clock import MINUTES_PER_DAY, MINUTES_PER_HOUR, SECONDS_PER_ROUND
 from srd_rules_engine.core.conditions import Conditions
 
 POISON_SAVE = SaveEnds(ability="con", dc=13)
@@ -136,16 +141,16 @@ def test_a_negative_span_is_refused() -> None:
 
 def test_a_minute_becomes_ten_rounds_and_says_so() -> None:
     """p. 98: two rounds is twelve seconds, so a round is six and a minute is ten rounds.
-    `stated_minutes` keeps what was said, so the arithmetic is visible rather than implied
+    `stated` keeps what was said, so the arithmetic is visible rather than implied
     by a round count nobody can trace back."""
     assert rounds_in_minutes(1) == 10
     assert SECONDS_PER_ROUND == 6
 
     state = encounter()
     duration = state.for_minutes(1, "first")
-    assert duration.stated_minutes == 1
+    assert duration.stated == StatedSpan(1, SpanUnit.MINUTES)
     assert duration.ends_after_round == state.round_number + 10
-    assert "1 minute(s) = 10 rounds" in duration.derivation()
+    assert "1 minute = 10 rounds" in duration.derivation()
     assert "p. 98" in duration.derivation()
 
 
@@ -245,8 +250,10 @@ def test_a_condition_with_no_stated_span_is_named_rather_than_left_permanent() -
 
 
 def test_an_until_removed_duration_names_no_expiry_point() -> None:
-    with pytest.raises(ValueError, match="no expiry point"):
+    with pytest.raises(ValueError, match="names no round and no creature"):
         Duration(kind=DurationKind.UNTIL_REMOVED, ends_after_round=3, ends_after_actor_id="a")
+    with pytest.raises(ValueError, match="names no minute"):
+        Duration(kind=DurationKind.UNTIL_REMOVED, ends_at_minute=90)
 
 
 def test_a_timed_duration_must_name_one() -> None:
@@ -365,7 +372,261 @@ def test_the_read_surface_reports_the_span_the_save_and_what_it_cannot_retire() 
     situation = read(state, "first").situation
     assert situation is not None
     assert Condition.POISONED in situation.condition_durations
-    assert "1 minute(s) = 10 rounds" in situation.condition_durations[Condition.POISONED]
+    assert "1 minute = 10 rounds" in situation.condition_durations[Condition.POISONED]
     assert situation.saves_due[Condition.POISONED] == ("con", 13)
     assert Condition.PETRIFIED in situation.conditions_until_removed
     assert Condition.POISONED not in situation.conditions_until_removed
+
+
+# --- The campaign axis: hours and days retire against the clock (#111) -----------------
+
+
+def test_an_hour_span_is_retirable_rather_than_reading_as_permanent() -> None:
+    """The defect #111 names. A span the encounter could not count was UNTIL_REMOVED, and
+    UNTIL_REMOVED is what the read surface reports as "nothing will lift this" — so a
+    condition with a perfectly ordinary eight-hour span read as indefinite."""
+    state = encounter()
+    duration = state.for_hours(8)
+
+    assert duration.kind is DurationKind.CAMPAIGN_TIME
+    assert duration.retirable
+    assert duration.ends_at_minute == 8 * MINUTES_PER_HOUR
+
+    state = state.with_condition("first", Condition.POISONED, duration=duration)
+    assert state.combatant("first").conditions.unretirable() == ()
+
+
+def test_the_clock_reaching_the_minute_lifts_it() -> None:
+    state = encounter()
+    state = state.with_condition("first", Condition.POISONED, duration=state.for_hours(1))
+
+    assert Condition.POISONED in held(state, "first")
+    state = state.with_time_passed(MINUTES_PER_HOUR)
+    assert Condition.POISONED not in held(state, "first")
+
+
+def test_a_clock_short_of_the_minute_lifts_nothing() -> None:
+    """The direction that matters: a condition lifted early is one the engine invented an
+    end for."""
+    state = encounter()
+    state = state.with_condition("first", Condition.POISONED, duration=state.for_hours(2))
+
+    state = state.with_time_passed(MINUTES_PER_HOUR)
+    assert Condition.POISONED in held(state, "first")
+    state = state.with_time_passed(MINUTES_PER_HOUR - 1)
+    assert Condition.POISONED in held(state, "first")
+    state = state.with_time_passed(1)
+    assert Condition.POISONED not in held(state, "first")
+
+
+def test_time_passing_in_one_lump_still_retires_a_span_it_overshoots() -> None:
+    """The agent supplies elapsed time in whatever chunks the narrative came in. A span due
+    at minute 90 must not survive a two-hour rest because nobody stopped at 90."""
+    state = encounter()
+    state = state.with_condition("first", Condition.BLINDED, duration=state.for_hours(1))
+    state = state.with_time_passed(2 * MINUTES_PER_HOUR)
+    assert Condition.BLINDED not in held(state, "first")
+
+
+def test_a_day_span_converts_and_says_so() -> None:
+    state = encounter()
+    duration = state.for_days(1)
+
+    assert duration.stated == StatedSpan(1, SpanUnit.DAYS)
+    assert duration.ends_at_minute == MINUTES_PER_DAY
+    assert "1 day = 1440 minutes" in duration.derivation()
+    assert "minute 1440" in duration.derivation()
+
+
+# --- The two axes do not retire each other --------------------------------------------
+
+
+def test_taking_turns_never_retires_a_campaign_span() -> None:
+    """0021 clause 2: advancing a turn does not move the clock. So an eight-hour condition
+    survives the whole fight, which is the correct answer rather than a gap."""
+    state = encounter()
+    state = state.with_condition("first", Condition.POISONED, duration=state.for_hours(8))
+
+    state = turns(state, 40)
+    assert Condition.POISONED in held(state, "first")
+    assert state.clock.elapsed_minutes == 0
+
+
+def test_elapsing_time_never_retires_an_encounter_span() -> None:
+    """The mirror. Rounds are not on the clock, so resting does not count them down — the
+    honest consequence of two axes that do not convert."""
+    state = encounter()
+    state = state.with_condition("first", Condition.POISONED, duration=state.for_rounds(3, "first"))
+
+    state = state.with_time_passed(MINUTES_PER_DAY)
+    assert Condition.POISONED in held(state, "first")
+
+
+def test_a_campaign_duration_answers_no_to_the_turn_order_question() -> None:
+    duration = encounter().for_hours(1)
+    assert not duration.expires_at(round_number=99, actor_id="first")
+    assert duration.expires_by(MINUTES_PER_HOUR)
+
+
+def test_an_encounter_duration_answers_no_to_the_clock_question() -> None:
+    duration = encounter().for_rounds(1, "first")
+    assert not duration.expires_by(MINUTES_PER_DAY)
+
+
+# --- Converted once, at application (0020 clause 4) -----------------------------------
+
+
+def test_the_expiry_minute_is_absolute_rather_than_remaining() -> None:
+    """A remaining count would have to be re-derived every time the clock moved, and a value
+    re-derived on query is one a caller can re-draw by choosing when to ask."""
+    state = encounter().with_time_passed(3 * MINUTES_PER_HOUR)
+    duration = state.for_hours(1)
+
+    assert duration.ends_at_minute == 4 * MINUTES_PER_HOUR
+    assert not duration.expires_by(MINUTES_PER_HOUR)
+    assert duration.expires_by(4 * MINUTES_PER_HOUR)
+
+
+def test_a_span_applied_later_ends_later() -> None:
+    """The same stated hour, applied at two different times, is two different minutes."""
+    early = encounter()
+    late = early.with_time_passed(5 * MINUTES_PER_HOUR)
+
+    assert early.for_hours(1).ends_at_minute == MINUTES_PER_HOUR
+    assert late.for_hours(1).ends_at_minute == 6 * MINUTES_PER_HOUR
+
+
+def test_asking_twice_gives_the_same_answer() -> None:
+    state = encounter()
+    duration = state.for_hours(1)
+    assert duration.derivation() == duration.derivation()
+    assert duration.expires_by(30) == duration.expires_by(30)
+
+
+# --- What lifting one does to the rest -------------------------------------------------
+
+
+def test_an_elapsed_unconscious_leaves_the_creature_prone() -> None:
+    """p. 191: "When this condition ends, you remain Prone." Implication is recomputed
+    rather than subtracted, so this holds on the campaign axis exactly as it does on the
+    encounter one — the retirement path is shared rather than reimplemented."""
+    state = encounter()
+    state = state.with_condition("first", Condition.UNCONSCIOUS, duration=state.for_hours(8))
+    assert Condition.PRONE in held(state, "first")
+    assert Condition.INCAPACITATED in held(state, "first")
+
+    state = state.with_time_passed(8 * MINUTES_PER_HOUR)
+    assert Condition.UNCONSCIOUS not in held(state, "first")
+    assert Condition.INCAPACITATED not in held(state, "first")
+    assert Condition.PRONE in held(state, "first")
+
+
+def test_only_the_creature_whose_span_elapsed_is_touched() -> None:
+    state = encounter()
+    state = state.with_condition("first", Condition.POISONED, duration=state.for_hours(1))
+    state = state.with_condition("second", Condition.POISONED, duration=state.for_hours(3))
+
+    state = state.with_time_passed(MINUTES_PER_HOUR)
+    assert Condition.POISONED not in held(state, "first")
+    assert Condition.POISONED in held(state, "second")
+
+
+def test_a_condition_with_no_duration_survives_any_amount_of_time() -> None:
+    """UNTIL_REMOVED means what it says: reported as unretirable, and never quietly lifted
+    by a clock that has no span to compare against."""
+    state = encounter().with_condition("first", Condition.PETRIFIED)
+    state = state.with_time_passed(MINUTES_PER_DAY * 30)
+
+    assert Condition.PETRIFIED in held(state, "first")
+    # Petrified implies Incapacitated (p. 186), and neither has a span, so both report.
+    assert state.combatant("first").conditions.unretirable() == (
+        Condition.INCAPACITATED,
+        Condition.PETRIFIED,
+    )
+
+
+def test_elapsing_time_retires_a_span_and_recovers_a_stable_creature_in_one_call() -> None:
+    """Both of `with_time_passed`'s rules run over the same combatants, so one must not
+    shadow the other."""
+    state = EncounterState.new(
+        [replace(fighter("first", "First"), is_player_character=True), fighter("second", "Second")]
+    ).with_initiative({"first": 20, "second": 10})
+    state = state.with_condition("second", Condition.BLINDED, duration=state.for_hours(1))
+    state = state.with_damage("first", 20).with_stabilised("first", seed=7)
+
+    recovery = state.combatant("first").death_saves.recovers_at_minute
+    assert recovery is not None
+    state = state.with_time_passed(max(recovery, MINUTES_PER_HOUR))
+
+    assert state.combatant("first").hit_points == 1
+    assert Condition.BLINDED not in held(state, "second")
+
+
+# --- The read surface reports the span rather than a shrug ----------------------------
+
+
+def test_the_read_surface_reports_an_hour_span_as_a_span() -> None:
+    state = encounter()
+    state = state.with_condition(
+        "first", Condition.POISONED, duration=state.for_hours(8, save=POISON_SAVE)
+    )
+
+    situation = read(state, "first").situation
+    assert situation is not None
+    assert "8 hours = 480 minutes" in situation.condition_durations[Condition.POISONED]
+    assert "minute 480" in situation.condition_durations[Condition.POISONED]
+    assert situation.saves_due[Condition.POISONED] == ("con", 13)
+    assert Condition.POISONED not in situation.conditions_until_removed
+
+
+def test_a_campaign_span_needs_no_turn_order() -> None:
+    """Campaign time passes outside encounters, so a span on that axis cannot depend on an
+    initiative order that may not exist."""
+    state = EncounterState.new([fighter("first", "First")])
+    assert state.turn_index is None
+
+    duration = state.for_hours(1)
+    state = state.with_condition("first", Condition.POISONED, duration=duration)
+    assert Condition.POISONED not in held(state.with_time_passed(MINUTES_PER_HOUR), "first")
+
+
+# --- A duration is counted by one axis, and says which ---------------------------------
+
+
+def test_a_campaign_duration_must_name_a_minute() -> None:
+    with pytest.raises(ValueError, match="ends at a minute on the clock"):
+        Duration(kind=DurationKind.CAMPAIGN_TIME)
+
+
+def test_a_campaign_duration_names_no_creature() -> None:
+    """Naming one would put an expiry point on an axis that will never read it — the
+    silent direction, because the condition would simply never lift."""
+    with pytest.raises(ValueError, match="names no round and no creature"):
+        Duration(
+            kind=DurationKind.CAMPAIGN_TIME,
+            ends_at_minute=60,
+            ends_after_round=2,
+            ends_after_actor_id="first",
+        )
+
+
+def test_an_encounter_duration_names_no_minute() -> None:
+    with pytest.raises(ValueError, match="names no minute"):
+        Duration(
+            kind=DurationKind.ROUNDS,
+            ends_after_round=2,
+            ends_after_actor_id="first",
+            ends_at_minute=60,
+        )
+
+
+def test_an_expiry_minute_does_not_run_backwards() -> None:
+    with pytest.raises(ValueError, match="counts forward only"):
+        Duration(kind=DurationKind.CAMPAIGN_TIME, ends_at_minute=-1)
+
+
+def test_a_negative_campaign_span_is_refused() -> None:
+    with pytest.raises(ValueError, match="not negative"):
+        encounter().for_hours(-1)
+    with pytest.raises(ValueError, match="not negative"):
+        encounter().for_days(-1)

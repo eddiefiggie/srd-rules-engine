@@ -337,6 +337,19 @@ class Conditions:
             if duration.expires_at(round_number, actor_id)
         )
 
+    def expired_by(self, elapsed_minutes: int) -> frozenset[Condition]:
+        """Which applied conditions the clock reaching that minute retires (#111).
+
+        The campaign-axis mirror of `expired_after`, and a read in the same way. Nothing
+        here is an outcome: the minute was fixed when the condition was applied, so the
+        clock arriving at it decides nothing that was not already decided.
+        """
+        return frozenset(
+            condition
+            for condition, duration in self.durations.items()
+            if duration.expires_by(elapsed_minutes)
+        )
+
     def saves_due_after(self, actor_id: str) -> Mapping[Condition, SaveEnds]:
         """Conditions on this creature that repeat a save at the end of its turns (p. 63).
 

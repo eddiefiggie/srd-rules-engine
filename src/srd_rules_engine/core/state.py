@@ -39,7 +39,14 @@ from srd_rules_engine.core.damage import (
     Defences,
     after_defences,
 )
-from srd_rules_engine.core.duration import Duration, DurationKind, SaveEnds, rounds_in_minutes
+from srd_rules_engine.core.duration import (
+    Duration,
+    DurationKind,
+    SaveEnds,
+    SpanUnit,
+    StatedSpan,
+    rounds_in_minutes,
+)
 from srd_rules_engine.core.position import (
     DEFAULT_REACH_FEET,
     MovementMode,
@@ -182,6 +189,19 @@ def _recovers_by(participant: Combatant, clock: Clock) -> bool:
         and saves.recovers_at_minute is not None
         and clock.elapsed_minutes >= saves.recovers_at_minute
     )
+
+
+def _elapsed(participant: Combatant, clock: Clock) -> Combatant:
+    """A creature with every campaign-axis condition the clock has now outlasted lifted (#111).
+
+    `Conditions.without` recomputes implication rather than subtracting from the closure,
+    which is why this goes through it instead of discarding keys: a creature whose eight-hour
+    Unconscious elapses keeps the Prone that p. 191 says it keeps.
+    """
+    expiring = participant.conditions.expired_by(clock.elapsed_minutes)
+    if not expiring:
+        return participant
+    return replace(participant, conditions=participant.conditions.without(expiring))
 
 
 @dataclass(frozen=True)
@@ -449,7 +469,7 @@ class EncounterState:
         actor_id: str,
         *,
         save: SaveEnds | None = None,
-        stated_minutes: int | None = None,
+        stated: StatedSpan | None = None,
     ) -> Duration:
         """A time span in rounds (p. 106), anchored to a creature's place in the order.
 
@@ -464,7 +484,7 @@ class EncounterState:
             ends_after_round=self.round_number + count,
             ends_after_actor_id=actor_id,
             save=save,
-            stated_minutes=stated_minutes,
+            stated=stated,
         )
 
     def for_minutes(self, minutes: int, actor_id: str, *, save: SaveEnds | None = None) -> Duration:
@@ -472,14 +492,45 @@ class EncounterState:
 
         Converting at application rather than on query is 0020 clause 4's reasoning: a value
         re-derived whenever somebody asks is a value a caller can re-draw by choosing when to
-        ask. `stated_minutes` keeps what was said, so the conversion is visible in the
-        derivation rather than implied by a round count nobody can trace.
+        ask. `stated` keeps what was said, so the conversion is visible in the derivation
+        rather than implied by a round count nobody can trace.
 
         The clock is not consulted and does not move. Knowing a round is six seconds is not
         knowing how much campaign time has passed (0021 clause 2).
         """
         return self.for_rounds(
-            rounds_in_minutes(minutes), actor_id, save=save, stated_minutes=minutes
+            rounds_in_minutes(minutes),
+            actor_id,
+            save=save,
+            stated=StatedSpan(minutes, SpanUnit.MINUTES),
+        )
+
+    def for_hours(self, count: int, *, save: SaveEnds | None = None) -> Duration:
+        """A span stated in hours, as a minute on the campaign clock (#111).
+
+        No creature is named, because the campaign axis has no turn order to anchor to —
+        the span ends when the clock says so, whoever is acting. `with_time_passed` is what
+        retires it, and nothing in an encounter will: taking a turn does not move the clock
+        (0021 clause 2), so an eight-hour condition correctly survives the whole fight.
+        """
+        return self._on_the_clock(StatedSpan(count, SpanUnit.HOURS), save=save)
+
+    def for_days(self, count: int, *, save: SaveEnds | None = None) -> Duration:
+        """A span stated in days. `clock.HOURS_PER_DAY` carries why a day is 24 hours."""
+        return self._on_the_clock(StatedSpan(count, SpanUnit.DAYS), save=save)
+
+    def _on_the_clock(self, stated: StatedSpan, *, save: SaveEnds | None) -> Duration:
+        """A campaign-axis expiry point, resolved against the clock once, at application.
+
+        The minute stored is absolute rather than remaining, for 0020 clause 4's reason: a
+        remaining count would have to be re-derived every time the clock moved, and a value
+        re-derived on query is one a caller can re-draw by choosing when to ask.
+        """
+        return Duration(
+            kind=DurationKind.CAMPAIGN_TIME,
+            ends_at_minute=self.clock.elapsed_minutes + stated.in_minutes,
+            save=save,
+            stated=stated,
         )
 
     def with_condition(
@@ -525,9 +576,15 @@ class EncounterState:
         """Advance campaign time and apply what elapsing it decided (decision 0020).
 
         The caller says how much time passed — a narrative fact only the agent holds — and
-        this decides every consequence. Today that is one rule: p. 18's Stable creature
-        regaining 1 hit point once its recovery minute is reached. Durations measured in
-        minutes and hours, and the rests, resolve here when they arrive.
+        this decides every consequence. Two rules today: p. 18's Stable creature regaining
+        1 hit point once its recovery minute is reached, and every campaign-axis condition
+        whose minute the clock has now reached (#111). The rests resolve here when they
+        arrive.
+
+        Both are deterministic bookkeeping rather than outcomes, for the same reason
+        `advanced_turn` retiring a round count is: the expiry point was fixed when the
+        condition was applied, so arriving at it decides nothing that was not already
+        decided, and no die is thrown (R1, R4).
 
         Recovery restores a hit point and nothing else. p. 18 does not say the Unconscious
         condition ends, and the sentence that does end a condition on regaining hit points
@@ -536,16 +593,19 @@ class EncounterState:
         """
         advanced = self.clock.advanced(minutes)
         recovered = tuple(
-            replace(
-                participant,
-                hit_points=min(
-                    participant.max_hit_points,
-                    participant.hit_points + STABLE_RECOVERY_HIT_POINTS,
-                ),
-                death_saves=DeathSaves(),
+            _elapsed(
+                replace(
+                    participant,
+                    hit_points=min(
+                        participant.max_hit_points,
+                        participant.hit_points + STABLE_RECOVERY_HIT_POINTS,
+                    ),
+                    death_saves=DeathSaves(),
+                )
+                if _recovers_by(participant, advanced)
+                else participant,
+                advanced,
             )
-            if _recovers_by(participant, advanced)
-            else participant
             for participant in self.combatants
         )
         return self._evolve(combatants=recovered, clock=advanced)
