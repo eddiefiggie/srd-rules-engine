@@ -439,7 +439,7 @@ class Adjudicator:
         result = roll_d20(proposal.test, seed=seed)
         branch = _branch(proposal, result)
         effects = _roll_declared(branch, seed=seed, critical=result.critical)
-        next_state = _apply(state, effects)
+        next_state = _apply(state, effects, seed=seed)
 
         return (
             Ruling(
@@ -678,7 +678,9 @@ def _signed(modifier: int) -> str:
     return "" if modifier == 0 else f" {'+' if modifier > 0 else '-'} {abs(modifier)}"
 
 
-def _apply(state: EncounterState, effects: Sequence[Effect]) -> EncounterState:
+def _apply(state: EncounterState, effects: Sequence[Effect], *, seed: int) -> EncounterState:
+    """Apply the settled effects. `seed` travels because becoming Stable rolls a die —
+    p. 18's 1d4 hours to recovery, drawn at stabilisation rather than on demand (0020)."""
     for effect in effects:
         if effect.kind is EffectKind.DAMAGE:
             state = state.with_damage(
@@ -690,11 +692,11 @@ def _apply(state: EncounterState, effects: Sequence[Effect]) -> EncounterState:
         elif effect.kind is EffectKind.HEALING:
             state = state.with_healing(effect.target_id, effect.amount)
         elif effect.kind is EffectKind.DEATH_SAVE_SUCCESS:
-            state = state.with_death_save(effect.target_id, successes=effect.amount)
+            state = state.with_death_save(effect.target_id, successes=effect.amount, seed=seed)
         elif effect.kind is EffectKind.DEATH_SAVE_FAILURE:
             state = state.with_death_save(effect.target_id, failures=effect.amount)
         elif effect.kind is EffectKind.STABILISED:
-            state = state.with_stabilised(effect.target_id)
+            state = state.with_stabilised(effect.target_id, seed=seed)
         else:
             state = state.with_death(effect.target_id)
     return state

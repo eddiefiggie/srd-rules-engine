@@ -32,9 +32,11 @@ than silently missing:
   action economy to spend the action from — [#16](https://github.com/eddiefiggie/srd-rules-engine/issues/16).
   `EncounterState.with_stabilised` exists, so the state transition is there; nothing yet
   reaches it through a ruling.
-* **"A Stable creature that isn't healed regains 1 Hit Point after 1d4 hours."** There is
-  no clock in the engine to hang it on. Filed as
-  [#85](https://github.com/eddiefiggie/srd-rules-engine/issues/85).
+p. 18's *"A Stable creature that isn't healed regains 1 Hit Point after 1d4 hours"* is no
+longer among them. `core.clock` is the campaign time it needed, the 1d4 is rolled when the
+creature becomes Stable rather than when somebody asks, and `EncounterState.with_time_passed`
+applies it. Recovery restores a hit point and no more: p. 18 does not say the Unconscious
+condition ends, so this engine does not end it either.
 """
 
 from __future__ import annotations

@@ -6,6 +6,47 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.31`
+
+The engine has a clock. Decision `0020` settles #85 — not "how does a Stable creature wake up"
+but what time is in this engine at all.
+
+- **Two kinds of time, and they do not convert.** Encounter time is `round_number`, ordinal and
+  already here. Campaign time is `EncounterState.clock`, monotonic elapsed minutes. Nothing turns
+  one into the other, and a test asserts that advancing a turn leaves the clock untouched.
+- **The document decides that.** p. 13: "A round represents *about* 6 seconds in the game world."
+  *About* is the SRD declining an exact conversion, so deriving campaign minutes from a round count
+  would manufacture precision it withholds — the inferred rule value R31 forbids, in the one form
+  that looks like arithmetic rather than a guess. And even given an exact round length, the engine
+  cannot know how much time passed *between* encounters.
+- **Minutes, because every campaign-scale duration in the document is a whole number of them.**
+  Short Rest one hour (p. 187), Long Rest at least eight (p. 185), sixteen hours before another may
+  start (p. 185), 1d4 hours (p. 18).
+- **The agent says how much time passed; the engine says what it did.** Elapsed time is a narrative
+  fact, so it arrives as a typed integer of minutes — R20's seam working as designed. Every
+  consequence is still the engine's.
+- **The 1d4 is rolled when the creature becomes Stable, not when the clock is read.** Rolling it on
+  demand would hand a caller a re-draw: advance an hour, ask, advance an hour, ask, stop when the
+  answer is the one it wanted — and every test that advances the clock once would still pass. The
+  same property `core.d20`'s banded seed space gives a reroll.
+- **The deadline lives on `DeathSaves`, which makes p. 18's condition structural.** The rule applies
+  to a Stable creature *that isn't healed*, and `with_healing` already resets those counts wholesale
+  — so healing voids the deadline by clearing the object it lives in, rather than because a later
+  author remembered to check.
+- **Recovery restores a hit point and touches no condition.** p. 18 does not say the Unconscious
+  condition ends, and the sentence that does end a condition on regaining hit points (p. 17) is
+  about Knocking Out a Creature. Not decided here rather than decided wrongly.
+- **Stabilising without a seed is refused.** A Stable creature silently missing its deadline is a
+  creature that never wakes up, which is the quiet direction to fail in.
+- **The read surface reports `elapsed_minutes` and `minutes_until_recovery`** (R18), so a caller
+  that never advances the clock can see that nothing is moving.
+- **Five clauses added to the SRD verifier, now 92**, covering p. 13's *about*, p. 18's 1d4 hours,
+  and the two rest durations. The 1d4 clause was proven red by changing it to `1d6`.
+- **`core.death`'s disclosed limit is removed** rather than reworded, and `core.spellcasting`'s Long
+  Rest disclosure now points at #19 — the clock it was waiting on exists, so the gap is the rest.
+- **Rest benefits are still not modelled**, and neither is condition duration. Both now have
+  somewhere to resolve against; the work stays on #19 and #18.
+
 ## Unreleased — 2026-08-23 — build `08232026.30`
 
 Decision `0019` settles #84 — the `kind` axis question `0013` deferred. No schema change and no

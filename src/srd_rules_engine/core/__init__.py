@@ -37,6 +37,16 @@ from srd_rules_engine.core.canonical import (
     canonicalize,
     digest,
 )
+from srd_rules_engine.core.clock import (
+    MINUTES_PER_HOUR,
+    RECOVERY_OFFSET,
+    STABLE_RECOVERY_HIT_POINTS,
+    STABLE_RECOVERY_SIDES,
+    TIME_VERIFICATION,
+    Clock,
+    hours,
+    stable_recovery_minute,
+)
 from srd_rules_engine.core.combat import Weapon, attack_resolver, initiative_order
 from srd_rules_engine.core.d20 import (
     DAMAGE_OFFSET,
@@ -156,13 +166,19 @@ __all__ = [
     "ENGINE_SHAPES",
     "FACT_WRITE",
     "MAX_SAFE_INTEGER",
+    "MINUTES_PER_HOUR",
     "READER_VERSION",
+    "RECOVERY_OFFSET",
     "REPLACEMENT_OFFSET",
+    "STABLE_RECOVERY_HIT_POINTS",
+    "STABLE_RECOVERY_SIDES",
+    "TIME_VERIFICATION",
     "Adjudicator",
     "Adjustment",
     "Advantage",
     "CanonicalizationError",
     "Catalogue",
+    "Clock",
     "Combatant",
     "Condition",
     "D20Result",
@@ -236,6 +252,7 @@ __all__ = [
     "digest",
     "fact_from_payload",
     "fact_write_payload",
+    "hours",
     "initiative_order",
     "is_extension",
     "issue_token",
@@ -254,6 +271,7 @@ __all__ = [
     "report_from",
     "resolve",
     "session_report",
+    "stable_recovery_minute",
     "summarize",
     "verify",
 ]

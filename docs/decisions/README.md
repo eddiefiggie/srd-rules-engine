@@ -74,6 +74,7 @@ rejected options and the reason survive, not the exact headings.
 | [0017](0017-verification-is-asserted-not-read.md) | Verification is a pattern asserted against the document, and it does not cover modelling — supersedes [0003](0003-seed-and-verification.md) in part | [#21](https://github.com/eddiefiggie/srd-rules-engine/issues/21) |
 | [0018](0018-api-stability.md) | Three stability tiers, an integer API version, and a committed surface that is enumerated | [#39](https://github.com/eddiefiggie/srd-rules-engine/issues/39) |
 | [0019](0019-kind-is-a-filing-label.md) | `kind` is a filing label, not a model, and stays one axis | [#84](https://github.com/eddiefiggie/srd-rules-engine/issues/84) |
+| [0020](0020-two-kinds-of-time.md) | Two kinds of time, minutes as the unit, and the round-to-clock bridge left unbuilt | [#85](https://github.com/eddiefiggie/srd-rules-engine/issues/85) |
 
 ## What belongs here, and what doesn't
 

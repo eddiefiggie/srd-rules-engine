@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.30` — **decision `0019` closes #84 by measuring it rather than fixing it.** The conflation is real: `kind` mixes what a shape *is* with what it *applies to*, 88 values to 123. But **"what it applies to" is plural** — Prone applies to attack rolls and movement, Exhaustion to d20 tests and Speed — so a second field cannot express it. And the whole engine reads a shape's `kind` in exactly **one line**, printing it in a coverage report. So it is a filing label, not a model: the behaviour it would describe already lives in typed code. It stays one axis, with a tie-break (file it under the subsystem that implements it) and a guard asserting nothing branches on it.
+**Current build:** `08232026.31` — **the engine has a clock, and a Stable creature finally wakes up (#85).** p. 18 restores 1 hit point after 1d4 hours and there was nothing to hang it on. Now there is — and **two kinds of time that deliberately do not convert**: ordinal rounds inside an encounter, and elapsed minutes across the campaign. p. 13 says a round represents *about* 6 seconds, and *about* is the document declining an exact conversion, so deriving one would manufacture precision the SRD withholds. **The 1d4 is rolled when the creature becomes Stable, not when somebody asks** — rolling it on demand would let a caller advance an hour, look, advance an hour, look, and stop when it liked the answer. The deadline lives inside the death-save record, so healing voids it structurally rather than by a check somebody has to remember.
 
 ---
 

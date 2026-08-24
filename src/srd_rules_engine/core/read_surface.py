@@ -144,6 +144,14 @@ class Situation:
     reaction_available: bool
     #: Level to slots remaining. Empty for a creature with no spellcasting.
     spell_slots: Mapping[int, int]
+    #: Elapsed campaign time in minutes (decision 0020). Ordinal `round_number` is not
+    #: reported here and does not convert into it — p. 13 says a round represents *about*
+    #: 6 seconds, which is the document declining an exact conversion.
+    elapsed_minutes: int
+    #: Minutes until a Stable creature regains 1 hit point (p. 18), or `None` when it is
+    #: not Stable. Reported so the agent can narrate toward it; the outcome is still the
+    #: engine's, applied by `EncounterState.with_time_passed`.
+    minutes_until_recovery: int | None
     #: Rules the engine holds but does not enforce, named rather than left to discovery.
     unenforced_clauses: tuple[str, ...]
 
@@ -291,6 +299,12 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
             {level: actor.slots.remaining(level) for level in sorted(actor.slots.total)}
             if actor.slots is not None
             else {}
+        ),
+        elapsed_minutes=state.clock.elapsed_minutes,
+        minutes_until_recovery=(
+            max(0, actor.death_saves.recovers_at_minute - state.clock.elapsed_minutes)
+            if actor.death_saves.recovers_at_minute is not None
+            else None
         ),
         unenforced_clauses=tuple(unenforced),
     )
