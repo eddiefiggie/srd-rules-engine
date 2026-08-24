@@ -263,4 +263,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-23 — build `08232026.37`._
+_Last updated: 2026-08-23 — build `08232026.39`._
