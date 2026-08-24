@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08242026.5` — **`core.clock` reasoned from a page its verification block did not name.** `SECONDS_PER_ROUND` transcribes p. 98 — the oil that burns "2 rounds... (or 12 seconds)", the document's only exact round-to-seconds conversion — and quoted it in a comment, while `TIME_VERIFICATION` named pp. 13, 18, 185 and 187. Nothing was unverified: `verify_d20_rules.py` asserts that sentence twice. But R31 says a mechanic **records the section it was verified against**, and a reader auditing this module would not have found it. The citation is added and **the date is not moved** — p. 98's clause was asserted on the date already recorded, so what was missing was the citation, not the check; moving it would claim a re-reading that did not happen. The guard is a property rather than a list, because a list of pages checked by hand is what let a third go unnoticed: every page the module cites must appear in its block. 914 tests.
+**Current build:** `08242026.6` — **every verification block swept after #129, and the sweep found one real gap and corrected the guard that suggested it.** `DURATION_VERIFICATION` did not name p. 63, the page `SaveEnds` is built from — same shape as #129, check already asserted, so the citation is added and the date stays. The sweep's other finding is filed rather than fixed: `MAX_SPELL_LEVEL = 9` transcribes p. 26 and **p. 26 is verified nowhere** — not in a block, not in the verifier — so unlike #129 the check does not exist and cannot be written without the document ([#130](https://github.com/eddiefiggie/srd-rules-engine/issues/130)). The rest of what the sweep flagged is not a defect and is recorded so a later audit does not re-raise it: cross-module citations, page-range artifacts, and illustrative references. That also **corrects a suggestion made in #126** — #129's per-module guard must not be generalised, because a module legitimately cites pages verified where the rule lives; applied to `core.combat` it would raise four false alarms at once. 915 tests.
 
 ---
 
@@ -261,4 +261,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-24 — build `08242026.5`._
+_Last updated: 2026-08-24 — build `08242026.6`._

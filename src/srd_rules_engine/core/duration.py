@@ -101,9 +101,13 @@ DURATION_VERIFICATION: Final = Verification(
     reference=(
         'SRD v5.2.1, "Spells" -> Duration, p. 106 (Concentration, Instantaneous, Time '
         'Span); "Equipment" -> Oil, p. 98 (counting rounds from an event, and the '
-        "round-to-seconds equivalence); Rules Glossary, Prone p. 186 and Unconscious "
-        "p. 191"
+        'round-to-seconds equivalence); "Spell Descriptions", p. 63 (the repeated save '
+        "`SaveEnds` carries, stated per-effect with its own ability and DC); Rules "
+        "Glossary, Prone p. 186 and Unconscious p. 191"
     ),
+    # Unchanged, for the reason #129 gives for `TIME_VERIFICATION`: p. 63's clause was
+    # asserted in `scripts/verify_d20_rules.py` on this date (#113). What was missing was
+    # the citation, not the check.
     date="2026-08-23",
     method=VerificationMethod.ASSERTED,
 )

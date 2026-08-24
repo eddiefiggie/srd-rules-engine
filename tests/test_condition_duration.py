@@ -24,6 +24,7 @@ from dataclasses import replace
 import pytest
 
 from srd_rules_engine.core import (
+    DURATION_VERIFICATION,
     Combatant,
     Condition,
     Duration,
@@ -642,3 +643,17 @@ def test_a_negative_campaign_span_is_refused() -> None:
         encounter().for_hours(-1)
     with pytest.raises(ValueError, match="not negative"):
         encounter().for_days(-1)
+
+
+def test_the_duration_block_cites_the_page_save_ends_is_built_from() -> None:
+    """The #129 gap, in the module next door (#126).
+
+    `SaveEnds` transcribes p. 63 — its docstring quotes the sentence — and
+    `DURATION_VERIFICATION` named pp. 98, 106, 186 and 191 but not p. 63. Nothing was
+    unverified: `scripts/verify_d20_rules.py` has asserted that sentence since #113, and
+    `SAVE_ENDS_VERIFICATION` cites it. The citation was simply absent from the block a
+    reader auditing this module would check, which is where R31 says to look.
+    """
+    reference = DURATION_VERIFICATION.reference or ""
+    assert "p. 63" in reference, "SaveEnds is built from p. 63 (decision 0023, #110)"
+    assert "p. 98" in reference, "the round-to-seconds equivalence"
