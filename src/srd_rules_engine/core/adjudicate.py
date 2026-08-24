@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import secrets
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from typing import Final, Protocol
 
@@ -46,7 +46,7 @@ from srd_rules_engine.core.d20 import (
 )
 from srd_rules_engine.core.d20 import resolve as roll_d20
 from srd_rules_engine.core.d20 import roll as dice
-from srd_rules_engine.core.damage import DamageType
+from srd_rules_engine.core.damage import DamageOutcome, DamageType
 from srd_rules_engine.core.ledger import COMPAT, Ledger
 from srd_rules_engine.core.memory_port import (
     DefaultKind,
@@ -66,7 +66,12 @@ DECLARATION_VERSION = 1
 #: 2 records the advantage the test was declared under. A v1 roll cannot be reconstructed
 #: — a reader would build a test with neither flag set, roll one die where two were rolled,
 #: and report a mismatch that looks like drift. Replay refuses those rather than guessing.
-RULING_VERSION = 2
+#:
+#: 3 changes what an effect's `amount` **means** for damage: it is now what the target took
+#: after p. 17's defences, with `rolled` and `damage_type` alongside it (#105). This is not
+#: an additive field — a v2 reader adding up `amount` gets a different total for the same
+#: fight — so the version moves rather than the payload growing quietly.
+RULING_VERSION = 3
 NARRATION_VERSION = 1
 TERMINATION_VERSION = 1
 
@@ -107,7 +112,15 @@ class EffectKind(StrEnum):
 
 @dataclass(frozen=True)
 class Effect:
-    """A mechanical change a ruling applies. The engine applies it; the narrator reports it."""
+    """A mechanical change a ruling applies. The engine applies it; the narrator reports it.
+
+    **`amount` is what happened, not what was rolled.** For damage that means the amount the
+    target actually took, after p. 17's Immunity, Resistance and Vulnerability have acted —
+    `rolled` carries the figure from before, whenever one of them did. The narrator reads this
+    object and R7 leaves it free to assert what it finds, so a field that held the rolled
+    number would let a creature immune to Fire be narrated as taking a full hit (#105). The
+    number that is easiest to read has to be the number that is true.
+    """
 
     kind: EffectKind
     target_id: str
@@ -118,6 +131,11 @@ class Effect:
     critical: bool = False
     #: Damage only. Resistance and the rest key off it; untyped damage matches no defence.
     damage_type: DamageType | None = None
+    #: Damage only, and set whenever one of the target's defences acted: what the dice and
+    #: modifier came to before it did. `None` means no defence applied, so `amount` is the
+    #: whole story. It can equal `amount` — Resistance and Vulnerability to the same type
+    #: halve and then double rather than cancelling, which returns an even amount to itself.
+    rolled: int | None = None
 
 
 @dataclass(frozen=True)
@@ -439,7 +457,10 @@ class Adjudicator:
         result = roll_d20(proposal.test, seed=seed)
         branch = _branch(proposal, result)
         effects = _roll_declared(branch, seed=seed, critical=result.critical)
-        next_state = _apply(state, effects, seed=seed)
+        # The effects that go into the Ruling are the ones `_apply` hands back, not the
+        # ones it was given: damage is rolled before a target is consulted, so only the
+        # applier knows what p. 17's defences left of it (#105).
+        next_state, effects = _apply(state, effects, seed=seed)
 
         return (
             Ruling(
@@ -678,18 +699,38 @@ def _signed(modifier: int) -> str:
     return "" if modifier == 0 else f" {'+' if modifier > 0 else '-'} {abs(modifier)}"
 
 
-def _apply(state: EncounterState, effects: Sequence[Effect], *, seed: int) -> EncounterState:
-    """Apply the settled effects. `seed` travels because becoming Stable rolls a die —
-    p. 18's 1d4 hours to recovery, drawn at stabilisation rather than on demand (0020)."""
+def _apply(
+    state: EncounterState, effects: Sequence[Effect], *, seed: int
+) -> tuple[EncounterState, tuple[Effect, ...]]:
+    """Apply the settled effects, and hand back what they came to (R5, #105).
+
+    Damage arrives here as rolled, because the dice are rolled before a target's defences
+    are consulted. p. 17's Immunity, Resistance and Vulnerability act inside `with_damage`,
+    which is the single place they are ever applied — so this asks the state what the blow
+    will come to, lets `with_damage` apply it from the *rolled* figure exactly as before,
+    and rewrites the effect to say what landed. Both numbers come from one call on the
+    state, so the reported amount and the applied amount cannot disagree.
+
+    `seed` travels because becoming Stable rolls a die — p. 18's 1d4 hours to recovery,
+    drawn at stabilisation rather than on demand (0020).
+    """
+    landed: list[Effect] = []
     for effect in effects:
         if effect.kind is EffectKind.DAMAGE:
+            outcome = state.damage_after_defences(
+                effect.target_id, effect.amount, effect.damage_type
+            )
+            landed.append(_as_taken(effect, outcome))
             state = state.with_damage(
                 effect.target_id,
                 effect.amount,
                 critical=effect.critical,
                 damage_type=effect.damage_type,
             )
-        elif effect.kind is EffectKind.HEALING:
+            continue
+
+        landed.append(effect)
+        if effect.kind is EffectKind.HEALING:
             state = state.with_healing(effect.target_id, effect.amount)
         elif effect.kind is EffectKind.DEATH_SAVE_SUCCESS:
             state = state.with_death_save(effect.target_id, successes=effect.amount, seed=seed)
@@ -699,7 +740,27 @@ def _apply(state: EncounterState, effects: Sequence[Effect], *, seed: int) -> En
             state = state.with_stabilised(effect.target_id, seed=seed)
         else:
             state = state.with_death(effect.target_id)
-    return state
+    return state, tuple(landed)
+
+
+def _as_taken(effect: Effect, outcome: DamageOutcome) -> Effect:
+    """Rewrite a damage effect to report what the target took, showing p. 17's arithmetic.
+
+    Left exactly as it was when no defence acted, so `rolled` being set means one did.
+
+    The test is whether a defence *acted*, not whether the number moved, and the difference
+    is not hypothetical: Resistance and Vulnerability to the same type do not cancel — they
+    halve and then double, which returns an even amount to itself. Comparing the amounts
+    would call that untouched and hide two steps the document walks through by name.
+    """
+    if len(outcome.steps) <= 1:
+        return effect
+    return replace(
+        effect,
+        amount=outcome.amount,
+        rolled=effect.amount,
+        description=f"{effect.description}; {outcome.derivation()}",
+    )
 
 
 # --- Ledger payloads ----------------------------------------------------------------
@@ -763,7 +824,12 @@ def _ruling_payload(ruling: Ruling) -> Mapping[str, object]:
             {
                 "kind": str(e.kind),
                 "target": e.target_id,
+                # What the target took. `rolled` and `damage_type` are what make that
+                # recomputable: without the type there is no way to check p. 17's
+                # arithmetic from the record, which is the state this fixed (#105).
                 "amount": e.amount,
+                "rolled": e.rolled,
+                "damage_type": str(e.damage_type) if e.damage_type else None,
                 "description": e.description,
             }
             for e in ruling.effects

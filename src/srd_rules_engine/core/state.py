@@ -33,7 +33,12 @@ from srd_rules_engine.core.clock import (
     stable_recovery_minute,
 )
 from srd_rules_engine.core.conditions import Conditions
-from srd_rules_engine.core.damage import DamageType, Defences, after_defences
+from srd_rules_engine.core.damage import (
+    DamageOutcome,
+    DamageType,
+    Defences,
+    after_defences,
+)
 from srd_rules_engine.core.position import (
     DEFAULT_REACH_FEET,
     MovementMode,
@@ -236,6 +241,23 @@ class EncounterState:
     def _replacing(self, updated: Combatant) -> tuple[Combatant, ...]:
         return tuple(updated if c.id == updated.id else c for c in self.combatants)
 
+    def damage_after_defences(
+        self, combatant_id: str, amount: int, damage_type: DamageType | None = None
+    ) -> DamageOutcome:
+        """What `with_damage` will actually apply to this target, and the p. 17 arithmetic.
+
+        A read (R19): it mutates nothing and appends nothing. It exists so that the number
+        a `Ruling` reports and the number the state applies come from **one** call —
+        `with_damage` is written in terms of this, so the two cannot drift into disagreeing
+        about the same blow.
+
+        Answering the question separately from applying it is what lets an outcome show its
+        working (R5). The alternative — letting a caller pre-adjust an amount and hand the
+        result to `with_damage` — needs an "already adjusted" flag, and a flag that skips
+        defences is a flag that skips defences.
+        """
+        return after_defences(amount, damage_type, self.combatant(combatant_id).defences)
+
     def with_damage(
         self,
         combatant_id: str,
@@ -264,7 +286,7 @@ class EncounterState:
         # — the death save failure for "any damage", and Massive Damage's remainder — is
         # about damage *taken*, so a creature immune to Fire takes none and suffers none of
         # it. Applying them after would charge a failure for damage that never landed.
-        amount = after_defences(amount, damage_type, target.defences).amount
+        amount = self.damage_after_defences(combatant_id, amount, damage_type).amount
         before = target.hit_points
 
         reduced = replace(target, hit_points=max(0, before - amount))
