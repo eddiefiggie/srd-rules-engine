@@ -30,6 +30,10 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]
+# The MCP adapter's transport. An extra, never a dependency: R33 keeps
+# `[project].dependencies` empty, and installing the library must not install a
+# network stack.
+mcp = ["mcp>=2"]
 
 [project.urls]
 Homepage = "https://github.com/eddiefiggie/srd-rules-engine"
@@ -62,3 +66,10 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 python_version = "3.11"
 files = ["src", "tests"]
 strict = true
+
+# The MCP SDK is an optional extra, so a checkout without it must still type-check. The
+# import is inside a function and guarded, and the adapter is typed against `Any` at that
+# boundary — so this silences a missing module, not a missing type.
+[[tool.mypy.overrides]]
+module = ["mcp.*", "mcp"]
+ignore_missing_imports = true
