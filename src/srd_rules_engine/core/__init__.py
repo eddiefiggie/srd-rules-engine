@@ -18,6 +18,7 @@ See `docs/decisions/0011-module-layout-and-versioning.md`.
 from __future__ import annotations
 
 from srd_rules_engine.core.adjudicate import (
+    CONDITION_KINDS,
     Adjudicator,
     DamageDice,
     Declaration,
@@ -30,6 +31,8 @@ from srd_rules_engine.core.adjudicate import (
     Resolver,
     Ruling,
     Status,
+    condition_applied,
+    condition_ended,
 )
 from srd_rules_engine.core.canonical import (
     MAX_SAFE_INTEGER,
@@ -179,6 +182,7 @@ from srd_rules_engine.core.triggers import (
 
 __all__ = [
     "ATTACK",
+    "CONDITION_KINDS",
     "CONDITION_VERIFICATION",
     "DAMAGE_OFFSET",
     "DAMAGE_VERIFICATION",
@@ -282,6 +286,8 @@ __all__ = [
     "attack_target",
     "canonicalize",
     "check_storable",
+    "condition_applied",
+    "condition_ended",
     "coverage_report",
     "days",
     "death_save_resolver",
