@@ -1,6 +1,9 @@
 # 0011 — Layer boundaries are a guard test, and schemas carry a min-reader floor
 
-- **Status:** Accepted, 2026-08-22
+- **Status:** Accepted, 2026-08-22. **Clause 5 amended by**
+  [0022 — `compat` is a reader version](0022-compat-is-a-reader-version.md), 2026-08-23: a floor
+  rises to the lowest *reader* version that can read the payload, never to the payload's own
+  schema version. Clauses 3 and 4 stand and are what that record enforces.
 - **Settles:** [#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13)
 - **Requirements:** R33, R34, R35 · touches R8, R20, R23, R24, R26
 - **Related:** [0006 — ledger format](0006-ledger-format.md) froze the envelope this must live
@@ -117,7 +120,10 @@ rather than two: structurally readable, interpretable, and neither-known-nor-cla
 `compat` lives in the payload because 0006 froze the envelope permanently. It is now the second
 permanently reserved name in the format, and that is stated here so it is not rediscovered.
 
-**5. A version bump raises `compat` only when an older reader would get it wrong.** Adding an
+**5. A version bump raises `compat` only when an older reader would get it wrong.**
+*(Amended by [0022](0022-compat-is-a-reader-version.md): the floor rises to the lowest **reader**
+version that can read the payload, never to the payload's own schema version. Deriving one from
+the other made every ruling entry unreadable — see that record.)* Adding an
 optional field a reader may ignore leaves `compat` where it was. Removing a field, changing a
 field's type or meaning, or adding a field a correct reading requires, raises it to the new
 version.

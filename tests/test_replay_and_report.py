@@ -411,20 +411,37 @@ def test_a_ruling_made_with_disadvantage_replays_identically(tmp_path: Path) -> 
     assert replay_entry(entry, engine_version=ENGINE, recorded_engine=ENGINE).reproduced
 
 
-def test_the_ruling_payload_declares_the_version_whose_shape_it_has(tmp_path: Path) -> None:
-    """The compat floor is what tells an older reader it cannot interpret this entry. A
-    payload that grew a field replay depends on, while still claiming the old floor, would
-    be read by an old reader as interpretable and replayed with the field absent."""
+def test_the_ruling_payload_names_a_schema_version_and_a_reader_floor_separately(
+    tmp_path: Path,
+) -> None:
+    """Two numbers on two number lines (#106, decision 0022).
+
+    `v` is the payload's **schema** version and moves whenever its shape does. `compat` is
+    the lowest **reader** that can read it, and moves only when this repository's reading
+    surface changes such that an older one would get the payload wrong. Deriving the second
+    from the first is what made every ruling entry in every ledger report as uninterpretable
+    the moment `RULING_VERSION` first left 1.
+
+    This test used to assert `compat >= REPLAYABLE_FROM`, which is that derivation written
+    down as an expectation. The protection it was reaching for — that replay refuses a
+    payload whose roll predates `declared_advantage` rather than assuming it away — is
+    structural, and `test_a_roll_recording_no_advantage_is_unreplayable_not_assumed_plain`
+    covers it directly by removing the field and checking the refusal.
+    """
     from srd_rules_engine.core.ledger import COMPAT
+    from srd_rules_engine.core.ledger_reader import READER_VERSION
 
     ledger = one_ruling(tmp_path / "x3")
     entry = entries(ledger, "ruling")[0]
 
     roll = entry.payload["roll"]
-    floor = entry.payload[COMPAT]
     assert isinstance(roll, Mapping) and "declared_advantage" in roll
     assert entry.v >= REPLAYABLE_FROM, "the schema version moved with the schema"
-    assert isinstance(floor, int) and floor >= REPLAYABLE_FROM, "and so did the reader floor"
+    floor = entry.payload[COMPAT]
+    assert isinstance(floor, int) and floor <= READER_VERSION, (
+        "and the floor names a reader that exists"
+    )
+    assert entry.interpretable, "which is the reader now reading it"
 
 
 def test_a_non_ruling_entry_is_unreplayable_rather_than_silently_skipped() -> None:
@@ -756,3 +773,80 @@ def test_a_roll_missing_any_test_input_is_unreplayable(tmp_path: Path, missing: 
 
     outcome = replay(read_ledger(ledger), engine_version=ENGINE)[0]
     assert outcome.verdict is ReplayVerdict.UNREPLAYABLE
+
+
+# --- The compat floor, against real payloads (#106, decision 0022) ---------------------
+
+
+def test_every_entry_the_engine_writes_is_interpretable_by_the_reader_that_ships_with_it(
+    tmp_path: Path,
+) -> None:
+    """The guard that was missing, and the only reason #106 survived two builds.
+
+    `tests/test_ledger_reader.py` asserts this too, but over payloads it hand-writes with
+    `compat: 1` — so the one entry type whose floor had drifted was the one its ledgers never
+    contained. A reader and a writer that ship together must agree, and the only way to know
+    they do is to write with the real writer and read with the real reader.
+
+    While it was broken, every `ruling` entry in every ledger reported `interpretable=False`:
+    the reader R35 makes public, telling every consumer it could not read the one entry type
+    that carries an outcome.
+    """
+    from srd_rules_engine.core.ledger import COMPAT
+    from srd_rules_engine.core.ledger_reader import READER_VERSION
+
+    ledger = one_ruling(tmp_path / "compat")
+    report = read_ledger(ledger)
+
+    assert report.entries, "the fight wrote something"
+    assert {e.type for e in report.entries} >= {"session", "declaration", "ruling"}
+    assert not report.unauditable, (
+        "an entry this engine wrote is unreadable by the reader it shipped with: "
+        f"{[(e.type, e.v, e.payload.get(COMPAT)) for e in report.unauditable]}"
+    )
+    for entry in report.entries:
+        floor = entry.payload[COMPAT]
+        assert isinstance(floor, int) and floor <= READER_VERSION
+
+
+def test_a_schema_version_moving_does_not_move_the_reader_floor(tmp_path: Path) -> None:
+    """0011 clause 5, and the clause the defect broke: a bump raises `compat` *only* when an
+    older reader would get the payload wrong.
+
+    `RULING_VERSION` is 3 while the ruling payload's floor is 1, and that divergence is the
+    distinction made visible in the data rather than only asserted in a record. It would be
+    impossible if the floor were still derived from the schema version — which is exactly
+    what `COMPAT: RULING_VERSION` was.
+    """
+    from srd_rules_engine.core.adjudicate import RULING_COMPAT, RULING_VERSION
+    from srd_rules_engine.core.ledger import COMPAT
+
+    assert RULING_VERSION > RULING_COMPAT, "three schema versions, none of which moved the floor"
+
+    entry = entries(one_ruling(tmp_path / "floor"), "ruling")[0]
+    assert entry.v == RULING_VERSION
+    assert entry.payload[COMPAT] == RULING_COMPAT
+
+
+def test_no_payload_writer_derives_its_floor_from_its_schema_version() -> None:
+    """The defect in the form it actually took, caught by shape rather than by outcome.
+
+    Every writer read `COMPAT: <ITS_OWN>_VERSION`. That is correct arithmetic only while
+    every schema is at 1, so it passed for as long as nothing had moved and broke silently
+    the moment something did. Asserting the floors are *named separately* is what makes the
+    next person's `COMPAT: SOME_VERSION` fail here rather than in a user's ledger.
+    """
+    import inspect
+
+    from srd_rules_engine.core import adjudicate, ledger, memory_port
+
+    for module in (adjudicate, ledger, memory_port):
+        source = inspect.getsource(module)
+        for line in source.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("COMPAT:") and stripped.endswith("_VERSION,"):
+                raise AssertionError(
+                    f"{module.__name__} derives a compat floor from a schema version: "
+                    f"{stripped!r}. They are different number lines (decision 0022) — name "
+                    "the floor with its own constant"
+                )

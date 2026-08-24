@@ -43,6 +43,10 @@ from srd_rules_engine.core.canonical import CanonicalizationError, canonicalize,
 
 # The on-disk container's own version, distinct from any payload's `v`.
 FORMAT_VERSION: Final = 1
+#: The lowest reader version that can read a session entry (decision 0022). It has always
+#: been 1 here — written as a literal, which is the only reason the session entry escaped
+#: the defect #106 found in every other payload.
+SESSION_COMPAT: Final = 1
 
 # Fixed for the life of the project. Nothing may be added here later, which is why
 # `compat` lives inside the payload instead.
@@ -113,7 +117,7 @@ class Ledger:
                 SESSION,
                 v=1,
                 payload={
-                    COMPAT: 1,
+                    COMPAT: SESSION_COMPAT,
                     "format_version": FORMAT_VERSION,
                     "engine_version": engine_version,
                     "catalogue_version": catalogue_version,

@@ -76,6 +76,7 @@ rejected options and the reason survive, not the exact headings.
 | [0019](0019-kind-is-a-filing-label.md) | `kind` is a filing label, not a model, and stays one axis | [#84](https://github.com/eddiefiggie/srd-rules-engine/issues/84) |
 | [0020](0020-two-kinds-of-time.md) | Two kinds of time, minutes as the unit, and the round-to-clock bridge left unbuilt — clause 1 amended by [0021](0021-a-round-is-six-seconds.md) | [#85](https://github.com/eddiefiggie/srd-rules-engine/issues/85) |
 | [0021](0021-a-round-is-six-seconds.md) | A round is exactly six seconds, and the clock still does not advance itself — amends [0020](0020-two-kinds-of-time.md) clause 1 | [#108](https://github.com/eddiefiggie/srd-rules-engine/issues/108) |
+| [0022](0022-compat-is-a-reader-version.md) | `compat` is a reader version, and no payload derives it from its own schema version — amends [0011](0011-module-layout-and-versioning.md) clause 5 | [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106) |
 
 ## What belongs here, and what doesn't
 

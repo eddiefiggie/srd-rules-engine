@@ -38,6 +38,11 @@ from srd_rules_engine.core.ledger import COMPAT, Ledger
 
 FACT_WRITE: Final = "fact-write"
 FACT_PAYLOAD_VERSION: Final = 1
+#: The lowest reader version that can read a fact payload, which is not the same number as
+#: the schema version above (#106, decision 0022). This one was a live landmine rather than
+#: a latent one: `memory.store.rebuild` **raises** on an uninterpretable fact write, so
+#: bumping `FACT_PAYLOAD_VERSION` would have made every store rebuild fail outright.
+FACT_PAYLOAD_COMPAT: Final = 1
 
 
 class DefaultKind(StrEnum):
@@ -196,7 +201,7 @@ def fact_write_payload(fact: Fact) -> Mapping[str, object]:
     """The ledger payload for a fact write — the shape a rebuild reads back."""
     check_storable(fact.type_name, fact.value)
     return {
-        COMPAT: FACT_PAYLOAD_VERSION,
+        COMPAT: FACT_PAYLOAD_COMPAT,
         "type": fact.type_name,
         "subject": fact.subject,
         "value": fact.value,
