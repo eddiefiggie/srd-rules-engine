@@ -121,4 +121,9 @@ comes back `challenged`, carrying the trigger `fixture-hazard-loose-ground`, its
 ## Status of implementation
 
 **Implemented.** `adapters/session.py` and `adapters/mcp.py`, with the `mcp` extra declared in
-`pyproject.toml`. `supply_facts` is the one declared tool that does not yet work.
+`pyproject.toml`. `supply_facts` is the one declared tool that does not yet work — it raises, so a
+turn that blocks on a fact has no route forward over MCP. Held by [#144](https://github.com/eddiefiggie/srd-rules-engine/issues/144).
+
+_Issue added 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). The gap was recorded
+here and in the adapter's own `NotImplementedError`, which pointed at [#97](https://github.com/eddiefiggie/srd-rules-engine/issues/97)
+— closed. Nothing tracked it._

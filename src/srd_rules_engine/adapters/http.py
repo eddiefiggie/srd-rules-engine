@@ -179,7 +179,7 @@ class HttpAdapter:
             return self._pending(self.session.end_turn(str(payload["actor_id"])))
         raise NotImplementedError(
             "facts needs the memory port's Fact constructor, which takes a typed value kind; "
-            "it is unwired over every adapter, not only this one"
+            "it is unwired over every adapter, not only this one (#144)"
         )
 
     def _pending(self, pending: Any) -> Response:

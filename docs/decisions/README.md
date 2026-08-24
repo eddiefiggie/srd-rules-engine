@@ -25,10 +25,21 @@ and it blocks implementation — because an unanswered gate otherwise gets settl
 writes the code first, silently and without the question ever being asked. The issue poses the
 question, the record answers it, and the plan in [`../plans/`](../plans/) is amended to match.
 
+**A closing gate files what it did not build.** Closing the gate is the moment the design stops
+being tracked: the record makes it look settled, and a closed issue looks finished. So a clause
+this record specifies and nobody has built gets an issue of its own, named beside the clause in
+**Status of implementation**. `AGENTS.md` carries the rule; `tests/test_decision_records.py`
+asserts the section is there.
+
 **They are numbered and immutable.** A decision that changes does not get edited. It gets a new
 record that supersedes the old one, so the trail stays intact and a reader can see what was
 believed at the time and what changed. Both files carry `Supersedes:` and `Status:` lines for
 this reason.
+
+**One section is exempt from that, and has to be.** **Status of implementation** describes the
+tree rather than the decision, so it is updated as work lands — by appending a dated note rather
+than by rewriting history, the way [0021](0021-a-round-is-six-seconds.md) and
+[0022](0022-compat-is-a-reader-version.md) carry theirs. Nothing else in a record moves.
 
 **They record rejected options, not just the winner.** A record listing only what was chosen is a
 description of the code, which the code already provides for free.
@@ -46,7 +57,7 @@ Numbered `NNNN-short-slug.md`, four digits, allocated in order. The sections in 
 | **Why** | The argument, with measurements where they exist |
 | **Consequences** | Accepted costs and follow-on effects. Costs go here even when the decision is clearly right |
 | **Evidence** | How to reproduce any spike behind it — including where the method went wrong |
-| **Status of implementation** | Usually "none", because M0 gates close before anything is built |
+| **Status of implementation** | What is built, what is not, and the issue holding each unbuilt clause. Maintained as work lands — every other section is frozen |
 
 Not a standard, and section names vary between projects that do this. What matters is that the
 rejected options and the reason survive, not the exact headings.
