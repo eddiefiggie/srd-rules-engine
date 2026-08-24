@@ -66,6 +66,7 @@ from srd_rules_engine.adapters.session import (
     Session,
     TurnEnded,
 )
+from srd_rules_engine.adapters.surface import FORBIDDEN_COMMAND_NAMES
 from srd_rules_engine.core import Declaration, Intent, session_report
 
 #: Tool names, in one place so the server and its tests cannot disagree about them.
@@ -87,8 +88,9 @@ TOOL_NAMES: tuple[str, ...] = (
     SESSION_REPORT,
 )
 
-#: Anything that would reach an outcome without the loop. Asserted absent by a test.
-FORBIDDEN_TOOL_NAMES: frozenset[str] = frozenset({"adjudicate", "rule", "resolve", "roll"})
+#: Kept as an alias: the set is shared with every other adapter now (#133), because a
+#: second copy of a rule this load-bearing is the copy that goes stale.
+FORBIDDEN_TOOL_NAMES: frozenset[str] = FORBIDDEN_COMMAND_NAMES
 
 
 def tool_definitions() -> tuple[dict[str, Any], ...]:

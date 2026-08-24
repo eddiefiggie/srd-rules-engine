@@ -44,12 +44,18 @@ def test_the_committed_set_is_exactly_this() -> None:
 
     Listed rather than counted, because a count would let a rename pass — one name out, one
     name in, the total unchanged and the promise broken.
+
+    `TurnEnded` and `TurnEnd` were added by #133. They should have arrived with #125: four of
+    `Pending`'s five members were already committed, and a consumer matching on the union has
+    to handle the fifth. The pin is what made adding them a deliberate edit rather than a
+    silent one, which is the whole point of listing them here.
     """
     assert set(COMMITTED) == {
         "srd_rules_engine.adapters.AwaitingDeclaration",
         "srd_rules_engine.adapters.AwaitingFacts",
         "srd_rules_engine.adapters.AwaitingNarration",
         "srd_rules_engine.adapters.Finished",
+        "srd_rules_engine.adapters.TurnEnded",
         "srd_rules_engine.adapters.Session",
         "srd_rules_engine.adapters.SessionError",
         "srd_rules_engine.core.Declaration",
@@ -79,6 +85,7 @@ def test_the_committed_set_is_exactly_this() -> None:
         "srd_rules_engine.loop.Narrated",
         "srd_rules_engine.loop.NarrationRequest",
         "srd_rules_engine.loop.TurnLoop",
+        "srd_rules_engine.loop.TurnEnd",
         "srd_rules_engine.loop.TurnOutcome",
     }
 

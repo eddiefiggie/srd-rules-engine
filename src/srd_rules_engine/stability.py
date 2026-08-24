@@ -79,6 +79,7 @@ COMMITTED: Final[tuple[str, ...]] = (
     "srd_rules_engine.loop.Narrated",
     "srd_rules_engine.loop.NarrationRequest",
     "srd_rules_engine.loop.TurnLoop",
+    "srd_rules_engine.loop.TurnEnd",
     "srd_rules_engine.loop.TurnOutcome",
     # 0016: the adapter session, which is what a transport binds to. The MCP tool names on
     # top of it are provisional; this is not.
@@ -86,6 +87,7 @@ COMMITTED: Final[tuple[str, ...]] = (
     "srd_rules_engine.adapters.AwaitingFacts",
     "srd_rules_engine.adapters.AwaitingNarration",
     "srd_rules_engine.adapters.Finished",
+    "srd_rules_engine.adapters.TurnEnded",
     "srd_rules_engine.adapters.Session",
     "srd_rules_engine.adapters.SessionError",
     # What a Ruling is made of. A consumer reading an outcome depends on these whether it
@@ -106,4 +108,7 @@ COMMITTED: Final[tuple[str, ...]] = (
 
 #: Surfaces named and documented but expected to move. A change here is a changelog entry,
 #: not an `API_VERSION` bump.
-PROVISIONAL: Final[tuple[str, ...]] = ("srd_rules_engine.adapters.mcp.TOOL_NAMES",)
+PROVISIONAL: Final[tuple[str, ...]] = (
+    "srd_rules_engine.adapters.mcp.TOOL_NAMES",
+    "srd_rules_engine.adapters.cli.COMMAND_NAMES",
+)
