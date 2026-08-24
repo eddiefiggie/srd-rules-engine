@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08242026.4` — **all twenty-three decision records now state whether they are built ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)).** `0021` and `0022` carried no **Status of implementation** section at all, so "shipped" and "nobody wrote one" were indistinguishable — the last of the three ways that section was unreliable. Both are implemented and each clause is now tabled against what carries it. Writing them found one thing worth knowing: `0021` says `core.clock` carries the six-seconds constant *with its p. 98 citation*, and the constant is there, but `TIME_VERIFICATION` names pp. 13, 18, 185 and 187 — **not** p. 98. The page is verified twice in `verify_d20_rules.py` and cited in `DURATION_VERIFICATION` instead, so nothing is unchecked; but a reader auditing `core.clock`'s provenance would not find it where R31 says to look. Recorded rather than repaired in passing, because a verification block is a claim about what was checked. 913 tests.
+**Current build:** `08242026.5` — **`core.clock` reasoned from a page its verification block did not name.** `SECONDS_PER_ROUND` transcribes p. 98 — the oil that burns "2 rounds... (or 12 seconds)", the document's only exact round-to-seconds conversion — and quoted it in a comment, while `TIME_VERIFICATION` named pp. 13, 18, 185 and 187. Nothing was unverified: `verify_d20_rules.py` asserts that sentence twice. But R31 says a mechanic **records the section it was verified against**, and a reader auditing this module would not have found it. The citation is added and **the date is not moved** — p. 98's clause was asserted on the date already recorded, so what was missing was the citation, not the check; moving it would claim a re-reading that did not happen. The guard is a property rather than a list, because a list of pages checked by hand is what let a third go unnoticed: every page the module cites must appear in its block. 914 tests.
 
 ---
 
@@ -261,4 +261,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-24 — build `08242026.4`._
+_Last updated: 2026-08-24 — build `08242026.5`._

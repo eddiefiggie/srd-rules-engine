@@ -87,9 +87,13 @@ TIME_VERIFICATION: Final = Verification(
     state=VerificationState.VERIFIED,
     reference=(
         'SRD v5.2.1, "Playing the Game" ("Combat" -> The Order of Combat, p. 13; '
-        '"Damage and Healing" -> Stabilizing a Character, p. 18); Rules Glossary, '
-        "Long Rest p. 185 and Short Rest p. 187"
+        '"Damage and Healing" -> Stabilizing a Character, pp. 17-18); "Equipment" -> Oil, '
+        "p. 98 (the round-to-seconds equivalence `SECONDS_PER_ROUND` transcribes); "
+        "Rules Glossary, Long Rest p. 185 and Short Rest p. 187"
     ),
+    # Unchanged. p. 98's clause was asserted in `scripts/verify_d20_rules.py` on this date
+    # (#113); what was missing was its citation here, not the check. Moving the date would
+    # claim a re-reading of the document that did not happen.
     date="2026-08-23",
     method=VerificationMethod.ASSERTED,
 )
