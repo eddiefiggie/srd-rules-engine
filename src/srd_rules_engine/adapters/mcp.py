@@ -17,8 +17,24 @@ extras exist.
 | `begin_turn` | Opens a turn and returns the first question. |
 | `declare` | Answers a declaration request. May come back challenged or rejected. |
 | `narrate` | Pays R29's narration debt for a ruling. |
+| `end_turn` | Resolves the obligations the turn's end incurs (0023, #110). |
 | `supply_facts` | Answers a blocked declaration with what the port could not resolve. |
 | `session_report` | The session review, derived from the ledger. |
+
+**`end_turn` is a separate tool because the turn's end is a separate phase.** Decision 0023
+put it there: `TurnLoop.run` owns a declaration slot and returns when it resolves, so
+`Finished` means the slot is done and *not* that the turn is over. The rendered payload says
+so — a `Finished` carries `"next": "end_turn"` — because an agent that reads it as "turn
+over" stops one phase early, which is the skip `EncounterState.advanced_turn` now refuses to
+let pass.
+
+**The obligation waiver is not exposed, and that is a decision rather than an oversight.**
+`advanced_turn(waive_obligations=True)` exists for a consumer that legitimately wants to
+fast-forward. An agent is not that consumer: putting the waiver in this tool list would put
+a *documented, supported* way to skip a compulsory save in front of the one caller the
+challenge mechanism exists to constrain. A consumer that genuinely needs it holds the state
+and can call the core directly, which `AGENTS.md` already discloses forfeits the skip
+guarantee.
 
 **There is no `adjudicate` tool, and that absence is the design.** `AGENTS.md`: "The skip
 guarantee holds only for callers the turn loop drives. A consumer calling adjudication
@@ -39,7 +55,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, assert_never
 
 from srd_rules_engine.adapters.session import (
     AwaitingDeclaration,
@@ -48,6 +64,7 @@ from srd_rules_engine.adapters.session import (
     Finished,
     Pending,
     Session,
+    TurnEnded,
 )
 from srd_rules_engine.core import Declaration, Intent, session_report
 
@@ -56,10 +73,19 @@ LOOK = "look"
 BEGIN_TURN = "begin_turn"
 DECLARE = "declare"
 NARRATE = "narrate"
+END_TURN = "end_turn"
 SUPPLY_FACTS = "supply_facts"
 SESSION_REPORT = "session_report"
 
-TOOL_NAMES: tuple[str, ...] = (LOOK, BEGIN_TURN, DECLARE, NARRATE, SUPPLY_FACTS, SESSION_REPORT)
+TOOL_NAMES: tuple[str, ...] = (
+    LOOK,
+    BEGIN_TURN,
+    DECLARE,
+    NARRATE,
+    END_TURN,
+    SUPPLY_FACTS,
+    SESSION_REPORT,
+)
 
 #: Anything that would reach an outcome without the loop. Asserted absent by a test.
 FORBIDDEN_TOOL_NAMES: frozenset[str] = frozenset({"adjudicate", "rule", "resolve", "roll"})
@@ -134,6 +160,23 @@ def tool_definitions() -> tuple[dict[str, Any], ...]:
             },
         },
         {
+            "name": END_TURN,
+            "description": (
+                "Resolve every obligation the end of this creature's turn incurs — today, "
+                "the saves a condition repeats at the end of each of its turns (p. 63). "
+                "The engine derives them from state and rolls them; you are not asked "
+                "whether they happen, because the rules give the creature no choice. Each "
+                "produces a ruling to narrate. Call this after the turn's declaration "
+                "finishes: the encounter state refuses to advance while an obligation "
+                "stands."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {"actor_id": {"type": "string"}},
+                "required": ["actor_id"],
+            },
+        },
+        {
             "name": SUPPLY_FACTS,
             "description": (
                 "Supply the typed facts a blocked declaration named. Values only — the "
@@ -204,14 +247,40 @@ def render(pending: Pending) -> dict[str, Any]:
             "may_not_claim": list(ruling.bounds.may_not) if ruling.bounds else [],
             "citations": list(ruling.citations),
         }
-    assert isinstance(pending, Finished)
-    return {
-        "awaiting": None,
-        "actor_id": pending.actor_id,
-        "terminal_reason": str(pending.outcome.terminal) if pending.outcome.terminal else None,
-        "produced_outcome": pending.outcome.produced_outcome,
-        "missing_narration": pending.outcome.missing_narration,
-    }
+    if isinstance(pending, Finished):
+        return {
+            "awaiting": None,
+            "actor_id": pending.actor_id,
+            # The declaration slot is over; the turn is not (0023). `end_turn` is what
+            # follows, and saying so here is the difference between an agent that ends its
+            # turn and one that stops at the last thing it was asked for.
+            "next": END_TURN,
+            "terminal_reason": (
+                str(pending.outcome.terminal) if pending.outcome.terminal else None
+            ),
+            "produced_outcome": pending.outcome.produced_outcome,
+            "missing_narration": pending.outcome.missing_narration,
+        }
+    if isinstance(pending, TurnEnded):
+        ended = pending.ended
+        return {
+            "awaiting": None,
+            "actor_id": pending.actor_id,
+            "next": None,
+            "obligations_resolved": len(ended.rulings),
+            "missing_narration": ended.missing_narration,
+            # A ruleset with no rule for an obligation cannot resolve it. Named rather than
+            # silent: the ledger carries the rejection either way, and an agent told only
+            # that the turn ended would read an unresolvable save as a resolved one.
+            "unresolvable": [
+                {"condition": str(o.condition), "rule_id": o.rule_id} for o in ended.unresolvable
+            ],
+        }
+    # Every `Pending` member has a branch, and a sixth is a type error here rather than an
+    # AssertionError in somebody's session. `assert isinstance(pending, Finished)` used to
+    # close this function, which is why #110's `TurnEnded` could be added to the union with
+    # nothing complaining (#134).
+    assert_never(pending)
 
 
 def _refusal(ruling: Any) -> dict[str, Any]:
@@ -309,6 +378,8 @@ class Adapter:
         if name == NARRATE:
             text = arguments.get("text")
             return render(self.session.narrate(None if text is None else str(text)))
+        if name == END_TURN:
+            return render(self.session.end_turn(str(arguments["actor_id"])))
         if name == SUPPLY_FACTS:
             raise NotImplementedError(
                 "supply_facts needs the memory port's Fact constructor, which takes a typed "
