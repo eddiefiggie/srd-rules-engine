@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.39` — **decision `0023`: the turn's end is a loop-owned phase (#110).** No code; the record corrects the question before anyone builds against it. #110 asked whether an end-of-turn save wants a new request type or a variant of `DeclarationRequest`, and neither fits: `TurnLoop.run` owns a *declaration slot*, `advanced_turn` is called by the caller, and **nothing owns the end of a turn** — every `advanced_turn()` call site is a test or the fixture. Two further absences found by grep: the `death_save_resolver` the issue names as its precedent is wired to nothing either, so this is one missing phase rather than two oversights; and `EffectKind` has no member touching conditions, so a save's success has no route to `with_condition_ended` through a ruling. The record also settles that the event-triggered early-out is a **different mechanism** — it resolves in `with_damage`, where the event does — which answers the scope note fearing this design would need reopening.
+**Current build:** `08242026.1` — **a condition reaches state through a ruling ([#119](https://github.com/eddiefiggie/srd-rules-engine/issues/119)).** `EffectKind` had six members and none touched `Conditions`, so every condition in the engine arrived through `EncounterState.with_condition` called *directly* — a mechanical change with no roll, no seed, no citation and no ledger entry behind it, which is the thing R1 exists to prevent. The vertical slice did not catch it, because the fixture applies conditions directly too. Two new effect kinds close the route, and `Effect` carries the condition, the `Duration` the imposing effect stated, and the grappler `Grappled` needs. `amount` is 0 and refuses to be anything else: R7 leaves narration to the caller, which reads `amount`, so a number riding on a condition would be narrated as though it counted. The restructure also turned out to be a bug fix — `_apply`'s trailing `else` was `DEATH`, so an unrecognised effect kind **silently killed the creature**; it now raises, and a test holds that alarm. 890 tests.
 
 ---
 
@@ -263,4 +263,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-23 — build `08232026.39`._
+_Last updated: 2026-08-24 — build `08242026.1`._

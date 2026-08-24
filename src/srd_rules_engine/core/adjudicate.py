@@ -37,6 +37,7 @@ from enum import StrEnum
 from typing import Final, Protocol
 
 from srd_rules_engine.core.canonical import MAX_SAFE_INTEGER
+from srd_rules_engine.core.conditions import Condition
 from srd_rules_engine.core.d20 import (
     DAMAGE_OFFSET,
     DIE_SIDES,
@@ -47,6 +48,7 @@ from srd_rules_engine.core.d20 import (
 from srd_rules_engine.core.d20 import resolve as roll_d20
 from srd_rules_engine.core.d20 import roll as dice
 from srd_rules_engine.core.damage import DamageOutcome, DamageType
+from srd_rules_engine.core.duration import Duration
 from srd_rules_engine.core.ledger import COMPAT, Ledger
 from srd_rules_engine.core.memory_port import (
     DefaultKind,
@@ -84,7 +86,12 @@ DECLARATION_VERSION = 1
 #: after p. 17's defences, with `rolled` and `damage_type` alongside it (#105). This is not
 #: an additive field — a v2 reader adding up `amount` gets a different total for the same
 #: fight — so the version moves rather than the payload growing quietly.
-RULING_VERSION = 3
+#:
+#: 4 adds `condition`, `duration` and `grappler` to an effect (#119). Purely additive: a v3
+#: reader misreads nothing, it simply cannot see a condition effect's subject. So this moves
+#: the version and **not** `RULING_COMPAT`, which is 0022's rule — compat is what a reader
+#: must be to read the payload *correctly*, not a record of the payload having changed.
+RULING_VERSION = 4
 NARRATION_VERSION = 1
 TERMINATION_VERSION = 1
 
@@ -121,6 +128,17 @@ class EffectKind(StrEnum):
     DEATH_SAVE_FAILURE = "death-save-failure"
     STABILISED = "stabilised"
     DEATH = "death"
+    #: A condition imposed or lifted by the ruling that caused it (#119). Before these,
+    #: conditions reached state only through `EncounterState.with_condition`, which callers
+    #: invoked directly — a mechanical change with no roll, no seed, no citation and no
+    #: ledger entry behind it, which is the thing R1 exists to prevent.
+    CONDITION_APPLIED = "condition-applied"
+    CONDITION_ENDED = "condition-ended"
+
+
+#: The kinds that carry a condition rather than a number. Named because three places have
+#: to agree on the split, and a membership test repeated at each of them is one that drifts.
+CONDITION_KINDS: Final = frozenset({EffectKind.CONDITION_APPLIED, EffectKind.CONDITION_ENDED})
 
 
 @dataclass(frozen=True)
@@ -133,6 +151,12 @@ class Effect:
     object and R7 leaves it free to assert what it finds, so a field that held the rolled
     number would let a creature immune to Fire be narrated as taking a full hit (#105). The
     number that is easiest to read has to be the number that is true.
+
+    **A condition effect carries no number, and `amount` is 0 rather than meaningful.** One
+    type with `kind` selecting which optional fields apply is 0019's ruling — `kind` is a
+    filing label, not a model — and it is already how `critical`, `damage_type` and `rolled`
+    work. `__post_init__` refuses the combinations that would let a reader take an amount
+    seriously on a condition, or look for a condition on a damage.
     """
 
     kind: EffectKind
@@ -149,6 +173,91 @@ class Effect:
     #: whole story. It can equal `amount` — Resistance and Vulnerability to the same type
     #: halve and then double rather than cancelling, which returns an even amount to itself.
     rolled: int | None = None
+    #: Condition kinds only: which of the fifteen (#119).
+    condition: Condition | None = None
+    #: `CONDITION_APPLIED` only, and the reason this field exists at all. The duration
+    #: belongs to the effect that imposed the condition rather than to the condition (#18),
+    #: so the ruling that imposes one is the only place that knows the span. `None` is
+    #: `UNTIL_REMOVED` — reported as unretirable, never silently permanent.
+    duration: Duration | None = None
+    #: `CONDITION_APPLIED` only, and only for Grappled: p. 182's Disadvantage applies "on
+    #: attack rolls against any target other than the grappler", so the grappler is part of
+    #: the condition's mechanical effect rather than colour.
+    grappler_id: str | None = None
+
+    def __post_init__(self) -> None:
+        carries_condition = self.kind in CONDITION_KINDS
+        if carries_condition and self.condition is None:
+            raise ValueError(
+                f"a {self.kind} effect names which condition it applies or ends; one that "
+                "names none has nothing to do"
+            )
+        if not carries_condition and self.condition is not None:
+            raise ValueError(
+                f"a {self.kind} effect does not carry a condition. Conditions are applied "
+                "and ended by their own effect kinds, so a reader never has to guess "
+                "whether one riding on another kind was meant to take effect"
+            )
+        if carries_condition and self.amount:
+            raise ValueError(
+                f"a {self.kind} effect carries no number, so its amount is 0. A non-zero "
+                "one would be read as meaning something — stacking, or a level — and "
+                "nothing in the document says what"
+            )
+        if self.kind is not EffectKind.CONDITION_APPLIED and (
+            self.duration is not None or self.grappler_id is not None
+        ):
+            raise ValueError(
+                f"a {self.kind} effect states no duration and no grappler. Both belong to "
+                "the application that imposed the condition, and a condition ending does "
+                "not acquire a span on its way out"
+            )
+
+
+def condition_applied(
+    target_id: str,
+    condition: Condition,
+    *,
+    description: str,
+    duration: Duration | None = None,
+    grappler_id: str | None = None,
+) -> Effect:
+    """A condition imposed by the ruling that caused it (#119).
+
+    A resolver builds this rather than an `Effect` directly, so `amount=0` is written once
+    here instead of at every call site — where a reader would reasonably wonder what the
+    zero meant.
+
+    `duration=None` is `UNTIL_REMOVED`: the effect stated no span this engine can count,
+    which the read surface reports rather than treating as permanent. It is not a default
+    span, because defaulting one would invent a rule the document does not state.
+    """
+    return Effect(
+        kind=EffectKind.CONDITION_APPLIED,
+        target_id=target_id,
+        amount=0,
+        description=description,
+        condition=condition,
+        duration=duration,
+        grappler_id=grappler_id,
+    )
+
+
+def condition_ended(target_id: str, condition: Condition, *, description: str) -> Effect:
+    """A condition lifted by the ruling that ended it — a successful save, or an effect
+    that removes it (#119, 0023 clause 4).
+
+    Retiring a *span* is not this: a duration's expiry point is settled when the condition
+    is applied, so the turn or the clock reaching it decides nothing and needs no ruling.
+    This is for the endings something had to decide.
+    """
+    return Effect(
+        kind=EffectKind.CONDITION_ENDED,
+        target_id=target_id,
+        amount=0,
+        description=description,
+        condition=condition,
+    )
 
 
 @dataclass(frozen=True)
@@ -751,8 +860,27 @@ def _apply(
             state = state.with_death_save(effect.target_id, failures=effect.amount)
         elif effect.kind is EffectKind.STABILISED:
             state = state.with_stabilised(effect.target_id, seed=seed)
-        else:
+        elif effect.kind is EffectKind.DEATH:
             state = state.with_death(effect.target_id)
+        elif effect.kind is EffectKind.CONDITION_APPLIED:
+            assert effect.condition is not None  # __post_init__ refuses one without
+            state = state.with_condition(
+                effect.target_id,
+                effect.condition,
+                duration=effect.duration,
+                grappler_id=effect.grappler_id,
+            )
+        elif effect.kind is EffectKind.CONDITION_ENDED:
+            assert effect.condition is not None
+            state = state.with_condition_ended(effect.target_id, effect.condition)
+        else:
+            # Death was this branch until #119, which is the hazard: every kind added since
+            # would have silently become a death. An unhandled kind now says so instead.
+            raise ValueError(
+                f"no state transition for {effect.kind}. An effect kind reaches state "
+                "through a branch here or not at all — falling through to another kind's "
+                "transition is the quiet direction to be wrong in"
+            )
     return state, tuple(landed)
 
 
@@ -843,6 +971,12 @@ def _ruling_payload(ruling: Ruling) -> Mapping[str, object]:
                 "amount": e.amount,
                 "rolled": e.rolled,
                 "damage_type": str(e.damage_type) if e.damage_type else None,
+                # #119. A condition effect's amount is 0, so without these the record says
+                # a condition changed and not which one — and a replay comparing effects
+                # would call two different conditions identical.
+                "condition": str(e.condition) if e.condition else None,
+                "duration": e.duration.derivation() if e.duration else None,
+                "grappler": e.grappler_id,
                 "description": e.description,
             }
             for e in ruling.effects

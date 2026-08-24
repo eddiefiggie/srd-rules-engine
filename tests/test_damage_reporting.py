@@ -306,8 +306,12 @@ def test_the_ledger_records_the_type_and_the_rolled_figure(tmp_path: Path) -> No
 def test_the_ruling_payload_version_moved_with_the_meaning() -> None:
     """`amount` means something different in a v3 payload than in a v2 one, so a reader
     adding up the old field gets a different total for the same fight. That is not an
-    additive change and the version says so."""
-    assert RULING_VERSION == 3
+    additive change and the version says so.
+
+    The version has moved on since — 4 added the condition fields (#119) — so this pins
+    "past 3" rather than "is 3". Pinning the literal would make every later payload change
+    fail a test about #105's meaning change, which is not what it is checking."""
+    assert RULING_VERSION >= 3
 
 
 def test_the_payload_is_json_serialisable_with_the_new_fields() -> None:

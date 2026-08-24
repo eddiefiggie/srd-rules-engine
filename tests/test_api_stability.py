@@ -117,7 +117,7 @@ def test_the_api_version_is_independent_of_the_build_stamp() -> None:
 
 def test_the_api_version_is_independent_of_the_schema_versions() -> None:
     """A schema bump need not be an API break, and an API break need not touch a schema.
-    `RULING_VERSION` is 3 while the API is at 2, which is the distinction in the data rather
+    `RULING_VERSION` is 4 while the API is at 2, which is the distinction in the data rather
     than only in the record.
     """
     from srd_rules_engine.core.adjudicate import RULING_VERSION
@@ -125,7 +125,11 @@ def test_the_api_version_is_independent_of_the_schema_versions() -> None:
     # The two moved together once — #105 changed what an effect's `amount` means, which is
     # both a payload change and a committed-behaviour change — and they still hold different
     # values, because they have counted different things since before that.
-    assert RULING_VERSION == 3
+    #
+    # #119 is the clean counter-example: the ruling payload grew three fields and `Effect`
+    # grew three optional ones, so the schema moved to 4 and the API did not move at all.
+    # Optional fields with defaults break no consumer.
+    assert RULING_VERSION == 4
     assert API_VERSION == 2
     assert RULING_VERSION != API_VERSION
 
