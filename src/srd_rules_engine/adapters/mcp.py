@@ -55,18 +55,17 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, assert_never
+from typing import Any
 
 from srd_rules_engine.adapters.session import (
-    AwaitingDeclaration,
-    AwaitingFacts,
-    AwaitingNarration,
-    Finished,
     Pending,
     Session,
-    TurnEnded,
 )
-from srd_rules_engine.adapters.surface import FORBIDDEN_COMMAND_NAMES
+from srd_rules_engine.adapters.surface import (
+    FORBIDDEN_COMMAND_NAMES,
+    render_pending,
+    situation_payload,
+)
 from srd_rules_engine.core import Declaration, Intent, session_report
 
 #: Tool names, in one place so the server and its tests cannot disagree about them.
@@ -214,139 +213,6 @@ def tool_definitions() -> tuple[dict[str, Any], ...]:
     )
 
 
-def render(pending: Pending) -> dict[str, Any]:
-    """A pending state as JSON the agent can act on, with effects attached (R18).
-
-    Typed values throughout: an agent told only that it is Poisoned is back to recalling 5e
-    from training, which is the capability this engine removes.
-    """
-    if isinstance(pending, AwaitingDeclaration):
-        situation = pending.offered.situation
-        return {
-            "awaiting": "declaration",
-            "actor_id": pending.actor_id,
-            "read_token": pending.offered.token,
-            "offered": [
-                {"key": a.key, "label": a.label, "detail": dict(a.detail)}
-                for a in pending.offered.actions
-            ],
-            "situation": _situation(situation),
-            "refusals": [_refusal(r) for r in pending.refusals],
-        }
-    if isinstance(pending, AwaitingFacts):
-        return {
-            "awaiting": "facts",
-            "actor_id": pending.actor_id,
-            "unresolved": list(pending.unresolved),
-        }
-    if isinstance(pending, AwaitingNarration):
-        ruling = pending.ruling
-        return {
-            "awaiting": "narration",
-            "actor_id": pending.actor_id,
-            "derivation": ruling.result.derivation() if ruling.result else None,
-            "may_claim": list(ruling.bounds.may) if ruling.bounds else [],
-            "may_not_claim": list(ruling.bounds.may_not) if ruling.bounds else [],
-            "citations": list(ruling.citations),
-        }
-    if isinstance(pending, Finished):
-        return {
-            "awaiting": None,
-            "actor_id": pending.actor_id,
-            # The declaration slot is over; the turn is not (0023). `end_turn` is what
-            # follows, and saying so here is the difference between an agent that ends its
-            # turn and one that stops at the last thing it was asked for.
-            "next": END_TURN,
-            "terminal_reason": (
-                str(pending.outcome.terminal) if pending.outcome.terminal else None
-            ),
-            "produced_outcome": pending.outcome.produced_outcome,
-            "missing_narration": pending.outcome.missing_narration,
-        }
-    if isinstance(pending, TurnEnded):
-        ended = pending.ended
-        return {
-            "awaiting": None,
-            "actor_id": pending.actor_id,
-            "next": None,
-            "obligations_resolved": len(ended.rulings),
-            "missing_narration": ended.missing_narration,
-            # A ruleset with no rule for an obligation cannot resolve it. Named rather than
-            # silent: the ledger carries the rejection either way, and an agent told only
-            # that the turn ended would read an unresolvable save as a resolved one.
-            "unresolvable": [
-                {"condition": str(o.condition), "rule_id": o.rule_id} for o in ended.unresolvable
-            ],
-        }
-    # Every `Pending` member has a branch, and a sixth is a type error here rather than an
-    # AssertionError in somebody's session. `assert isinstance(pending, Finished)` used to
-    # close this function, which is why #110's `TurnEnded` could be added to the union with
-    # nothing complaining (#134).
-    assert_never(pending)
-
-
-def _refusal(ruling: Any) -> dict[str, Any]:
-    """A challenge or rejection, with the thing that caused it.
-
-    The substance of a challenge is the **triggers that fired**, not the status: an agent
-    told only "challenged" has nothing to re-declare against. Each carries its message, its
-    reference where the SRD supplies one, and its `grounding` — because the trigger
-    catalogue is *grounded in* rather than *cited from* the document (decision 0004), and an
-    agent should be able to tell an authored trigger from a cited one.
-    """
-    return {
-        "status": str(ruling.status),
-        "citations": list(ruling.citations),
-        "reason": ruling.reason,
-        "reason_code": str(ruling.reason_code) if ruling.reason_code else None,
-        "triggers": [
-            {
-                "id": trigger.id,
-                "message": trigger.message,
-                "reference": trigger.reference,
-                "grounding": str(trigger.grounding),
-            }
-            for trigger in ruling.fired
-        ],
-    }
-
-
-def _situation(situation: object) -> dict[str, Any] | None:
-    if situation is None:
-        return None
-    fields = (
-        "hit_points",
-        "max_hit_points",
-        "cannot_act",
-        "speed",
-        "movement_remaining",
-        "action_available",
-        "bonus_action_available",
-        "reaction_available",
-    )
-    out: dict[str, Any] = {name: getattr(situation, name) for name in fields}
-    out["conditions"] = [str(c) for c in situation.conditions]  # type: ignore[attr-defined]
-    out["attack_rolls_against_you"] = str(situation.attack_rolls_against_you)  # type: ignore[attr-defined]
-    out["your_attack_rolls"] = str(situation.your_attack_rolls)  # type: ignore[attr-defined]
-    out["spell_slots"] = dict(situation.spell_slots)  # type: ignore[attr-defined]
-    out["unenforced_clauses"] = list(situation.unenforced_clauses)  # type: ignore[attr-defined]
-    # #18. An agent told a condition's name but not how long it lasts is back to recalling
-    # 5e, which is the capability this engine removes — so the span travels with the name.
-    out["condition_durations"] = {
-        str(c): d
-        for c, d in situation.condition_durations.items()  # type: ignore[attr-defined]
-    }
-    out["conditions_until_removed"] = [
-        str(c)
-        for c in situation.conditions_until_removed  # type: ignore[attr-defined]
-    ]
-    out["saves_due"] = {
-        str(c): {"ability": ability, "dc": dc}
-        for c, (ability, dc) in situation.saves_due.items()  # type: ignore[attr-defined]
-    }
-    return out
-
-
 @dataclass
 class Adapter:
     """Binds tool calls to one session. Transport-free, so it is testable without MCP."""
@@ -365,7 +231,7 @@ class Adapter:
                     for a in result.actions
                 ],
                 "read_token": result.token,
-                "situation": _situation(result.situation),
+                "situation": situation_payload(result.situation),
             }
         if name == BEGIN_TURN:
             situation = arguments.get("situation")
@@ -448,3 +314,8 @@ def build_server(adapter: Adapter, *, name: str = "srd-rules-engine") -> Any:
         )
 
     return Server(name, on_list_tools=on_list_tools, on_call_tool=on_call_tool)
+
+
+def render(pending: Pending) -> dict[str, Any]:
+    """The shared JSON rendering, with MCP's own name for what comes next (#133)."""
+    return render_pending(pending, next_step=END_TURN)
