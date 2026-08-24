@@ -111,4 +111,5 @@ COMMITTED: Final[tuple[str, ...]] = (
 PROVISIONAL: Final[tuple[str, ...]] = (
     "srd_rules_engine.adapters.mcp.TOOL_NAMES",
     "srd_rules_engine.adapters.cli.COMMAND_NAMES",
+    "srd_rules_engine.adapters.http.ROUTES",
 )

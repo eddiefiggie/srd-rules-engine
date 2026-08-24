@@ -29,8 +29,8 @@ from srd_rules_engine.adapters import (
     SessionError,
     TurnEnded,
 )
-from srd_rules_engine.adapters import mcp as mcp_module
 from srd_rules_engine.adapters import session as session_module
+from srd_rules_engine.adapters import surface as surface_module
 from srd_rules_engine.adapters.mcp import (
     BEGIN_TURN,
     DECLARE,
@@ -340,8 +340,11 @@ def test_render_handles_every_pending_state() -> None:
 
     `assert_never` is what makes the next addition a type error instead. This asserts the
     branch exists at all, since `assert_never` is checked statically and not at runtime.
+
+    It reads `adapters.surface` since #133 moved the rendering there: MCP and HTTP hand an
+    agent the same JSON, and two copies of it would be two things that drift.
     """
-    source = Path(inspect.getfile(mcp_module)).read_text(encoding="utf-8")
+    source = Path(inspect.getfile(surface_module)).read_text(encoding="utf-8")
     for member in get_args(session_module.Pending):
         assert (
             f"isinstance(pending, {member.__name__})" in source or member is AwaitingDeclaration

@@ -22,7 +22,11 @@ from srd_rules_engine.adapters.session import (
     SessionError,
     TurnEnded,
 )
-from srd_rules_engine.adapters.surface import FORBIDDEN_COMMAND_NAMES, pending_members
+from srd_rules_engine.adapters.surface import (
+    FORBIDDEN_COMMAND_NAMES,
+    pending_members,
+    render_pending,
+)
 
 __all__ = [
     "FORBIDDEN_COMMAND_NAMES",
@@ -35,4 +39,5 @@ __all__ = [
     "SessionError",
     "TurnEnded",
     "pending_members",
+    "render_pending",
 ]
