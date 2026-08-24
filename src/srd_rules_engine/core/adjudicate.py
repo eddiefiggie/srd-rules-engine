@@ -62,6 +62,19 @@ from srd_rules_engine.core.rules import Ruleset
 from srd_rules_engine.core.state import EncounterState
 from srd_rules_engine.core.triggers import Catalogue, MatchContext, Trigger, challenge_text
 
+#: A payload's schema version says *what shape it is*. Its `compat` floor says *which
+#: reader can read it*, and the two are different number lines — 0011 clause 3 versions the
+#: schemas independently, so no single reader version could track all four. Setting a floor
+#: from a schema version is what made every ruling entry unreadable (#106), and these
+#: constants exist so the two numbers cannot be confused for one another again.
+#:
+#: They are raised when **this repository's reading surface** must change to read the
+#: payload correctly — not when the payload changes. Decision 0022.
+DECLARATION_COMPAT = 1
+RULING_COMPAT = 1
+NARRATION_COMPAT = 1
+TERMINATION_COMPAT = 1
+
 DECLARATION_VERSION = 1
 #: 2 records the advantage the test was declared under. A v1 roll cannot be reconstructed
 #: — a reader would build a test with neither flag set, roll one die where two were rolled,
@@ -353,7 +366,7 @@ class Adjudicator:
                 "narration",
                 v=NARRATION_VERSION,
                 payload={
-                    COMPAT: NARRATION_VERSION,
+                    COMPAT: NARRATION_COMPAT,
                     "actor": ruling.declaration.actor_id,
                     "rule_id": ruling.rule_id,
                     "text": text,
@@ -380,7 +393,7 @@ class Adjudicator:
                 "exhaustion",
                 v=TERMINATION_VERSION,
                 payload={
-                    COMPAT: TERMINATION_VERSION,
+                    COMPAT: TERMINATION_COMPAT,
                     "actor": actor_id,
                     "reason": reason,
                     "refusals": [
@@ -776,7 +789,7 @@ def _entry_type(status: Status) -> str:
 
 def _declaration_payload(declaration: Declaration, catalogue_version: int) -> Mapping[str, object]:
     return {
-        COMPAT: DECLARATION_VERSION,
+        COMPAT: DECLARATION_COMPAT,
         # R6: replay uses the catalogue version in force, not the current one, so a
         # grown catalogue never reports a sound ledger as inconsistent.
         "catalogue_version": catalogue_version,
@@ -796,7 +809,7 @@ def _declaration_payload(declaration: Declaration, catalogue_version: int) -> Ma
 def _ruling_payload(ruling: Ruling) -> Mapping[str, object]:
     result = ruling.result
     return {
-        COMPAT: RULING_VERSION,
+        COMPAT: RULING_COMPAT,
         "status": str(ruling.status),
         "actor": ruling.declaration.actor_id,
         "rule_id": ruling.rule_id,

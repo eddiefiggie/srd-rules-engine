@@ -41,9 +41,18 @@ from typing import Final
 from srd_rules_engine.core.canonical import CanonicalizationError, digest
 from srd_rules_engine.core.ledger import COMPAT
 
-#: The highest payload schema version this reader knows how to interpret. A payload
-#: whose `compat` floor is at or below this is interpretable even when its own `v` is
-#: higher — that is the whole point of the floor.
+#: **This reader's own version** — not the highest payload schema version it understands,
+#: which is what this used to say and what #106 was.
+#:
+#: 0011 clause 3 versions the four payload schemas independently, so there is no single
+#: number that could track all of them; a scalar compared against floors drawn from four
+#: number lines declares a payload unreadable as soon as any one schema moves. A payload's
+#: `compat` names the lowest **reader** that can read it, and a payload whose floor is at or
+#: below this is interpretable however high its own `v` climbs — that is the whole point of
+#: the floor, and it only works when both sides are counting the same thing.
+#:
+#: This rises when the reading surface in this repository changes such that an older one
+#: would get a payload wrong. It has not, so it is still 1. Decision 0022.
 READER_VERSION: Final = 1
 
 TORN_TAIL: Final = "torn-tail"

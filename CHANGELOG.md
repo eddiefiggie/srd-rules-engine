@@ -6,6 +6,43 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.35`
+
+Decision `0022`, settling #106: `compat` is a reader version, and no payload derives it from
+its own schema version.
+
+- **Every `ruling` entry the engine has ever written reported `interpretable=False`.** Read off
+  a real ledger before anything was changed: `ruling v=2 compat=2 interpretable=False`, because
+  `RULING_VERSION` was 2 and `READER_VERSION` was 1. The reader R35 makes public was telling
+  every consumer it could not interpret the one entry type that carries an outcome.
+- **The defect was in the decision, not only the code.** `0011` clause 4 defines `compat` as the
+  lowest **reader** version that can read a payload; clause 5 says a bump "raises it to the new
+  version" — the **schema** version. Those are two number lines, and clause 3 versions the four
+  schemas *independently*, so no single reader version could ever track them. Every writer
+  implemented clause 5, the reader implemented clause 4, and they met at a wrong answer.
+- **It survived because the reader's tests build their own payloads.** All hand-written at
+  `compat: 1`, so the one entry type whose floor had drifted was the one those ledgers never
+  contained. The session entry escaped only by accident — a literal `COMPAT: 1` rather than
+  `FORMAT_VERSION`.
+- **The same defect was armed under the memory store.** `memory.store.rebuild` **raises** on an
+  uninterpretable fact write, so the first bump of `FACT_PAYLOAD_VERSION` would have made every
+  store rebuild fail outright. Not stepped on, and now defused.
+- **Each payload names its floor in its own constant** beside the schema version it is not, so
+  the next person reaching for the nearest version-looking name gets a name that means what they
+  need. All six are 1.
+- **A floor rises only when this repository's reading surface changes** — `read_ledger`, `replay`
+  and `session_report` together — never when a payload changes. Schema evolution was never
+  handled by `compat` anyway: `replay_entry` already refuses a roll lacking `declared_advantage`
+  by inspecting it, which is protection that does not depend on trusting a number in the payload.
+- **`compat` and `API_VERSION` answer different questions, for different audiences.** #105
+  changed what `Effect.amount` *means*, which raised `API_VERSION` — an external consumer reading
+  it gets a different total. It did **not** raise the ruling's floor, because nothing in the
+  reading surface reads `amount`.
+- **The guard that was missing** now reads a ledger a real adjudication produced and asserts every
+  entry is interpretable by the reader shipped alongside it — plus a shape check, so the next
+  `COMPAT: SOME_VERSION` fails in CI rather than in somebody's ledger. Both proven red by
+  restoring the exact defect.
+
 ## Unreleased — 2026-08-23 — build `08232026.34`
 
 Condition duration on the encounter axis (#18), on the decision `0021` settled first.
