@@ -50,14 +50,17 @@ from typing import Final, TypeVar
 
 from srd_rules_engine.core import (
     Adjudicator,
+    Condition,
     Declaration,
     EncounterState,
     Fact,
+    Intent,
     LegalAction,
     ReadResult,
     Ruling,
     Status,
     read,
+    save_ends_rule_id,
 )
 
 #: 0005's default. Room for the realistic recovery — challenged, then a wrong test
@@ -147,6 +150,44 @@ class TurnOutcome:
         return self.ruling is not None and self.ruling.is_outcome
 
 
+@dataclass(frozen=True)
+class Obligation:
+    """Something the end of a creature's turn requires, derived from state (0023 clause 2).
+
+    Never declared. p. 63 gives the creature no choice about repeating the save, so
+    offering it through a declaration slot would offer a decision the document does not
+    give — and a slot in which declining is expressible is a slot in which the save can
+    fail to happen.
+    """
+
+    actor_id: str
+    condition: Condition
+    rule_id: str
+
+    @property
+    def label(self) -> str:
+        return f"repeats the save that ends {self.condition.value} (p. 63)"
+
+
+@dataclass(frozen=True)
+class TurnEnd:
+    """What the end of the turn produced. One entry per obligation, in the order run."""
+
+    state: EncounterState
+    rulings: tuple[Ruling, ...] = ()
+    narrations: tuple[str | None, ...] = ()
+    #: Obligations no rule in the ruleset could resolve. Named rather than raised: a
+    #: ruleset that omits a save-ends rule is a deployment fact, and a turn that cannot
+    #: end is worse than one that ends with the gap recorded. The ledger carries the
+    #: rejection either way, because the declaration was still adjudicated.
+    unresolvable: tuple[Obligation, ...] = ()
+
+    @property
+    def missing_narration(self) -> bool:
+        """R29. Any ruling here that was not narrated."""
+        return any(text is None for text in self.narrations)
+
+
 class NarrationOwed(Exception):
     """R29. The previous Ruling for this actor has no narration yet."""
 
@@ -219,6 +260,78 @@ class TurnLoop:
                 narration=narration,
                 missing_narration=narration is None,
             )
+
+    # --- The turn's end: a phase the loop owns (0023) ---------------------------------
+
+    def obligations(self, state: EncounterState, actor_id: str) -> tuple[Obligation, ...]:
+        """Every obligation the end of this creature's turn incurs, read off state.
+
+        Only save-ends today. The **death save is deliberately absent**: `core.death` cites
+        pp. 17-18 for what a death saving throw *is* and nowhere states when it is made,
+        and 0023 declined to supply that sentence from memory. Adding it here on the
+        assumption that it shares save-ends' timing would be inferring a rule value (R31),
+        which is the one thing this project will not do to close a gap. Tracked as its own
+        issue rather than folded in silently.
+        """
+        if not state.has(actor_id):
+            return ()
+        return tuple(
+            Obligation(actor_id=actor_id, condition=condition, rule_id=save_ends_rule_id(condition))
+            for condition in state.obligations_outstanding(actor_id)
+        )
+
+    def end_turn(
+        self, state: EncounterState, actor_id: str
+    ) -> Generator[Request, Response, TurnEnd]:
+        """Resolve every obligation the end of this creature's turn incurs (0023 clause 1).
+
+        The caller runs this, then `advanced_turn` — which refuses until it has, so the
+        ordering is enforced rather than documented.
+
+        Each obligation goes through the **one adjudication entry point**, the engine rolls
+        it (R1, R4), and each ruling yields a `NarrationRequest` so R29's bounds reach the
+        narrator exactly as they do for a declared action. Nothing here creates a second
+        path to an outcome; it creates a second *occasion* on which the existing path is
+        taken.
+        """
+        if actor_id in self._owed:
+            raise NarrationOwed(
+                f"{actor_id!r} owes a narration for its previous Ruling. The turn cannot "
+                "end while R29's debt for the declared action is outstanding"
+            )
+
+        rulings: list[Ruling] = []
+        narrations: list[str | None] = []
+        unresolvable: list[Obligation] = []
+
+        # Re-read each time: a save that ends a condition changes what is outstanding, and
+        # an obligation list snapshotted up front would keep rolling for a condition that
+        # has already gone.
+        while True:
+            pending = self.obligations(state, actor_id)
+            if not pending:
+                break
+            obligation = pending[0]
+
+            ruling, state = self.adjudicator.adjudicate(state, _obligation_declaration(obligation))
+            # Discharged whether it succeeded, failed, or was refused. p. 63 gives one
+            # attempt per turn, and a rejected obligation that stayed outstanding would
+            # spin this loop forever.
+            state = state.with_obligation_discharged(actor_id, obligation.condition)
+
+            if ruling.status is Status.REJECTED:
+                unresolvable.append(obligation)
+                continue
+
+            rulings.append(ruling)
+            narrations.append((yield from self._narrate(actor_id, ruling)))
+
+        return TurnEnd(
+            state=state,
+            rulings=tuple(rulings),
+            narrations=tuple(narrations),
+            unresolvable=tuple(unresolvable),
+        )
 
     def _terminated(
         self,
@@ -303,6 +416,25 @@ class TurnLoop:
         if statuses == {Status.REJECTED}:
             return TerminalReason.REJECTION_CHURN
         return TerminalReason.MIXED_CHURN
+
+
+def _obligation_declaration(obligation: Obligation) -> Declaration:
+    """The declaration an obligation is adjudicated under, authored by the engine.
+
+    A `Declaration` is the artefact the *agent* is accountable for, and this one is not the
+    agent's — which is the point of 0023 clause 2. It is marked improvised because the
+    obligation is not one of the read surface's enumerated legal actions: p. 63 compels it
+    rather than offering it, so it is legal in a sense the action list does not model.
+
+    `alternatives` is empty and `read_token` is `None`, so the ruling's verdict comes back
+    `unread`. That is the honest value: no read surface offered this, because nothing was
+    choosing.
+    """
+    return Declaration(
+        actor_id=obligation.actor_id,
+        intent=Intent(improvised=True, label=obligation.label),
+        rule_id=obligation.rule_id,
+    )
 
 
 _T = TypeVar("_T", bound=Declared | Narrated | FactsSupplied)

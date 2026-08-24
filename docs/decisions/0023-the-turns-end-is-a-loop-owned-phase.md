@@ -1,6 +1,6 @@
 # 0023 — The turn's end is a loop-owned phase, and an early-out is two mechanisms rather than one
 
-- **Status:** Proposed, 2026-08-23. Accepted on merge.
+- **Status:** Accepted, 2026-08-23. Implemented 2026-08-24 — see Status of implementation.
 - **Settles:** [#110](https://github.com/eddiefiggie/srd-rules-engine/issues/110)
 - **Requirements:** R1, R4, R8 · touches R12, R29
 - **Related:** [0001 — the agent seam is a generator of typed requests](0001-agent-seam.md), whose
@@ -221,4 +221,32 @@ offered cannot. The first implementation is where clause 1's signature earns or 
 
 ## Status of implementation
 
-None. Nothing in clauses 1-6 is built.
+Built, 2026-08-24, except where noted. `tests/test_turn_end.py` covers it.
+
+| Clause | State |
+|---|---|
+| 1 — a second generator entry point owning the turn's end | `TurnLoop.end_turn`, with `Obligation` and `TurnEnd` beside it. `drive` is generic over both phases, and `adapters.Session` holds a suspended turn end as `TurnEnded`. |
+| 2 — obligations derived from state, never declared | `EncounterState.obligations_outstanding`. Asserted by a test whose driver supplies **no declarations at all** — if the phase asked for one, `ScriptedDriver` would raise. |
+| 3 — the outcome still goes through the one entry point | `core.save_ends` is a resolver like any other; the engine rolls it (R1, R4). |
+| 4 — an `EffectKind` for a condition ending | Landed with [#119](https://github.com/eddiefiggie/srd-rules-engine/issues/119) rather than here, which is what made clause 3 possible. |
+| 5 — the event-triggered early-out does not use this path | Unchanged and still unbuilt; it belongs in `with_damage` and is not part of this work. |
+| 6 — `advanced_turn` refuses while an obligation is outstanding | Built, with `waive_obligations=True` as the explicit escape. |
+
+**Clause 6 cost less than this record feared, and needed one thing it did not anticipate.**
+The record predicted eight call sites would break. Two did, both in
+`tests/test_condition_duration.py`, and both were legitimately the fast-forward case the
+waiver exists for.
+
+What it missed is that `Conditions.saves_due_after` still reports a condition after a
+**failed** save — so a guard reading it alone refuses to advance for as long as the creature
+stays poisoned, which ends the encounter. Discharge is therefore tracked separately on
+`EncounterState.discharged` and cleared as the turn advances: the question is *was the save
+rolled this turn*, not *does the condition persist*. p. 63 gives one attempt per turn either
+way.
+
+**The death save remains unwired**, for the reason this record gives under Accepted costs:
+its timing anchor is still not transcribed anywhere in the repository, and `save_ends` could
+cite p. 63 only because `scripts/verify_d20_rules.py` had already verified that sentence.
+There is no equivalent for pp. 17-18. Filed as
+[#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124), and held by a test so it
+cannot be closed by assumption.

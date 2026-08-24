@@ -98,8 +98,10 @@ def test_answering_the_wrong_question_is_refused(tmp_path: Path) -> None:
         session.narrate("something happened")
 
 
-def test_nothing_can_be_answered_before_a_turn_opens(tmp_path: Path) -> None:
-    with pytest.raises(SessionError, match="no turn is open"):
+def test_nothing_can_be_answered_before_a_phase_opens(tmp_path: Path) -> None:
+    """ "Phase" rather than "turn" since #110: a session can hold a declaration slot or a
+    turn end, and neither being open is the same refusal."""
+    with pytest.raises(SessionError, match="no phase is open"):
         _session(tmp_path).narrate("x")
 
 
