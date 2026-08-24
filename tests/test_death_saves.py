@@ -142,7 +142,9 @@ def test_the_natural_branches_win_over_success_and_failure() -> None:
 
 
 def test_three_successes_stabilise_and_three_failures_kill() -> None:
-    stable = encounter(hp=0, saves=DeathSaves(successes=2)).with_death_save("hero", successes=1)
+    stable = encounter(hp=0, saves=DeathSaves(successes=2)).with_death_save(
+        "hero", successes=1, seed=1
+    )
     assert hero(stable).death_saves.stable
     assert not hero(stable).death_saves.dead
 
@@ -159,7 +161,7 @@ def test_the_marks_need_not_be_consecutive() -> None:
     """
     state = encounter(hp=0)
     for successes, failures in ((1, 0), (0, 1), (1, 0), (0, 1)):
-        state = state.with_death_save("hero", successes=successes, failures=failures)
+        state = state.with_death_save("hero", successes=successes, failures=failures, seed=1)
 
     assert hero(state).death_saves == DeathSaves(successes=2, failures=2)
     assert hero(state.with_death_save("hero", failures=1)).death_saves.dead
@@ -183,8 +185,15 @@ def test_regaining_any_hit_points_resets_both_counts() -> None:
 
 
 def test_becoming_stable_resets_them_too() -> None:
-    state = encounter(hp=0, saves=DeathSaves(successes=1, failures=2)).with_stabilised("hero")
-    assert hero(state).death_saves == DeathSaves(stable=True)
+    state = encounter(hp=0, saves=DeathSaves(successes=1, failures=2)).with_stabilised(
+        "hero", seed=1
+    )
+    saves = hero(state).death_saves
+    assert (saves.successes, saves.failures, saves.stable, saves.dead) == (0, 0, True, False)
+    assert saves.recovers_at_minute is not None, (
+        "becoming Stable fixes when the creature regains 1 hit point (p. 18); a Stable "
+        "creature without a recovery time never wakes"
+    )
 
 
 # --- Damage at 0 hit points ----------------------------------------------------------

@@ -81,7 +81,8 @@ def test_a_cantrip_costs_no_slot_at_all() -> None:
 
 
 def test_a_long_rest_restores_every_expended_slot() -> None:
-    """p. 104. The operation exists; nothing triggers it, because there is no clock (#85)."""
+    """p. 104. The operation exists; nothing triggers it, because the *rest* is not modelled
+    (#19). The clock it used to wait on arrived with #85."""
     spent = WIZARD.cast(1).cast(2).cast(3)
     assert spent.restored().remaining(1) == 4
     assert spent.restored().remaining(3) == 2
@@ -240,4 +241,7 @@ def test_the_module_says_what_it_does_not_carry() -> None:
 
     assert spellcasting.__doc__ is not None
     assert "Long Rest recovery has no trigger" in spellcasting.__doc__
-    assert "#85" in spellcasting.__doc__
+    assert "issues/19" in spellcasting.__doc__, (
+        "the gap is the rest, not the clock — #85 shipped the clock, so the disclosure has "
+        "to point at the issue that is still open or it reads as tracked when it is not"
+    )

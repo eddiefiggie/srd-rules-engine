@@ -27,6 +27,11 @@ from types import MappingProxyType
 from typing import Any, Final
 
 from srd_rules_engine.core.actions import ActionBudget, still_dodging
+from srd_rules_engine.core.clock import (
+    STABLE_RECOVERY_HIT_POINTS,
+    Clock,
+    stable_recovery_minute,
+)
 from srd_rules_engine.core.conditions import Conditions
 from srd_rules_engine.core.damage import DamageType, Defences, after_defences
 from srd_rules_engine.core.position import (
@@ -57,10 +62,21 @@ class DeathSaves:
     failures: int = 0
     stable: bool = False
     dead: bool = False
+    #: The campaign minute this creature regains 1 hit point, if it is Stable and stays
+    #: unhealed (p. 18). Rolled once when it becomes Stable — see `core.clock` for why it
+    #: is not rolled on demand — and `None` for a creature that is not Stable.
+    #:
+    #: It lives here rather than beside the clock so that p. 18's condition holds
+    #: structurally: the rule applies to a Stable creature *that isn't healed*, and
+    #: `with_healing` resets these counts wholesale, so healing voids the deadline by
+    #: clearing the object it lives in rather than by remembering to check.
+    recovers_at_minute: int | None = None
 
     def __post_init__(self) -> None:
         if self.successes < 0 or self.failures < 0:
             raise ValueError("death save counts do not go backwards; they reset to zero")
+        if self.recovers_at_minute is not None and not self.stable:
+            raise ValueError("only a Stable creature has a recovery time (p. 18)")
 
     @property
     def is_resolved(self) -> bool:
@@ -152,6 +168,16 @@ class Combatant:
         return (self.abilities.get(ability, 10) - 10) // 2
 
 
+def _recovers_by(participant: Combatant, clock: Clock) -> bool:
+    """p. 18, and only for a creature still Stable and still at its deadline or past it."""
+    saves = participant.death_saves
+    return (
+        saves.stable
+        and saves.recovers_at_minute is not None
+        and clock.elapsed_minutes >= saves.recovers_at_minute
+    )
+
+
 @dataclass(frozen=True)
 class EncounterState:
     """The state the read surface reports over, and the only thing that carries a generation."""
@@ -160,6 +186,11 @@ class EncounterState:
     combatants: tuple[Combatant, ...]
     round_number: int = 0
     turn_index: int | None = None
+    #: Elapsed campaign time (decision 0020). It rides here because this is the only state
+    #: carrier the engine has; it is *not* encounter-scoped, and `round_number` does not
+    #: convert into it — p. 13 says a round represents *about* 6 seconds, which is the
+    #: document declining an exact conversion. `core.clock` has the reasoning.
+    clock: Clock = field(default_factory=Clock)
 
     # --- Reading ------------------------------------------------------------------
 
@@ -288,7 +319,12 @@ class EncounterState:
         return self._evolve(combatants=self._replacing(restored))
 
     def with_death_save(
-        self, combatant_id: str, *, successes: int = 0, failures: int = 0
+        self,
+        combatant_id: str,
+        *,
+        successes: int = 0,
+        failures: int = 0,
+        seed: int | None = None,
     ) -> EncounterState:
         """Record a death save, and apply the thresholds it may have crossed.
 
@@ -296,6 +332,12 @@ class EncounterState:
         second decision — p. 17 states it as a consequence of the third mark, so a caller
         able to record a third failure without the creature dying would be a caller able
         to invent a survival.
+
+        `seed` is needed only on the mark that reaches the third success, because becoming
+        Stable rolls the 1d4 that fixes when the creature recovers (p. 18). A stabilisation
+        without one is refused rather than left without a recovery time: a Stable creature
+        silently missing its deadline is a creature that never wakes up, which is the quiet
+        direction to fail in.
         """
         target = self.combatant(combatant_id)
         saves = target.death_saves
@@ -312,17 +354,72 @@ class EncounterState:
             failures=total_failures if not stable else 0,
             stable=stable and not dead,
             dead=dead,
+            recovers_at_minute=(self._recovery_minute(seed) if stable and not dead else None),
         )
         return self._evolve(combatants=self._replacing(replace(target, death_saves=updated)))
 
-    def with_stabilised(self, combatant_id: str) -> EncounterState:
-        """Stable, and the counts reset with it — p. 17 resets on becoming Stable too."""
+    def with_stabilised(self, combatant_id: str, *, seed: int | None = None) -> EncounterState:
+        """Stable, and the counts reset with it — p. 17 resets on becoming Stable too.
+
+        Becoming Stable also fixes when the creature regains 1 hit point (p. 18), so `seed`
+        is required here for the same reason it is on the third success.
+        """
         target = self.combatant(combatant_id)
         if target.death_saves.dead:
             return self
         return self._evolve(
-            combatants=self._replacing(replace(target, death_saves=DeathSaves(stable=True)))
+            combatants=self._replacing(
+                replace(
+                    target,
+                    death_saves=DeathSaves(
+                        stable=True, recovers_at_minute=self._recovery_minute(seed)
+                    ),
+                )
+            )
         )
+
+    def _recovery_minute(self, seed: int | None) -> int:
+        """When a creature becoming Stable *now* would regain 1 hit point.
+
+        Rolled at stabilisation rather than when the clock is read. Rolling it on demand
+        would let a caller advance the clock an hour at a time and re-draw until it got the
+        answer it wanted — the same re-draw `core.d20` prevents by banding its seed space.
+        """
+        if seed is None:
+            raise ValueError(
+                "becoming Stable rolls 1d4 hours to recovery (p. 18), so it needs the "
+                "adjudication's seed; a Stable creature without a recovery time never wakes"
+            )
+        return stable_recovery_minute(self.clock, seed=seed)
+
+    def with_time_passed(self, minutes: int) -> EncounterState:
+        """Advance campaign time and apply what elapsing it decided (decision 0020).
+
+        The caller says how much time passed — a narrative fact only the agent holds — and
+        this decides every consequence. Today that is one rule: p. 18's Stable creature
+        regaining 1 hit point once its recovery minute is reached. Durations measured in
+        minutes and hours, and the rests, resolve here when they arrive.
+
+        Recovery restores a hit point and nothing else. p. 18 does not say the Unconscious
+        condition ends, and the sentence that does end a condition on regaining hit points
+        (p. 17) is about Knocking Out a Creature, a different case. Not decided here rather
+        than decided wrongly.
+        """
+        advanced = self.clock.advanced(minutes)
+        recovered = tuple(
+            replace(
+                participant,
+                hit_points=min(
+                    participant.max_hit_points,
+                    participant.hit_points + STABLE_RECOVERY_HIT_POINTS,
+                ),
+                death_saves=DeathSaves(),
+            )
+            if _recovers_by(participant, advanced)
+            else participant
+            for participant in self.combatants
+        )
+        return self._evolve(combatants=recovered, clock=advanced)
 
     def with_death(self, combatant_id: str) -> EncounterState:
         target = self.combatant(combatant_id)

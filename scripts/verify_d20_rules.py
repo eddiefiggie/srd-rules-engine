@@ -523,6 +523,32 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"roll two d20s and use the lower roll\. A roll can.t be affected by more than one "
         r"Disadvantage",
     ),
+    # --- Time (#85, decision 0020) --------------------------------------------------
+    (
+        13,
+        "the document declines an exact round-to-clock conversion: a round is *about* 6 seconds",
+        r"A round represents about 6 seconds in the game world",
+    ),
+    (
+        18,
+        "a Stable creature regains 1 hit point after 1d4 hours",
+        r"A Stable creature that isn.t healed regains 1 Hit Point after 1d4 hours",
+    ),
+    (
+        187,
+        "a Short Rest is one hour",
+        r"A Short Rest is a 1-hour period of downtime",
+    ),
+    (
+        185,
+        "a Long Rest is at least eight hours",
+        r"A Long Rest is a period of extended downtime.at least 8 hours",
+    ),
+    (
+        185,
+        "sixteen hours must pass before another Long Rest may start",
+        r"you must wait at least 16 hours before starting another one",
+    ),
 )
 
 

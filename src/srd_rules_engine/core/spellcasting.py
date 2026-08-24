@@ -28,8 +28,10 @@ be the inferred rule value R31 forbids. `SpellSlots` is the shape a ruleset fill
 ## What is deliberately absent
 
 * **Long Rest recovery has no trigger.** "Finishing a Long Rest restores any expended spell
-  slots" (p. 104). `restored()` is that operation and nothing calls it, because there is no
-  rest and no clock — [#85](https://github.com/eddiefiggie/srd-rules-engine/issues/85).
+  slots" (p. 104). `restored()` is that operation and nothing calls it. `core.clock` now
+  supplies the campaign time this was waiting on (#85), so what is missing is the rest
+  itself — a Long Rest is "a period of extended downtime—at least 8 hours" (p. 185) with
+  benefits this module does not model — [#19](https://github.com/eddiefiggie/srd-rules-engine/issues/19).
 * **Components, and the Spellcasting Focus that substitutes for them** (p. 188), need item
   and inventory state that does not exist. So does a Ritual's ten extra minutes (p. 187).
 * **Prepared versus known** is class data, and `modify-a-spell` and `multiclass-spell-slots`
@@ -156,7 +158,7 @@ class SpellSlots:
         """p. 104: "Finishing a Long Rest restores any expended spell slots."
 
         The operation exists; nothing triggers it, because there is no rest and no clock
-        (#85). A caller performs it.
+        (#19). A caller performs it.
         """
         return SpellSlots(total=self.total)
 
