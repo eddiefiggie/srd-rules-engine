@@ -259,6 +259,20 @@ def _situation(situation: object) -> dict[str, Any] | None:
     out["your_attack_rolls"] = str(situation.your_attack_rolls)  # type: ignore[attr-defined]
     out["spell_slots"] = dict(situation.spell_slots)  # type: ignore[attr-defined]
     out["unenforced_clauses"] = list(situation.unenforced_clauses)  # type: ignore[attr-defined]
+    # #18. An agent told a condition's name but not how long it lasts is back to recalling
+    # 5e, which is the capability this engine removes — so the span travels with the name.
+    out["condition_durations"] = {
+        str(c): d
+        for c, d in situation.condition_durations.items()  # type: ignore[attr-defined]
+    }
+    out["conditions_until_removed"] = [
+        str(c)
+        for c in situation.conditions_until_removed  # type: ignore[attr-defined]
+    ]
+    out["saves_due"] = {
+        str(c): {"ability": ability, "dc": dc}
+        for c, (ability, dc) in situation.saves_due.items()  # type: ignore[attr-defined]
+    }
     return out
 
 

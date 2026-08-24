@@ -6,6 +6,43 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.34`
+
+Condition duration on the encounter axis (#18), on the decision `0021` settled first.
+
+- **Duration is not a property of a condition, and that shaped everything.** All fifteen
+  glossary entries state *effects*. Only Prone (p. 186, spend half your Speed to right
+  yourself) and Exhaustion (p. 181, a Long Rest removes a level) carry an ending rule of their
+  own; every other condition ends because whatever imposed it says when. A `duration` field on
+  `Condition` would have modelled something the document does not have, so `core.duration` is a
+  vocabulary the *application* supplies.
+- **Everything reduces to one expiry point** — the end of a named creature's turn, in a named
+  round — computed once when the condition is applied. Spans in rounds and "until the end of
+  your next turn" (p. 29 and 61 others) both land there. p. 98 is the only place the document
+  says what counting rounds from an event means, so `for_rounds` is read off it.
+- **Minutes convert at application, not on query** (`0021` clauses 3 and 4). Ten rounds to the
+  minute, with `stated_minutes` kept so the arithmetic appears in the derivation rather than
+  being implied by a round count nobody can trace. **The clock still does not move** — a test
+  advances twelve turns and asserts elapsed minutes is unchanged.
+- **Implication is recomputed, not subtracted.** Removing a condition from the closure would
+  strand what it was implying, so removal works against what was applied and the closure is
+  rebuilt. A condition implied by two sources therefore survives losing one, and p. 191's "when
+  this condition ends, you remain Prone" is carved out rather than lifting with Unconscious.
+- **A repeated save is reported and never rolled.** p. 63's save-ends shape is stated
+  per-effect, so `SaveEnds` carries its own ability and DC. Resolving it is an outcome and R1
+  leaves outcomes to adjudication — this is the `makes_death_saves` move one layer up, and the
+  test asserts it by holding a DC 13 condition across twelve turns, which no rolled save would
+  survive. The adjudication path is [#110](https://github.com/eddiefiggie/srd-rules-engine/issues/110).
+- **What cannot be retired is named** (`0021` clause 6). A span on an axis the encounter does
+  not count reads as `until-removed` and appears in `Situation.conditions_until_removed`, rather
+  than looking permanent by accident. Hours, days and "until dispelled" are
+  [#111](https://github.com/eddiefiggie/srd-rules-engine/issues/111).
+- **The read surface carries the span, the save, and the gap** (R18). An agent told a
+  condition's name but not how long it lasts is back to recalling 5e, which is the capability
+  being removed. Rendered through the MCP adapter too.
+- `scripts/verify_d20_rules.py` gains p. 106's Time Span taxonomy, p. 98's round counting,
+  p. 191's remain-Prone, and p. 63's save-ends — **now 97 clauses**.
+
 ## Unreleased — 2026-08-23 — build `08232026.33`
 
 Decision `0021`, settling #108: a round is exactly six seconds, and the clock still does not

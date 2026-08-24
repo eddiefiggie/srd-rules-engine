@@ -131,6 +131,18 @@ class Situation:
     max_hit_points: int
     #: Held conditions, with implication already resolved.
     conditions: tuple[Condition, ...]
+    #: How long each held condition lasts, as the engine computed it when the condition was
+    #: applied (#18). A condition missing from this map has no span the engine can count,
+    #: and `conditions_until_removed` names it — R18 asks for mechanical effects rather than
+    #: labels, and "how long" is one of them.
+    condition_durations: Mapping[Condition, str]
+    #: Held conditions nothing in this engine will retire on its own (0021 clause 6). Named
+    #: rather than left to look permanent, the same disclosure `unenforced_clauses` makes.
+    conditions_until_removed: tuple[Condition, ...]
+    #: Conditions that repeat a save at the end of this creature's turns (p. 63), as
+    #: condition to the ability and DC. Reported, never rolled here — a save is an outcome
+    #: and R1 leaves outcomes to adjudication.
+    saves_due: Mapping[Condition, tuple[str, int]]
     #: What an attack against this creature has, before the attacker's own state.
     attack_rolls_against_you: Advantage
     #: What this creature's attacks have, before the target is known — Grappled's
@@ -287,6 +299,13 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
         hit_points=actor.hit_points,
         max_hit_points=actor.max_hit_points,
         conditions=tuple(sorted(conditions.held, key=lambda c: c.value)),
+        condition_durations=MappingProxyType(
+            {c: d.derivation() for c, d in conditions.durations.items()}
+        ),
+        conditions_until_removed=conditions.unretirable(),
+        saves_due=MappingProxyType(
+            {c: (s.ability, s.dc) for c, s in conditions.saves_due_after(actor_id).items()}
+        ),
         attack_rolls_against_you=conditions.attack_rolls_against(attacker=None, target=None),
         your_attack_rolls=conditions.own_attack_rolls(),
         cannot_act=conditions.cannot_act(),

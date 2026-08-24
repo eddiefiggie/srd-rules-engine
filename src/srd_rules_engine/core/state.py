@@ -32,13 +32,14 @@ from srd_rules_engine.core.clock import (
     Clock,
     stable_recovery_minute,
 )
-from srd_rules_engine.core.conditions import Conditions
+from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.damage import (
     DamageOutcome,
     DamageType,
     Defences,
     after_defences,
 )
+from srd_rules_engine.core.duration import Duration, DurationKind, SaveEnds, rounds_in_minutes
 from srd_rules_engine.core.position import (
     DEFAULT_REACH_FEET,
     MovementMode,
@@ -414,6 +415,112 @@ class EncounterState:
             )
         return stable_recovery_minute(self.clock, seed=seed)
 
+    # --- Conditions and their durations (#18) -----------------------------------------
+
+    def _next_turn_end_round(self, actor_id: str) -> int:
+        """The round in which that creature's *next* turn ends.
+
+        Its turn is still to come this round only if it sits later in the order than the
+        creature acting now. If it is acting now, its next turn is the following round —
+        which is what Rage (p. 29) means by lasting "until the end of your next turn" when
+        you started it on your own turn.
+        """
+        if self.turn_index is None:
+            raise ValueError(
+                "a duration measured in turns needs a turn order; roll initiative first"
+            )
+        index = next((i for i, c in enumerate(self.combatants) if c.id == actor_id), None)
+        if index is None:
+            raise ValueError(f"{actor_id!r} is not in this encounter, so it has no next turn")
+        return self.round_number + (0 if index > self.turn_index else 1)
+
+    def until_end_of_next_turn(self, actor_id: str, *, save: SaveEnds | None = None) -> Duration:
+        """ "Until the end of your next turn" (p. 29 and 61 others), as an expiry point."""
+        return Duration(
+            kind=DurationKind.END_OF_NEXT_TURN,
+            ends_after_round=self._next_turn_end_round(actor_id),
+            ends_after_actor_id=actor_id,
+            save=save,
+        )
+
+    def for_rounds(
+        self,
+        count: int,
+        actor_id: str,
+        *,
+        save: SaveEnds | None = None,
+        stated_minutes: int | None = None,
+    ) -> Duration:
+        """A time span in rounds (p. 106), anchored to a creature's place in the order.
+
+        p. 98 is the only place the document says what counting rounds from an event means:
+        the oil burns "until the end of the turn 2 rounds from when the oil was lit". So the
+        span ends at that same point in the order, `count` rounds later.
+        """
+        if count < 0:
+            raise ValueError("a duration is not negative")
+        return Duration(
+            kind=DurationKind.ROUNDS,
+            ends_after_round=self.round_number + count,
+            ends_after_actor_id=actor_id,
+            save=save,
+            stated_minutes=stated_minutes,
+        )
+
+    def for_minutes(self, minutes: int, actor_id: str, *, save: SaveEnds | None = None) -> Duration:
+        """A span stated in minutes, converted to rounds once, here (0021 clauses 3 and 4).
+
+        Converting at application rather than on query is 0020 clause 4's reasoning: a value
+        re-derived whenever somebody asks is a value a caller can re-draw by choosing when to
+        ask. `stated_minutes` keeps what was said, so the conversion is visible in the
+        derivation rather than implied by a round count nobody can trace.
+
+        The clock is not consulted and does not move. Knowing a round is six seconds is not
+        knowing how much campaign time has passed (0021 clause 2).
+        """
+        return self.for_rounds(
+            rounds_in_minutes(minutes), actor_id, save=save, stated_minutes=minutes
+        )
+
+    def with_condition(
+        self,
+        combatant_id: str,
+        condition: Condition,
+        *,
+        duration: Duration | None = None,
+        grappler_id: str | None = None,
+    ) -> EncounterState:
+        """Apply a condition, with the duration the effect that imposed it stated.
+
+        `None` means the effect named no span this engine can count, and it is recorded as
+        such rather than as permanent — `Conditions.unretirable` reports it, so a condition
+        nothing will ever lift is visible instead of merely never lifting.
+        """
+        target = self.combatant(combatant_id)
+        held = target.conditions
+        durations = dict(held.durations)
+        if duration is not None:
+            durations[condition] = duration
+        else:
+            durations.pop(condition, None)
+        updated = Conditions(
+            held=held.applied | {condition},
+            exhaustion_level=held.exhaustion_level,
+            grappler_id=grappler_id if grappler_id is not None else held.grappler_id,
+            durations=durations,
+        )
+        return self._evolve(combatants=self._replacing(replace(target, conditions=updated)))
+
+    def with_condition_ended(self, combatant_id: str, condition: Condition) -> EncounterState:
+        """End a condition now — a successful save, or an effect that removes it.
+
+        Implication is recomputed rather than subtracted, and p. 191's "when this condition
+        ends, you remain Prone" survives it. Both live in `Conditions.without`.
+        """
+        target = self.combatant(combatant_id)
+        remaining = target.conditions.without(frozenset({condition}))
+        return self._evolve(combatants=self._replacing(replace(target, conditions=remaining)))
+
     def with_time_passed(self, minutes: int) -> EncounterState:
         """Advance campaign time and apply what elapsing it decided (decision 0020).
 
@@ -510,12 +617,42 @@ class EncounterState:
         """
         if self.turn_index is None:
             raise ValueError("the encounter has no turn order yet")
+
+        # Durations retire against the turn that is *ending*, not the one beginning (#18).
+        # "Until the end of your next turn" means the condition is still held for the whole
+        # of that turn, so the lift happens as it closes.
+        ended = self._retired(self.combatants[self.turn_index].id)
+
         following = self.turn_index + 1
         if following < len(self.combatants):
-            return self._evolve(turn_index=following, combatants=self._refreshed(following))
-        return self._evolve(
-            turn_index=0, round_number=self.round_number + 1, combatants=self._refreshed(0)
+            return ended._evolve(turn_index=following, combatants=ended._refreshed(following))
+        return ended._evolve(
+            turn_index=0, round_number=self.round_number + 1, combatants=ended._refreshed(0)
         )
+
+    def _retired(self, actor_id: str) -> EncounterState:
+        """Lift every condition whose span ends at the close of that creature's turn.
+
+        Deterministic bookkeeping rather than an outcome: the duration's expiry point was
+        settled when the condition was applied, so nothing is decided here and no die is
+        rolled. A save that *could* end a condition early is the opposite case — that is an
+        outcome, and `Conditions.saves_due_after` reports it for adjudication rather than
+        resolving it (R1, R4).
+        """
+        updated = self.combatants
+        for combatant in self.combatants:
+            expiring = combatant.conditions.expired_after(self.round_number, actor_id)
+            if not expiring:
+                continue
+            remaining = combatant.conditions.without(expiring)
+            updated = tuple(
+                replace(c, conditions=remaining) if c.id == combatant.id else c for c in updated
+            )
+        if updated is self.combatants:
+            return self
+        # No generation bump: `advanced_turn` is about to make one, and two would leave a
+        # read token from before this turn looking two changes stale instead of one.
+        return replace(self, combatants=updated)
 
     def _refreshed(self, turn_index: int) -> tuple[Combatant, ...]:
         """The combatants with the one whose turn begins given its turn back.
