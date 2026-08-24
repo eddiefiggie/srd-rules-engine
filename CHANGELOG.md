@@ -6,6 +6,38 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.33`
+
+Decision `0021`, settling #108: a round is exactly six seconds, and the clock still does not
+advance itself. Groundwork for condition duration (#18), which is where 0020's clause 1 had to
+be used rather than merely stated.
+
+- **The sentence 0020 missed.** p. 98, the Oil entry: the oil burns "2 rounds from when the oil
+  was lit (**or 12 seconds**)". Two rounds is twelve seconds. 0020 rested on p. 13's *about* 6
+  seconds and read the hedge as the document declining an exact conversion — but p. 13 is
+  describing what a round feels like in the world, and p. 98 is deciding when a fire goes out.
+  The engine is in p. 98's position every time it retires a duration.
+- **What did not change, and must not.** `advanced_turn` still leaves `Clock` untouched, and
+  0020's test asserting it is unchanged. Campaign time also passes outside encounters, so a
+  three-hour march followed by a six-round fight would either double-count or drop the march.
+  That was 0020's real argument and it was never the *about*. Knowing what a round is worth is a
+  different claim from knowing how much time has passed.
+- **Conversion happens once, when a duration is applied, and is recorded where the duration is.**
+  0020 clause 4's reasoning, unchanged: a value re-derived on every query is a value a caller can
+  re-draw by choosing when to ask. Nothing converts in the other direction — outside an encounter
+  there are no rounds to count.
+- **The gap is far smaller than it looked.** Counted over all 347 `Duration:` entries in the
+  document: **103 of the 126 minute-scale durations are Concentration**, which the engine already
+  models and which end with no clock involved. The population that actually needed this decision
+  is the 23 plain minute durations. Two entries did not parse and are named rather than bucketed.
+- **Duration is not a property of a condition.** All fifteen glossary entries state effects; only
+  Prone (p. 186) and Exhaustion (p. 181) carry an ending rule of their own. Everything else ends
+  because whatever imposed it says when — so a `duration` field on `Condition` would model
+  something the document does not have. That finding shapes #18 and is recorded here.
+- **`SECONDS_PER_ROUND` carries the citation**, and `scripts/verify_d20_rules.py` gains p. 98's
+  sentence — **now 93 clauses**, all matched against the official PDF. Proven red by changing the
+  pattern to `3 rounds`: the script exits 1 and names the page.
+
 ## Unreleased — 2026-08-23 — build `08232026.32`
 
 A ruling reports the damage that actually happened. #105 — a bug the damage rules did not have

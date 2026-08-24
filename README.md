@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08232026.32` — **a ruling now reports the damage a creature actually took (#105).** The p. 17 order — Immunity, then Resistance, then Vulnerability — was applied correctly from the day it landed, and was **invisible**: defences resolved inside the state transition, downstream of the `Effect` a `Ruling` carries, and the arithmetic they produced was discarded. So a creature with Immunity to Fire took nothing while its ruling said 12, and R7 leaves the agent free to narrate what the ruling says. `Effect.amount` is now what the target took, `rolled` is what the dice came to when a defence changed it, and the ledger records the damage type so the arithmetic can be checked from the record. Raises `API_VERSION` to 2 — the first break the policy in `0018` has had to describe.
+**Current build:** `08232026.33` — **a round is exactly six seconds, and the clock still does not advance itself (#108).** Decision `0020` said the two kinds of time do not convert, reading p. 13's "a round represents ***about*** 6 seconds" as the document declining to give one. It does give one: p. 98 has oil burning "2 rounds from when the oil was lit (**or 12 seconds**)" — exact, in a sentence that decides when a fire goes out. `0021` amends that clause and keeps the one that matters: **advancing a turn still never touches the campaign clock**, because time also passes between encounters and only the agent knows how much. Knowing what a round is worth is not knowing how much time has passed. The verifier is now 93 clauses.
 
 ---
 

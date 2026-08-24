@@ -1,30 +1,42 @@
-"""What time is in this engine, and what it deliberately is not (#85, decision 0020).
+"""What time is in this engine, and what it deliberately is not (#85, #108).
+
+Decisions [0020](../../../docs/decisions/0020-two-kinds-of-time.md) and
+[0021](../../../docs/decisions/0021-a-round-is-six-seconds.md) govern this module; 0021
+amends 0020's clause 1 and leaves the rest of it standing.
 
 The engine could adjudicate a Stable creature's recovery, a rest, or any duration measured
 in hours — except that there was nothing to hang them on. `EncounterState` advanced by
 turns and had no representation of elapsed time at all. This module is that
 representation, and the boundaries around it matter more than the arithmetic.
 
-## Two kinds of time, and the document declines to convert between them
+## Two kinds of time, one exact conversion, and no automatic bridge
 
 * **Encounter time** is `EncounterState.round_number` — ordinal, and already here. "Until
   the end of your next turn" resolves against it.
 * **Campaign time** is `Clock`, a monotonic count of elapsed minutes. "After 1d4 hours"
   resolves against it.
 
-They do not convert, and that is cited rather than convenient. p. 13: "A round represents
-**about** 6 seconds in the game world." *About* is the document declining to give an exact
-conversion, so deriving campaign minutes from a round count would manufacture a precision
-the SRD withholds — and it would still be wrong, because the engine cannot know how much
-campaign time passed between two encounters. A caller who wants encounter time on the clock
-advances the clock itself.
+**A round is exactly six seconds** (p. 98: the oil burns "2 rounds from when the oil was lit
+(or 12 seconds)"), and **the clock still never advances itself**. Those are two different
+claims, and decision 0021 separates them after 0020 ran them together.
+
+p. 13 says a round represents *about* 6 seconds; p. 98 needs a number to say when a fire goes
+out and gives an exact one. The engine is in p. 98's position every time it retires a
+duration, so it takes that sentence — transcription of an arithmetic the document performs,
+not a precision it withholds.
+
+What does **not** follow is that advancing a turn advances the clock. Campaign time also
+passes outside encounters, so a three-hour march followed by a six-round fight would either
+double-count or silently drop the march. The engine cannot know how much campaign time passed
+between two encounters, which was 0020's real argument and is untouched. A caller who wants an
+encounter's duration on the clock advances the clock itself.
 
 ## Minutes, because every campaign-scale duration in the document is one
 
 Short Rest one hour (p. 187), Long Rest at least eight (p. 185), sixteen hours before
 another may start (p. 185), a Stable creature after 1d4 hours (p. 18). Minutes express all
-of them exactly, in integers. Seconds would be a unit nothing here uses, and choosing it
-would invite exactly the round-to-clock bridge that p. 13 forbids.
+of them exactly, in integers. Seconds are the unit p. 98 states a round in, and `SECONDS_PER_ROUND`
+carries that; the clock still counts minutes, because nothing at campaign scale is finer.
 
 ## The agent says how much time passed; the engine says what that did
 
@@ -84,6 +96,17 @@ TIME_VERIFICATION: Final = Verification(
 
 #: Not an SRD value — the unit the clock counts in, and the conversion into it.
 MINUTES_PER_HOUR: Final = 60
+
+#: p. 98, the Oil entry: the oil burns "2 rounds from when the oil was lit (or 12 seconds)".
+#: Two rounds is twelve seconds, so a round is six — stated exactly, in a sentence doing rules
+#: work, rather than the *about* p. 13 uses to describe what a round feels like. Decision 0021
+#: settles that this is transcription of an equivalence the document performs rather than an
+#: inferred rule value, and amends 0020 clause 1 accordingly.
+#:
+#: **Knowing what a round is worth is not knowing how much time has passed.** `advanced_turn`
+#: still leaves the clock untouched, permanently — 0021 clause 2 — because campaign time also
+#: flows outside encounters and only the agent knows how much.
+SECONDS_PER_ROUND: Final = 6
 
 #: p. 18: "A Stable creature that isn't healed regains 1 Hit Point after 1d4 hours."
 STABLE_RECOVERY_SIDES: Final = 4

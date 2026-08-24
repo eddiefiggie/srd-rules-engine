@@ -1,6 +1,9 @@
 # 0020 — Two kinds of time, minutes as the unit, and the round-to-clock bridge left unbuilt
 
-- **Status:** Accepted, 2026-08-23
+- **Status:** Accepted, 2026-08-23. **Clause 1 amended by**
+  [0021 — a round is six seconds](0021-a-round-is-six-seconds.md), 2026-08-23: the document does
+  print an exact conversion (p. 98), which this record did not consider. Everything else stands,
+  including the clause that matters most — a turn still never advances the clock.
 - **Settles:** [#85](https://github.com/eddiefiggie/srd-rules-engine/issues/85)
 - **Requirements:** R9, R13 · touches R4, R18, R20, R31
 - **Related:** [0014 — positional state](0014-positional-state.md), the same question asked
@@ -35,7 +38,9 @@ by everything that happened while nobody was rolling initiative.
 
 ## Decision
 
-**1. Two kinds of time, and they do not convert.**
+**1. Two kinds of time, and they do not convert.** *(Amended by [0021](0021-a-round-is-six-seconds.md):
+they do convert, exactly, at six seconds to the round per p. 98. What survives is that nothing
+converts them **automatically** — see clause 2 of that record.)*
 
 | | What it is | Where it lives | What resolves against it |
 |---|---|---|---|
@@ -112,7 +117,9 @@ plausible.
   and a game where no time has passed. Reported through the read surface
   (`minutes_until_recovery`) rather than left to be discovered.
 - **A duration in rounds cannot be expressed in minutes, and vice versa.** That is clause 1
-  working, and it will read as an omission to someone who expects one timeline.
+  working, and it will read as an omission to someone who expects one timeline. *(Half
+  superseded by [0021](0021-a-round-is-six-seconds.md): the first direction is now supported and
+  cited; the vice-versa still is not, by that record's clause 5.)*
 - **`RECOVERY_OFFSET` extends a seed-band convention that is still unenforced**
   ([#82](https://github.com/eddiefiggie/srd-rules-engine/issues/82)). It sits far above every
   band in use, which is a mitigation rather than a guarantee.
