@@ -167,3 +167,23 @@ code — the table above is verbatim output. The fix was then confirmed by resto
 defect (`COMPAT: RULING_VERSION`) and watching all four guards go red, and by raising
 `RULING_COMPAT` above `READER_VERSION` without touching the schema, which turns the two
 floor-specific guards red on their own.
+
+## Status of implementation
+
+**Implemented in full.** All six clauses.
+
+| Clause | State |
+|---|---|
+| 1 — `compat` is a reader version | The definition governs; clause 5 of [0011](0011-module-layout-and-versioning.md) reads as amended here. |
+| 2 — every payload names its floor in its own constant | All six exist and all six are 1: `DECLARATION_COMPAT`, `RULING_COMPAT`, `NARRATION_COMPAT`, `TERMINATION_COMPAT` (`core.adjudicate`), `FACT_PAYLOAD_COMPAT` (`core.memory_port`), `SESSION_COMPAT` (`core.ledger`). |
+| 3 — a floor rises only when the reading surface changes | Demonstrated since: `RULING_VERSION` moved 3 → 4 for [#119](https://github.com/eddiefiggie/srd-rules-engine/issues/119)'s condition fields and `RULING_COMPAT` stayed at 1, because the change was additive and a v3 reader misreads none of it. |
+| 4 — `READER_VERSION` is the reader's own version | `core.ledger_reader.READER_VERSION`, with the docstring defect this record names corrected. |
+| 5 — the reading surface is the three together | `read_ledger`, `replay` and `session_report`. |
+| 6 — a guard reads a ledger the engine actually wrote | `tests/test_replay_and_report.py`, checking the no-derived-floor rule by **shape**, so `COMPAT: SOME_VERSION` fails in CI rather than in somebody's ledger. |
+
+Clause 3 is the one worth noting as *exercised* rather than merely built. The failure this record
+exists to prevent is a floor rising because a payload changed, and #119 was the first payload
+change after it landed — the schema moved, the floor did not, and the guard did not have to say
+anything. A decision holds when the next change makes it uneventful.
+
+_Added 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). This record carried no **Status of implementation** section, so a reader could not tell "shipped" from "nobody wrote one"._

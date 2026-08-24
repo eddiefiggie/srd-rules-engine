@@ -173,3 +173,31 @@ absorbed.
 p. 13's *about* is already a verified clause from 0020 and is unchanged. Both sentences now sit in
 the verifier, which is the form of this record that survives someone disagreeing with its
 reasoning.
+
+## Status of implementation
+
+**Implemented**, with one clause landing beside where this record said it would.
+
+| Clause | State |
+|---|---|
+| 1 — a round is exactly six seconds, cited to p. 98 | `core.clock.SECONDS_PER_ROUND` is 6. See the note below on where the citation lives. |
+| 2 — `advanced_turn` still leaves `Clock` untouched | Held, and asserted: `test_the_clock_does_not_move_however_many_rounds_pass`. Unchanged by [0023](0023-the-turns-end-is-a-loop-owned-phase.md), which added a turn-end phase without touching the clock. |
+| 3 — conversion applied once, at application | `rounds_in_minutes` converts when the duration is built; the round count is stored on `Duration`, never recomputed. |
+| 4 — the conversion is recorded where the duration is | `StatedSpan` is kept on `Duration`, and `Duration.derivation()` prints the arithmetic with its p. 98 citation. |
+| 5 — nothing converts in the other direction | Held by absence: no minutes-from-rounds function exists. |
+| 6 — an unretirable duration is reported, not dropped | `Conditions.unretirable()`, surfaced through the read surface. |
+
+**Where clause 1's citation actually lives, which is not quite what the clause says.** This record
+says `core.clock` "carries it as a named constant with that citation". The constant is there and
+the sentence is quoted in a `#:` comment beside it — but `TIME_VERIFICATION`, the machine-readable
+block for that module, names pp. 13, 18, 185 and 187 and **not** p. 98. The verification block that
+does carry p. 98 for "the round-to-seconds equivalence" is `DURATION_VERIFICATION`, in
+`core.duration`.
+
+Nothing is unverified: `scripts/verify_d20_rules.py` asserts the p. 98 sentence twice, and one of
+those clauses names this decision explicitly. But a reader auditing `core.clock`'s provenance
+would not find p. 98 in the place R31 says to look. Recorded here rather than repaired in passing,
+because a verification block is a claim about what was checked and editing one is not a
+documentation change.
+
+_Added 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). This record carried no **Status of implementation** section, so a reader could not tell "shipped" from "nobody wrote one"._
