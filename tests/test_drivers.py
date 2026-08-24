@@ -20,7 +20,6 @@ from srd_rules_engine.core import (
     Adjudicator,
     Catalogue,
     Combatant,
-    Condition,
     D20Test,
     Declaration,
     EncounterState,
@@ -28,6 +27,7 @@ from srd_rules_engine.core import (
     FactType,
     Grounding,
     Ledger,
+    MatchCondition,
     Operator,
     Proposal,
     Provenance,
@@ -71,7 +71,7 @@ NOTED = Provenance(writer=Writer.OUT_OF_BAND, reference="notes")
 SKIPS = Trigger(
     id="fixture-skips-collide",
     grounding=Grounding.AUTHORED,
-    when=(Condition(field="in_combat", operator=Operator.EQUALS, value=True),),
+    when=(MatchCondition(field="in_combat", operator=Operator.EQUALS, value=True),),
     message="an invented row, so a skip has something to collide with",
     rationale="Drives the refusal prompt.",
 )

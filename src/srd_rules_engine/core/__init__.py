@@ -48,6 +48,15 @@ from srd_rules_engine.core.clock import (
     stable_recovery_minute,
 )
 from srd_rules_engine.core.combat import Weapon, attack_resolver, initiative_order
+
+# #112: `Condition` here is the SRD condition enum — the fifteen the Rules Glossary tags
+# `[Condition]`. The trigger predicate that used to hold this name is `MatchCondition`.
+from srd_rules_engine.core.conditions import (
+    CONDITION_VERIFICATION,
+    Condition,
+    ConditionEffects,
+    Conditions,
+)
 from srd_rules_engine.core.d20 import (
     DAMAGE_OFFSET,
     DIE_SIDES,
@@ -154,8 +163,8 @@ from srd_rules_engine.core.rules import (
 from srd_rules_engine.core.state import Combatant, EncounterState
 from srd_rules_engine.core.triggers import (
     Catalogue,
-    Condition,
     Grounding,
+    MatchCondition,
     MatchContext,
     Operator,
     Trigger,
@@ -164,6 +173,7 @@ from srd_rules_engine.core.triggers import (
 
 __all__ = [
     "ATTACK",
+    "CONDITION_VERIFICATION",
     "DAMAGE_OFFSET",
     "DAMAGE_VERIFICATION",
     "DEATH_SAVE_DC",
@@ -189,6 +199,8 @@ __all__ = [
     "Clock",
     "Combatant",
     "Condition",
+    "ConditionEffects",
+    "Conditions",
     "D20Result",
     "D20Test",
     "DamageDice",
@@ -216,6 +228,7 @@ __all__ = [
     "LedgerReport",
     "LedgerUnavailable",
     "LegalAction",
+    "MatchCondition",
     "MatchContext",
     "MemoryError_",
     "MemoryPort",

@@ -6,6 +6,32 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.36`
+
+`core.Condition` is the SRD condition enum (#112). It was the trigger predicate.
+
+- **Two different types under one name, and `core` re-exported the wrong one.** R34 requires
+  outer layers to use what `core` re-exports rather than reaching into submodules — which
+  pointed every consumer at the name that resolved to the trigger's match predicate, when the
+  fifteen the Rules Glossary tags `[Condition]` are what `Situation.conditions` is full of.
+- **It failed loudly only by luck.** `from srd_rules_engine.core import Condition` resolved
+  fine; the first thing to notice was an enum member lookup. Anywhere both types satisfied a
+  signature — a loose annotation, an `isinstance` — it would have been silent. Walked into
+  while writing the #18 duration tests.
+- **The trigger type is `MatchCondition`**, which is decision `0004`'s own term: "match
+  conditions over the closed operator set". It sits beside the `MatchContext` it tests against.
+  **`Predicate` was rejected**: `0004` uses that word for the registered Python callables it
+  *declined*, so naming the chosen design after the discarded one would misread the record at a
+  glance.
+- **`Condition`, `Conditions` and `ConditionEffects` are exported from `core` for the first
+  time.** `core/__init__.py` did not import from `core.conditions` at all, which is why the
+  collision could sit there — nothing was competing for the name.
+- **Pinned by identity, not by name.** The guard asserts `core.Condition is
+  conditions.Condition` and that `triggers` has no `Condition` attribute, so neither
+  re-exporting the wrong module nor re-adding the old alias can satisfy it. Both proven red.
+- Internal tier under `0018`, so nothing here raises `API_VERSION` — and the point of doing it
+  now is that this is still true.
+
 ## Unreleased — 2026-08-23 — build `08232026.35`
 
 Decision `0022`, settling #106: `compat` is a reader version, and no payload derives it from
