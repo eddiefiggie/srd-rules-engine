@@ -6,6 +6,37 @@ README.md's `**Current build:**` line drifts from it.
 
 Nothing is released yet. Entries below record builds, not releases.
 
+## Unreleased — 2026-08-23 — build `08232026.29`
+
+Obstructions, closing #91 — the `srd-fidelity` gap `core.areas` shipped disclosed. An area computed
+as unobstructed volume reported a creature behind a wall as caught by a Fireball, which is a
+confident wrong answer rather than a declined one.
+
+- **An area no longer reaches through a wall.** p. 177: "If all straight lines extending from the
+  point of origin to a location in the area of effect are blocked, that location isn't included."
+  `creatures_in` takes obstructions and applies it. A shape's `contains` is still pure volume,
+  because "is this point inside a sphere" and "would the effect reach it" are different questions
+  and conflating them would make the geometry untestable on its own.
+- **Supplying no obstructions means there are none**, not that they are ignored. That is right for
+  an open field and wrong for a dungeon, and the engine cannot tell those apart — so the caller
+  supplies the walls or accepts the field.
+- **The engine decides Total Cover and refuses to guess the rest.** p. 15 defines Half and
+  Three-Quarters by what fraction of a target is covered and gives **no method for measuring a
+  fraction**. Corner-counting and silhouette area are house rules, so any answer here would be one
+  wearing a citation. The degrees exist with the document's +2 and +5 so a caller that has
+  determined a degree can apply it — the same standing as the measurement decision in `0014`.
+- **Only the most protective degree applies** (p. 15), with the document's own example: Half plus
+  Three-Quarters is Three-Quarters, not +7 — a number the rules never produce.
+- **Obstructions are axis-aligned boxes in feet**, a stated narrowing: a diagonal barricade must be
+  approximated or left out. Corners may be given in either order, because a caller describing a wall
+  should not have to sort them.
+- **Exact rational arithmetic, no floats.** The slab test uses `fractions.Fraction`. A boundary
+  decided by a rounded value is wrong exactly at the boundary, which is `0014`'s finding applied
+  again.
+- **Three geometry cases that a careless implementation gets wrong** are pinned: a segment is not an
+  infinite ray, elevation counts so a line over a wall is not blocked, and a creature standing inside
+  rubble is not sheltered from it. Eight mutations were run and all eight were caught.
+
 ## Unreleased — 2026-08-23 — build `08232026.28`
 
 Decision `0018` settles the public API stability policy. Closes #39, which `0011` deferred as
