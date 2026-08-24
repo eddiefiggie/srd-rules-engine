@@ -72,6 +72,7 @@ rejected options and the reason survive, not the exact headings.
 | [0015](0015-reactions-and-the-agent-seam.md) | The generator seam already serves reactions; what they need is state and triggers | [#16](https://github.com/eddiefiggie/srd-rules-engine/issues/16), [#4](https://github.com/eddiefiggie/srd-rules-engine/issues/4) |
 | [0016](0016-adapters-hold-the-turn.md) | An adapter holds the suspended turn, and never exposes adjudication | [#97](https://github.com/eddiefiggie/srd-rules-engine/issues/97) |
 | [0017](0017-verification-is-asserted-not-read.md) | Verification is a pattern asserted against the document, and it does not cover modelling — supersedes [0003](0003-seed-and-verification.md) in part | [#21](https://github.com/eddiefiggie/srd-rules-engine/issues/21) |
+| [0018](0018-api-stability.md) | Three stability tiers, an integer API version, and a committed surface that is enumerated | [#39](https://github.com/eddiefiggie/srd-rules-engine/issues/39) |
 
 ## What belongs here, and what doesn't
 
