@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08242026.7` — **the status table said 76 of 211 and stopped, which understated the gaps and hid the work.** One row for "full SRD 5.2 coverage" measured mechanics only, so a reader could not see that `data/` holds **six monsters and no spells** — Spell Descriptions is 0/11, so no SRD spell can be cast — or that **one of R34's three adapters** exists, or that **senses, light and obscurement are 0 of 23**, a coupled subsystem nothing has been built toward. It also could not show the opposite error: the counter measures resolved shapes, so building a **route** moves nothing, and #119 and #110 both landed without touching it while changing what the engine structurally permits. The table now carries mechanics, content, adapters and the two open `srd-fidelity` gaps separately, with a note on what the number cannot count. Every figure in it was verified against the data before shipping. 915 tests.
+**Current build:** `08242026.8` — **the MCP adapter could not end a turn, and `render` would have crashed if it could ([#134](https://github.com/eddiefiggie/srd-rules-engine/issues/134)).** #110 made the turn's end a loop-owned phase and gave `Session` an `end_turn` and a `TurnEnded` state *precisely so an adapter could hold it* — and the MCP tool was never added. `render` closed on `assert isinstance(pending, Finished)` against a five-member union, so the obvious fix would have crashed at the transport layer; mypy missed it because `assert isinstance` narrows without demanding exhaustiveness. Both fixed, and `Finished` now carries `"next": "end_turn"`, because an agent reading it as *turn over* stops one phase short — the skip `advanced_turn` refuses to let pass. The waiver stays **unexposed**, deliberately: a supported way to skip a compulsory save does not belong in front of the one caller the challenge mechanism exists to constrain. The guard is the general form — every `Pending` member must be reachable through a tool, so the next phase added to the loop cannot ship unreachable. 919 tests.
 
 ---
 
@@ -278,4 +278,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-24 — build `08242026.7`._
+_Last updated: 2026-08-24 — build `08242026.8`._

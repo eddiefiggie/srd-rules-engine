@@ -11,8 +11,10 @@ is the kind of thing that reappears the moment somebody adds a convenience tool.
 
 from __future__ import annotations
 
+import inspect
 import tempfile
 from pathlib import Path
+from typing import get_args
 
 import pytest
 
@@ -20,14 +22,19 @@ from fixtures.encounter import build_adjudicator, opening_state
 from fixtures.ruleset import LOOSE_SCREE
 from srd_rules_engine.adapters import (
     AwaitingDeclaration,
+    AwaitingFacts,
     AwaitingNarration,
     Finished,
     Session,
     SessionError,
+    TurnEnded,
 )
+from srd_rules_engine.adapters import mcp as mcp_module
+from srd_rules_engine.adapters import session as session_module
 from srd_rules_engine.adapters.mcp import (
     BEGIN_TURN,
     DECLARE,
+    END_TURN,
     FORBIDDEN_TOOL_NAMES,
     LOOK,
     NARRATE,
@@ -293,3 +300,89 @@ def test_a_session_survives_being_rebuilt_from_the_same_state(tmp_path: Path) ->
             loop=TurnLoop(adjudicator=build_adjudicator(tmp, seed=SEED)), state=first.state
         )
         assert isinstance(second.begin("pc"), AwaitingDeclaration)
+
+
+# --- The surface is complete, not merely correct -------------------------------------
+
+
+def test_every_pending_state_is_reachable_through_a_tool() -> None:
+    """The general form of #134, and the guard that would have caught it.
+
+    `test_no_tool_reaches_an_outcome_without_the_loop` asserts what must **not** be on the
+    surface. Nothing asserted the surface was **complete** — so when #110 added a phase to
+    the loop and `TurnEnded` to `Pending`, the MCP adapter could ship with no way to reach
+    it and every existing test stayed green.
+
+    Stated over the union rather than as a list of names, because a list is what went stale:
+    a seventh `Pending` member added tomorrow fails here until something can reach it.
+    """
+    reachable = {
+        AwaitingDeclaration: BEGIN_TURN,
+        AwaitingNarration: DECLARE,
+        Finished: NARRATE,
+        TurnEnded: END_TURN,
+    }
+    members = set(get_args(session_module.Pending))
+    unreachable = sorted(m.__name__ for m in members - set(reachable) - {AwaitingFacts})
+    assert not unreachable, (
+        f"{unreachable} cannot be reached through any tool. A phase the loop can enter and "
+        "the adapter cannot drive is a turn a consumer cannot finish"
+    )
+    for name in reachable.values():
+        assert name in TOOL_NAMES
+
+
+def test_render_handles_every_pending_state() -> None:
+    """`render` closed with `assert isinstance(pending, Finished)` before #134, so a
+    `TurnEnded` would have raised `AssertionError` — a crash at the transport layer for a
+    state the loop produces legitimately. mypy did not catch it, because `assert isinstance`
+    narrows without requiring exhaustiveness.
+
+    `assert_never` is what makes the next addition a type error instead. This asserts the
+    branch exists at all, since `assert_never` is checked statically and not at runtime.
+    """
+    source = Path(inspect.getfile(mcp_module)).read_text(encoding="utf-8")
+    for member in get_args(session_module.Pending):
+        assert (
+            f"isinstance(pending, {member.__name__})" in source or member is AwaitingDeclaration
+        ), f"render() has no branch for {member.__name__}"
+    assert "assert_never(pending)" in source, (
+        "render() must close on assert_never, so a new Pending member is a type error "
+        "rather than an AssertionError in somebody's session"
+    )
+
+
+def test_the_end_turn_tool_drives_the_phase(tmp_path: Path) -> None:
+    """End to end over the adapter: a turn ends, and the JSON says so."""
+    adapter = _adapter(tmp_path)
+    opened = adapter.call(BEGIN_TURN, {"actor_id": "pc"})
+    adapter.call(
+        DECLARE,
+        {
+            "actor_id": "pc",
+            "improvised_label": "I stride across, I am sure-footed",
+            "no_test_reason": "the character is athletic, so no test is needed",
+            "read_token": opened["read_token"],
+        },
+    )
+    finished = adapter.call(NARRATE, {"text": "the character picks their way across"})
+    assert finished["next"] == END_TURN, "the slot is done; the turn is not"
+
+    payload = adapter.call(END_TURN, {"actor_id": "pc"})
+    assert payload["awaiting"] is None
+    assert payload["next"] is None
+    assert payload["obligations_resolved"] == 0, "this fixture holds no save-ends condition"
+    assert payload["unresolvable"] == []
+
+
+def test_a_finished_declaration_slot_says_the_turn_is_not_over(tmp_path: Path) -> None:
+    """0023 clause 1 split the two, and an agent that reads `Finished` as "turn over" stops
+    one phase early — which is exactly the skip `advanced_turn` now refuses to let pass."""
+    session = _session(tmp_path)
+    pending = session.begin("pc")
+    assert isinstance(pending, AwaitingDeclaration)
+    session.declare(_declare_no_test(pending))
+    finished = session.narrate("the character picks their way across")
+
+    assert isinstance(finished, Finished)
+    assert render(finished)["next"] == END_TURN
