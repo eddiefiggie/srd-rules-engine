@@ -128,7 +128,10 @@ def render_pending(pending: Pending, *, next_step: str) -> dict[str, Any]:
             # silent: the ledger carries the rejection either way, and an agent told only
             # that the turn ended would read an unresolvable save as a resolved one.
             "unresolvable": [
-                {"condition": str(o.condition), "rule_id": o.rule_id} for o in ended.unresolvable
+                # `label` rather than a condition since 0027 clause 2 — an obligation is
+                # identified by its rule, and two of the three kinds have no condition.
+                {"obligation": o.label, "rule_id": o.rule_id}
+                for o in ended.unresolvable
             ],
         }
     # Every `Pending` member has a branch, and a sixth is a type error here rather than an

@@ -43,7 +43,12 @@ from srd_rules_engine.core.adjudicate import (
     Resolver,
     condition_ended,
 )
+
+# Both are re-exported: 0027 clause 2 moved them to `core.conditions` so that
+# `EncounterState` could reach them without a cycle, and this is where callers look.
+from srd_rules_engine.core.conditions import SAVE_ENDS_PREFIX as SAVE_ENDS_PREFIX
 from srd_rules_engine.core.conditions import Condition
+from srd_rules_engine.core.conditions import save_ends_rule_id as save_ends_rule_id
 from srd_rules_engine.core.d20 import D20Test, Modifier, TestKind
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.rules import (
@@ -73,12 +78,6 @@ SAVE_ENDS_VERIFICATION: Final = Verification(
 #: The rule id prefix. Public because a ruleset assembled elsewhere has to register these
 #: under the same ids the obligation enumerator asks for, and a literal repeated at both
 #: ends is a literal that drifts.
-SAVE_ENDS_PREFIX: Final = "save-ends"
-
-
-def save_ends_rule_id(condition: Condition) -> str:
-    """The rule id for this condition's repeated save."""
-    return f"{SAVE_ENDS_PREFIX}:{condition.value}"
 
 
 def save_ends_rule(condition: Condition) -> Rule:

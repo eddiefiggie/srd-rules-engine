@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08252026.11` — **77 of 211. The number has moved.** Falling is resolved ([#140](https://github.com/eddiefiggie/srd-rules-engine/issues/140), [0027](docs/decisions/0027-occasions-and-outcomes-without-a-roll.md) clause 7): 1d6 Bludgeoning per whole 10 feet to a **20d6 cap on the dice, not on the distance**, so a 500-foot fall and a 200-foot fall cost the same — the wrong-looking answer that is right. It is the one hazard of five that fires on no occasion at all, which is why it could be built while the other four wait on phases this engine does not have. **The half an implementer drops is p. 182's second sentence**: Prone follows the landing *unless the creature avoids taking any damage*. Three ways to take none, and this engine can decide two — a fall under 10 feet deals no dice and is **refused rather than adjudicated**, because a ruling recording that nothing happened is not a rule deciding that nothing happens; and immunity to Bludgeoning zeroes any amount, so the Prone is withheld and the narration bounds *forbid* claiming it rather than merely omitting it. The third — Resistance rounding a 1 down to 0 — depends on a die thrown after the branch was fixed, so **Prone is applied anyway and that is disclosed** ([#173](https://github.com/eddiefiggie/srd-rules-engine/issues/173)). The direction is deliberate and matches Frightened: a penalty wrongly applied costs the creature something, where damage wrongly dealt would produce a number out of nothing. The liquid Reaction is excluded and disclosed (R32) — whether a creature fell into water is a fact this engine cannot observe. 1080 tests.
+**Current build:** `08252026.12` — **a downed player character finally makes death saves, and the engine has a turn's start for the first time.** [0023](docs/decisions/0023-the-turns-end-is-a-loop-owned-phase.md) found the save-ends save and the death save were one missing phase rather than two oversights, built the turn's **end**, and refused to place the death save from memory. p. 17 put it at the turn's **start**, so 0023's refusal was the difference between a save rolled at the right moment and one rolled at the wrong one — and **nothing downstream can tell those apart**. [0027](docs/decisions/0027-occasions-and-outcomes-without-a-roll.md) clauses 1-4 are now built ([#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124)): `TurnLoop.start_turn` mirrors `end_turn` one phase earlier, and **an obligation is identified by its rule id rather than by a condition** — generalised by *removing* the condition-specific field, because a death save has none and Burning is not one of the fifteen. That moved `save_ends_rule_id` into `core.conditions`: `core.save_ends` imports `EncounterState`, so the resolver module could not own a name state had to reach. **Clause 4 survived contact**, which the record was not sure it would: the skip guarantee cannot live in `advanced_turn`, because by then the incoming creature's obligations are *newly* due rather than overdue — so the **declaration** refuses instead, and opens again once the save is discharged. Refusing forever would invent a rule out of a guard; p. 17 does not say a creature at 0 hit points cannot act. Three things are tested against the wrong answer: a monster dies instead of saving, a Stable creature does not save, and one save per turn — an obligation that failed to discharge span the phase forever, which is a hang that produces a plausible ruling at every step. **It also caught a defect in this repository's own tooling**: that spin hung `prove_guard_red.sh` and its restore never ran, leaving the corruption in the tree ([#175](https://github.com/eddiefiggie/srd-rules-engine/issues/175)) — the exact failure the script was written to prevent, by a route it does not cover. Coverage stays at 77 of 211: this resolves an occasion, not a shape. 1097 tests.
 
 ---
 
@@ -112,7 +112,7 @@ the issue number beside each one.
 | **v1.0 — mechanics** | **77 of 211 effect shapes.** Every entry in the inventory ([#14](https://github.com/eddiefiggie/srd-rules-engine/issues/14)) must resolve. Conditions are 15/15 and the d20 test 12/14; senses and light are still **0 of 10**, but no longer for the same reason — the nine pages are read and asserted ([#150](https://github.com/eddiefiggie/srd-rules-engine/issues/150)), so the engine can say what Darkvision does to a light level. Nothing consumes the answer yet: no roll is modified and `can_see` refuses, and a value nothing reads has resolved nothing ([0025](docs/decisions/0025-sight-is-a-relation-over-stored-state.md), [#138](https://github.com/eddiefiggie/srd-rules-engine/issues/138), [#166](https://github.com/eddiefiggie/srd-rules-engine/issues/166)). |
 | **v1.0 — content** | **Six monsters, no spells.** `data/` holds the effect-shape inventory and six stat blocks ([#99](https://github.com/eddiefiggie/srd-rules-engine/issues/99)). Spell Descriptions is 0/11 shapes, so no SRD spell can currently be cast. Tracked as [#21](https://github.com/eddiefiggie/srd-rules-engine/issues/21). |
 | **v1.0 — adapters** | **All three R34 names ship.** MCP behind the `mcp` extra; CLI and HTTP need no dependency at all, so `[project].dependencies` stays empty (R33). One shared guard holds all three: no adapter reaches adjudication, and none waives an end-of-turn obligation. Every declared command now works — `supply_facts` was declared and raising on all three until [#144](https://github.com/eddiefiggie/srd-rules-engine/issues/144). Neither CLI nor HTTP has an executable — a console script must pick a ruleset, and there is not yet one to play. |
-| **SRD fidelity** | **One open gap, and it is no longer a document question.** A downed player character still makes no death saves ([#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124)) — the sentence is found and asserted, and p. 17 puts the save at the **start** of a turn, so what is missing is a phase this engine does not have rather than a fact. `MAX_SPELL_LEVEL`'s provenance is closed ([#130](https://github.com/eddiefiggie/srd-rules-engine/issues/130)): the value was right and the citation was not, and it now rests on p. 104's sentence instead of p. 26's class table. |
+| **SRD fidelity** | **No open gap.** A downed player character now makes death saves: p. 17 puts the save at the **start** of a turn, and the turn's start is a phase this engine has ([#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124), [0027](docs/decisions/0027-occasions-and-outcomes-without-a-roll.md)). `MAX_SPELL_LEVEL`'s provenance closed with [#130](https://github.com/eddiefiggie/srd-rules-engine/issues/130). The remaining known-wrong behaviour is narrow and disclosed: Falling applies Prone when Resistance rounds the damage to zero ([#173](https://github.com/eddiefiggie/srd-rules-engine/issues/173)). |
 
 **What the shape counter does not count, and why the number can stand still while work lands.**
 The inventory measures *resolved effect shapes*, so building a **route** moves nothing. Two landed
@@ -224,13 +224,15 @@ one, and the plan is amended to match:
   payload derives `compat` from its own schema version
   (closed [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106))
 
-**Next up:** [#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124) — the death
-save, which has changed shape. It was blocked on the document; the sentence has now been found
-and asserted, and it says the save is made when a creature **starts** its turn at 0 hit points.
-That is not the phase save-ends lives in. 0023 built the turn's *end*; the turn's *start* has no
-equivalent, so #124 is now the design question for that phase rather than a wiring job — which
-is exactly the branch #124 wrote for itself. Assuming the two obligations shared a phase would
-have put the save in the wrong one, and it would have looked right.
+**Next up:** [#140](https://github.com/eddiefiggie/srd-rules-engine/issues/140) — the four
+hazards Falling left behind. Two of them now have an occasion to fire on: Burning at the turn's
+start, Suffocation at its end, both phases the engine holds. What they still need is
+[0027](docs/decisions/0027-occasions-and-outcomes-without-a-roll.md) clause 5 — somewhere for
+"this creature is Burning" to live that is not `Conditions`, since it is not one of the fifteen.
+Dehydration and Malnutrition are further off, and not for a structural reason: they fire on
+whether a creature drank or ate, which is a narrative fact this engine cannot observe. That is
+the same wall [#141](https://github.com/eddiefiggie/srd-rules-engine/issues/141) reports for the
+afflictions, and nothing settled so far touches it.
 
 ## Development
 
@@ -280,4 +282,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-25 — build `08252026.11`._
+_Last updated: 2026-08-25 — build `08252026.12`._

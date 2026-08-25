@@ -64,6 +64,22 @@ ADJACENT_FEET: Final = 5
 #: p. 181: "You die if your Exhaustion level is 6."
 MAX_EXHAUSTION: Final = 6
 
+#: The rule-id namespace for a condition's repeated save (p. 63).
+#:
+#: It lives here rather than in `core.save_ends` because `EncounterState` needs it and
+#: `core.save_ends` imports `EncounterState` — so the resolver module cannot own the name
+#: without a cycle. That is not merely a workaround: the id of "the save that ends
+#: Poisoned" is a fact about the condition, and the resolver is what acts on it.
+#:
+#: `core.save_ends` re-exports both, so nothing importing them from there has to move.
+SAVE_ENDS_PREFIX: Final = "save-ends"
+
+
+def save_ends_rule_id(condition: Condition) -> str:
+    """The rule id for this condition's repeated save."""
+    return f"{SAVE_ENDS_PREFIX}:{condition.value}"
+
+
 #: R31.
 CONDITION_VERIFICATION: Final = Verification(
     state=VerificationState.VERIFIED,

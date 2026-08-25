@@ -73,6 +73,8 @@ from srd_rules_engine.core.adjudicate import (
 from srd_rules_engine.core.d20 import D20Test, TestKind
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.rules import (
+    Rule,
+    RuleProvenance,
     Verification,
     VerificationMethod,
     VerificationState,
@@ -94,6 +96,26 @@ DEATH_SAVE_VERIFICATION: Final = Verification(
     date="2026-08-25",
     method=VerificationMethod.ASSERTED,
 )
+
+
+#: The rule id the turn's start enumerates a death save under (0027 clause 2).
+#:
+#: An obligation is identified by its rule id and not by a condition, which is what lets the
+#: death save be one at all: it has no condition to be keyed by.
+DEATH_SAVE_RULE_ID: Final = "death-save"
+
+
+def death_save_rule() -> Rule:
+    """The SRD rule for the death save the start of a turn incurs (p. 17)."""
+    return Rule(
+        id=DEATH_SAVE_RULE_ID,
+        summary=(
+            "A player character that starts its turn at 0 hit points, neither Stable nor "
+            "dead, makes a Death Saving Throw."
+        ),
+        provenance=RuleProvenance.SRD,
+        verification=DEATH_SAVE_VERIFICATION,
+    )
 
 
 def death_save_resolver() -> Resolver:

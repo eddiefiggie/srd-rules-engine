@@ -211,16 +211,16 @@ No spike. Every question was answered by reading the document and the tree:
 
 | Clause | State |
 |---|---|
-| 1 — the turn's start is a loop-owned phase | Not built. [#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124) |
-| 2 — an obligation is identified by its rule id | Not built. Part of #124 |
-| 3 — each occasion enumerates its own | Not built. Part of #124 |
-| 4 — the declaration refuses while a start-of-turn obligation is owed | Not built, and the clause least likely to survive contact. Part of #124 |
+| 1 — the turn's start is a loop-owned phase | **Built.** `TurnLoop.start_turn`, mirroring `end_turn` one phase earlier, returning `TurnStart`. The death save fires there; Burning will, once clause 5 exists |
+| 2 — an obligation is identified by its rule id | **Built.** `Obligation` lost `condition` and gained `label`. `EncounterState.discharged` is keyed by `(actor_id, rule_id)`, which needed `save_ends_rule_id` moved to `core.conditions` — `core.save_ends` imports `EncounterState`, so the resolver module could not own the name state had to reach |
+| 3 — each occasion enumerates its own | **Built.** `start_turn_obligations` and `end_turn_obligations` replace the single `obligations` |
+| 4 — the declaration refuses while a start-of-turn obligation is owed | **Built**, and it survived contact. `TurnLoop.run` raises `ObligationOwed`, naming the phase that clears it. The guard opens again once the save is discharged — refusing forever would invent a rule out of a guard, since p. 17 does not say a creature at 0 hit points cannot act |
 | 5 — hazard state on `Combatant`, not `Conditions` | Not built. [#140](https://github.com/eddiefiggie/srd-rules-engine/issues/140) |
 | 6 — an outcome may exist without a d20 test | **Built.** `Proposal.test` is optional and `Proposal.outcome` is the branch a testless proposal resolves to; `adjudicate` skips the d20 and still draws a seed and rolls the declared dice. `RULING_VERSION` is 5, recording `testless` rather than leaving replay to infer it from an absent roll, and `ReplayVerdict.NO_ROLL` keeps such a ruling out of `UNREPLAYABLE`. Two shapes are refused outright: a proposal with neither a test nor an outcome, and one with both |
-| 7 — Falling does not use the occasion path | Nothing to build; it is 0023 clause 5 already deciding the case |
+| 7 — Falling does not use the occasion path | **Built** as `core.hazards`, and it needed nothing from this phase — 0023 clause 5 had already decided the case |
 | 8 — Dehydration is bookkeeping, Malnutrition is an outcome | Not built. Part of #140 |
 | 9 — ending is event-driven for both turn-based hazards | Nothing to build; it is a constraint on #140 rather than work |
 
 **No effect shape is resolved by any of it.** Coverage stays at 76 of 211 — clause 6 built the capability Falling needs, not Falling, and a capability nothing uses resolves nothing.
 
-_Updated 2026-08-25 when [#170](https://github.com/eddiefiggie/srd-rules-engine/issues/170) landed. This record shipped saying "Decided, not built"._
+_Updated 2026-08-25 as [#170](https://github.com/eddiefiggie/srd-rules-engine/issues/170), Falling and [#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124) landed. This record shipped saying "Decided, not built", which was true for about two hours._
