@@ -38,19 +38,24 @@ equal to that point's distance from the point of origin" (p. 179), so the radius
 the along-axis distance — becomes `4·(|v|²·|d|² - dot²) <= dot²`. No square root is taken
 anywhere, and no boundary is decided by a rounded value.
 
-## Obstructions are honoured, when you supply them
+## This module is pure volume, and the walls are somewhere else
 
 p. 177: "If all straight lines extending from the point of origin to a location in the area
 of effect are blocked, that location isn't included in the area of effect. To block a line,
 an obstruction must provide Total Cover."
 
-`creatures_in` takes the obstructions and applies that rule (#91). A shape's `contains` is
-still pure volume — geometry with no opinion about walls — because a caller asking "is this
-point inside a sphere" is asking a different question from "would the effect reach it".
+That rule needs two things — a volume and a set of obstructions — and only the first is here.
+A shape's `contains` is geometry with no opinion about walls, because a caller asking "is
+this point inside a sphere" is asking a different question from "would the effect reach it".
 
-**Supplying none means none exist**, not that they are ignored. An encounter that tracks no
-walls gets unobstructed volume, which is the correct answer for an open field and a wrong one
-for a dungeon. The engine cannot tell those apart and does not pretend to.
+The second question is `EncounterState.creatures_in`, and it lives there rather than here
+because the walls are **state** (decision
+[0026](../../../docs/decisions/0026-terrain-enters-as-state.md) clause 1). This module used
+to compose the two itself and took the obstruction list from its caller — which meant a
+caller could decide who a Fireball reached by deciding which walls existed for that one
+call. `Area.origin` is still part of the protocol here, because p. 177 measures the blocking
+line from it and an area that could not name its own origin could not be checked against a
+wall at all.
 
 **A Cube's freedom of placement.** p. 179 puts the point of origin "anywhere on a face of
 the Cube" and constrains the orientation no further. This models the origin at the *centre*
@@ -60,11 +65,9 @@ Cube placed cornerwise is not expressible.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Final, Protocol
 
-from srd_rules_engine.core.obstructions import Obstruction, line_is_blocked
 from srd_rules_engine.core.position import Position, squared_distance
 from srd_rules_engine.core.rules import (
     Verification,
@@ -292,24 +295,3 @@ class Cube:
         if d.dy:
             return (dy if d.dy > 0 else -dy, (dx, dz))
         return (dz if d.dz > 0 else -dz, (dx, dy))
-
-
-def creatures_in(
-    area: Area,
-    positions: Mapping[str, Position],
-    obstructions: Sequence[Obstruction] = (),
-) -> tuple[str, ...]:
-    """Which creatures the area reaches, in the order supplied.
-
-    Two conditions, and they are different questions. A creature must be **inside the
-    volume**, and the line to it from the point of origin must not be **blocked** (p. 177).
-    A creature standing behind a wall inside a Fireball's radius satisfies the first and
-    fails the second.
-
-    Obstructions default to none, which means *there are none* rather than *ignore them*.
-    """
-    return tuple(
-        who
-        for who, where in positions.items()
-        if area.contains(where) and not line_is_blocked(area.origin, where, obstructions)
-    )

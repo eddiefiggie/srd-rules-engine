@@ -172,16 +172,25 @@ No spike. #151 asked for one check and it decided the record:
 
 ## Status of implementation
 
-**Decided, not built.** This record settles #151; the code still takes obstructions as a query
-argument.
+**Clause 1 is built; clauses 3 and 4 are not.** `EncounterState.obstructions` landed 2026-08-25,
+with `tests/test_areas.py` covering it.
 
 | Clause | State |
 |---|---|
-| 1 — obstructions are state | Not built. [#160](https://github.com/eddiefiggie/srd-rules-engine/issues/160) |
+| 1 — obstructions are state | Built. `EncounterState.obstructions`, and the composed question is `EncounterState.creatures_in(area)`. `core.areas` no longer has a `creatures_in` at all — the composition moved rather than gaining a parameter, so `Area.contains` stays pure volume |
 | 2 — the route follows what the input can become | Nothing to build; it is the reasoning clause 1 rests on |
-| 3 — one box, carried by both | Not built. [#161](https://github.com/eddiefiggie/srd-rules-engine/issues/161) |
+| 3 — one box, carried by both | Not built. [#161](https://github.com/eddiefiggie/srd-rules-engine/issues/161), unblocked by clause 1 landing |
 | 4 — replay is not an argument, and terrain reaches it via the entry | Not built, and deliberately not part of clause 1. [#159](https://github.com/eddiefiggie/srd-rules-engine/issues/159) |
-| 5 — supplying none still means none exist | Already true in `core/areas.py`; the guard moves with the field in #160 |
+| 5 — supplying none still means none exist | Built as the field's default and its own test. An `EncounterState` with an empty tuple describes an open field |
+
+The route is a guard rather than a note: `test_no_area_query_lets_a_caller_supply_the_walls`
+asserts no public callable in `core.areas` takes an `obstructions` parameter, so re-introducing
+the dial turns red. `core.obstructions.line_is_blocked` is deliberately outside that guard — it is
+a pure predicate over three explicit arguments with no encounter to be wrong about, and 0026 did
+not move it.
+
+_Updated 2026-08-25 when [#160](https://github.com/eddiefiggie/srd-rules-engine/issues/160)
+landed. This record shipped saying "Decided, not built", which was true for about an hour._
 
 **No effect shape is resolved by any of it.** Coverage stays at 76 of 211, and #138 stays open for
 the nine sight shapes it was already blocked on.
