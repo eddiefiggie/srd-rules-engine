@@ -100,8 +100,14 @@ engine. The closest prior art I have — [`ddo-loadout-optimizer`](https://githu
 confirm it goes red. A guard that has never been seen red is a guard that might be inspecting
 nothing — and coverage of one data source is not coverage of another. Run it through
 `scripts/prove_guard_red.sh <target-file> <sed-expression> <pytest-arg>...`, which snapshots the
-file, corrupts it, runs the guard, and restores from the snapshot on every exit path including
-interrupt. **Never restore with `git checkout -- <file>`.** Corruption proofs are run mid-change,
+file, corrupts it, runs the guard, and restores from the snapshot on every exit path — success,
+failure, interrupt, or **hang**. A hang is an ordinary result rather than a freak one: corrupting
+a discharge, a counter or a loop bound is a normal way to prove a guard, and each can turn a
+terminating suite into a non-terminating one. That case left the corruption in the tree until
+[#175](https://github.com/eddiefiggie/srd-rules-engine/issues/175), because bash defers a trap
+until the foreground command returns. The run is now backgrounded and watched; it exits `124`
+after `PROOF_TIMEOUT` seconds (default 120) and says a timeout is **not** a proof — a run that
+never terminates shows the corruption broke something, not that your assertion fires. **Never restore with `git checkout -- <file>`.** Corruption proofs are run mid-change,
 so the tree always has uncommitted work and usually untracked new files, and `git checkout` is
 wrong in both states: on a file carrying an uncommitted edit it reverts the whole file and
 silently discards the very code the guard protects, and on an untracked file it fails outright and

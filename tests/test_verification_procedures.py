@@ -123,6 +123,43 @@ def test_the_guard_proof_refuses_to_corrupt_itself() -> None:
     )
 
 
+def test_the_guard_proof_survives_a_hang() -> None:
+    """#175. The restore must outlive a guarded run that never returns.
+
+    Bash defers a trap handler until the current foreground command returns, so when the
+    guarded run hung, the handler was queued behind the very process that would not exit —
+    and the corruption stayed in the tree. That is the failure this script exists to
+    prevent, reached by a route its first version did not cover.
+
+    Three things have to hold together, so all three are pinned: the run is backgrounded
+    (a foreground command cannot be interrupted), it is watched (nothing else would notice),
+    and the trap kills the children before restoring (or it waits on the hang itself).
+    """
+    source = PROVE_GUARD_RED.read_text()
+    assert "PROOF_TIMEOUT" in source, (
+        "prove_guard_red.sh no longer bounds the guarded run, so a corruption that hangs "
+        "the suite leaves itself in the tree (#175)"
+    )
+    assert 'wait "$PYTEST_PID"' in source, (
+        "the guarded run is no longer waited on in the background; a foreground command "
+        "defers the trap until it returns, which is the whole of #175"
+    )
+    assert 'kill -TERM "$pid"' in source, (
+        "the trap no longer kills the guarded run before restoring, so it queues behind "
+        "the process that would not exit"
+    )
+
+
+def test_a_timeout_is_not_reported_as_a_proof() -> None:
+    """A run that never terminates shows the corruption broke something — not that the
+    assertion under test fires. Reporting it as PROOF HELD would be the script agreeing
+    with itself, which is the shape every guard here exists to avoid."""
+    source = PROVE_GUARD_RED.read_text()
+    assert "TIMED OUT" in source
+    assert "NOT a proof" in source
+    assert "exit 124" in source, "a timeout must be distinguishable from a red by exit code"
+
+
 def test_agents_md_forbids_the_unsafe_restore() -> None:
     """`git checkout -- <file>` is the reflex, and it is what #155 was filed about."""
     text = AGENTS_MD.read_text()

@@ -70,14 +70,36 @@ else
     PY="python3"
 fi
 
+#: How long the guarded run may take before it is treated as hung. Override with
+#: PROOF_TIMEOUT for a legitimately slow suite.
+#:
+#: A hang is a *normal* result of a corruption proof rather than a freak event (#175):
+#: corrupting a discharge, a counter or a loop bound is an ordinary way to prove a guard,
+#: and each of those can turn a terminating suite into a non-terminating one.
+TIMEOUT_SECONDS="${PROOF_TIMEOUT:-120}"
+
 SNAPSHOT="$(mktemp)"
+TIMED_OUT="$(mktemp)"
 cp "$TARGET" "$SNAPSHOT"
 
-# Restore on every exit path — success, failure, or interrupt. This is the whole
+PYTEST_PID=""
+WATCHDOG_PID=""
+
+# Restore on every exit path — success, failure, interrupt, or hang. This is the whole
 # point of the script; nothing below is allowed to leave the tree corrupt.
+#
+# **Killing the children first is load-bearing** (#175). Bash defers a trap handler until
+# the current foreground command returns, so when the guarded run hung, the handler was
+# queued behind the very process that would not exit and the restore never ran — leaving
+# the corruption in the tree, which is the failure this script exists to prevent. The run
+# below is backgrounded and waited on for the same reason: `wait` is interruptible by a
+# signal where a foreground command is not.
 restore() {
+    for pid in "$PYTEST_PID" "$WATCHDOG_PID"; do
+        [ -n "$pid" ] && kill -TERM "$pid" 2>/dev/null
+    done
     cp "$SNAPSHOT" "$TARGET"
-    rm -f "$SNAPSHOT"
+    rm -f "$SNAPSHOT" "$TIMED_OUT"
 }
 trap restore EXIT INT TERM
 
@@ -106,11 +128,47 @@ diff "$SNAPSHOT" "$TARGET" || true
 echo
 
 set +e
-"$PY" -m pytest "$@" -q
+"$PY" -m pytest "$@" -q &
+PYTEST_PID=$!
+
+# The watchdog writes the marker *before* signalling, so a run that finishes in the same
+# instant is read as finished rather than as hung.
+# Redirected to /dev/null deliberately: killing this subshell does NOT kill the `sleep`
+# it is blocked in, and an orphaned child holding this script's stdout keeps any pipeline
+# reading it open until the sleep expires. That turns a fast proof into a two-minute one
+# for anyone piping the output — which is how the first version of this fix behaved.
+(
+    sleep "$TIMEOUT_SECONDS"
+    printf 'hung' > "$TIMED_OUT"
+    kill -TERM "$PYTEST_PID" 2>/dev/null
+) >/dev/null 2>&1 &
+WATCHDOG_PID=$!
+
+wait "$PYTEST_PID"
 PYTEST_STATUS=$?
+
+kill -TERM "$WATCHDOG_PID" 2>/dev/null
+wait "$WATCHDOG_PID" 2>/dev/null
+WATCHDOG_PID=""
+PYTEST_PID=""
 set -e
 
 echo
+if [ -s "$TIMED_OUT" ] && [ "$PYTEST_STATUS" -gt 128 ]; then
+    echo "TIMED OUT: the guard did not finish within ${TIMEOUT_SECONDS}s against a corrupt"
+    echo "${TARGET}, so it was killed."
+    echo
+    echo "This is NOT a proof. A run that never terminates shows the corruption broke"
+    echo "something, not that the assertion you meant to test fires — and the two are"
+    echo "different claims. Corrupting a discharge, a counter or a loop bound is an"
+    echo "ordinary way to reach this."
+    echo
+    echo "Either corrupt something narrower, or raise PROOF_TIMEOUT if the suite is"
+    echo "legitimately slow."
+    echo "(The working tree has been restored from the snapshot.)"
+    exit 124
+fi
+
 if [ "$PYTEST_STATUS" -eq 0 ]; then
     echo "PROOF FAILED: the guard stayed green against a corrupt ${TARGET}."
     echo "It is inspecting something other than what you think, or nothing."
