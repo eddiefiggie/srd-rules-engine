@@ -56,7 +56,14 @@ from srd_rules_engine.core.rules import (
 #: p. 178: "A cantrip is a level 0 spell, which is cast without a spell slot."
 CANTRIP_LEVEL: Final = 0
 
-#: p. 26's table runs to level 9.
+#: p. 104: "Every spell has a level from 0 to 9, which is indicated in a spell's
+#: description." Slots therefore run 1 to 9 rather than 0 to 9, because p. 178 puts a level 0
+#: spell outside the slot economy entirely — a derivation from two asserted sentences, not a
+#: bound read off a table.
+#:
+#: This cited p. 26's class table until #130. The value was right and the citation was the
+#: weaker of the two available: p. 26 is the class data this module refuses to ship, so the
+#: one number taken off that page was the one thing here resting on content rather than rule.
 MAX_SPELL_LEVEL: Final = 9
 
 #: p. 179: "The DC equals 10 or half the damage taken (round down), whichever number is
@@ -68,11 +75,12 @@ CONCENTRATION_DC_CAP: Final = 30
 SPELLCASTING_VERIFICATION: Final = Verification(
     state=VerificationState.VERIFIED,
     reference=(
-        'SRD v5.2.1, Spells ("Casting Spells" -> "Spell Slots"), p. 104; spell save DC and '
-        "spell attack modifier p. 106; Rules Glossary, Cantrip p. 178, Concentration "
-        "p. 179, Spell Attack p. 188"
+        'SRD v5.2.1, Spells ("Casting Spells" -> "Spell Slots"), p. 104, including the '
+        "sentence bounding a spell's level at 0 to 9; spell save DC and spell attack "
+        "modifier p. 106; Rules Glossary, Cantrip p. 178, Concentration p. 179, Spell "
+        "Attack p. 188"
     ),
-    date="2026-08-23",
+    date="2026-08-25",
     method=VerificationMethod.ASSERTED,
 )
 

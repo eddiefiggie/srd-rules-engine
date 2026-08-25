@@ -544,6 +544,13 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         104,
+        "the spell-level range, stated outright — 0 to 9. This is what MAX_SPELL_LEVEL "
+        "rests on; #130 found it citing p. 26's class table instead, which the module "
+        "deliberately ships none of",
+        r"Every spell has a level from 0 to 9",
+    ),
+    (
+        104,
         "a spell expends a slot of its own level OR HIGHER",
         r"When you cast a spell, you expend a slot of that spell.s level or higher",
     ),
