@@ -89,6 +89,7 @@ rejected options and the reason survive, not the exact headings.
 | [0021](0021-a-round-is-six-seconds.md) | A round is exactly six seconds, and the clock still does not advance itself — amends [0020](0020-two-kinds-of-time.md) clause 1 | [#108](https://github.com/eddiefiggie/srd-rules-engine/issues/108) |
 | [0022](0022-compat-is-a-reader-version.md) | `compat` is a reader version, and no payload derives it from its own schema version — amends [0011](0011-module-layout-and-versioning.md) clause 5 | [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106) |
 | [0023](0023-the-turns-end-is-a-loop-owned-phase.md) | The turn's end is a loop-owned phase, and an early-out is two mechanisms rather than one | [#110](https://github.com/eddiefiggie/srd-rules-engine/issues/110) |
+| [0024](0024-the-build-line-is-the-build-record.md) | The README's build line is the build record, and `CHANGELOG.md` is retired — amends [0018](0018-api-stability.md)'s Provisional tier | [#146](https://github.com/eddiefiggie/srd-rules-engine/issues/146) |
 
 ## What belongs here, and what doesn't
 

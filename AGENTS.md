@@ -110,6 +110,15 @@ carries `__version__` in `mmddyyyy.x` form (see the `build-versioning` skill). R
 `tests/test_build_stamp.py` fails CI on drift, so the two cannot separate silently — but the test
 only checks that they *match*, not that the prose is honest. That part is on you.
 
+**That line is the build record; there is no changelog.** `CHANGELOG.md` is retired and frozen at
+build `08232026.36` — it duplicated the README line, went fifteen PRs without an entry, and nothing
+guarded it ([0024](docs/decisions/0024-the-build-line-is-the-build-record.md),
+[#146](https://github.com/eddiefiggie/srd-rules-engine/issues/146)). Do not append to it, and do
+not write a promise that some change will be written down there — including for
+[0018](docs/decisions/0018-api-stability.md)'s Provisional surfaces, whose changes are recorded in
+the build line. `tests/test_changelog_is_retired.py` refuses one, by matching the phrasings that
+existed before the retirement.
+
 **Nothing about the local machine reaches this repository.** No absolute or home-relative
 filesystem paths, no private project-collection names, no personal contact addresses, and
 obviously no credentials. This is a public repo maintained from a private working tree, and the
