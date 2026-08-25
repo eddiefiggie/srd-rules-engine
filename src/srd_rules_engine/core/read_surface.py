@@ -47,6 +47,7 @@ from srd_rules_engine.core.canonical import CanonicalizationError, digest
 from srd_rules_engine.core.conditions import Condition
 from srd_rules_engine.core.d20 import Advantage
 from srd_rules_engine.core.position import distance_feet
+from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.sight import LightLevel, Senses
 from srd_rules_engine.core.state import Combatant, EncounterState
 
@@ -304,6 +305,12 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
 
     unenforced = list(conditions.unenforced_clauses())
     unenforced.extend(c for c in actor.actions.unenforced_clauses() if c not in unenforced)
+    # A creature holding a Reaction is a creature the engine cannot tell when to spend it:
+    # p. 185's Opportunity Attack fires on a mover "that you can see", and sight is the
+    # mapping #150 has not filled. Disclosed here rather than left for a reader to notice
+    # that no reaction has ever been offered.
+    if actor.actions.available(ActionKind.REACTION, conditions):
+        unenforced.append(SIGHT_QUALIFIER)
 
     return Situation(
         hit_points=actor.hit_points,
