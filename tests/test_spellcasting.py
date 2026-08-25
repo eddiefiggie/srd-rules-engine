@@ -212,6 +212,64 @@ def test_spellcasting_carries_a_verified_citation() -> None:
         assert cited in SPELLCASTING_VERIFICATION.reference
 
 
+def test_the_spell_level_bound_traces_to_the_sentence_that_states_it() -> None:
+    """#130. `MAX_SPELL_LEVEL` was right and cited the wrong page.
+
+    It read "p. 26's table runs to level 9" — and p. 26 is the class data this module
+    refuses to ship, so the one number taken off that page was the only thing here resting
+    on content rather than on a rule. p. 104 states the bound outright, and p. 104 was
+    already in the reference.
+
+    Nine was very likely right, which is exactly why this mattered: a right number and a
+    wrong one are indistinguishable once inside a finished ruling, and nothing was checking
+    this one.
+    """
+    assert MAX_SPELL_LEVEL == 9
+    reference = SPELLCASTING_VERIFICATION.reference or ""
+    assert "p. 104" in reference
+    assert "0 to 9" in reference, (
+        "the reference names p. 104 but not what is read from it, so a reader cannot tell "
+        "the level bound is covered rather than only the slot-expenditure rule"
+    )
+    assert "p. 26" not in reference, (
+        "p. 26 is class content this module ships none of; citing it as a source is what "
+        "#130 was filed for"
+    )
+
+
+def test_the_spell_level_clause_is_asserted_against_the_document() -> None:
+    """Presence, not truth — `scripts/verify_d20_rules.py` needs the PDF and CI has no copy.
+
+    Proven to catch the plausible-wrong value: the clause was corrupted to read "0 to 10"
+    and the verifier went red.
+    """
+    from pathlib import Path as _Path
+
+    verifier = (
+        _Path(__file__).resolve().parents[1] / "scripts" / "verify_d20_rules.py"
+    ).read_text()
+    assert "Every spell has a level from 0 to 9" in verifier, (
+        "the spell-level bound is no longer re-checkable against the document (#130)"
+    )
+
+
+def test_slots_start_at_one_because_a_cantrip_uses_none() -> None:
+    """The floor is derived from two asserted sentences rather than read off a table.
+
+    p. 104 puts a spell's level in 0-9; p. 178 puts a level 0 spell outside the slot economy
+    entirely. Slots therefore run 1 to 9. Neither sentence says "slots run 1 to 9", and this
+    engine does not need one that does.
+
+    **A deliberate "nothing changed" guard** — `AGENTS.md`'s named exception. It passes
+    against the base commit, because the refusal already worked; #130 moved the *citation*
+    under it, not the behaviour. It is here so that re-citing the bound cannot quietly change
+    what the bound does. The tests that cover the diff are the two above.
+    """
+    assert CANTRIP_LEVEL == 0
+    with pytest.raises(ValueError, match="spell slots run from level 1"):
+        SpellSlots(total={CANTRIP_LEVEL: 1})
+
+
 def test_no_slot_table_ships_in_this_module() -> None:
     """p. 26 prints slots per class level, and that is content. A table compiled here would
     be the inferred rule value R31 forbids, and would read exactly like a verified one."""
