@@ -175,7 +175,7 @@ tree, and one of them turned out to be already decided:
 | 5 — the table ships empty and refusing | `SIGHT_VERIFICATION` is `unverified`, both tables carry no rows, and a guard fails if a row appears while the state has not moved. The reading is [#150](https://github.com/eddiefiggie/srd-rules-engine/issues/150) |
 | 6 — no new triggers | Nothing to build. `core.triggers` is untouched |
 | 7 — the read surface reports the input | `Situation.light_level` and `Situation.senses`, and all three transports render them |
-| The obstruction seam, deliberately left inconsistent | [#151](https://github.com/eddiefiggie/srd-rules-engine/issues/151) |
+| The obstruction seam, deliberately left inconsistent | **Settled** by [0026](0026-terrain-enters-as-state.md): both kinds of terrain are state. [#151](https://github.com/eddiefiggie/srd-rules-engine/issues/151) is closed; the implementation is [#160](https://github.com/eddiefiggie/srd-rules-engine/issues/160) and [#161](https://github.com/eddiefiggie/srd-rules-engine/issues/161) |
 
 **No effect shape is resolved by any of it**, and none is marked implemented: the engine can hold
 a creature's Darkvision and still cannot say what it does. Coverage stays at 76 of 211, and #138

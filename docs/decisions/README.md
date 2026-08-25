@@ -91,6 +91,7 @@ rejected options and the reason survive, not the exact headings.
 | [0023](0023-the-turns-end-is-a-loop-owned-phase.md) | The turn's end is a loop-owned phase, and an early-out is two mechanisms rather than one | [#110](https://github.com/eddiefiggie/srd-rules-engine/issues/110) |
 | [0024](0024-the-build-line-is-the-build-record.md) | The README's build line is the build record, and `CHANGELOG.md` is retired — amends [0018](0018-api-stability.md)'s Provisional tier | [#146](https://github.com/eddiefiggie/srd-rules-engine/issues/146) |
 | [0025](0025-sight-is-a-relation-over-stored-state.md) | Sight is a relation derived over stored state, and the mapping that resolves it ships empty until the pages are read | [#138](https://github.com/eddiefiggie/srd-rules-engine/issues/138) |
+| [0026](0026-terrain-enters-as-state.md) | Terrain enters by one route and it is state, and replay is not an argument for either side — resolves the seam [0025](0025-sight-is-a-relation-over-stored-state.md) clause 2 created | [#151](https://github.com/eddiefiggie/srd-rules-engine/issues/151) |
 
 ## What belongs here, and what doesn't
 
