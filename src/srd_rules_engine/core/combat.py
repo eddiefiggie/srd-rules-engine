@@ -1,7 +1,9 @@
 """Enough of combat to run one fight: turn order, attacks, damage, and dropping to 0.
 
 R12 in full covers reactions, opportunity attacks, and the whole action economy. This is
-the slice's share of it, and the rest is named as later work rather than stubbed here.
+the slice's share of it. What provokes an Opportunity Attack now lives in `core.reactions`
+(#16), which computes the trigger and withholds every offer, because p. 185's sentence turns
+on a mover "that you can see" and sight is unanswerable until [#150](https://github.com/eddiefiggie/srd-rules-engine/issues/150).
 
 Two things in this module are machinery rather than content, which is what lets them
 exist while [#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3) — the official
@@ -28,9 +30,10 @@ and not the damage, which looks like it worked.
 adjudication entry point applies effects itself and returns the state it left behind, so
 there is no second way to apply the same Ruling and therefore no way to apply it twice.
 
-Criticals are deliberately absent. A natural 20 means something specific in the SRD, and
-that meaning is a rule with a citation rather than machinery — the primitive already
-returns the raw die, so whatever lands criticals has what it needs.
+Criticals were deliberately absent from the slice and are not any more: p. 179's sentence —
+a Critical Hit doubles the damage dice and not the modifiers — is asserted in the verifier
+and `critical-hit` resolves. This paragraph said otherwise for several builds after that
+landed, which is what an unguarded prose claim beside working code does.
 """
 
 from __future__ import annotations

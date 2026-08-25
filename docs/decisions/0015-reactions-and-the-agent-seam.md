@@ -110,7 +110,9 @@ detection and the ledger interleaving rule are not, and are named above as the r
 
 | Unbuilt clause | Held by |
 |---|---|
-| Trigger detection — a departure from reach during movement, and the Reaction offer that follows. Opportunity Attacks, Ready, and the consumer `disengaged` still lacks all wait on it | [#16](https://github.com/eddiefiggie/srd-rules-engine/issues/16) |
+| Trigger detection — a departure from reach during movement | **Built** 2026-08-24 as `core.reactions.provocations`, with `disengaged` finally consumed. The *offer* is withheld: p. 185 fires on a mover "that you can see" and sight is unanswerable until [#150](https://github.com/eddiefiggie/srd-rules-engine/issues/150) |
+| The Reaction offer itself, and the out-of-turn invocation this record says the seam already serves | [#16](https://github.com/eddiefiggie/srd-rules-engine/issues/16), and unprovable until an offer can be made |
+| Ready (p. 186), whose sentence is asserted nowhere | [#16](https://github.com/eddiefiggie/srd-rules-engine/issues/16) |
 | The rule `session_report` needs for attributing interleaved entries to turns | [#120](https://github.com/eddiefiggie/srd-rules-engine/issues/120) |
 
 _Table added 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). Both were tracked
