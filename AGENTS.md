@@ -97,12 +97,33 @@ engine. The closest prior art I have — [`ddo-loadout-optimizer`](https://githu
 — found that rules fidelity lives or dies on data provenance rather than on the solver.
 
 **Prove a guard fails before trusting it.** Corrupt the input a new gate exists to reject and
-confirm it goes red, then restore. A guard that has never been seen red is a guard that might be
-inspecting nothing — and coverage of one data source is not coverage of another.
+confirm it goes red. A guard that has never been seen red is a guard that might be inspecting
+nothing — and coverage of one data source is not coverage of another. Run it through
+`scripts/prove_guard_red.sh <target-file> <sed-expression> <pytest-arg>...`, which snapshots the
+file, corrupts it, runs the guard, and restores from the snapshot on every exit path including
+interrupt. **Never restore with `git checkout -- <file>`.** Corruption proofs are run mid-change,
+so the tree always has uncommitted work and usually untracked new files, and `git checkout` is
+wrong in both states: on a file carrying an uncommitted edit it reverts the whole file and
+silently discards the very code the guard protects, and on an untracked file it fails outright and
+leaves the corruption in the tree. Both happened while building #153, and the second is the shape
+this repository cares most about — the corruption a guard test uses is by construction the wrong
+value that looks right ([#155](https://github.com/eddiefiggie/srd-rules-engine/issues/155)).
 
 **Prove a new test fails against the pre-change tree.** A fully green suite can cover none of the
-diff. Export the base commit to a scratch dir, copy the new tests over it, and run them; anything
-still passing is covering nothing. Deliberate "nothing changed" guards are the exception.
+diff. Run `scripts/prove_against_base.sh <base-ref> <test-path>...`; anything still passing is
+covering nothing. Deliberate "nothing changed" guards are the exception. **Do not do this by hand
+from memory.** The venv carries an editable install — a `.pth` in `site-packages` pointing at the
+working tree's `src` — so `pytest` run inside an exported base tree imports the *working tree*.
+The new code is already there, the new tests pass, and the run reports success for the wrong
+reason. That produced a false green three times
+([#123](https://github.com/eddiefiggie/srd-rules-engine/issues/123),
+[#136](https://github.com/eddiefiggie/srd-rules-engine/issues/136),
+[#153](https://github.com/eddiefiggie/srd-rules-engine/issues/153)) before the procedure was
+fixed here ([#154](https://github.com/eddiefiggie/srd-rules-engine/issues/154)). Two steps defeat
+it and the script does both: `PYTHONPATH=<export>/src`, and asserting `srd_rules_engine.__file__`
+resolves *inside* the export before trusting the run. The second is the one that matters — it is
+the only step that can tell a real red from a false green, so the script aborts rather than
+reporting when it fails.
 
 **Bump the build stamp and the README together, every build.** `src/srd_rules_engine/__init__.py`
 carries `__version__` in `mmddyyyy.x` form (see the `build-versioning` skill). README.md's
