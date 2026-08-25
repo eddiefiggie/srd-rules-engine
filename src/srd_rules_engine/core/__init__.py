@@ -86,8 +86,10 @@ from srd_rules_engine.core.damage import (
 )
 from srd_rules_engine.core.death import (
     DEATH_SAVE_DC,
+    DEATH_SAVE_RULE_ID,
     DEATH_SAVE_VERIFICATION,
     death_save_resolver,
+    death_save_rule,
 )
 from srd_rules_engine.core.duration import (
     DURATION_VERIFICATION,
@@ -200,6 +202,7 @@ __all__ = [
     "DAMAGE_OFFSET",
     "DAMAGE_VERIFICATION",
     "DEATH_SAVE_DC",
+    "DEATH_SAVE_RULE_ID",
     "DEATH_SAVE_VERIFICATION",
     "DIE_SIDES",
     "DURATION_VERIFICATION",
@@ -307,6 +310,7 @@ __all__ = [
     "coverage_report",
     "days",
     "death_save_resolver",
+    "death_save_rule",
     "digest",
     "fact_from_payload",
     "fact_write_payload",

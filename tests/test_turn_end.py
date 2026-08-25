@@ -113,10 +113,12 @@ def end_turn(
 
 def test_a_held_save_ends_condition_is_an_obligation(tmp_path: Path) -> None:
     loop = build_loop(tmp_path)
-    obligations = loop.obligations(poisoned(), "first")
+    obligations = loop.end_turn_obligations(poisoned(), "first")
 
-    assert [o.condition for o in obligations] == [Condition.POISONED]
-    assert obligations[0].rule_id == save_ends_rule_id(Condition.POISONED)
+    # Identified by rule id since 0027 clause 2 — the condition is in the label, which is
+    # what the engine-authored declaration says, not in a field consumers branch on.
+    assert [o.rule_id for o in obligations] == [save_ends_rule_id(Condition.POISONED)]
+    assert "poisoned" in obligations[0].label
 
 
 def test_a_condition_with_no_stated_save_is_no_obligation(tmp_path: Path) -> None:
@@ -126,17 +128,17 @@ def test_a_condition_with_no_stated_save_is_no_obligation(tmp_path: Path) -> Non
     state = state.with_condition(
         "first", Condition.POISONED, duration=state.for_minutes(1, "first")
     )
-    assert build_loop(tmp_path).obligations(state, "first") == ()
+    assert build_loop(tmp_path).end_turn_obligations(state, "first") == ()
 
 
 def test_a_creature_with_nothing_held_owes_nothing(tmp_path: Path) -> None:
-    assert build_loop(tmp_path).obligations(encounter(), "first") == ()
+    assert build_loop(tmp_path).end_turn_obligations(encounter(), "first") == ()
 
 
 def test_an_unknown_actor_owes_nothing_rather_than_raising(tmp_path: Path) -> None:
     """The turn's end is driven for whoever just acted, and a caller naming a stranger has
     made a different mistake than one this phase should raise on."""
-    assert build_loop(tmp_path).obligations(encounter(), "nobody") == ()
+    assert build_loop(tmp_path).end_turn_obligations(encounter(), "nobody") == ()
 
 
 # --- The save is rolled, through the one entry point ------------------------------------
@@ -337,7 +339,7 @@ def test_the_death_save_is_not_wired_and_says_why(tmp_path: Path) -> None:
     downed = state.with_damage("first", 40)
     assert downed.combatant("first").is_down
 
-    assert build_loop(tmp_path).obligations(downed, "first") == ()
+    assert build_loop(tmp_path).end_turn_obligations(downed, "first") == ()
     # Not an assertion — `advanced_turn` raises `ObligationOutstanding` if anything is
     # owed, so the call itself is the check that nothing blocks the turn on the death
     # save's account. It read as an assert with a message and was a discarded tuple.

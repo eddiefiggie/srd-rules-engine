@@ -49,8 +49,8 @@ from enum import StrEnum
 from typing import Final, TypeVar
 
 from srd_rules_engine.core import (
+    DEATH_SAVE_RULE_ID,
     Adjudicator,
-    Condition,
     Declaration,
     EncounterState,
     Fact,
@@ -152,21 +152,49 @@ class TurnOutcome:
 
 @dataclass(frozen=True)
 class Obligation:
-    """Something the end of a creature's turn requires, derived from state (0023 clause 2).
+    """Something a turn requires of a creature, derived from state (0023 clause 2).
 
-    Never declared. p. 63 gives the creature no choice about repeating the save, so
-    offering it through a declaration slot would offer a decision the document does not
-    give — and a slot in which declining is expressible is a slot in which the save can
-    fail to happen.
+    Never declared. p. 63 gives the creature no choice about repeating a save, and p. 17
+    gives it none about a death save, so offering either through a declaration slot would
+    offer a decision the document does not give — and a slot in which declining is
+    expressible is a slot in which the save can fail to happen.
+
+    **Identified by its rule id, not by a condition** (0027 clause 2). It carried a
+    `condition` until the turn's start acquired obligations of its own: a death save has no
+    condition, and Burning is not one of the fifteen. The field generalised by being
+    *removed* rather than widened into a union or joined by a `kind` — a kind in the data is
+    a branch in every consumer, which is what 0019 refuses. What an obligation is, is
+    already answered by which rule resolves it.
     """
 
     actor_id: str
-    condition: Condition
     rule_id: str
+    #: What the engine-authored declaration says this creature is doing. A field rather than
+    #: a property derived from a condition, for the same reason the condition went.
+    label: str
+
+
+@dataclass(frozen=True)
+class TurnStart:
+    """What the start of the turn produced (0027 clause 1).
+
+    Shaped like `TurnEnd` and deliberately not merged with it. They carry the same fields
+    today, and a single type would say the two phases are interchangeable — which is the
+    assumption that nearly put the death save at the turn's end.
+    """
+
+    state: EncounterState
+    rulings: tuple[Ruling, ...] = ()
+    narrations: tuple[str | None, ...] = ()
+    #: Obligations no rule in the ruleset could resolve. A ruleset without the death-save
+    #: rule is a deployment fact, and a turn that cannot begin is worse than one that begins
+    #: with the gap recorded.
+    unresolvable: tuple[Obligation, ...] = ()
 
     @property
-    def label(self) -> str:
-        return f"repeats the save that ends {self.condition.value} (p. 63)"
+    def missing_narration(self) -> bool:
+        """R29. Any ruling here that was not narrated."""
+        return any(text is None for text in self.narrations)
 
 
 @dataclass(frozen=True)
@@ -192,6 +220,15 @@ class NarrationOwed(Exception):
     """R29. The previous Ruling for this actor has no narration yet."""
 
 
+class ObligationOwed(Exception):
+    """0027 clause 4. The turn's start has obligations this creature has not discharged.
+
+    Raised by `run` rather than by `advanced_turn`, which is the asymmetry that matters: an
+    end-of-turn obligation is *overdue* by the time the pointer moves, while a start-of-turn
+    one is newly due — so the guard has to sit where the creature next tries to act.
+    """
+
+
 @dataclass
 class TurnLoop:
     """Owns the turn. Invokes the driver only at the points R8 defines."""
@@ -215,6 +252,21 @@ class TurnLoop:
             raise NarrationOwed(
                 f"{actor_id!r} owes a narration for its previous Ruling. R29 refuses the next "
                 "declaration until it is submitted, so a turn cannot quietly advance past one"
+            )
+
+        # 0027 clause 4. The symmetric guard to `advanced_turn` refusing while an
+        # end-of-turn obligation is owed (0023 clause 6) — and it cannot live there, because
+        # by the time the pointer has moved the incoming creature's start-of-turn
+        # obligations are *newly* due rather than overdue. Refusing the declaration is what
+        # makes the skip structurally impossible rather than merely serviced by well-behaved
+        # callers: a creature that must roll a death save before acting cannot act first.
+        outstanding = self.start_turn_obligations(state, actor_id)
+        if outstanding:
+            owed = ", ".join(o.label for o in outstanding)
+            raise ObligationOwed(
+                f"{actor_id!r} owes the start of its turn before it may act: {owed}. "
+                "Run TurnLoop.start_turn first — the obligation is derived from state and "
+                "is not the creature's to decline"
             )
 
         offered = read(state, actor_id)
@@ -263,28 +315,107 @@ class TurnLoop:
 
     # --- The turn's end: a phase the loop owns (0023) ---------------------------------
 
-    def obligations(self, state: EncounterState, actor_id: str) -> tuple[Obligation, ...]:
-        """Every obligation the end of this creature's turn incurs, read off state.
+    def start_turn_obligations(
+        self, state: EncounterState, actor_id: str
+    ) -> tuple[Obligation, ...]:
+        """Every obligation the **start** of this creature's turn incurs (0027 clause 1).
 
-        Only save-ends, and the **death save does not belong here at all**. p. 17 says the
-        save is made when a creature *starts* its turn at 0 hit points; this is the turn's
-        **end** (0023). The two obligations do not share a phase.
+        The death save, and nothing else yet. p. 17: "Whenever you start your turn with 0
+        Hit Points, you must make a Death Saving Throw." That is the start of a turn, not
+        its end, and 0023 declined to place it from memory rather than assume it matched
+        save-ends' timing. Had it assumed, the save would have been rolled at the wrong
+        moment and looked correct doing it.
 
-        That sentence was missing from this repository until #124, and 0023 refused to
-        supply it from memory rather than assume it matched save-ends' timing. Had it
-        assumed, the save would have landed here — in the wrong phase, rolled at the wrong
-        moment, and indistinguishable from correct to anyone reading the code. The clause
-        is now asserted in `scripts/verify_d20_rules.py`.
+        Burning (p. 178) fires here too and is not built — it needs per-creature hazard
+        state, which is 0027 clause 5 and #140.
 
-        What is still missing is the phase, not the sentence: nothing consults `core.death`
-        at the start of a turn because no such phase exists. #124 carries that design
-        question.
+        Scoped to this occasion rather than taking one as an argument (0027 clause 3): a
+        single enumerator returning obligations tagged with their occasion puts the occasion
+        back in the data, which is the shape clause 2 refuses.
+        """
+        if not state.has(actor_id):
+            return ()
+        actor = state.combatant(actor_id)
+        if not actor.makes_death_saves:
+            return ()
+        if (actor_id, DEATH_SAVE_RULE_ID) in state.discharged:
+            return ()
+        return (
+            Obligation(
+                actor_id=actor_id,
+                rule_id=DEATH_SAVE_RULE_ID,
+                label="makes a death saving throw, starting its turn at 0 hit points (p. 17)",
+            ),
+        )
+
+    def end_turn_obligations(self, state: EncounterState, actor_id: str) -> tuple[Obligation, ...]:
+        """Every obligation the **end** of this creature's turn incurs, read off state.
+
+        Save-ends only. The death save is not here and never was: p. 17 puts it at the
+        turn's start, which is `start_turn_obligations`. Suffocation (p. 189) belongs here
+        and is not built — #140.
         """
         if not state.has(actor_id):
             return ()
         return tuple(
-            Obligation(actor_id=actor_id, condition=condition, rule_id=save_ends_rule_id(condition))
+            Obligation(
+                actor_id=actor_id,
+                rule_id=save_ends_rule_id(condition),
+                label=f"repeats the save that ends {condition.value} (p. 63)",
+            )
             for condition in state.obligations_outstanding(actor_id)
+        )
+
+    def start_turn(
+        self, state: EncounterState, actor_id: str
+    ) -> Generator[Request, Response, TurnStart]:
+        """Resolve every obligation the start of this creature's turn incurs (0027 clause 1).
+
+        The caller runs this, then `run` — which refuses until it has, so the ordering is
+        enforced rather than documented. That is 0023 clause 1's shape one phase earlier,
+        and clauses 2 and 3 of that record hold unchanged: each obligation goes through the
+        **one adjudication entry point**, the engine rolls it (R1, R4), and each ruling
+        yields a `NarrationRequest` so R29's bounds reach the narrator exactly as they do
+        for a declared action.
+
+        Nothing here creates a second path to an outcome. It creates a third *occasion* on
+        which the existing path is taken.
+
+        **This is not the adapters' `begin_turn`**, which maps to `run` and opens a
+        declaration slot. 0027 clause 1 names that collision because the two would read as
+        the same thing.
+        """
+        rulings: list[Ruling] = []
+        narrations: list[str | None] = []
+        unresolvable: list[Obligation] = []
+
+        # Re-read each time, as `end_turn` does: an obligation resolved may change what is
+        # outstanding, and a list snapshotted up front would keep rolling for one that has
+        # already gone.
+        while True:
+            pending = self.start_turn_obligations(state, actor_id)
+            if not pending:
+                break
+            obligation = pending[0]
+
+            ruling, state = self.adjudicator.adjudicate(state, _obligation_declaration(obligation))
+            # Discharged whether it succeeded, failed, or was refused. p. 17 gives one death
+            # save per turn either way, and an obligation that stayed outstanding after a
+            # rejection would spin this loop forever.
+            state = state.with_obligation_discharged(actor_id, obligation.rule_id)
+
+            if ruling.status is Status.REJECTED:
+                unresolvable.append(obligation)
+                continue
+
+            rulings.append(ruling)
+            narrations.append((yield from self._narrate(actor_id, ruling)))
+
+        return TurnStart(
+            state=state,
+            rulings=tuple(rulings),
+            narrations=tuple(narrations),
+            unresolvable=tuple(unresolvable),
         )
 
     def end_turn(
@@ -315,7 +446,7 @@ class TurnLoop:
         # an obligation list snapshotted up front would keep rolling for a condition that
         # has already gone.
         while True:
-            pending = self.obligations(state, actor_id)
+            pending = self.end_turn_obligations(state, actor_id)
             if not pending:
                 break
             obligation = pending[0]
@@ -324,7 +455,7 @@ class TurnLoop:
             # Discharged whether it succeeded, failed, or was refused. p. 63 gives one
             # attempt per turn, and a rejected obligation that stayed outstanding would
             # spin this loop forever.
-            state = state.with_obligation_discharged(actor_id, obligation.condition)
+            state = state.with_obligation_discharged(actor_id, obligation.rule_id)
 
             if ruling.status is Status.REJECTED:
                 unresolvable.append(obligation)

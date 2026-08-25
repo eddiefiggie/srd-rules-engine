@@ -262,7 +262,7 @@ def render(pending: Pending) -> str:
     if isinstance(pending, TurnEnded):
         ended = pending.ended
         unresolvable = "".join(
-            f"\n  unresolvable: {o.condition} has no rule {o.rule_id!r} in this ruleset"
+            f"\n  unresolvable: {o.label} — no rule {o.rule_id!r} in this ruleset"
             for o in ended.unresolvable
         )
         return (

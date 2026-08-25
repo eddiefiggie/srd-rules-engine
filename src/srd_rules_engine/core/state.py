@@ -33,7 +33,7 @@ from srd_rules_engine.core.clock import (
     Clock,
     stable_recovery_minute,
 )
-from srd_rules_engine.core.conditions import Condition, Conditions
+from srd_rules_engine.core.conditions import Condition, Conditions, save_ends_rule_id
 from srd_rules_engine.core.damage import (
     DamageOutcome,
     DamageType,
@@ -244,9 +244,14 @@ class EncounterState:
     #: wrong one for a dungeon. The engine cannot tell those apart and does not pretend to;
     #: what 0026 changed is only *who* may say so, and when.
     obstructions: tuple[Obstruction, ...] = ()
-    #: Obligations already discharged during the current turn, as `(actor_id, condition)`
+    #: Obligations already discharged during the current turn, as `(actor_id, rule_id)`
     #: (0023 clause 6, #110). Cleared by `advanced_turn`, because an obligation is owed
     #: once per turn rather than once per encounter.
+    #:
+    #: Keyed by **rule id** rather than by condition since 0027 clause 2. A death save has
+    #: no condition and Burning is not one of the fifteen, so the condition was the wrong
+    #: key for two of the three things that discharge here — and one set covers both the
+    #: turn's start and its end, because `advanced_turn` clears it between turns.
     #:
     #: This exists because "is an obligation outstanding" is *not* the same question as
     #: "does the creature still hold a save-ends condition". A **failed** save leaves the
@@ -294,7 +299,7 @@ class EncounterState:
         due = self.combatant(combatant_id).conditions.saves_due_after(combatant_id)
         return tuple(
             sorted(
-                (c for c in due if (combatant_id, c.value) not in self.discharged),
+                (c for c in due if (combatant_id, save_ends_rule_id(c)) not in self.discharged),
                 key=lambda c: c.value,
             )
         )
@@ -326,14 +331,17 @@ class EncounterState:
             and not line_is_blocked(area.origin, participant.position, self.obstructions)
         )
 
-    def with_obligation_discharged(self, combatant_id: str, condition: Condition) -> EncounterState:
-        """Record that this turn's repeated save for that condition has been rolled.
+    def with_obligation_discharged(self, combatant_id: str, rule_id: str) -> EncounterState:
+        """Record that this turn's obligation under that rule has been rolled.
 
-        Discharge is about the *save having happened*, not about its outcome. A failed save
-        discharges the obligation exactly as a successful one does, because p. 63 gives one
-        attempt per turn either way.
+        Discharge is about the *obligation having been met*, not about its outcome. A failed
+        save discharges it exactly as a successful one does, because p. 63 gives one attempt
+        per turn either way — and a death save that fails is still a death save made.
+
+        Keyed by rule id (0027 clause 2): the two other things that discharge here have no
+        condition to be keyed by.
         """
-        return self._evolve(discharged=self.discharged | {(combatant_id, condition.value)})
+        return self._evolve(discharged=self.discharged | {(combatant_id, rule_id)})
 
     # --- Evolving -----------------------------------------------------------------
 
