@@ -21,7 +21,6 @@ Closes #
 - [ ] Deferrals introduced by this PR are filed as issues and linked in the prose
 - [ ] Build stamp bumped in `src/srd_rules_engine/__init__.py`, and README's
       `**Current build:**` line updated to match and to say what shipped
-- [ ] `CHANGELOG.md` records this build
 
 ## Anything a reviewer should push back on
 

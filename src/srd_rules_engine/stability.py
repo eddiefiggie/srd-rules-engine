@@ -14,8 +14,9 @@ API at all**.
   removed name stays importable for at least one `API_VERSION` with a `DeprecationWarning`
   naming its replacement.
 * **Provisional** — the MCP tool names and their argument schemas. Named, documented, and
-  expected to move; a change is recorded in the changelog and raises nothing. The `Session`
-  underneath them *is* committed, so a consumer wanting stability builds on that.
+  expected to move; a change is recorded in README's `**Current build:**` line (0024) and raises
+  nothing. The `Session` underneath them *is* committed, so a consumer wanting stability builds
+  on that.
 * **Internal** — everything else. Importable, unpromised.
 
 ## `API_VERSION` is not a smaller semver
@@ -106,8 +107,8 @@ COMMITTED: Final[tuple[str, ...]] = (
     "srd_rules_engine.core.read",
 )
 
-#: Surfaces named and documented but expected to move. A change here is a changelog entry,
-#: not an `API_VERSION` bump.
+#: Surfaces named and documented but expected to move. A change here is recorded in README's
+#: build line (0024), not an `API_VERSION` bump.
 PROVISIONAL: Final[tuple[str, ...]] = (
     "srd_rules_engine.adapters.mcp.TOOL_NAMES",
     "srd_rules_engine.adapters.cli.COMMAND_NAMES",

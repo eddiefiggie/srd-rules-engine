@@ -1,10 +1,20 @@
-# Changelog
+# Changelog — retired
 
-Builds are stamped `mmddyyyy.x` — the date they were produced, plus that day's iteration. The
-stamp lives in `src/srd_rules_engine/__init__.py`; `tests/test_build_stamp.py` fails CI when
-README.md's `**Current build:**` line drifts from it.
+**This file is no longer maintained, and nothing is appended to it.** It stops at build
+`08232026.36` (#115). Fourteen builds after that were never recorded here — including the CLI
+(#136) and HTTP (#137) adapters — and they are deliberately not backfilled.
 
-Nothing is released yet. Entries below record builds, not releases.
+**The build record is README.md's `**Current build:**` line**, which carries the same per-build
+prose, is the first thing a reader meets, and is guarded at both of its stamps by
+`tests/test_build_stamp.py`. `git log` carries the rest.
+[Decision 0024](docs/decisions/0024-the-build-line-is-the-build-record.md) records why, including
+what it costs ([#146](https://github.com/eddiefiggie/srd-rules-engine/issues/146)).
+
+If you are here because something promised you a changelog entry, that promise is stale — say so
+rather than reviving the file. `tests/test_changelog_is_retired.py` refuses new ones.
+
+The 65 entries below are real history and stay readable. Builds are stamped `mmddyyyy.x` — the date
+they were produced, plus that day's iteration.
 
 ## Unreleased — 2026-08-23 — build `08232026.36`
 
