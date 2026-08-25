@@ -143,3 +143,56 @@ def test_the_module_discloses_what_the_document_does_not_supply() -> None:
     assert obstructions.__doc__ is not None
     assert "supplies no method for measuring what" in obstructions.__doc__
     assert "axis-aligned boxes" in obstructions.__doc__
+
+
+# --- One box, carried by both (0026 clause 3, #161) -----------------------------------
+
+
+def test_both_kinds_of_terrain_are_the_same_box() -> None:
+    """The duplication #161 removed, asserted as a fact about the types.
+
+    `Obstruction` and `LitVolume` held identical copies of the corners, the normalisation
+    and `contains`. They were kept apart on purpose while the two kinds of terrain entered
+    the engine by different routes — unifying then would have picked the answer to that
+    question by accident. 0026 settled the route and #160 put it in the tree.
+    """
+    from srd_rules_engine.core.position import Box
+    from srd_rules_engine.core.sight import LitVolume
+
+    assert issubclass(Obstruction, Box)
+    assert issubclass(LitVolume, Box)
+
+
+def test_neither_type_redefines_the_shared_geometry() -> None:
+    """Inheriting the box is only a fix while neither subclass shadows it.
+
+    A re-declared `contains` or `__post_init__` would be the duplication back, passing the
+    subclass check above while the corner normalisation drifted between the two — which is
+    exactly the silent divergence extracting the box was meant to end.
+    """
+    from srd_rules_engine.core.position import Box
+    from srd_rules_engine.core.sight import LitVolume
+
+    for shared in ("contains", "__post_init__"):
+        for owner in (Obstruction, LitVolume):
+            assert shared not in vars(owner), (
+                f"{owner.__name__} redefines {shared}, so the geometry is duplicated again "
+                f"and can drift from {Box.__name__}"
+            )
+
+
+def test_the_normalisation_holds_for_a_lit_volume_too() -> None:
+    """The behavioural half: sharing the box must not change what a `LitVolume` does.
+
+    **This is a deliberate "nothing changed" guard** — `AGENTS.md`'s named exception to
+    proving a new test red against the pre-change tree. It passes against the base commit,
+    because `LitVolume` normalised its corners there too, from its own copy of the code.
+    That is the point: it pins the behaviour across the extraction rather than covering it.
+    The tests that *do* cover the diff are the two above, and both are red against base.
+    """
+    from srd_rules_engine.core.sight import LightLevel, LitVolume
+
+    volume = LitVolume(lo=Position(12, 20, 20), hi=Position(10, -20, 0), level=LightLevel.DIM)
+    assert volume.lo == Position(10, -20, 0)
+    assert volume.hi == Position(12, 20, 20)
+    assert volume.contains(Position(11, 0, 10))

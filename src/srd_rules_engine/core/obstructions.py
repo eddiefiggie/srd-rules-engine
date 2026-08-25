@@ -50,7 +50,7 @@ from enum import StrEnum
 from fractions import Fraction
 from typing import Final
 
-from srd_rules_engine.core.position import Position
+from srd_rules_engine.core.position import Box, Position
 from srd_rules_engine.core.rules import (
     Verification,
     VerificationMethod,
@@ -106,32 +106,13 @@ def most_protective(degrees: Iterable[Cover]) -> Cover:
 
 
 @dataclass(frozen=True)
-class Obstruction:
-    """An axis-aligned box in feet that provides Total Cover.
+class Obstruction(Box):
+    """A `Box` in feet that provides Total Cover.
 
-    `lo` and `hi` are opposite corners; the constructor does not care which way round they
-    were given, because a caller describing a wall should not have to sort its corners.
+    It adds one thing to the box: `blocks`. The corners, their normalisation and `contains`
+    are the box's, shared with `LitVolume` since #161 — the same geometry, two different
+    facts about it.
     """
-
-    lo: Position
-    hi: Position
-
-    def __post_init__(self) -> None:
-        low = Position(
-            min(self.lo.x, self.hi.x), min(self.lo.y, self.hi.y), min(self.lo.z, self.hi.z)
-        )
-        high = Position(
-            max(self.lo.x, self.hi.x), max(self.lo.y, self.hi.y), max(self.lo.z, self.hi.z)
-        )
-        object.__setattr__(self, "lo", low)
-        object.__setattr__(self, "hi", high)
-
-    def contains(self, point: Position) -> bool:
-        return (
-            self.lo.x <= point.x <= self.hi.x
-            and self.lo.y <= point.y <= self.hi.y
-            and self.lo.z <= point.z <= self.hi.z
-        )
 
     def blocks(self, start: Position, end: Position) -> bool:
         """Whether the segment from `start` to `end` passes through this box.
