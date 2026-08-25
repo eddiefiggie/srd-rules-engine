@@ -47,6 +47,7 @@ from srd_rules_engine.core.canonical import CanonicalizationError, digest
 from srd_rules_engine.core.conditions import Condition
 from srd_rules_engine.core.d20 import Advantage
 from srd_rules_engine.core.position import distance_feet
+from srd_rules_engine.core.sight import LightLevel, Senses
 from srd_rules_engine.core.state import Combatant, EncounterState
 
 #: Marks the token's encoding. An unrecognised prefix yields `unread` rather than an
@@ -165,6 +166,15 @@ class Situation:
     #: engine's, applied by `EncounterState.with_time_passed`.
     minutes_until_recovery: int | None
     #: Rules the engine holds but does not enforce, named rather than left to discovery.
+    #: The light where this creature is standing, or `None` when nobody has stated one or
+    #: the encounter tracks no positions (0025 clause 7). Reported rather than resolved:
+    #: what the level *means* for this creature is the table #150 has not filled, so the
+    #: surface states the input and declines the conclusion.
+    light_level: LightLevel | None
+    #: This creature's special senses, as ranges in feet. Reported for the same reason and
+    #: with the same limit — a range the engine cannot yet apply is still a fact the agent
+    #: is entitled to know it has.
+    senses: Senses
     unenforced_clauses: tuple[str, ...]
 
 
@@ -325,6 +335,10 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
             if actor.death_saves.recovers_at_minute is not None
             else None
         ),
+        light_level=(
+            state.lighting.level_at(actor.position) if actor.position is not None else None
+        ),
+        senses=actor.senses,
         unenforced_clauses=tuple(unenforced),
     )
 

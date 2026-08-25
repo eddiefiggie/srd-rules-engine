@@ -55,6 +55,7 @@ from srd_rules_engine.core.position import (
     distance_feet,
     movement_cost,
 )
+from srd_rules_engine.core.sight import Lighting, Senses
 from srd_rules_engine.core.spellcasting import SpellSlots
 
 #: p. 17: "On your third success, you become Stable... On your third failure, you die."
@@ -124,6 +125,10 @@ class Combatant:
     #: surface then simply cannot answer a range question, which is the honest result.
     position: Position | None = None
     speeds: Speeds = field(default_factory=Speeds)
+    #: Special senses, each a range in feet (0025 clause 3). The default is a creature with
+    #: none, which is not the same as a creature whose senses nobody recorded — the engine
+    #: cannot tell those apart and does not pretend to.
+    senses: Senses = field(default_factory=Senses)
     #: p. 186: "A creature has a reach of 5 feet unless a rule says otherwise."
     reach: int = DEFAULT_REACH_FEET
     #: Movement spent this turn. Reset when the turn advances, not carried.
@@ -221,6 +226,12 @@ class EncounterState:
     #: convert into it — p. 13 says a round represents *about* 6 seconds, which is the
     #: document declining an exact conversion. `core.clock` has the reasoning.
     clock: Clock = field(default_factory=Clock)
+    #: Where the light is (0025 clause 2). It rides on the state rather than arriving as an
+    #: argument to a query, because an input the caller supplies at the moment an outcome is
+    #: computed is an input the caller chooses — and Bright Light versus Darkness is
+    #: Advantage versus Disadvantage. The default states no light at all, so a query about it
+    #: refuses rather than assuming daylight.
+    lighting: Lighting = field(default_factory=Lighting)
     #: Obligations already discharged during the current turn, as `(actor_id, condition)`
     #: (0023 clause 6, #110). Cleared by `advanced_turn`, because an obligation is owed
     #: once per turn rather than once per encounter.

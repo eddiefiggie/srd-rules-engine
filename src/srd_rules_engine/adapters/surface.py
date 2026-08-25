@@ -197,4 +197,19 @@ def situation_payload(situation: object) -> dict[str, Any] | None:
         str(c): {"ability": ability, "dc": dc}
         for c, (ability, dc) in situation.saves_due.items()  # type: ignore[attr-defined]
     }
+    # 0020's two clock fields were on the read surface and on no transport, so an agent
+    # driving through an adapter could not see elapsed campaign time at all — including the
+    # countdown a Stable creature recovers on. Found by the completeness guard in
+    # tests/test_adapters.py, not by playing.
+    out["elapsed_minutes"] = situation.elapsed_minutes  # type: ignore[attr-defined]
+    out["minutes_until_recovery"] = situation.minutes_until_recovery  # type: ignore[attr-defined]
+    # 0025 clause 7. The level is stated and its *meaning* is not, because the table that
+    # would resolve it is empty until #150 — so the payload carries the input rather than a
+    # conclusion the engine has not earned.
+    light = situation.light_level  # type: ignore[attr-defined]
+    out["light_level"] = None if light is None else str(light)
+    out["senses"] = {
+        str(sense): situation.senses.range_of(sense)  # type: ignore[attr-defined]
+        for sense in situation.senses.held  # type: ignore[attr-defined]
+    }
     return out
