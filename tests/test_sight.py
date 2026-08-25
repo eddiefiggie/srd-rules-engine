@@ -156,7 +156,9 @@ def test_ambient_covers_everywhere_no_volume_does() -> None:
 def test_a_volume_overrides_the_ambient_inside_it_and_nowhere_else() -> None:
     lighting = Lighting(
         ambient=LightLevel.DARKNESS,
-        volumes=(LitVolume(LightLevel.BRIGHT, Position(0, 0, 0), Position(10, 10, 10)),),
+        volumes=(
+            LitVolume(lo=Position(0, 0, 0), hi=Position(10, 10, 10), level=LightLevel.BRIGHT),
+        ),
     )
     assert lighting.level_at(Position(5, 5, 5)) is LightLevel.BRIGHT
     assert lighting.level_at(Position(11, 5, 5)) is LightLevel.DARKNESS
@@ -165,8 +167,8 @@ def test_a_volume_overrides_the_ambient_inside_it_and_nowhere_else() -> None:
 def test_the_last_overlapping_volume_wins() -> None:
     """An engine convention, disclosed as one: the document supplies no precedence rule for
     overlapping light, so a caller layering a torch inside a dark room writes it second."""
-    room = LitVolume(LightLevel.DARKNESS, Position(0, 0, 0), Position(30, 30, 10))
-    torch = LitVolume(LightLevel.BRIGHT, Position(10, 10, 0), Position(20, 20, 10))
+    room = LitVolume(lo=Position(0, 0, 0), hi=Position(30, 30, 10), level=LightLevel.DARKNESS)
+    torch = LitVolume(lo=Position(10, 10, 0), hi=Position(20, 20, 10), level=LightLevel.BRIGHT)
     assert Lighting(volumes=(room, torch)).level_at(Position(15, 15, 5)) is LightLevel.BRIGHT
     assert Lighting(volumes=(torch, room)).level_at(Position(15, 15, 5)) is LightLevel.DARKNESS
 
@@ -174,14 +176,14 @@ def test_the_last_overlapping_volume_wins() -> None:
 def test_a_volume_does_not_care_which_corners_it_was_given() -> None:
     """A caller describing a room should not have to sort its corners — the rule
     `Obstruction` already follows."""
-    volume = LitVolume(LightLevel.BRIGHT, Position(10, 10, 10), Position(0, 0, 0))
+    volume = LitVolume(lo=Position(10, 10, 10), hi=Position(0, 0, 0), level=LightLevel.BRIGHT)
     assert volume.contains(Position(5, 5, 5))
     assert volume.lo == Position(0, 0, 0)
     assert volume.hi == Position(10, 10, 10)
 
 
 def test_a_volume_includes_its_faces() -> None:
-    volume = LitVolume(LightLevel.DIM, Position(0, 0, 0), Position(10, 10, 10))
+    volume = LitVolume(lo=Position(0, 0, 0), hi=Position(10, 10, 10), level=LightLevel.DIM)
     assert volume.contains(Position(0, 0, 0))
     assert volume.contains(Position(10, 10, 10))
     assert not volume.contains(Position(10, 10, 11))
@@ -202,7 +204,9 @@ def test_the_situation_reports_the_light_where_the_actor_stands() -> None:
     state = _state_with(
         Lighting(
             ambient=LightLevel.DARKNESS,
-            volumes=(LitVolume(LightLevel.BRIGHT, Position(0, 0, 0), Position(10, 10, 10)),),
+            volumes=(
+                LitVolume(lo=Position(0, 0, 0), hi=Position(10, 10, 10), level=LightLevel.BRIGHT),
+            ),
         ),
         senses=DARKVISION_60,
         position=Position(5, 5, 5),

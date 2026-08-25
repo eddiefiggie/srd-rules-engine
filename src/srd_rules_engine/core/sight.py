@@ -61,20 +61,22 @@ It is filed as a `sense` in the inventory and is not part of this chain: nothing
 obscurement or line of sight changes what it does (0025 clause 1). `kind` is a filing label
 rather than a model (0019), and Telepathy's own consumer is #149.
 
-## The box, and why there are two of them
+## The box, and why there is one of it
 
-`LitVolume` carries the same axis-aligned box as `core.obstructions.Obstruction`, including
-the corner normalisation, rather than sharing one. They are not unified *yet*: the seam
-that justified the duplication is settled — decision
-[0026](../../../docs/decisions/0026-terrain-enters-as-state.md) puts both kinds of terrain
-on state — so the reason has lapsed and only the work remains.
-Extracting the shared box is [#161](https://github.com/eddiefiggie/srd-rules-engine/issues/161),
-now unblocked: [#160](https://github.com/eddiefiggie/srd-rules-engine/issues/160) has moved
-obstructions onto `EncounterState`, so both kinds of terrain are state in the tree and not
-only in the record.
+`LitVolume` is a `core.position.Box`, and so is `core.obstructions.Obstruction`. The corners,
+their normalisation and `contains` live once; each type adds the one thing that makes it
+itself — a `level` here, `blocks` there.
 
-Unifying the geometry would not unify the meaning: a volume that emits light and a volume
-that blocks a line stay distinct types, and only the box and its normalisation are shared.
+They were two identical copies until #161, kept apart deliberately: the geometry could not be
+unified while the two kinds of terrain entered the engine by different routes, because
+choosing a shared shape would have been picking the answer to that question by accident.
+[0026](../../../docs/decisions/0026-terrain-enters-as-state.md) settled the route — both are
+state — and #160 put it in the tree, at which point the reason lapsed and only the work
+remained.
+
+**Unifying the geometry did not unify the meaning.** A volume that emits light and a volume
+that blocks a line are still distinct types; what is shared is a shape with no opinion about
+what occupying it does.
 """
 
 from __future__ import annotations
@@ -85,7 +87,7 @@ from enum import StrEnum
 from types import MappingProxyType
 from typing import Final
 
-from srd_rules_engine.core.position import Position
+from srd_rules_engine.core.position import Box, Position
 from srd_rules_engine.core.rules import Verification, VerificationState
 
 
@@ -156,34 +158,16 @@ class Senses:
 
 
 @dataclass(frozen=True)
-class LitVolume:
-    """An axis-aligned box in feet holding one light level.
+class LitVolume(Box):
+    """A `Box` in feet holding one light level.
 
-    `lo` and `hi` are opposite corners and the constructor does not care which way round
-    they were given, for the reason `Obstruction` gives: a caller describing a room should
-    not have to sort its corners.
+    It adds one thing to the box: `level`. The corners, their normalisation and `contains`
+    are the box's, shared with `Obstruction` since #161. `level` comes last because the
+    box's own fields come first, so construct it by keyword — the corners and the level
+    read better named than positioned.
     """
 
     level: LightLevel
-    lo: Position
-    hi: Position
-
-    def __post_init__(self) -> None:
-        low = Position(
-            min(self.lo.x, self.hi.x), min(self.lo.y, self.hi.y), min(self.lo.z, self.hi.z)
-        )
-        high = Position(
-            max(self.lo.x, self.hi.x), max(self.lo.y, self.hi.y), max(self.lo.z, self.hi.z)
-        )
-        object.__setattr__(self, "lo", low)
-        object.__setattr__(self, "hi", high)
-
-    def contains(self, point: Position) -> bool:
-        return (
-            self.lo.x <= point.x <= self.hi.x
-            and self.lo.y <= point.y <= self.hi.y
-            and self.lo.z <= point.z <= self.hi.z
-        )
 
 
 @dataclass(frozen=True)

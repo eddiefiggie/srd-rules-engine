@@ -77,6 +77,50 @@ class Position:
     z: int = 0
 
 
+@dataclass(frozen=True)
+class Box:
+    """An axis-aligned box in feet, given by two opposite corners.
+
+    The corners are normalised on construction, so `lo` always holds the minimum of each
+    axis and `hi` the maximum: a caller describing a wall or a lit room should not have to
+    sort its corners first, and every reader downstream can rely on the ordering without
+    re-checking it.
+
+    **This is a shape, not a meaning.** It carries no opinion about what occupying that
+    volume does — blocking a line and holding a light level are different facts about the
+    same geometry, and they stay different types (`Obstruction` and `LitVolume`). What is
+    shared is the box and its normalisation, which existed as two identical copies until
+    [#161](https://github.com/eddiefiggie/srd-rules-engine/issues/161); the reason they were
+    kept apart lapsed when [0026](../../../docs/decisions/0026-terrain-enters-as-state.md)
+    settled that both kinds of terrain enter the engine as state.
+
+    Integer arithmetic throughout, like everything built on
+    [0014](../../../docs/decisions/0014-positional-state.md): no boundary is decided by a
+    rounded value.
+    """
+
+    lo: Position
+    hi: Position
+
+    def __post_init__(self) -> None:
+        low = Position(
+            min(self.lo.x, self.hi.x), min(self.lo.y, self.hi.y), min(self.lo.z, self.hi.z)
+        )
+        high = Position(
+            max(self.lo.x, self.hi.x), max(self.lo.y, self.hi.y), max(self.lo.z, self.hi.z)
+        )
+        object.__setattr__(self, "lo", low)
+        object.__setattr__(self, "hi", high)
+
+    def contains(self, point: Position) -> bool:
+        """Whether the point is inside, faces included."""
+        return (
+            self.lo.x <= point.x <= self.hi.x
+            and self.lo.y <= point.y <= self.hi.y
+            and self.lo.z <= point.z <= self.hi.z
+        )
+
+
 class MovementMode(StrEnum):
     """How a creature is moving, because the cost differs by mode."""
 
