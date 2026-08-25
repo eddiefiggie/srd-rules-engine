@@ -171,15 +171,21 @@ tree, and one of them turned out to be already decided:
 | 1 — Telepathy is not in this subsystem | Built as an absence: `Sense` has no Telepathy member and `tests/test_sight.py` asserts it. Its own consumer is [#149](https://github.com/eddiefiggie/srd-rules-engine/issues/149) |
 | 2 — light is state | `EncounterState.lighting`, with `Lighting.ambient` and `LitVolume`. `None` ambient means nobody has stated a level, not Bright Light |
 | 3 — senses are per-creature state | `Combatant.senses`, shaped like `Speeds`, with `None` distinct from a range of 0 |
-| 4 — visibility is derived | The seam exists as `obscurement_at` and `can_see`; both refuse. Nothing is stored |
-| 5 — the table ships empty and refusing | `SIGHT_VERIFICATION` is `unverified`, both tables carry no rows, and a guard fails if a row appears while the state has not moved. The reading is [#150](https://github.com/eddiefiggie/srd-rules-engine/issues/150) |
+| 4 — visibility is derived | `obscurement_at` now derives, and stores nothing. `can_see` still refuses — Blindsight's bound is Total Cover, which is `EncounterState` geometry since 0026, so the question needs a shape this signature cannot express ([#166](https://github.com/eddiefiggie/srd-rules-engine/issues/166)). **p. 182 settled the open half of clause 4**: Blinded holds *while trying to see something* in the space, so it is scoped to the attempt — a relation per observer and target, never a condition written to state |
+| 5 — the table ships empty and refusing | **Discharged.** [#150](https://github.com/eddiefiggie/srd-rules-engine/issues/150) read the nine pages; all are clauses in `scripts/verify_d20_rules.py`, `SIGHT_VERIFICATION` is `verified`, and both tables carry rows. The guard inverted rather than being deleted — a table filled while the state said `unverified` is still the defect it was watching for |
 | 6 — no new triggers | Nothing to build. `core.triggers` is untouched |
 | 7 — the read surface reports the input | `Situation.light_level` and `Situation.senses`, and all three transports render them |
 | The obstruction seam, deliberately left inconsistent | **Settled** by [0026](0026-terrain-enters-as-state.md): both kinds of terrain are state. [#151](https://github.com/eddiefiggie/srd-rules-engine/issues/151) is closed; the implementation is [#160](https://github.com/eddiefiggie/srd-rules-engine/issues/160) and [#161](https://github.com/eddiefiggie/srd-rules-engine/issues/161) |
 
-**No effect shape is resolved by any of it**, and none is marked implemented: the engine can hold
-a creature's Darkvision and still cannot say what it does. Coverage stays at 76 of 211, and #138
-stays open for the nine shapes.
+**Still no effect shape is resolved**, and none is marked implemented. The engine can now say
+what Darkvision does to a light level — but nothing consumes the answer: no roll is modified,
+`can_see` refuses, and the penalties Lightly and Heavily Obscured carry (Disadvantage on
+Perception; Blinded while trying to see) are computed nowhere. That is the `opportunity-attacks`
+argument applied here — a value nothing reads has resolved nothing. Coverage stays at 76 of 211,
+and #138 stays open for the nine shapes.
+
+_Updated 2026-08-25 when [#150](https://github.com/eddiefiggie/srd-rules-engine/issues/150)
+landed, discharging clause 5 and half of clause 4._
 
 _Updated 2026-08-24 while implementing the structural half of [#138](https://github.com/eddiefiggie/srd-rules-engine/issues/138). This record
 shipped saying "None. Nothing in clauses 1-7 is built", which was true for about a day — the

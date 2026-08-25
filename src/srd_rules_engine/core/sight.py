@@ -88,7 +88,11 @@ from types import MappingProxyType
 from typing import Final
 
 from srd_rules_engine.core.position import Box, Position
-from srd_rules_engine.core.rules import Verification, VerificationState
+from srd_rules_engine.core.rules import (
+    Verification,
+    VerificationMethod,
+    VerificationState,
+)
 
 
 class SightUnverified(RuntimeError):
@@ -196,25 +200,62 @@ class Lighting:
         return self.ambient
 
 
-#: R31/0025 clause 5. The mapping from light and sense to obscurement is nine rule values at
-#: nine printed pages, none of them asserted in this repository. This stays `unverified`, the
-#: tables below stay empty, and the queries refuse — until #150 reads the document.
+#: R31/0025 clause 5, discharged. All nine pages are now clauses in
+#: `scripts/verify_d20_rules.py` (#150), so the tables below carry rows.
 SIGHT_VERIFICATION: Final = Verification(
-    state=VerificationState.UNVERIFIED,
-    reason=(
-        "The Rules Glossary pages for Blindsight (177), Bright Light (178), Darkvision and "
-        "Darkness (180), Dim Light (181), Heavily Obscured (182), Lightly Obscured (184), "
-        "and Tremorsense and Truesight (190) are asserted in no verification block and in no "
-        "clause of scripts/verify_d20_rules.py. Until they are, this engine states no "
-        "relationship between a light level, a sense and an obscurement (#150)."
+    state=VerificationState.VERIFIED,
+    reference=(
+        "SRD v5.2.1, Rules Glossary: Blindsight p. 177, Bright Light p. 178, Darkness and "
+        "Darkvision p. 180, Dim Light p. 181, Heavily Obscured p. 182, Lightly Obscured "
+        "p. 184, Tremorsense and Truesight p. 190"
     ),
+    date="2026-08-25",
+    method=VerificationMethod.ASSERTED,
 )
 
-#: What each light level obscures to, before any sense is applied. Empty until #150.
-OBSCUREMENT_BY_LIGHT: Final[Mapping[LightLevel, Obscurement]] = MappingProxyType({})
+#: What each light level obscures to, before any sense is applied.
+#:
+#: Dim Light and Darkness are not *related to* an obscurement by some further rule — the
+#: glossary says each **is** one ("An area with Dim Light is Lightly Obscured", p. 181; "An
+#: area of Darkness is Heavily Obscured", p. 180). Bright Light states no obscurement at all,
+#: only that it "is normal illumination" (p. 178), so `Obscurement.NONE` here is this engine's
+#: representation of an absence rather than a term the glossary defines — the same
+#: construction as `Cover.NONE`.
+OBSCUREMENT_BY_LIGHT: Final[Mapping[LightLevel, Obscurement]] = MappingProxyType(
+    {
+        LightLevel.BRIGHT: Obscurement.NONE,
+        LightLevel.DIM: Obscurement.LIGHTLY_OBSCURED,
+        LightLevel.DARKNESS: Obscurement.HEAVILY_OBSCURED,
+    }
+)
 
-#: How a sense re-reads a light level for the creature that has it. Empty until #150.
-SENSE_LIGHT_SHIFTS: Final[Mapping[Sense, Mapping[LightLevel, LightLevel]]] = MappingProxyType({})
+#: How a sense re-reads a light level for the creature that has it, within that sense's range.
+#:
+#: **Darkvision is the only sense that does this**, and that is the document's shape rather
+#: than an omission here. p. 180 gives it as a conversion — Dim Light seen "as if it were
+#: Bright Light", Darkness "as if it were Dim Light" — which is exactly a re-reading of the
+#: level. The other three senses do not convert anything:
+#:
+#: * **Blindsight** (p. 177) sees "without relying on physical sight" within its range, and
+#:   its bound is **Total Cover**, not illumination. It bypasses this chain rather than
+#:   shifting along it.
+#: * **Truesight** (p. 190) *pierces* Darkness — "You can see in normal and magical Darkness"
+#:   — rather than converting it to a lesser level.
+#: * **Tremorsense** (p. 190) "doesn't count as a form of sight", which the document says
+#:   outright. It is not in this chain at all.
+#:
+#: Modelling those three as light shifts would have been a wrong number that looked right.
+#: They need their own shape, which is #166.
+SENSE_LIGHT_SHIFTS: Final[Mapping[Sense, Mapping[LightLevel, LightLevel]]] = MappingProxyType(
+    {
+        Sense.DARKVISION: MappingProxyType(
+            {
+                LightLevel.DIM: LightLevel.BRIGHT,
+                LightLevel.DARKNESS: LightLevel.DIM,
+            }
+        ),
+    }
+)
 
 
 def _refuse(question: str) -> SightUnverified:
@@ -224,19 +265,53 @@ def _refuse(question: str) -> SightUnverified:
     )
 
 
-def obscurement_at(level: LightLevel, *, senses: Senses) -> Obscurement:
-    """What a light level obscures to for a creature with these senses.
+def effective_light(level: LightLevel, *, senses: Senses, distance_feet: int) -> LightLevel:
+    """The light level as a creature with these senses reads it, at this distance.
 
-    Refuses. The structure is here and the table is not, which is the whole of 0025 clause 5.
+    Darkvision converts within "a specified range" (p. 180), so the distance decides whether
+    the conversion applies at all — a creature with Darkvision 60 reads Darkness at 90 feet
+    as Darkness. That is why this takes a distance and `OBSCUREMENT_BY_LIGHT` does not.
+
+    Only one sense converts, so no two conversions can meet and the document supplies no rule
+    for combining them. `tests/test_sight.py` fails if a second is added, because that would
+    need a combining rule read off the document rather than invented here.
     """
-    raise _refuse("what a light level means for a creature's sight")
+    for sense, shifts in SENSE_LIGHT_SHIFTS.items():
+        reach = senses.range_of(sense)
+        if reach is not None and distance_feet <= reach:
+            return shifts.get(level, level)
+    return level
+
+
+def obscurement_at(level: LightLevel, *, senses: Senses, distance_feet: int) -> Obscurement:
+    """What a light level obscures to for this creature, at this distance.
+
+    The chain 0025 clause 4 described, now that #150 has read it: the sense re-reads the
+    level, and the level *is* the obscurement.
+    """
+    return OBSCUREMENT_BY_LIGHT[effective_light(level, senses=senses, distance_feet=distance_feet)]
 
 
 def can_see(observer_senses: Senses, *, at_level: LightLevel | None, distance_feet: int) -> bool:
     """Whether an observer can see a target at this distance in this light.
 
-    Refuses, for the same reason `obscurement_at` does. Note that it would refuse even with
-    the table filled when `at_level` is `None` — an unlit encounter is a question nobody has
-    answered rather than one this engine may answer for them.
+    **Still refuses, and now for a narrower reason than "the table is empty".** The
+    obscurement half is answerable — `obscurement_at` answers it — but visibility is not the
+    same question, and two of the four senses resolve it by a route this signature cannot
+    express:
+
+    * **Blindsight** sees anything "that isn't behind Total Cover" (p. 177). Total Cover is
+      geometry over the encounter's obstructions, which 0026 put on `EncounterState`. A
+      function taking only senses and a distance cannot answer it, and taking the walls as an
+      argument is the dial 0026 removed.
+    * **Truesight** pierces Darkness (p. 190) rather than converting it, so it does not reach
+      the answer through `effective_light` either.
+
+    Answering for the unaided case alone would be the more dangerous kind of half-truth: it
+    would return a confident `False` for a creature with Blindsight standing in the dark,
+    which is precisely backwards. #166 carries the shape this needs.
+
+    It would refuse for `at_level=None` regardless — an unlit encounter is a question nobody
+    has answered rather than one this engine may answer for them.
     """
     raise _refuse("whether a creature can see another")

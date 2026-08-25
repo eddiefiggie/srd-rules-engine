@@ -37,6 +37,7 @@ from srd_rules_engine.core.sight import (
     Senses,
     SightUnverified,
     can_see,
+    effective_light,
     obscurement_at,
 )
 from srd_rules_engine.core.state import Combatant, EncounterState
@@ -58,29 +59,95 @@ def _combatant(**kwargs: object) -> Combatant:
     return Combatant(**base)  # type: ignore[arg-type]
 
 
-# --- Clause 5: the rules are absent, and absent loudly ----------------------------
+# --- Clause 5: the rules are read, and every row traces to a page -----------------
 
 
-def test_no_row_may_be_added_while_the_pages_are_unread() -> None:
-    """The guard clause 5 exists for. R31: a rule value that reached the engine without
-    being read off the document is indistinguishable from one that was."""
-    assert SIGHT_VERIFICATION.state is VerificationState.UNVERIFIED
-    assert not OBSCUREMENT_BY_LIGHT, "a row exists while #150 is open — where did it come from?"
-    assert not SENSE_LIGHT_SHIFTS, "a row exists while #150 is open — where did it come from?"
+def test_a_row_may_exist_only_because_the_pages_were_read() -> None:
+    """The inverse of the guard clause 5 shipped with, now that #150 has read them.
+
+    R31 is unchanged: a rule value that reached the engine without being read off the
+    document is indistinguishable from one that was. What changed is which state is correct
+    — and the two must move together, so a table filled while the verification still said
+    `unverified` would be exactly the defect the original guard was watching for.
+    """
+    assert SIGHT_VERIFICATION.state is VerificationState.VERIFIED
+    assert OBSCUREMENT_BY_LIGHT, "the pages are read but no row exists"
+    assert SENSE_LIGHT_SHIFTS, "the pages are read but no sense converts anything"
 
 
-def test_the_unverified_state_says_what_is_missing() -> None:
-    """An exclusion with no reason is a silent drop wearing a label (R32)."""
-    assert SIGHT_VERIFICATION.reason is not None
-    assert "150" in SIGHT_VERIFICATION.reason
+def test_the_verification_names_every_page_a_row_rests_on() -> None:
+    """Nine shapes, seven pages. A block citing a range it does not rest on is the defect
+    #129 and #131 were filed for, and #150 would reproduce it at scale."""
+    reference = SIGHT_VERIFICATION.reference or ""
+    for page in ("p. 177", "p. 178", "p. 180", "p. 181", "p. 182", "p. 184", "p. 190"):
+        assert page in reference, f"{page} carries a row and is not cited"
 
 
-def test_asking_what_a_light_level_means_refuses() -> None:
-    with pytest.raises(SightUnverified, match="has not read off the document"):
-        obscurement_at(LightLevel.DARKNESS, senses=DARKVISION_60)
+def test_dim_light_is_lightly_obscured_and_darkness_is_heavily() -> None:
+    """p. 181 and p. 180. The glossary says each light level **is** an obscurement rather
+    than relating the two by some further rule, so this is a transcription, not a join."""
+    assert OBSCUREMENT_BY_LIGHT[LightLevel.DIM] is Obscurement.LIGHTLY_OBSCURED
+    assert OBSCUREMENT_BY_LIGHT[LightLevel.DARKNESS] is Obscurement.HEAVILY_OBSCURED
 
 
-def test_asking_whether_a_creature_can_see_refuses() -> None:
+def test_bright_light_obscures_nothing_and_that_is_this_engines_word() -> None:
+    """p. 178 says only that Bright Light "is normal illumination" — it names no
+    obscurement. `Obscurement.NONE` is this engine's absence, the same construction as
+    `Cover.NONE`, rather than a glossary term."""
+    assert OBSCUREMENT_BY_LIGHT[LightLevel.BRIGHT] is Obscurement.NONE
+
+
+def test_darkvision_converts_and_the_others_do_not() -> None:
+    """p. 180 gives Darkvision as a conversion; the other three resolve sight by routes that
+    are not conversions at all (#166). Modelling them here would be a wrong number that
+    looked right."""
+    assert SENSE_LIGHT_SHIFTS[Sense.DARKVISION][LightLevel.DIM] is LightLevel.BRIGHT
+    assert SENSE_LIGHT_SHIFTS[Sense.DARKVISION][LightLevel.DARKNESS] is LightLevel.DIM
+    assert set(SENSE_LIGHT_SHIFTS) == {Sense.DARKVISION}
+
+
+def test_a_second_converting_sense_would_need_a_combining_rule_first() -> None:
+    """`effective_light` returns on the first sense that converts, which is unambiguous only
+    while one sense converts. The document supplies no rule for combining two, so adding one
+    without reading that rule would make the answer depend on enum order."""
+    assert len(SENSE_LIGHT_SHIFTS) == 1, (
+        "a second converting sense exists. The document states no rule for combining two "
+        "conversions, so effective_light's first-match return is now an invented precedence "
+        "— read the combining rule off the document before adding it"
+    )
+
+
+def test_darkvision_stops_at_its_range() -> None:
+    """p. 180 converts "within a specified range". Beyond it the creature reads the level
+    as everyone else does, which is why obscurement takes a distance at all."""
+    assert effective_light(LightLevel.DARKNESS, senses=DARKVISION_60, distance_feet=60) is (
+        LightLevel.DIM
+    )
+    assert effective_light(LightLevel.DARKNESS, senses=DARKVISION_60, distance_feet=61) is (
+        LightLevel.DARKNESS
+    )
+
+
+def test_darkness_is_only_lightly_obscuring_to_darkvision_in_range() -> None:
+    """The chain end to end: the sense re-reads the level, and the level is the obscurement."""
+    assert (
+        obscurement_at(LightLevel.DARKNESS, senses=DARKVISION_60, distance_feet=30)
+        is Obscurement.LIGHTLY_OBSCURED
+    )
+    assert (
+        obscurement_at(LightLevel.DARKNESS, senses=Senses(), distance_feet=30)
+        is Obscurement.HEAVILY_OBSCURED
+    )
+
+
+def test_asking_whether_a_creature_can_see_still_refuses() -> None:
+    """Narrower than it was: the obscurement half is answerable now, and visibility is not.
+
+    Blindsight's bound is Total Cover, which is geometry over `EncounterState.obstructions`
+    since 0026 — this signature cannot reach it, and taking the walls as an argument is the
+    dial 0026 removed. Answering for the unaided case alone would return a confident False
+    for a creature with Blindsight standing in the dark (#166).
+    """
     with pytest.raises(SightUnverified, match="has not read off the document"):
         can_see(DARKVISION_60, at_level=LightLevel.DIM, distance_feet=30)
 

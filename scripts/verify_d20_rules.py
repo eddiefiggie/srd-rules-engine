@@ -195,6 +195,70 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"A Stable creature doesn.t make Death Saving Throws.{0,200}If the creature takes "
         r"damage, it stops being Stable",
     ),
+    # --- The nine sight shapes (#150, 0025 clause 5) ---------------------------------
+    # These are the rule values `core.sight` refused to state until they were read. Each is
+    # the sentence one row of the mapping rests on.
+    (
+        178,
+        "Bright Light is normal illumination — it states no obscurement, which is why "
+        "Obscurement.NONE is this engine's absence rather than a glossary term",
+        r"Bright Light is normal illumination",
+    ),
+    (
+        181,
+        "Dim Light IS Lightly Obscured — the light level and the obscurement are the same "
+        "fact, not two that need relating",
+        r"An area with Dim Light is Lightly Obscured",
+    ),
+    (
+        180,
+        "Darkness IS Heavily Obscured",
+        r"An area of Darkness is Heavily Obscured",
+    ),
+    (
+        184,
+        "what Lightly Obscured costs: Disadvantage on Perception checks to SEE something "
+        "in that space — a check penalty, not a condition",
+        r"You have Disadvantage on Wisdom \(Perception\) checks to see something in a "
+        r"Lightly Obscured space",
+    ),
+    (
+        182,
+        "what Heavily Obscured costs, and the clause that decides this subsystem reads "
+        "state rather than writing it: Blinded holds WHILE TRYING TO SEE something in the "
+        "space. It is scoped to the attempt, so it is a relation per observer and target "
+        "rather than a condition on the creature (0025 clause 4, #119)",
+        r"You have the Blinded condition while trying to see something in a Heavily "
+        r"Obscured space",
+    ),
+    (
+        180,
+        "Darkvision re-reads the light level, and is the only sense that does: Dim as "
+        "Bright, Darkness as Dim",
+        r"you can see in Dim Light within a specified range as if it were Bright Light and "
+        r"in Darkness within that range as if it were Dim Light",
+    ),
+    (
+        177,
+        "Blindsight does NOT re-read a light level — it sees without relying on physical "
+        "sight, and its bound is Total Cover rather than illumination",
+        r"you can see within a specific range without relying on physical sight.{0,120}you "
+        r"can see anything that isn.t behind Total Cover even if you have the Blinded "
+        r"condition or are in Darkness",
+    ),
+    (
+        190,
+        "Truesight does NOT re-read a light level either — it pierces Darkness rather than "
+        "converting it",
+        r"You can see in normal and magical Darkness",
+    ),
+    (
+        190,
+        "Tremorsense is not part of the sight chain at all, and the document says so "
+        "outright rather than leaving it to be inferred",
+        r"Tremorsense can.t detect creatures or objects in the air, and it doesn.t count as "
+        r"a form of sight",
+    ),
     (
         213,
         "a weapon bonus applies to attack rolls AND damage rolls, not one of them",
