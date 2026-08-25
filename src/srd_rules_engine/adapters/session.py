@@ -45,15 +45,19 @@ from __future__ import annotations
 
 from collections.abc import Generator, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Final
+from typing import Final, assert_never
 
 from srd_rules_engine.core import (
     Declaration,
     EncounterState,
     Fact,
+    FactType,
     LegalAction,
+    Provenance,
     ReadResult,
     Ruling,
+    ValueKind,
+    Writer,
     read,
 )
 from srd_rules_engine.loop import (
@@ -76,6 +80,24 @@ IDLE: Final = "idle"
 
 class SessionError(Exception):
     """A call that does not match what the engine is waiting for."""
+
+
+class FactRefused(ValueError):
+    """A supplied fact the engine will not store, and why (#144).
+
+    A `ValueError` because every transport already maps one to its own "you sent something
+    malformed" answer — HTTP to 400, the CLI to a refusal line — so the refusal reaches a
+    caller in its own vocabulary without each adapter learning a new exception.
+
+    R20 is what makes this a refusal rather than a coercion. The port takes typed values
+    only, so "12" for a Boolean fact is not a value to be interpreted generously; it is a
+    caller and an engine disagreeing about what was just written, and the engine cannot be
+    the one to give way.
+    """
+
+
+#: What a caller may say about where a supplied value came from, when it says nothing.
+DEFAULT_FACT_REFERENCE: Final = "supplied out of band by the caller"
 
 
 @dataclass(frozen=True)
@@ -206,9 +228,56 @@ class Session:
         return self._advance(Narrated(text))
 
     def supply(self, facts: Sequence[Fact]) -> Pending:
-        """Answer an `AwaitingFacts` with what the port could not resolve."""
+        """Answer an `AwaitingFacts` with typed facts a caller already holds.
+
+        The library-level door, for a consumer that constructed `Fact` values itself. A
+        transport should use `supply_values`, which decides the subject, the kind and the
+        writer rather than accepting them.
+        """
         self._expect(AwaitingFacts)
         return self._advance(FactsSupplied(tuple(facts)))
+
+    def supply_values(
+        self, values: Mapping[str, object], *, reference: str | None = None
+    ) -> Pending:
+        """Answer an `AwaitingFacts` with raw values, one per unresolved fact type (#144).
+
+        This is the transport door, and it is deliberately narrow. A caller names a type and
+        a value; **everything else about the fact is decided here**, because each of those
+        fields is a way for a supplied value to become something it is not:
+
+        * **The subject** is the blocked declaration's actor. Letting a caller name it would
+          let a turn suspended on *this* creature's attitude write a fact about another one.
+        * **The kind** is the declared `FactType`'s. A caller that names its own kind can
+          disagree with the engine about what it just stored (R20).
+        * **The writer** is always `out-of-band`. `Writer.RULING` means a value an
+          adjudicated outcome produced, and a caller that could claim it would be dressing
+          an unrolled fact as a ruling's product — the exact failure this engine exists to
+          remove (R25).
+        * **The type must be one the engine asked for.** A suspension is not an opening to
+          write arbitrary memory; answering something nobody asked is refused by name.
+        """
+        self._expect(AwaitingFacts)
+        pending = self._pending
+        assert isinstance(pending, AwaitingFacts)  # _expect just proved it
+        if not values:
+            raise FactRefused(
+                f"no values supplied. The engine is waiting for {', '.join(pending.unresolved)}"
+            )
+        declared = self.loop.adjudicator.fact_types
+        provenance = Provenance(
+            writer=Writer.OUT_OF_BAND, reference=reference or DEFAULT_FACT_REFERENCE
+        )
+        facts = tuple(
+            Fact(
+                type_name=name,
+                subject=pending.actor_id,
+                value=_typed_value(name, raw, _declared_type(name, pending, declared)),
+                provenance=provenance,
+            )
+            for name, raw in values.items()
+        )
+        return self.supply(facts)
 
     def _expect(self, kind: type[Pending]) -> None:
         if self._turn is None and self._ending is None:
@@ -274,3 +343,65 @@ def offered_keys(pending: Pending) -> tuple[str, ...]:
 
 def offered_actions(pending: Pending) -> tuple[LegalAction, ...]:
     return pending.offered.actions if isinstance(pending, AwaitingDeclaration) else ()
+
+
+def _declared_type(name: str, pending: AwaitingFacts, declared: Mapping[str, FactType]) -> FactType:
+    """The declared type for a name the engine actually asked about."""
+    if name not in pending.unresolved:
+        raise FactRefused(
+            f"{name!r} is not what the engine is blocked on. It is waiting for "
+            f"{', '.join(pending.unresolved)} — a suspension answers a question rather than "
+            "opening the store to writes"
+        )
+    fact_type = declared.get(name)
+    if fact_type is None:
+        raise FactRefused(f"{name!r} is not a declared fact type, so the engine cannot store it")
+    if Writer.OUT_OF_BAND not in fact_type.writable_by:
+        raise FactRefused(
+            f"{name!r} is written by a ruling only (R25), so no caller may supply it. The turn "
+            "ends unresolved rather than taking a value from outside"
+        )
+    return fact_type
+
+
+def _typed_value(name: str, raw: object, fact_type: FactType) -> object:
+    """Coerce a transport's raw value to the declared kind, or refuse it (R20).
+
+    A string is accepted for every kind because the CLI has nothing else to offer — over a
+    terminal every argument is text, and refusing there would make one transport a
+    second-class citizen for a reason that is about typing rather than about rules. What is
+    *not* accepted is a value that means something else once converted: `True` is not the
+    integer 1 here, and "yes" is not a Boolean.
+    """
+    match fact_type.kind:
+        case ValueKind.INTEGER:
+            if isinstance(raw, bool):
+                raise FactRefused(
+                    f"{name!r} is an integer fact and {raw!r} is a Boolean. Python would call "
+                    "it 1, which is how a yes becomes a number nobody meant"
+                )
+            if isinstance(raw, int):
+                return raw
+            if isinstance(raw, str):
+                try:
+                    return int(raw.strip())
+                except ValueError:
+                    raise FactRefused(f"{name!r} is an integer fact; {raw!r} is not one") from None
+            raise FactRefused(f"{name!r} is an integer fact; {raw!r} is not one")
+        case ValueKind.BOOLEAN:
+            if isinstance(raw, bool):
+                return raw
+            if isinstance(raw, str) and raw.strip().lower() in {"true", "false"}:
+                return raw.strip().lower() == "true"
+            raise FactRefused(
+                f"{name!r} is a Boolean fact; {raw!r} is not true or false. The port takes "
+                "typed values, so nothing here guesses which way a 1 or a yes was meant"
+            )
+        case ValueKind.CHOICE:
+            if isinstance(raw, str) and raw in fact_type.choices:
+                return raw
+            raise FactRefused(
+                f"{name!r} is a choice fact and {raw!r} is not one of its values: "
+                f"{', '.join(fact_type.choices)}"
+            )
+    assert_never(fact_type.kind)

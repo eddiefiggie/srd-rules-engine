@@ -140,8 +140,6 @@ class HttpAdapter:
             # A well-formed request arriving when the engine is waiting for something else.
             # 409, not 400: the request is not malformed, the conversation is out of step.
             return Response(HTTPStatus.CONFLICT, {"error": str(refused)})
-        except NotImplementedError as unwired:
-            return Response(HTTPStatus.NOT_IMPLEMENTED, {"error": str(unwired)})
         except (KeyError, ValueError) as malformed:
             return Response(HTTPStatus.BAD_REQUEST, {"error": str(malformed)})
 
@@ -177,10 +175,17 @@ class HttpAdapter:
             return self._pending(self.session.narrate(None if text is None else str(text)))
         if route == END_TURN:
             return self._pending(self.session.end_turn(str(payload["actor_id"])))
-        raise NotImplementedError(
-            "facts needs the memory port's Fact constructor, which takes a typed value kind; "
-            "it is unwired over every adapter, not only this one (#144)"
-        )
+        if route == FACTS:
+            values = payload.get("values")
+            if not isinstance(values, Mapping):
+                raise ValueError("facts takes a 'values' object of name to value")
+            reference = payload.get("reference")
+            return self._pending(
+                self.session.supply_values(
+                    dict(values), reference=str(reference) if reference is not None else None
+                )
+            )
+        raise KeyError(f"no such route: {route!r}")
 
     def _pending(self, pending: Any) -> Response:
         return Response(HTTPStatus.OK, render_pending(pending, next_step=END_TURN))

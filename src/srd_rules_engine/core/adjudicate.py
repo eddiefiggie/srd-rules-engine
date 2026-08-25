@@ -34,6 +34,7 @@ import secrets
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
+from types import MappingProxyType
 from typing import Final, Protocol
 
 from srd_rules_engine.core.canonical import MAX_SAFE_INTEGER
@@ -463,6 +464,17 @@ class Adjudicator:
     def port(self) -> MemoryPort:
         """The memory port, so a driver's supplied facts reach the same store."""
         return self._port
+
+    @property
+    def fact_types(self) -> Mapping[str, FactType]:
+        """The declared fact types, so a caller answering a block cannot choose the kind.
+
+        R20 keeps prose out of the port; this keeps the *shape* out of the caller's hands
+        too. An adapter turning "12" into a value needs to know that `attitude` is an
+        integer, and the alternative — the caller naming the kind alongside the value — lets
+        it disagree with the engine about what it just wrote (#144).
+        """
+        return MappingProxyType(self._fact_types)
 
     def record_narration(self, ruling: Ruling, text: str) -> None:
         """R29. The narration is appended against the Ruling and the bounds it was issued under.

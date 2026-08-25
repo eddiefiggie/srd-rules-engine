@@ -62,9 +62,10 @@ like a broken game rather than an absent one.
 It also takes no dependency. R33 keeps `[project].dependencies` empty and every transport is
 an extra; this one needs nothing beyond the standard library, so it has no extra either.
 
-**`facts` is declared and raises (#144).** Wiring it needs the memory port's typed value
-constructor, exactly as it does over MCP. A command that fails loudly beats one quietly
-missing from the list a consumer plans against.
+**`facts` takes bare `name=value` pairs**, because a terminal has nothing but text to
+offer. The kind each value is read as comes from the declared `FactType`, not from the
+caller — `Session.supply_values` has the argument for why every field but the value is
+decided by the engine (#144).
 """
 
 from __future__ import annotations
@@ -119,7 +120,7 @@ begin <actor> [key=value ...]         open a turn; extra pairs are the situation
 declare rule=<id>|no_test=<reason> [action=<key>] [label=<text>]
 narrate [text ...]                    pay the narration debt; bare `narrate` withholds it
 end_turn <actor>                      resolve the turn's end-of-turn obligations
-facts                                 answer a blocked declaration (not wired)
+facts <name>=<value> [...] [reference=<note>]   answer a blocked declaration
 report                                the session review, from the ledger
 help / quit"""
 
@@ -165,10 +166,8 @@ class CliAdapter:
         if name == END_TURN:
             return render(self.session.end_turn(_one(args, "end_turn <actor>")))
         if name == FACTS:
-            raise NotImplementedError(
-                "facts needs the memory port's Fact constructor, which takes a typed value "
-                "kind; it is unwired over every adapter, not only this one (#144)"
-            )
+            values, reference = _values_and_reference(_pairs(args))
+            return render(self.session.supply_values(values, reference=reference))
         if name == REPORT:
             return render_report(session_report(self.ledger))
         raise CliError(f"no such command: {name!r}. Try `help`.")
@@ -189,7 +188,7 @@ class CliAdapter:
                 return
             try:
                 self.show(self.dispatch(line))
-            except (CliError, NotImplementedError) as refused:
+            except (CliError, ValueError) as refused:
                 self.show(f"refused: {refused}")
             except Exception as error:
                 self.show(f"{type(error).__name__}: {error}")
@@ -293,3 +292,14 @@ def _one(args: list[str], usage: str) -> str:
     if len(args) != 1:
         raise CliError(f"usage: {usage}")
     return args[0]
+
+
+def _values_and_reference(pairs: Mapping[str, str]) -> tuple[dict[str, str], str | None]:
+    """Split `reference=` out of the pairs; everything else is a fact value.
+
+    `reference` is the one key that is not a fact, so it is reserved rather than passed
+    through — a fact type actually called `reference` would be shadowed, which is a real
+    cost and a smaller one than a second positional argument nobody remembers the order of.
+    """
+    values = {name: value for name, value in pairs.items() if name != "reference"}
+    return values, pairs.get("reference")
