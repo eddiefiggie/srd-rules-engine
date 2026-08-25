@@ -64,10 +64,17 @@ rather than a model (0019), and Telepathy's own consumer is #149.
 ## The box, and why there are two of them
 
 `LitVolume` carries the same axis-aligned box as `core.obstructions.Obstruction`, including
-the corner normalisation, rather than sharing one. They are not unified because the two
-kinds of terrain do not yet enter the engine by the same route — obstructions are a query
-argument, light is state — and that seam is #151. Unifying the geometry before the seam is
-settled would pick the answer by accident.
+the corner normalisation, rather than sharing one. They are not unified *yet*: the seam
+that justified the duplication is settled — decision
+[0026](../../../docs/decisions/0026-terrain-enters-as-state.md) puts both kinds of terrain
+on state — so the reason has lapsed and only the work remains.
+Extracting the shared box is [#161](https://github.com/eddiefiggie/srd-rules-engine/issues/161),
+and it waits on [#160](https://github.com/eddiefiggie/srd-rules-engine/issues/160) moving
+obstructions onto `EncounterState` first, because unifying on the strength of a decision the
+tree does not yet reflect is the same accident in the other direction.
+
+Unifying the geometry would not unify the meaning: a volume that emits light and a volume
+that blocks a line stay distinct types, and only the box and its normalisation are shared.
 """
 
 from __future__ import annotations
