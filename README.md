@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08252026.4` — **the axis-aligned box existed twice, and now exists once.** [0026](docs/decisions/0026-terrain-enters-as-state.md) clause 3 is built: `core.position.Box` holds the corners, their normalisation and `contains`, and `Obstruction` and `LitVolume` inherit it — each adding only the one thing that makes it itself, `blocks` and `level`. **The duplication was deliberate right up until it wasn't.** The two copies were kept apart while the two kinds of terrain entered the engine by different routes, because choosing a shared shape would have picked the answer to that question by accident; 0026 settled the route and [#160](https://github.com/eddiefiggie/srd-rules-engine/issues/160) put it in the tree, at which point the reason lapsed and only the work remained. **Two guards, not one**: that both are `Box` subclasses, and that neither *redefines* the shared geometry — a shadowing `contains` would be the duplication back while the subclass check still passed, which is precisely the silent drift the extraction existed to end. Both were proven red. A third test pins that a `LitVolume` still normalises reversed corners; it passes against the base commit and says so in its own docstring, because a nothing-changed guard that reads as coverage is worse than none. `core.areas` is untouched. No effect shape resolves — coverage stays at 76 of 211. 1042 tests.
+**Current build:** `08252026.5` — **the death save's timing anchor is found, asserted, and says the opposite of the convenient answer.** [#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124) had been blocked since [0023](docs/decisions/0023-the-turns-end-is-a-loop-owned-phase.md) on one missing sentence: `core.death` cited pp. 17-18 for what a death saving throw *is* and nothing here said **when** it is made. p. 17 says it is made when a creature **starts** its turn at 0 hit points — and `TurnLoop.end_turn` is the turn's *end*, where the save-ends obligation lives. **The two obligations do not share a phase.** 0023 refused to supply that sentence from memory rather than assume they did; had it assumed, the save would have been rolled at the wrong moment and looked entirely correct doing it. The clause is now the 98th in `scripts/verify_d20_rules.py`, and it was proven to go red against a document saying "end your turn" instead of "start". **Knowing when is not rolling it**: nothing consults `core.death` at the start of a turn, because no such phase exists — 0023 built the turn's end and the turn's start has no equivalent. So a downed player character still makes no death saves, and #124 has become the design question for that phase rather than the document question it was, which is the branch it wrote for itself. Also fixed: a line in the guard test that read as an assertion and was a discarded tuple. Coverage is unchanged at 76 of 211. 1044 tests.
 
 ---
 
@@ -112,7 +112,7 @@ the issue number beside each one.
 | **v1.0 — mechanics** | **76 of 211 effect shapes.** Every entry in the inventory ([#14](https://github.com/eddiefiggie/srd-rules-engine/issues/14)) must resolve. Conditions are 15/15 and the d20 test 12/14; senses and light are **0 of 10**: the structure is built and every query against it refuses, because the nine pages that would resolve it are asserted nowhere here ([0025](docs/decisions/0025-sight-is-a-relation-over-stored-state.md), [#138](https://github.com/eddiefiggie/srd-rules-engine/issues/138), [#150](https://github.com/eddiefiggie/srd-rules-engine/issues/150)). |
 | **v1.0 — content** | **Six monsters, no spells.** `data/` holds the effect-shape inventory and six stat blocks ([#99](https://github.com/eddiefiggie/srd-rules-engine/issues/99)). Spell Descriptions is 0/11 shapes, so no SRD spell can currently be cast. Tracked as [#21](https://github.com/eddiefiggie/srd-rules-engine/issues/21). |
 | **v1.0 — adapters** | **All three R34 names ship.** MCP behind the `mcp` extra; CLI and HTTP need no dependency at all, so `[project].dependencies` stays empty (R33). One shared guard holds all three: no adapter reaches adjudication, and none waives an end-of-turn obligation. Every declared command now works — `supply_facts` was declared and raising on all three until [#144](https://github.com/eddiefiggie/srd-rules-engine/issues/144). Neither CLI nor HTTP has an executable — a console script must pick a ruleset, and there is not yet one to play. |
-| **SRD fidelity** | **Two open gaps, both blocked on the document rather than on design.** A downed player character makes no death saves ([#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124)), and `MAX_SPELL_LEVEL` transcribes a page verified nowhere ([#130](https://github.com/eddiefiggie/srd-rules-engine/issues/130)). Each needs the sentence found and asserted before it can close. |
+| **SRD fidelity** | **Two open gaps, and they are no longer the same kind.** A downed player character still makes no death saves ([#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124)) — but the sentence is now found and asserted: p. 17 puts the save at the **start** of a turn, so what is missing is a phase this engine does not have, not a fact. `MAX_SPELL_LEVEL` transcribes a page verified nowhere ([#130](https://github.com/eddiefiggie/srd-rules-engine/issues/130)) and is still blocked on the document. |
 
 **What the shape counter does not count, and why the number can stand still while work lands.**
 The inventory measures *resolved effect shapes*, so building a **route** moves nothing. Two landed
@@ -225,10 +225,12 @@ one, and the plan is amended to match:
   (closed [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106))
 
 **Next up:** [#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124) — the death
-save is the other half of the phase #110 built, and it is blocked on the document rather than
-on design: `core.death` cites pp. 17-18 for what a death saving throw *is* and never states
-when it is made. Wiring it on the assumption that it shares p. 63's timing would be inferring a
-rule value, so the sentence has to be found and asserted first.
+save, which has changed shape. It was blocked on the document; the sentence has now been found
+and asserted, and it says the save is made when a creature **starts** its turn at 0 hit points.
+That is not the phase save-ends lives in. 0023 built the turn's *end*; the turn's *start* has no
+equivalent, so #124 is now the design question for that phase rather than a wiring job — which
+is exactly the branch #124 wrote for itself. Assuming the two obligations shared a phase would
+have put the save in the wrong one, and it would have looked right.
 
 ## Development
 
@@ -278,4 +280,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-25 — build `08252026.4`._
+_Last updated: 2026-08-25 — build `08252026.5`._

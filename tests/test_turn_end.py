@@ -323,15 +323,22 @@ def test_the_turn_cannot_end_while_the_declared_action_owes_a_narration(tmp_path
 
 
 def test_the_death_save_is_not_wired_and_says_why(tmp_path: Path) -> None:
-    """The absence 0023 insisted on, held as a test so it cannot be closed by assumption.
+    """The absence 0023 insisted on — and the document has now said it was the right call.
 
-    `core.death` cites pp. 17-18 for what a death saving throw *is* and never states when it
-    is made. Wiring it here on the assumption that it shares p. 63's timing would be
-    inferring a rule value — the one thing this project will not do to close a gap.
+    p. 17 states the trigger: the save is made when a creature *starts* its turn at 0 hit
+    points. This phase is the turn's **end**, so the death save does not belong here, and
+    wiring it here on the assumption that it shared p. 63's timing would have put it in the
+    wrong phase entirely (#124, clause asserted in `scripts/verify_d20_rules.py`).
+
+    So this test outlives the gap that produced it. It no longer holds a line against an
+    unknown sentence; it holds one against a **known** answer that says elsewhere.
     """
     state = encounter()
     downed = state.with_damage("first", 40)
     assert downed.combatant("first").is_down
 
     assert build_loop(tmp_path).obligations(downed, "first") == ()
-    downed.advanced_turn(), "and nothing blocks the turn on its account"
+    # Not an assertion — `advanced_turn` raises `ObligationOutstanding` if anything is
+    # owed, so the call itself is the check that nothing blocks the turn on the death
+    # save's account. It read as an assert with a message and was a discarded tuple.
+    downed.advanced_turn()

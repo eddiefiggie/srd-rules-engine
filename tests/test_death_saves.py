@@ -276,3 +276,42 @@ def _propose(state: EncounterState) -> Proposal:
         ),
         facts={},
     )
+
+
+# --- The timing anchor #124 was blocked on ---------------------------------------------
+
+
+def test_the_verification_names_the_sentence_that_says_when() -> None:
+    """R31. The module cited pp. 17-18 for what a death save *is* while nothing in this
+    repository said *when* it is made — the gap 0023 named and #124 held open.
+
+    The reference has to name it now, because a verification block that cites a page range
+    it does not actually rest on is the defect #129 and #131 were both filed for.
+    """
+    assert DEATH_SAVE_VERIFICATION.state is VerificationState.VERIFIED
+    reference = DEATH_SAVE_VERIFICATION.reference or ""
+    assert "p. 17" in reference
+    assert "timing" in reference, (
+        "the reference does not mention the timing sentence, so a reader cannot tell "
+        "whether the page range covers when the save is made or only what it is"
+    )
+
+
+def test_the_timing_clause_is_asserted_against_the_document() -> None:
+    """The half a machine here can hold: that the sentence is re-checkable.
+
+    `scripts/verify_d20_rules.py` is not run in CI — the SRD is CC BY 4.0 but not ours to
+    redistribute, so CI has no copy. This asserts the clause is *present* to be re-run, not
+    that it currently matches; only someone holding the PDF can establish that.
+
+    It is worth pinning because the clause is what separates a transcribed sentence from a
+    remembered one, and the remembered answer here is wrong in a specific and costly way:
+    it would put the save at the end of a turn, in the phase save-ends lives in.
+    """
+    from pathlib import Path
+
+    verifier = (Path(__file__).resolve().parents[1] / "scripts" / "verify_d20_rules.py").read_text()
+    assert "Whenever you start your turn with 0 Hit Points" in verifier, (
+        "the death-save timing clause is gone from verify_d20_rules.py, so the sentence "
+        "core.death rests on is no longer re-checkable against the document (#124)"
+    )

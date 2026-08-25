@@ -266,12 +266,19 @@ class TurnLoop:
     def obligations(self, state: EncounterState, actor_id: str) -> tuple[Obligation, ...]:
         """Every obligation the end of this creature's turn incurs, read off state.
 
-        Only save-ends today. The **death save is deliberately absent**: `core.death` cites
-        pp. 17-18 for what a death saving throw *is* and nowhere states when it is made,
-        and 0023 declined to supply that sentence from memory. Adding it here on the
-        assumption that it shares save-ends' timing would be inferring a rule value (R31),
-        which is the one thing this project will not do to close a gap. Tracked as its own
-        issue rather than folded in silently.
+        Only save-ends, and the **death save does not belong here at all**. p. 17 says the
+        save is made when a creature *starts* its turn at 0 hit points; this is the turn's
+        **end** (0023). The two obligations do not share a phase.
+
+        That sentence was missing from this repository until #124, and 0023 refused to
+        supply it from memory rather than assume it matched save-ends' timing. Had it
+        assumed, the save would have landed here — in the wrong phase, rolled at the wrong
+        moment, and indistinguishable from correct to anyone reading the code. The clause
+        is now asserted in `scripts/verify_d20_rules.py`.
+
+        What is still missing is the phase, not the sentence: nothing consults `core.death`
+        at the start of a turn because no such phase exists. #124 carries that design
+        question.
         """
         if not state.has(actor_id):
             return ()
