@@ -11,10 +11,13 @@ both are the kind of detail an implementer settles by assuming rather than by re
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from srd_rules_engine.core.areas import (
     AREA_VERIFICATION,
+    Area,
     Cone,
     Cube,
     Cylinder,
@@ -22,14 +25,39 @@ from srd_rules_engine.core.areas import (
     Emanation,
     Line,
     Sphere,
-    creatures_in,
 )
 from srd_rules_engine.core.obstructions import Obstruction
 from srd_rules_engine.core.position import Position
 from srd_rules_engine.core.rules import VerificationState
+from srd_rules_engine.core.state import Combatant, EncounterState
 
 ORIGIN = Position(0, 0, 0)
 EAST = Direction(1, 0, 0)
+
+
+def _at(combatant_id: str, where: Position) -> Combatant:
+    return Combatant(
+        id=combatant_id,
+        name=combatant_id.title(),
+        hit_points=10,
+        max_hit_points=10,
+        armour_class=12,
+        abilities={"dex": 10},
+        proficiency_bonus=2,
+        position=where,
+    )
+
+
+def _caught(
+    area: Area, where: dict[str, Position], obstructions: tuple[Obstruction, ...] = ()
+) -> tuple[str, ...]:
+    """Ask the only way there is to ask: through the state that holds the walls (0026)."""
+    state = EncounterState(
+        generation=0,
+        combatants=tuple(_at(cid, pos) for cid, pos in where.items()),
+        obstructions=obstructions,
+    )
+    return state.creatures_in(area)
 
 
 # --- Whether the origin is in its own area -------------------------------------------
@@ -182,8 +210,8 @@ def test_a_direction_points_somewhere() -> None:
 # --- Which creatures are caught -------------------------------------------------------
 
 
-def test_creatures_in_reports_those_inside_in_the_order_supplied() -> None:
-    caught = creatures_in(
+def test_creatures_in_reports_those_inside_in_combatant_order() -> None:
+    caught = _caught(
         Sphere(Position(0, 0, 0), 20),
         {"near": Position(5, 0, 0), "far": Position(50, 0, 0), "above": Position(0, 0, 10)},
     )
@@ -204,14 +232,14 @@ def test_an_area_does_not_reach_through_a_wall() -> None:
     sheltered = Position(30, 0, 0)
 
     assert sphere.contains(sheltered), "inside the volume"
-    assert creatures_in(sphere, {"hiding": sheltered}, [wall]) == ()
+    assert _caught(sphere, {"hiding": sheltered}, (wall,)) == ()
 
 
 def test_the_same_creature_is_caught_with_no_wall_between() -> None:
     """The control. Without the obstruction the answer flips, so the exclusion is the wall
     doing work rather than the radius being wrong."""
     sphere = Sphere(Position(0, 0, 0), 40)
-    assert creatures_in(sphere, {"hiding": Position(30, 0, 0)}) == ("hiding",)
+    assert _caught(sphere, {"hiding": Position(30, 0, 0)}) == ("hiding",)
 
 
 def test_a_creature_around_the_end_of_a_wall_is_still_reached() -> None:
@@ -219,17 +247,17 @@ def test_a_creature_around_the_end_of_a_wall_is_still_reached() -> None:
     not lie between you and the origin shelters nobody."""
     wall = Obstruction(lo=Position(10, -20, 0), hi=Position(12, 20, 20))
     sphere = Sphere(Position(0, 0, 0), 60)
-    assert creatures_in(sphere, {"exposed": Position(0, 40, 0)}, [wall]) == ("exposed",)
+    assert _caught(sphere, {"exposed": Position(0, 40, 0)}, (wall,)) == ("exposed",)
 
 
-def test_supplying_no_obstructions_means_there_are_none() -> None:
-    """Not "ignore them". An encounter that tracks no walls gets unobstructed volume, which
-    is right for an open field and wrong for a dungeon — and the engine cannot tell those
-    apart, so the caller supplies the walls or accepts the open field.
+def test_an_encounter_holding_no_obstructions_means_there_are_none() -> None:
+    """Not "ignore them" (0026 clause 5). An encounter that tracks no walls gets
+    unobstructed volume, which is right for an open field and wrong for a dungeon — and the
+    engine cannot tell those apart. What 0026 changed is who may say so and when, not this.
     """
     sphere = Sphere(Position(0, 0, 0), 40)
     everyone = {"a": Position(30, 0, 0), "b": Position(0, 30, 0)}
-    assert set(creatures_in(sphere, everyone)) == {"a", "b"}
+    assert set(_caught(sphere, everyone)) == {"a", "b"}
 
 
 def test_no_float_is_produced_by_any_membership_test() -> None:
@@ -251,3 +279,62 @@ def test_the_area_definitions_carry_a_verified_citation() -> None:
     assert AREA_VERIFICATION.reference is not None
     for cited in ("p. 177", "p. 179", "p. 180", "p. 181", "p. 184", "p. 188"):
         assert cited in AREA_VERIFICATION.reference
+
+
+# --- The route terrain enters (0026 clause 1) -----------------------------------------
+
+
+def test_no_area_query_lets_a_caller_supply_the_walls() -> None:
+    """0026 clause 1, as a fact about the module rather than a note in it.
+
+    The decision is that a caller may not hand over terrain at the moment an outcome is
+    computed — choosing which walls exist is choosing who a Fireball reaches (R1, R4). A
+    module-level note saying so would make that *discouraged*; an absent parameter makes it
+    impossible, which is the distinction `AGENTS.md` draws for ambiguous design questions.
+
+    `core.obstructions` is deliberately not covered here. `line_is_blocked(start, end,
+    obstructions)` is a pure predicate over three explicit arguments with no encounter to be
+    wrong about — it decides nothing and 0026 did not move it.
+    """
+    import inspect
+
+    from srd_rules_engine.core import areas
+
+    offenders = [
+        name
+        for name, member in inspect.getmembers(areas, callable)
+        if not name.startswith("_")
+        and getattr(member, "__module__", None) == areas.__name__
+        and "obstructions" in inspect.signature(member).parameters
+    ]
+    assert offenders == [], (
+        f"{offenders} in core.areas take obstructions from the caller. 0026 clause 1 puts "
+        "them on EncounterState; the composed question is EncounterState.creatures_in"
+    )
+
+
+def test_the_encounter_is_where_the_walls_live() -> None:
+    """The other half: removing the parameter is only correct if the field exists."""
+    state = EncounterState(generation=0, combatants=())
+    assert state.obstructions == (), "an encounter with no walls stated has none"
+
+    wall = Obstruction(lo=Position(10, -20, 0), hi=Position(12, 20, 20))
+    assert EncounterState(generation=0, combatants=(), obstructions=(wall,)).obstructions == (wall,)
+
+
+def test_a_combatant_with_no_position_is_reached_by_nothing() -> None:
+    """An encounter that tracks no positions cannot answer a geometry question.
+
+    Reporting such a creature as caught *or* as spared would be inventing the answer the
+    engine cannot compute, so it is absent from the result either way.
+    """
+    state = EncounterState(
+        generation=0,
+        combatants=(_at("placed", Position(5, 0, 0)), _at("nowhere", Position(0, 0, 0))),
+    )
+    unplaced = tuple(
+        c if c.id != "nowhere" else replace(c, position=None) for c in state.combatants
+    )
+    state = EncounterState(generation=0, combatants=unplaced)
+
+    assert state.creatures_in(Sphere(Position(0, 0, 0), 20)) == ("placed",)

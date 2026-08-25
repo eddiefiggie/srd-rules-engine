@@ -27,6 +27,7 @@ from types import MappingProxyType
 from typing import Any, Final
 
 from srd_rules_engine.core.actions import ActionBudget, still_dodging
+from srd_rules_engine.core.areas import Area
 from srd_rules_engine.core.clock import (
     STABLE_RECOVERY_HIT_POINTS,
     Clock,
@@ -47,6 +48,7 @@ from srd_rules_engine.core.duration import (
     StatedSpan,
     rounds_in_minutes,
 )
+from srd_rules_engine.core.obstructions import Obstruction, line_is_blocked
 from srd_rules_engine.core.position import (
     DEFAULT_REACH_FEET,
     MovementMode,
@@ -232,6 +234,16 @@ class EncounterState:
     #: Advantage versus Disadvantage. The default states no light at all, so a query about it
     #: refuses rather than assuming daylight.
     lighting: Lighting = field(default_factory=Lighting)
+    #: What blocks a line, in feet (0026 clause 1, #91). Terrain rides on the state for the
+    #: reason light does, and 0026 decided the two by one rule rather than two: an input the
+    #: caller hands over at the moment an outcome is computed is an input the caller
+    #: *chooses*, and choosing which walls exist is choosing who a Fireball reaches.
+    #:
+    #: **An empty tuple means there are none**, not that they are ignored (0026 clause 5).
+    #: That describes an open field, which is the right answer for an open field and the
+    #: wrong one for a dungeon. The engine cannot tell those apart and does not pretend to;
+    #: what 0026 changed is only *who* may say so, and when.
+    obstructions: tuple[Obstruction, ...] = ()
     #: Obligations already discharged during the current turn, as `(actor_id, condition)`
     #: (0023 clause 6, #110). Cleared by `advanced_turn`, because an obligation is owed
     #: once per turn rather than once per encounter.
@@ -285,6 +297,33 @@ class EncounterState:
                 (c for c in due if (combatant_id, c.value) not in self.discharged),
                 key=lambda c: c.value,
             )
+        )
+
+    def creatures_in(self, area: Area) -> tuple[str, ...]:
+        """Which creatures the area reaches, in combatant order (R16, p. 177).
+
+        Two conditions, and they are different questions. A creature must be **inside the
+        volume**, and the line to it from the point of origin must not be **blocked**. A
+        creature standing behind a wall inside a Fireball's radius satisfies the first and
+        fails the second.
+
+        **This is the only way to ask**, and that is 0026 clause 1 rather than a style
+        choice. The composition used to live in `core.areas` and took the obstructions from
+        its caller, which meant a caller could decide who a Fireball reached by deciding
+        which walls existed for that one call. `Area.contains` stays pure volume — geometry
+        with no opinion about walls — and the composed question lives here, where the walls
+        are state.
+
+        A combatant with no position is not reached by anything: an encounter that tracks no
+        positions cannot answer a geometry question, and reporting such a creature as either
+        caught or spared would be inventing the answer it cannot compute.
+        """
+        return tuple(
+            participant.id
+            for participant in self.combatants
+            if participant.position is not None
+            and area.contains(participant.position)
+            and not line_is_blocked(area.origin, participant.position, self.obstructions)
         )
 
     def with_obligation_discharged(self, combatant_id: str, condition: Condition) -> EncounterState:

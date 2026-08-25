@@ -69,9 +69,9 @@ that justified the duplication is settled — decision
 [0026](../../../docs/decisions/0026-terrain-enters-as-state.md) puts both kinds of terrain
 on state — so the reason has lapsed and only the work remains.
 Extracting the shared box is [#161](https://github.com/eddiefiggie/srd-rules-engine/issues/161),
-and it waits on [#160](https://github.com/eddiefiggie/srd-rules-engine/issues/160) moving
-obstructions onto `EncounterState` first, because unifying on the strength of a decision the
-tree does not yet reflect is the same accident in the other direction.
+now unblocked: [#160](https://github.com/eddiefiggie/srd-rules-engine/issues/160) has moved
+obstructions onto `EncounterState`, so both kinds of terrain are state in the tree and not
+only in the record.
 
 Unifying the geometry would not unify the meaning: a volume that emits light and a volume
 that blocks a line stay distinct types, and only the box and its normalisation are shared.
