@@ -259,6 +259,49 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"Tremorsense can.t detect creatures or objects in the air, and it doesn.t count as "
         r"a form of sight",
     ),
+    # --- The five hazards (#140) -------------------------------------------------------
+    # Asserted ahead of any implementation, because the OCCASION each one fires on is the
+    # design question and it should be settled against the sentences rather than against a
+    # memory of them. Three different occasions and one non-occasion turn up below.
+    (
+        178,
+        "Burning fires at the START of a turn — the same phase the death save needs (#124) "
+        "and the one this engine does not have",
+        r"A burning creature or object takes 1d4 Fire damage at the start of each of its "
+        r"turns",
+    ),
+    (
+        189,
+        "Suffocation fires at the END of a turn — the phase that does exist (0023)",
+        r"it gains 1 Exhaustion level at the end of each of its turns",
+    ),
+    (
+        181,
+        "Dehydration fires at the END OF A DAY, on the campaign axis (0020), and inflicts "
+        "Exhaustion with no save",
+        r"A creature that drinks less than half the required water for a day gains 1 "
+        r"Exhaustion level at the day.s end",
+    ),
+    (
+        185,
+        "Malnutrition fires on the same axis but IS a save — DC 10 Constitution — which is "
+        "why the two cannot share one implementation",
+        r"must succeed on a DC 10 Constitution saving throw or gain 1 Exhaustion level at "
+        r"the day.s end",
+    ),
+    (
+        182,
+        "Falling is not an occasion at all: it resolves on landing, with damage per 10 feet "
+        "to a cap, and NO d20 test — which is the shape core.adjudicate cannot express",
+        r"takes 1d6 Bludgeoning damage at the end of the fall for every 10 feet it fell, to "
+        r"a maximum of 20d6",
+    ),
+    (
+        182,
+        "and Falling's Prone is conditional on having taken damage, not on having fallen",
+        r"When the creature lands, it has the Prone condition unless it avoids taking any "
+        r"damage from the fall",
+    ),
     (
         213,
         "a weapon bonus applies to attack rolls AND damage rolls, not one of them",
