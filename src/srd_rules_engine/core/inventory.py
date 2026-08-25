@@ -55,6 +55,9 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "natural-20-auto-hit": "core.d20._critical",
         "advantage-does-not-stack": "core.d20.D20Test.has_advantage",
         "passive-perception": "core.d20.passive_score",
+        # The one hazard that fires on no occasion, so it needed no phase (#140, 0027
+        # clause 7). The other four are blocked on occasions this engine does not have.
+        "falling": "core.hazards.falling_resolver",
         # Death saving throws and what follows them (#15).
         "death-saving-throw": "core.death.death_save_resolver",
         "stable": "core.state.DeathSaves.stable",
