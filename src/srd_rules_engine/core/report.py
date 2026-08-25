@@ -24,6 +24,13 @@ never an integrity verdict (R28). And an entry whose record is too thin to recon
 with advantage, replayed as though it had none, would roll one die where two were rolled
 and report a mismatch indistinguishable from real drift.
 
+A rule that resolves **without a d20 at all** is a fifth answer and not that one (0027
+clause 6). It is `no-roll`: there is nothing to reproduce, and the record is correct rather
+than thin. Filing it under `unreplayable` would make every automatic outcome permanently
+unverifiable while reading like an ordinary limitation — and the two are told apart by a
+recorded `testless` field rather than by `roll` being absent, because a thin record and a
+rule that never rolled look identical from the absence alone.
+
 ## What the report can say
 
 R30's flags all describe a session that *ran* — they are only meaningful once the ledger is
@@ -66,6 +73,13 @@ class ReplayVerdict(StrEnum):
     DIVERGED = "diverged"
     RECONCILIATION = "reconciliation"
     UNREPLAYABLE = "unreplayable"
+    #: The ruling never had a d20 (0027 clause 6, #170). There is nothing to reproduce, and
+    #: that is the record being **correct** rather than thin — which is the whole reason it
+    #: is not `UNREPLAYABLE`. Reporting a rule that resolves without a roll as unreplayable
+    #: would make every automatic outcome permanently unverifiable while reading like an
+    #: ordinary limitation, and the count of unreplayable entries is a number this project
+    #: is measured by.
+    NO_ROLL = "no-roll"
 
 
 class Flag(StrEnum):
@@ -158,6 +172,18 @@ def replay_entry(entry: Entry, *, engine_version: str, recorded_engine: str | No
     disagreement would surface as a replay that *passed*.
     """
     roll = entry.payload.get("roll")
+    if entry.type in RULING_TYPES and entry.payload.get("testless") is True:
+        # 0027 clause 6. Distinguished by a recorded field rather than by `roll` being
+        # absent: a thin record and a rule that never rolled look identical from the
+        # absence alone, and only one of them is a defect.
+        return Replay(
+            seq=entry.seq,
+            verdict=ReplayVerdict.NO_ROLL,
+            detail=(
+                "this rule resolves without a d20, so there is no roll to reproduce. "
+                "Recorded as testless rather than inferred from an absent roll"
+            ),
+        )
     if entry.type not in RULING_TYPES or not isinstance(roll, Mapping):
         return Replay(
             seq=entry.seq,

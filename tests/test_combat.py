@@ -66,6 +66,17 @@ BLADE = Weapon(name="fixture blade", damage_dice=2, damage_sides=6, ability="str
 RULESET = load_fixture_ruleset("combat", [STRIKE])
 
 
+def d20(proposal: Proposal) -> D20Test:
+    """Narrow `Proposal.test`, which became optional with #170 (0027 clause 6).
+
+    Every resolver exercised in this file proposes a d20 test; a testless proposal is a
+    different shape and is covered in `tests/test_outcome_without_a_roll.py`. Asserting it
+    here keeps these tests reading as assertions about the test rather than about `None`.
+    """
+    assert proposal.test is not None, "this resolver must propose a d20 test"
+    return proposal.test
+
+
 def encounter(*, pc_ac: int = 13, boar_ac: int = 13) -> EncounterState:
     return EncounterState.new(
         [
@@ -522,7 +533,7 @@ def test_the_weapon_supplies_the_modifiers_and_proficiency_is_conditional() -> N
 
     def sources(weapon: Weapon) -> set[str]:
         proposal = attack_resolver(weapon)(state=state, declaration=declaration, facts={})
-        return {m.source for m in proposal.test.modifiers}
+        return {m.source for m in d20(proposal).modifiers}
 
     assert sources(BLADE) == {"ability:str", "proficiency"}
 
@@ -539,7 +550,7 @@ def test_the_weapons_ability_reaches_both_the_roll_and_the_damage(tmp_path: Path
     declared = proposal.on_success[0]
     assert isinstance(declared, DamageDice)
     assert declared.modifier == 2, "dex 14 is +2"
-    assert {m.value for m in proposal.test.modifiers if m.source == "ability:dex"} == {2}
+    assert {m.value for m in d20(proposal).modifiers if m.source == "ability:dex"} == {2}
 
 
 def test_the_bounds_forbid_asserting_a_death_or_a_different_number(tmp_path: Path) -> None:
@@ -578,8 +589,8 @@ def test_a_weapon_bonus_reaches_the_attack_roll_and_the_damage_roll() -> None:
     def modifier_total(test: D20Test) -> int:
         return sum(m.value for m in test.modifiers)
 
-    assert modifier_total(with_bonus.test) == modifier_total(without.test) + 1
-    assert any("bonus" in m.source for m in with_bonus.test.modifiers)
+    assert modifier_total(d20(with_bonus)) == modifier_total(d20(without)) + 1
+    assert any("bonus" in m.source for m in d20(with_bonus).modifiers)
 
     assert with_bonus.on_success[0].modifier == without.on_success[0].modifier + 1  # type: ignore[union-attr]
 
@@ -594,7 +605,7 @@ def test_a_weapon_without_a_bonus_adds_no_modifier_at_all() -> None:
         ),
         facts={},
     )
-    assert not any("bonus" in m.source for m in proposal.test.modifiers)
+    assert not any("bonus" in m.source for m in d20(proposal).modifiers)
 
 
 def _dice(proposal: Proposal) -> DamageDice:
@@ -650,7 +661,7 @@ def test_a_finesse_weapon_may_use_dexterity_and_the_same_modifier_reaches_both_r
     rapier = Weapon(name="rapier", damage_dice=1, damage_sides=8, ability="dex", finesse=True)
     proposal = _propose_with(rapier)
 
-    dex = next(m.value for m in proposal.test.modifiers if m.source == "ability:dex")
+    dex = next(m.value for m in d20(proposal).modifiers if m.source == "ability:dex")
     assert _dice(proposal).modifier == dex, "the same modifier, on both rolls"
 
 
@@ -670,8 +681,8 @@ def test_heavy_gives_disadvantage_below_a_strength_of_13() -> None:
     weak = encounter_with_scores({"str": 12, "dex": 14})
     strong = encounter_with_scores({"str": 13, "dex": 14})
 
-    assert _propose_with(greataxe, state=weak).test.has_disadvantage
-    assert not _propose_with(greataxe, state=strong).test.has_disadvantage, "13 is enough"
+    assert d20(_propose_with(greataxe, state=weak)).has_disadvantage
+    assert not d20(_propose_with(greataxe, state=strong)).has_disadvantage, "13 is enough"
 
 
 def test_heavy_reads_dexterity_for_a_ranged_weapon() -> None:
@@ -680,17 +691,17 @@ def test_heavy_reads_dexterity_for_a_ranged_weapon() -> None:
     longbow = Weapon(
         name="longbow", damage_dice=1, damage_sides=8, heavy=True, melee=False, ability="dex"
     )
-    assert _propose_with(
-        longbow, state=encounter_with_scores({"str": 18, "dex": 12})
-    ).test.has_disadvantage
-    assert not _propose_with(
-        longbow, state=encounter_with_scores({"str": 8, "dex": 13})
-    ).test.has_disadvantage
+    assert d20(
+        _propose_with(longbow, state=encounter_with_scores({"str": 18, "dex": 12}))
+    ).has_disadvantage
+    assert not d20(
+        _propose_with(longbow, state=encounter_with_scores({"str": 8, "dex": 13}))
+    ).has_disadvantage
 
 
 def test_a_weapon_without_heavy_never_takes_the_penalty() -> None:
     plain = Weapon(name="club", damage_dice=1, damage_sides=4)
-    assert not _propose_with(plain, state=encounter_with_scores({"str": 3})).test.has_disadvantage
+    assert not d20(_propose_with(plain, state=encounter_with_scores({"str": 3}))).has_disadvantage
 
 
 def test_versatile_uses_the_larger_die_only_in_two_hands() -> None:
@@ -723,7 +734,7 @@ def test_graze_deals_the_ability_modifier_on_a_miss() -> None:
 
     assert proposal.on_failure, "a Graze weapon deals damage on a miss"
     effect = _miss_effect(proposal)
-    ability = next(m.value for m in proposal.test.modifiers if m.source.startswith("ability:"))
+    ability = next(m.value for m in d20(proposal).modifiers if m.source.startswith("ability:"))
     assert effect.amount == ability
     assert effect.damage_type is DamageType.SLASHING, "the same type the weapon deals"
 
@@ -794,8 +805,8 @@ def test_beyond_normal_range_is_disadvantage_not_a_refusal() -> None:
     near = _propose_with(bow, state=_placed(Position(0, 0, 0), Position(50, 0, 0)))
     far = _propose_with(bow, state=_placed(Position(0, 0, 0), Position(200, 0, 0)))
 
-    assert not near.test.has_disadvantage
-    assert far.test.has_disadvantage
+    assert not d20(near).has_disadvantage
+    assert d20(far).has_disadvantage
 
 
 def test_beyond_long_range_no_attack_may_be_made() -> None:
@@ -831,7 +842,7 @@ def test_range_and_heavy_do_not_stack_into_two_disadvantages() -> None:
     )
     state = _placed(Position(0, 0, 0), Position(300, 0, 0))
     proposal = _propose_with(heavy_bow, state=state)
-    assert proposal.test.has_disadvantage is True
+    assert d20(proposal).has_disadvantage is True
 
 
 def test_a_weapon_range_lists_two_numbers() -> None:
@@ -850,7 +861,7 @@ def test_an_encounter_without_positions_asks_no_range_question() -> None:
     """Position is optional. An encounter that tracks none cannot answer a range question,
     and the honest result is to not ask it rather than to assume everyone is adjacent."""
     club = Weapon(name="club", damage_dice=1, damage_sides=4)
-    assert _propose_with(club, state=encounter()).test.has_disadvantage is False
+    assert d20(_propose_with(club, state=encounter())).has_disadvantage is False
 
 
 # --- Conditions reach the attack roll (#18) ------------------------------------------
@@ -879,13 +890,13 @@ def _conditioned(
 def test_a_poisoned_attacker_swings_at_disadvantage() -> None:
     club = Weapon(name="club", damage_dice=1, damage_sides=4)
     poisoned = Conditions(held=frozenset({Condition.POISONED}))
-    assert _propose_with(club, state=_conditioned(attacker=poisoned)).test.has_disadvantage
+    assert d20(_propose_with(club, state=_conditioned(attacker=poisoned))).has_disadvantage
 
 
 def test_a_restrained_defender_is_attacked_at_advantage() -> None:
     club = Weapon(name="club", damage_dice=1, damage_sides=4)
     restrained = Conditions(held=frozenset({Condition.RESTRAINED}))
-    assert _propose_with(club, state=_conditioned(defender=restrained)).test.has_advantage
+    assert d20(_propose_with(club, state=_conditioned(defender=restrained))).has_advantage
 
 
 def test_conditions_on_both_sides_cancel_by_the_d20s_own_rule() -> None:
@@ -901,8 +912,8 @@ def test_conditions_on_both_sides_cancel_by_the_d20s_own_rule() -> None:
             defender=Conditions(held=frozenset({Condition.RESTRAINED})),
         ),
     )
-    assert proposal.test.has_advantage and proposal.test.has_disadvantage
-    result = roll_d20(proposal.test, seed=7)
+    assert d20(proposal).has_advantage and d20(proposal).has_disadvantage
+    result = roll_d20(d20(proposal), seed=7)
     assert len(result.dice) == 1, "both states, so neither — one plain d20"
 
 
@@ -923,8 +934,8 @@ def test_prone_reaches_the_attack_roll_in_both_directions() -> None:
     close = _propose_with(bow, state=_conditioned(defender=prone, at=Position(3, 0, 0)))
     far = _propose_with(bow, state=_conditioned(defender=prone, at=Position(40, 0, 0)))
 
-    assert close.test.has_advantage and not close.test.has_disadvantage
-    assert far.test.has_disadvantage and not far.test.has_advantage
+    assert d20(close).has_advantage and not d20(close).has_disadvantage
+    assert d20(far).has_disadvantage and not d20(far).has_advantage
 
 
 # --- Dodge reaches the attack roll (#16) ---------------------------------------------
@@ -945,7 +956,7 @@ def test_a_dodging_defender_is_attacked_at_disadvantage() -> None:
             ),
         ]
     )
-    assert _propose_with(club, state=state).test.has_disadvantage
+    assert d20(_propose_with(club, state=state)).has_disadvantage
 
 
 def test_a_dodge_that_no_longer_stands_does_not_reach_the_roll() -> None:
@@ -966,4 +977,4 @@ def test_a_dodge_that_no_longer_stands_does_not_reach_the_roll() -> None:
         ]
     )
     proposal = _propose_with(club, state=state)
-    assert not proposal.test.has_disadvantage
+    assert not d20(proposal).has_disadvantage

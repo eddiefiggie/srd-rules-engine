@@ -17,7 +17,7 @@ from __future__ import annotations
 import pytest
 
 from srd_rules_engine.core.adjudicate import EffectKind, Proposal
-from srd_rules_engine.core.d20 import DIE_SIDES, TestKind, resolve
+from srd_rules_engine.core.d20 import DIE_SIDES, D20Test, TestKind, resolve
 from srd_rules_engine.core.death import (
     DEATH_SAVE_DC,
     DEATH_SAVE_VERIFICATION,
@@ -25,6 +25,17 @@ from srd_rules_engine.core.death import (
 )
 from srd_rules_engine.core.rules import VerificationState
 from srd_rules_engine.core.state import DeathSaves, EncounterState
+
+
+def d20(proposal: Proposal) -> D20Test:
+    """Narrow `Proposal.test`, which became optional with #170 (0027 clause 6).
+
+    Every resolver exercised in this file proposes a d20 test; a testless proposal is a
+    different shape and is covered in `tests/test_outcome_without_a_roll.py`. Asserting it
+    here keeps these tests reading as assertions about the test rather than about `None`.
+    """
+    assert proposal.test is not None, "this resolver must propose a d20 test"
+    return proposal.test
 
 
 def encounter(
@@ -94,10 +105,10 @@ def test_the_save_is_dc_10_and_carries_no_modifier() -> None:
     it must not appear.
     """
     proposal = _propose(encounter(hp=0))
-    assert proposal.test.kind is TestKind.SAVE
-    assert proposal.test.target == DEATH_SAVE_DC == 10
-    assert proposal.test.modifiers == ()
-    assert "no modifier applies" in proposal.test.target_basis
+    assert d20(proposal).kind is TestKind.SAVE
+    assert d20(proposal).target == DEATH_SAVE_DC == 10
+    assert d20(proposal).modifiers == ()
+    assert "no modifier applies" in d20(proposal).target_basis
 
 
 def test_the_resolver_refuses_a_character_who_is_not_making_saves() -> None:
@@ -133,8 +144,8 @@ def test_the_natural_branches_win_over_success_and_failure() -> None:
 
     proposal = _propose(encounter(hp=0))
     for face, expected in ((DIE_SIDES, proposal.on_natural_20), (1, proposal.on_natural_1)):
-        seed = next(s for s in range(4000) if resolve(proposal.test, seed=s).used == face)
-        result = resolve(proposal.test, seed=seed)
+        seed = next(s for s in range(4000) if resolve(d20(proposal), seed=s).used == face)
+        result = resolve(d20(proposal), seed=seed)
         assert _branch(proposal, result) == expected
 
 
