@@ -21,6 +21,12 @@ extras exist.
 | `supply_facts` | Answers a blocked declaration with what the port could not resolve. |
 | `session_report` | The session review, derived from the ledger. |
 
+**`supply_facts` is declared and it raises (#144).** The memory port's `Fact` takes a typed
+value kind (R20), so the tool's argument schema has to name the kind rather than accept a
+string — which is why it is unbuilt over every adapter rather than only this one. A tool that
+fails loudly beats one quietly missing from the list a consumer plans against, so it stays
+declared until it works. Until then a turn that blocks on a fact has no route forward here.
+
 **`end_turn` is a separate tool because the turn's end is a separate phase.** Decision 0023
 put it there: `TurnLoop.run` owns a declaration slot and returns when it resolves, so
 `Finished` means the slot is done and *not* that the turn is over. The rendered payload says
@@ -251,7 +257,7 @@ class Adapter:
         if name == SUPPLY_FACTS:
             raise NotImplementedError(
                 "supply_facts needs the memory port's Fact constructor, which takes a typed "
-                "value kind; wiring it is the next slice of #97"
+                "value kind (R20); it is unbuilt and tracked as #144"
             )
         if name == SESSION_REPORT:
             return {"report": _report_text(self.ledger)}

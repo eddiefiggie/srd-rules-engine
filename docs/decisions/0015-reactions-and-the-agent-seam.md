@@ -107,3 +107,12 @@ have been a redesign proposal instead.
 
 **The budget is implemented** in `core.actions`, with the refresh timing p. 186 specifies. Trigger
 detection and the ledger interleaving rule are not, and are named above as the remaining work.
+
+| Unbuilt clause | Held by |
+|---|---|
+| Trigger detection — a departure from reach during movement, and the Reaction offer that follows. Opportunity Attacks, Ready, and the consumer `disengaged` still lacks all wait on it | [#16](https://github.com/eddiefiggie/srd-rules-engine/issues/16) |
+| The rule `session_report` needs for attributing interleaved entries to turns | [#120](https://github.com/eddiefiggie/srd-rules-engine/issues/120) |
+
+_Table added 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). Both were tracked
+already; neither was named here, so a reader of this record alone could not find the work it
+deferred._

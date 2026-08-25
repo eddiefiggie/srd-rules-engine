@@ -62,7 +62,7 @@ like a broken game rather than an absent one.
 It also takes no dependency. R33 keeps `[project].dependencies` empty and every transport is
 an extra; this one needs nothing beyond the standard library, so it has no extra either.
 
-**`facts` is declared and raises.** Wiring it needs the memory port's typed value
+**`facts` is declared and raises (#144).** Wiring it needs the memory port's typed value
 constructor, exactly as it does over MCP. A command that fails loudly beats one quietly
 missing from the list a consumer plans against.
 """
@@ -167,7 +167,7 @@ class CliAdapter:
         if name == FACTS:
             raise NotImplementedError(
                 "facts needs the memory port's Fact constructor, which takes a typed value "
-                "kind; it is unwired over every adapter, not only this one"
+                "kind; it is unwired over every adapter, not only this one (#144)"
             )
         if name == REPORT:
             return render_report(session_report(self.ledger))

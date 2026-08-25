@@ -49,6 +49,20 @@ This rule is inherited deliberately. In a sibling project it was broken 44 times
 caught it, including four whole subsystems re-deferred across as many as nine separate plans
 without ever being filed.
 
+**A decision record's unbuilt clauses must be filed too, and a gate closing is when to do it.**
+A `gate` issue closes by producing a record, so the moment the design is written down the issue
+that held it disappears. Any clause the record specifies and nobody has built is then tracked by
+nothing — and worse than merely unfiled, because a *closed* issue reads as finished work rather
+than as absent work. Open the issue and put its number beside the clause in the record's **Status
+of implementation** section. The same two exceptions apply.
+
+`tests/test_decision_records.py` asserts every record carries that section. It checks presence,
+not truth: a section can be stale and stay green, which is how twelve records came to claim
+nothing was built over an engine that had shipped
+([#127](https://github.com/eddiefiggie/srd-rules-engine/issues/127)). Updating it when the work lands is the
+author's job, and the issue number is what makes the claim checkable by someone who was not
+there.
+
 Two exceptions, both meaning **do not file**:
 
 - **A note recorded specifically so a later audit does not re-raise it.** Filing it re-raises
