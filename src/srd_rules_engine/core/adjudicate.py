@@ -92,7 +92,13 @@ DECLARATION_VERSION = 1
 #: reader misreads nothing, it simply cannot see a condition effect's subject. So this moves
 #: the version and **not** `RULING_COMPAT`, which is 0022's rule — compat is what a reader
 #: must be to read the payload *correctly*, not a record of the payload having changed.
-RULING_VERSION = 4
+#:
+#: 5 adds `testless` (#170, 0027 clause 6). Also additive, and also not a `RULING_COMPAT`
+#: move. It is recorded rather than inferred from `roll` being absent, because inferring is
+#: how the advantage gap got in: `REPLAYABLE_FROM = 2` exists because a ruling made with
+#: advantage replayed as though it had none. A v4 reader sees no `testless` key and reports
+#: such an entry unreplayable, which is the old behaviour rather than a new wrong answer.
+RULING_VERSION = 5
 NARRATION_VERSION = 1
 TERMINATION_VERSION = 1
 
@@ -340,10 +346,30 @@ class NarrationBounds:
 
 @dataclass(frozen=True)
 class Proposal:
-    """What a resolver returns: the test to roll, and what follows from either outcome."""
+    """What a resolver returns: the test to roll, and what follows from either outcome.
 
-    test: D20Test
+    **`test` is optional, and a proposal without one is still an outcome** (0027 clause 6).
+    Some rules resolve with no d20 anywhere in them — Falling deals 1d6 per 10 feet to a cap
+    (p. 182) and asks nothing of the dice but the damage. Until #170 that could not be
+    expressed, and reaching it by inventing a test would be inventing a roll the rules do not
+    call for, which is R4 from the other direction than usual.
+
+    A testless proposal changes nothing else. It goes through the one adjudication entry
+    point (R1), a seed is still drawn, and its `DamageDice` are still rolled by the engine
+    (R4). What it does not do is roll a d20.
+
+    **This is not `Status.NO_TEST`**, and the names are close enough to be worth separating.
+    `NO_TEST` is an accepted claim that no rule was engaged — "the action happened as
+    described, with no mechanical outcome". A testless proposal has a mechanical outcome and
+    no roll. One decides nothing; the other decides something without a die.
+    """
+
+    test: D20Test | None = None
     citations: tuple[str, ...] = ()
+    #: The branch a testless proposal resolves to. Not `on_success`, because nothing
+    #: succeeded — there was no test to succeed at, and a name implying one would be the
+    #: record saying a roll happened.
+    outcome: tuple[Declared, ...] = ()
     on_success: tuple[Declared, ...] = ()
     #: Branches selected by the **natural die** rather than by success or failure. The
     #: death save needs them and nothing else does yet: p. 18 makes a natural 1 cost two
@@ -354,6 +380,26 @@ class Proposal:
     on_failure: tuple[Declared, ...] = ()
     may_claim: tuple[str, ...] = ()
     may_not_claim: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        """Refuse the two shapes that would resolve to nothing, or to nothing decidable.
+
+        Both are resolver defects rather than rule questions, and both are silent without
+        this: a proposal that decides nothing still appends a Ruling, and a ruling that
+        recorded no outcome reads exactly like a rule that had none.
+        """
+        if self.test is None and not self.outcome:
+            raise ValueError(
+                "a proposal with no test and no outcome decides nothing. A rule that "
+                "resolves without a d20 states its effects in `outcome` (0027 clause 6); "
+                "a claim that no rule was engaged is Status.NO_TEST and is not a proposal"
+            )
+        if self.test is not None and self.outcome:
+            raise ValueError(
+                "a proposal with both a test and an `outcome` is ambiguous: `outcome` is "
+                "the branch taken when there is no test, so nothing would select it here. "
+                "Use on_success/on_failure for a proposal that rolls"
+            )
 
 
 class Resolver(Protocol):
@@ -588,9 +634,13 @@ class Adjudicator:
             state=state, declaration=declaration, facts={r.type_name: r for r in resolutions}
         )
         seed = _checked_seed(self._seed_source())
-        result = roll_d20(proposal.test, seed=seed)
+        # 0027 clause 6. A seed is drawn either way: a testless proposal still rolls its
+        # damage from it, so the outcome stays the engine's (R4) and stays reproducible.
+        result = roll_d20(proposal.test, seed=seed) if proposal.test is not None else None
         branch = _branch(proposal, result)
-        effects = _roll_declared(branch, seed=seed, critical=result.critical)
+        effects = _roll_declared(
+            branch, seed=seed, critical=result.critical if result is not None else Critical.NONE
+        )
         # The effects that go into the Ruling are the ones `_apply` hands back, not the
         # ones it was given: damage is rolled before a target is consulted, so only the
         # applier knows what p. 17's defences left of it (#105).
@@ -741,8 +791,23 @@ def _blocked(
     )
 
 
-def _bounds(proposal: Proposal, result: D20Result) -> NarrationBounds:
-    """R7. What may be claimed, and the standing limit on everything else."""
+def _bounds(proposal: Proposal, result: D20Result | None) -> NarrationBounds:
+    """R7. What may be claimed, and the standing limit on everything else.
+
+    A testless outcome may not be narrated as a success or a failure, because it was
+    neither — nothing was tested. Saying "the save succeeded" over a fall would describe a
+    roll that never happened, which is the narration bound doing exactly its job.
+    """
+    if result is None:
+        return NarrationBounds(
+            may=("that the effects recorded here happened", *proposal.may_claim),
+            may_not=(
+                "that anything was rolled for, tested, resisted or avoided — this rule "
+                "resolves without a d20",
+                "any consequence this ruling did not resolve; it needs its own declaration",
+                *proposal.may_not_claim,
+            ),
+        )
     outcome = "succeeded" if result.succeeded else "failed"
     return NarrationBounds(
         may=(f"that the {result.kind} {outcome}", *proposal.may_claim),
@@ -770,13 +835,16 @@ def _checked_seed(seed: int) -> int:
     return seed
 
 
-def _branch(proposal: Proposal, result: D20Result) -> Sequence[Declared]:
-    """Which branch the roll selected.
+def _branch(proposal: Proposal, result: D20Result | None) -> Sequence[Declared]:
+    """Which branch the roll selected, or the only branch there is.
 
     The natural-die branches win where a resolver supplied one, because the rules that
     need them say so in terms: a natural 1 on a death save costs two failures *instead of*
     the one an ordinary failure costs, not as well as.
     """
+    if result is None:
+        # 0027 clause 6: no test, so no branch was selected — there is one.
+        return proposal.outcome
     if result.used == DIE_SIDES and proposal.on_natural_20 is not None:
         return proposal.on_natural_20
     if result.used == 1 and proposal.on_natural_1 is not None:
@@ -994,6 +1062,10 @@ def _ruling_payload(ruling: Ruling) -> Mapping[str, object]:
             for e in ruling.effects
         ],
         "bounds": {"may": list(ruling.bounds.may), "may_not": list(ruling.bounds.may_not)},
+        # 0027 clause 6. Whether this outcome HAD a d20, stated rather than left to be
+        # inferred from `roll` being null — a thin record and a rule that never rolled look
+        # identical from the absence alone, and only one of them is a defect.
+        "testless": ruling.status is Status.RULED and result is None,
         "roll": None
         if result is None
         else {
