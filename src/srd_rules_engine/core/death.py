@@ -7,6 +7,25 @@ Saving Throws" and "Damage at 0 Hit Points"), pp. 17-18, with the Rules Glossary
 p. 181. `DEATH_SAVE_VERIFICATION` carries the citation and
 `scripts/verify_d20_rules.py` re-checks the sentences it rests on.
 
+## When the save is made, and why that is not this module's phase
+
+p. 17 states the trigger: a creature starts its turn at 0 hit points. It is the **start** of
+a turn, not the end — which matters more than it looks, because the only turn-phase this
+engine owns is `TurnLoop.end_turn`, where the save-ends obligation lives (0023). The two
+obligations do **not** share a phase.
+
+That sentence was missing from this repository until #124, and 0023 refused to supply it
+from memory precisely because assuming it matched save-ends' timing would have put the save
+in the wrong phase. It would have. The clause is now asserted in
+`scripts/verify_d20_rules.py`, and the pattern was proven to fail against a document saying
+"end your turn" rather than "start".
+
+**Knowing when is not the same as rolling it.** Nothing yet consults this module at the
+start of a turn, because that phase does not exist: 0023 built the turn's end and the
+turn's start has no equivalent. A downed player character still makes no death saves. The
+design question is #124, which is what it became once the document answered the factual
+half.
+
 ## What makes this a d20 test like any other
 
 The save resolves through the same primitive as everything else (R11) with a target of 10.
@@ -69,10 +88,10 @@ DEATH_SAVE_VERIFICATION: Final = Verification(
     state=VerificationState.VERIFIED,
     reference=(
         'SRD v5.2.1, "Playing the Game" ("Damage and Healing" -> "Death Saving Throws" '
-        'and "Damage at 0 Hit Points"), pp. 17-18; Rules Glossary, Death Saving Throw '
-        "p. 181"
+        'and "Damage at 0 Hit Points"), pp. 17-18, including the timing sentence on p. 17 '
+        "that says when the save is made; Rules Glossary, Death Saving Throw p. 181"
     ),
-    date="2026-08-23",
+    date="2026-08-25",
     method=VerificationMethod.ASSERTED,
 )
 

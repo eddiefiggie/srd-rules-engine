@@ -139,6 +139,14 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         17,
+        "WHEN a death save is made — the timing anchor 0023 declined to supply from memory "
+        "and #124 was blocked on. It is the START of a turn, not the end, so it is not the "
+        "phase save-ends lives in",
+        r"Whenever you start your turn with 0 Hit Points, you must make a Death Saving "
+        r"Throw",
+    ),
+    (
+        17,
         "a death save is DC 10 and tied to no ability score",
         r"this one isn.t tied to an ability score",
     ),
