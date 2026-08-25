@@ -11,6 +11,7 @@ is the kind of thing that reappears the moment somebody adds a convenience tool.
 
 from __future__ import annotations
 
+import dataclasses
 import inspect
 import tempfile
 from pathlib import Path
@@ -44,6 +45,7 @@ from srd_rules_engine.adapters.mcp import (
     tool_definitions,
 )
 from srd_rules_engine.core import Declaration, Intent
+from srd_rules_engine.core.read_surface import Situation, read
 from srd_rules_engine.loop import TurnLoop
 
 SEED = 20260823
@@ -166,6 +168,30 @@ def test_the_rendered_refusal_carries_the_trigger_that_fired(tmp_path: Path) -> 
 
 
 # --- The tool surface ----------------------------------------------------------------
+
+
+def test_every_read_surface_field_reaches_a_transport() -> None:
+    """A field on `Situation` that no adapter renders is a field the agent cannot see.
+
+    `situation_payload` is a hand-maintained list of names, which is the shape this project
+    keeps getting caught by — #122's build-stamp guard covered one of the README's two
+    stamps and went green while the other drifted. It had already happened here: 0020's
+    `elapsed_minutes` and `minutes_until_recovery` were on the read surface and on no
+    transport, so an agent driving through an adapter could not see elapsed campaign time,
+    including the countdown a Stable creature recovers on. Found by writing this test, not
+    by playing.
+
+    R18 is the requirement it protects: the surface reports what is legal *for this creature
+    now*, and a transport that drops half of it puts the agent back to recalling 5e.
+    """
+    state = opening_state(seed=SEED)
+    payload = surface_module.situation_payload(read(state, "pc").situation)
+    assert payload is not None
+    missing = [f.name for f in dataclasses.fields(Situation) if f.name not in payload]
+    assert not missing, (
+        f"Situation fields no adapter renders: {missing}. Add them to situation_payload — "
+        "an agent cannot decide from a field it is never sent."
+    )
 
 
 def test_the_tools_are_exactly_what_is_declared() -> None:

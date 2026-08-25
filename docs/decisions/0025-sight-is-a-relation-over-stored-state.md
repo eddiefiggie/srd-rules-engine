@@ -163,12 +163,24 @@ tree, and one of them turned out to be already decided:
 
 ## Status of implementation
 
-**None. Nothing in clauses 1-7 is built**, and this record is a design pass rather than a change to
-the engine. Held by:
+**The structure is built; the rules are not, and cannot be until the document is read.**
+`core.sight` landed 2026-08-24, with `tests/test_sight.py` covering it.
 
-| Clause | Held by |
+| Clause | State |
 |---|---|
-| 1 — Telepathy leaves the subsystem and gets its own consumer | [#149](https://github.com/eddiefiggie/srd-rules-engine/issues/149) |
-| 2, 3, 4, 6, 7 — light on state, senses on the combatant, visibility derived, the read-surface fields | [#138](https://github.com/eddiefiggie/srd-rules-engine/issues/138) |
-| 5 — the pages asserted in the verifier, before any row of the table exists | [#150](https://github.com/eddiefiggie/srd-rules-engine/issues/150) |
+| 1 — Telepathy is not in this subsystem | Built as an absence: `Sense` has no Telepathy member and `tests/test_sight.py` asserts it. Its own consumer is [#149](https://github.com/eddiefiggie/srd-rules-engine/issues/149) |
+| 2 — light is state | `EncounterState.lighting`, with `Lighting.ambient` and `LitVolume`. `None` ambient means nobody has stated a level, not Bright Light |
+| 3 — senses are per-creature state | `Combatant.senses`, shaped like `Speeds`, with `None` distinct from a range of 0 |
+| 4 — visibility is derived | The seam exists as `obscurement_at` and `can_see`; both refuse. Nothing is stored |
+| 5 — the table ships empty and refusing | `SIGHT_VERIFICATION` is `unverified`, both tables carry no rows, and a guard fails if a row appears while the state has not moved. The reading is [#150](https://github.com/eddiefiggie/srd-rules-engine/issues/150) |
+| 6 — no new triggers | Nothing to build. `core.triggers` is untouched |
+| 7 — the read surface reports the input | `Situation.light_level` and `Situation.senses`, and all three transports render them |
 | The obstruction seam, deliberately left inconsistent | [#151](https://github.com/eddiefiggie/srd-rules-engine/issues/151) |
+
+**No effect shape is resolved by any of it**, and none is marked implemented: the engine can hold
+a creature's Darkvision and still cannot say what it does. Coverage stays at 76 of 211, and #138
+stays open for the nine shapes.
+
+_Updated 2026-08-24 while implementing the structural half of [#138](https://github.com/eddiefiggie/srd-rules-engine/issues/138). This record
+shipped saying "None. Nothing in clauses 1-7 is built", which was true for about a day — the
+section is maintained as work lands rather than frozen with the decision (0024)._
