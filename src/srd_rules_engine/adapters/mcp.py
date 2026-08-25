@@ -18,14 +18,15 @@ extras exist.
 | `declare` | Answers a declaration request. May come back challenged or rejected. |
 | `narrate` | Pays R29's narration debt for a ruling. |
 | `end_turn` | Resolves the obligations the turn's end incurs (0023, #110). |
-| `supply_facts` | Answers a blocked declaration with what the port could not resolve. |
+| `supply_facts` | Answers a blocked declaration with the values the port could not resolve. |
 | `session_report` | The session review, derived from the ledger. |
 
-**`supply_facts` is declared and it raises (#144).** The memory port's `Fact` takes a typed
-value kind (R20), so the tool's argument schema has to name the kind rather than accept a
-string — which is why it is unbuilt over every adapter rather than only this one. A tool that
-fails loudly beats one quietly missing from the list a consumer plans against, so it stays
-declared until it works. Until then a turn that blocks on a fact has no route forward here.
+**`supply_facts` takes values and nothing else (#144).** The subject, the value's kind and
+the writer are all decided by `Session.supply_values` rather than accepted from the caller —
+each of them is a way for a supplied value to become something it is not, and the writer is
+the sharpest: a caller able to claim `ruling` would be dressing an unrolled fact as an
+adjudicated outcome. The schema below therefore asks for a `values` object and an optional
+`reference`, and no longer for the `subject` an earlier draft of it declared.
 
 **`end_turn` is a separate tool because the turn's end is a separate phase.** Decision 0023
 put it there: `TurnLoop.run` owns a declaration slot and returns when it resolves, so
@@ -192,20 +193,22 @@ def tool_definitions() -> tuple[dict[str, Any], ...]:
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "facts": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "type_name": {"type": "string"},
-                                "subject": {"type": "string"},
-                                "value": {},
-                            },
-                            "required": ["type_name", "subject", "value"],
+                    "values": {
+                        "type": "object",
+                        "description": (
+                            "One entry per unresolved fact type, name to value. The subject, "
+                            "the kind and the writer are the engine's to decide."
+                        ),
+                        "additionalProperties": {
+                            "type": ["integer", "boolean", "string"],
                         },
-                    }
+                    },
+                    "reference": {
+                        "type": "string",
+                        "description": "Where the value came from, recorded with the write.",
+                    },
                 },
-                "required": ["facts"],
+                "required": ["values"],
             },
         },
         {
@@ -255,9 +258,14 @@ class Adapter:
         if name == END_TURN:
             return render(self.session.end_turn(str(arguments["actor_id"])))
         if name == SUPPLY_FACTS:
-            raise NotImplementedError(
-                "supply_facts needs the memory port's Fact constructor, which takes a typed "
-                "value kind (R20); it is unbuilt and tracked as #144"
+            values = arguments.get("values")
+            if not isinstance(values, Mapping):
+                raise ValueError("supply_facts takes a 'values' object of name to value")
+            reference = arguments.get("reference")
+            return render(
+                self.session.supply_values(
+                    dict(values), reference=str(reference) if reference is not None else None
+                )
             )
         if name == SESSION_REPORT:
             return {"report": _report_text(self.ledger)}

@@ -19,7 +19,7 @@ from typing import get_args
 
 import pytest
 
-from fixtures.encounter import build_adjudicator, opening_state
+from fixtures.encounter import build_adjudicator, needs_nerve, opening_state
 from fixtures.ruleset import LOOSE_SCREE
 from srd_rules_engine.adapters import (
     AwaitingDeclaration,
@@ -39,6 +39,7 @@ from srd_rules_engine.adapters.mcp import (
     FORBIDDEN_TOOL_NAMES,
     LOOK,
     NARRATE,
+    SUPPLY_FACTS,
     TOOL_NAMES,
     Adapter,
     render,
@@ -168,6 +169,29 @@ def test_the_rendered_refusal_carries_the_trigger_that_fired(tmp_path: Path) -> 
 
 
 # --- The tool surface ----------------------------------------------------------------
+
+
+def test_supply_facts_answers_a_block_over_the_tool_call(tmp_path: Path) -> None:
+    """The tool #144 found declared-and-raising. A blocked turn now has a route forward over
+    MCP, and the values arrive typed by the declared `FactType` rather than by the caller."""
+    adapter = _adapter(tmp_path)
+    adapter.call(BEGIN_TURN, {"actor_id": "pc"})
+    adapter.session.declare(needs_nerve(adapter.session.pending))  # type: ignore[arg-type]
+    assert isinstance(adapter.session.pending, AwaitingFacts)
+
+    payload = adapter.call(SUPPLY_FACTS, {"values": {"nerve": True}})
+
+    assert payload
+    stored = adapter.session.loop.adjudicator.port.get("nerve", "pc")
+    assert stored is not None and stored.value is True
+
+
+def test_the_supply_facts_schema_does_not_ask_for_a_subject(tmp_path: Path) -> None:
+    """It did, in the draft that never ran. The subject is the blocked declaration's actor,
+    and a caller naming it could write a fact about a creature the turn is not about."""
+    schema = next(d["input_schema"] for d in tool_definitions() if d["name"] == SUPPLY_FACTS)
+    assert set(schema["properties"]) == {"values", "reference"}
+    assert schema["required"] == ["values"]
 
 
 def test_every_read_surface_field_reaches_a_transport() -> None:

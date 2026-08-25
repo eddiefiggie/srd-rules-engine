@@ -28,8 +28,9 @@ from typing import Any
 
 import pytest
 
-from fixtures.encounter import build_adjudicator, opening_state
+from fixtures.encounter import build_adjudicator, needs_nerve, opening_state
 from fixtures.ruleset import LOOSE_SCREE
+from srd_rules_engine.adapters import AwaitingFacts
 from srd_rules_engine.adapters import cli as cli_module
 from srd_rules_engine.adapters import mcp as mcp_module
 from srd_rules_engine.adapters.cli import (
@@ -44,7 +45,7 @@ from srd_rules_engine.adapters.cli import (
     CliAdapter,
     CliError,
 )
-from srd_rules_engine.adapters.session import Session
+from srd_rules_engine.adapters.session import FactRefused, Session
 from srd_rules_engine.adapters.surface import FORBIDDEN_COMMAND_NAMES, pending_members
 from srd_rules_engine.loop import TurnLoop
 
@@ -246,11 +247,45 @@ def test_the_loop_survives_a_bad_command(tmp_path: Path) -> None:
     assert adapter.session.pending is not None, "the turn is still held"
 
 
-def test_facts_fails_loudly_rather_than_being_absent(tmp_path: Path) -> None:
-    """Unwired over every adapter, not only this one. A command that raises beats one
-    quietly missing from the list a consumer plans against."""
-    with pytest.raises(NotImplementedError, match="typed value"):
-        _adapter(tmp_path).dispatch("facts")
+def test_facts_answers_a_block_from_bare_text(tmp_path: Path) -> None:
+    """A terminal has nothing but strings to offer, so `nerve=true` has to reach the port as
+    the Boolean the declared type says it is (#144)."""
+    adapter = _adapter(tmp_path)
+    adapter.dispatch("begin pc")
+    adapter.session.declare(needs_nerve(adapter.session.pending))  # type: ignore[arg-type]
+    assert isinstance(adapter.session.pending, AwaitingFacts)
+
+    adapter.dispatch("facts nerve=true")
+
+    stored = adapter.session.loop.adjudicator.port.get("nerve", "pc")
+    assert stored is not None
+    assert stored.value is True, "the string reached the port unconverted"
+
+
+def test_a_reference_pair_is_a_note_rather_than_a_fact(tmp_path: Path) -> None:
+    """`reference=` is the one reserved key, so it does not arrive as a fact type nobody
+    asked for — which is what the refusal below would call it."""
+    adapter = _adapter(tmp_path)
+    adapter.dispatch("begin pc")
+    adapter.session.declare(needs_nerve(adapter.session.pending))  # type: ignore[arg-type]
+
+    adapter.dispatch('facts nerve=false reference="the notes from last session"')
+
+    stored = adapter.session.loop.adjudicator.port.get("nerve", "pc")
+    assert stored is not None
+    assert stored.provenance.reference == "the notes from last session"
+    assert stored.value is False
+
+
+def test_a_refused_value_comes_back_as_a_refusal_line(tmp_path: Path) -> None:
+    """The CLI turns a `ValueError` into text rather than a traceback, the way it already
+    does for a malformed declaration."""
+    adapter = _adapter(tmp_path)
+    adapter.dispatch("begin pc")
+    adapter.session.declare(needs_nerve(adapter.session.pending))  # type: ignore[arg-type]
+
+    with pytest.raises(FactRefused, match="not true or false"):
+        adapter.dispatch("facts nerve=yes")
 
 
 def test_render_is_exhaustive_at_runtime_too(tmp_path: Path) -> None:

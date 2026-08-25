@@ -30,7 +30,7 @@ from typing import Any
 
 import pytest
 
-from fixtures.encounter import build_adjudicator, opening_state
+from fixtures.encounter import build_adjudicator, needs_nerve, opening_state
 from fixtures.ruleset import LOOSE_SCREE
 from srd_rules_engine.adapters import cli as cli_module
 from srd_rules_engine.adapters import http as http_module
@@ -230,12 +230,37 @@ def test_a_missing_actor_is_400_rather_than_a_traceback(tmp_path: Path) -> None:
     assert response.status == HTTPStatus.BAD_REQUEST
 
 
-def test_facts_is_501_rather_than_absent(tmp_path: Path) -> None:
-    """Unwired over every adapter. A route that fails loudly beats one quietly missing from
-    the list a client plans against."""
-    response = _adapter(tmp_path).handle("POST", FACTS, {})
-    assert response.status == HTTPStatus.NOT_IMPLEMENTED
-    assert "typed value" in response.body["error"]
+def test_facts_answers_a_block(tmp_path: Path) -> None:
+    adapter = _adapter(tmp_path)
+    adapter.handle("POST", BEGIN, {"actor_id": "pc"})
+    adapter.session.declare(needs_nerve(adapter.session.pending))  # type: ignore[arg-type]
+
+    response = adapter.handle("POST", FACTS, {"values": {"nerve": True}})
+
+    assert response.ok
+    stored = adapter.session.loop.adjudicator.port.get("nerve", "pc")
+    assert stored is not None and stored.value is True
+
+
+def test_a_refused_value_is_a_400_rather_than_a_500(tmp_path: Path) -> None:
+    """`FactRefused` is a `ValueError`, which this adapter already maps to a bad request —
+    so a client sending the wrong shape is told so rather than seeing the server fall over."""
+    adapter = _adapter(tmp_path)
+    adapter.handle("POST", BEGIN, {"actor_id": "pc"})
+    adapter.session.declare(needs_nerve(adapter.session.pending))  # type: ignore[arg-type]
+
+    response = adapter.handle("POST", FACTS, {"values": {"nerve": "yes"}})
+
+    assert response.status == HTTPStatus.BAD_REQUEST
+    assert "not true or false" in response.body["error"]
+
+
+def test_facts_without_a_values_object_is_a_400(tmp_path: Path) -> None:
+    adapter = _adapter(tmp_path)
+    adapter.handle("POST", BEGIN, {"actor_id": "pc"})
+    adapter.session.declare(needs_nerve(adapter.session.pending))  # type: ignore[arg-type]
+
+    assert adapter.handle("POST", FACTS, {}).status == HTTPStatus.BAD_REQUEST
 
 
 def test_a_trailing_slash_and_a_query_string_reach_the_same_route(tmp_path: Path) -> None:
@@ -249,13 +274,19 @@ def test_a_trailing_slash_and_a_query_string_reach_the_same_route(tmp_path: Path
 def test_every_pending_state_is_reachable_over_http(tmp_path: Path) -> None:
     """A phase the loop can enter and this adapter cannot drive is a turn a client cannot
     finish — which is exactly what #134 was."""
-    reachable = {"AwaitingDeclaration", "AwaitingNarration", "Finished", "TurnEnded"}
+    reachable = {
+        "AwaitingDeclaration",
+        "AwaitingFacts",
+        "AwaitingNarration",
+        "Finished",
+        "TurnEnded",
+    }
     names = {m.__name__ for m in pending_members()}
-    assert names - reachable == {"AwaitingFacts"}, (
-        "AwaitingFacts is reachable only once /facts is wired; every other state must have "
-        "a route today"
+    assert names - reachable == set(), (
+        "a phase with no route is a turn a client cannot finish. AwaitingFacts was the last "
+        "one and #144 wired it"
     )
-    for route in (BEGIN, DECLARE, NARRATE, END_TURN):
+    for route in (BEGIN, DECLARE, NARRATE, END_TURN, FACTS):
         assert route in ROUTES
 
 
