@@ -19,6 +19,12 @@ GARAGE.md
 NOTES.local.md
 *.local.md
 
+# Agent-harness overrides scoped to one machine: permission grants, local model or
+# tool choices. `.claude/` itself is deliberately NOT ignored — shared project config
+# belongs in the repo and should be reviewable. Only the `.local.` files are personal,
+# the same split `*.local.md` above already draws.
+.claude/*.local.json
+
 # Session ledgers and reference-memory files written during play are local
 # campaign state, not source. The formats are versioned; the contents are not.
 /ledgers/
