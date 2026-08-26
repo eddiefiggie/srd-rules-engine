@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -56,7 +57,10 @@ from srd_rules_engine.core import (
     replay_entry,
     session_report,
 )
+from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.ledger_reader import Entry
+from srd_rules_engine.core.obstructions import Obstruction
+from srd_rules_engine.core.position import Position
 from srd_rules_engine.core.read_surface import END_TURN
 from srd_rules_engine.core.report import REPLAYABLE_FROM
 from srd_rules_engine.loop.drivers import HumanCliDriver, drive
@@ -850,3 +854,113 @@ def test_no_payload_writer_derives_its_floor_from_its_schema_version() -> None:
                     f"{stripped!r}. They are different number lines (decision 0022) — name "
                     "the floor with its own constant"
                 )
+
+
+# --- Terrain, and the replay gap it did not open (#159) --------------------------------
+
+
+def _feared_from_behind_a_wall(*, walled: bool) -> EncounterState:
+    """A Frightened attacker, its source of fear across the room, and optionally a wall.
+
+    The wall is between the attacker and the **source of fear**, not between it and the
+    target. Putting it on the line to the target gives Total Cover, and `attack_resolver`
+    refuses the attack outright (p. 179) — there would be no roll to replay, which is a
+    different rule and not this one.
+    """
+    pc = Combatant(
+        id="pc",
+        name="Pc",
+        hit_points=20,
+        max_hit_points=20,
+        armour_class=13,
+        abilities={"str": 16, "dex": 14},
+        proficiency_bonus=2,
+        position=Position(0, 0, 0),
+        conditions=Conditions(
+            held=frozenset({Condition.FRIGHTENED}),
+            sources={Condition.FRIGHTENED: frozenset({"ghoul"})},
+        ),
+    )
+    boar = Combatant(
+        id="boar",
+        name="Boar",
+        hit_points=11,
+        max_hit_points=11,
+        armour_class=13,
+        abilities={"str": 12, "dex": 10},
+        proficiency_bonus=2,
+        position=Position(5, 0, 0),
+    )
+    ghoul = Combatant(
+        id="ghoul",
+        name="Ghoul",
+        hit_points=22,
+        max_hit_points=22,
+        armour_class=12,
+        abilities={"str": 14, "dex": 12},
+        proficiency_bonus=2,
+        position=Position(0, 50, 0),
+    )
+    walls = (
+        (Obstruction(lo=Position(-5, 25, -5), hi=Position(5, 25, 5), blocks_sight=True),)
+        if walled
+        else ()
+    )
+    state = replace(EncounterState.new([pc, boar, ghoul]), obstructions=walls)
+    return state.with_initiative({"pc": 18, "boar": 4, "ghoul": 2})
+
+
+def test_terrain_reaches_a_roll_and_the_entry_records_the_derived_value(tmp_path: Path) -> None:
+    """#159 asked that when terrain first modifies a d20 test, the ruling entry record the
+    **derived** value rather than the terrain. It already does, and terrain already does.
+
+    `#192` and `#193` wired `EncounterState.can_see` into `attack_resolver`, and `can_see`
+    reads the encounter's obstructions and its lighting. So a wall now changes whether p. 182's
+    Frightened qualifier holds, which changes whether the attack has Disadvantage, which
+    changes **how many dice are rolled and which one is used**. #159's "nothing feeds terrain
+    into a roll yet" stopped being true without anyone noticing.
+
+    The gap it feared did not open, and the reason is structural rather than lucky: the ruling
+    entry records `declared_disadvantage`, and `replay_entry` takes no `EncounterState` at all.
+    A ruling cannot record the terrain even by accident, because nothing hands the terrain to
+    the recorder.
+
+    Everything below is held constant except the wall — same seed, same declaration, same
+    combatants — so the two rows differ *only* by terrain. Note that they differ in exactly
+    the way `REPLAYABLE_FROM = 2` exists to prevent: two dice against one. Replaying the
+    unwalled ruling as though it had no Disadvantage would take 17 instead of 10 and report a
+    mismatch indistinguishable from real drift.
+    """
+    rulings = {}
+    for walled in (False, True):
+        path = tmp_path / f"walled-{walled}"
+        path.mkdir(parents=True)
+        state = _feared_from_behind_a_wall(walled=walled)
+        assert state.fear_in_sight("pc") is not walled, "the wall is what moves the qualifier"
+
+        build(path, seed=5).adjudicate(state, strike(state))
+        entry = entries(path / "ledger.jsonl", "ruling")[0]
+        roll = entry.payload["roll"]
+        assert isinstance(roll, Mapping)
+        rulings[walled] = (entry, roll)
+
+    (_, open_ground), (_, behind_wall) = rulings[False], rulings[True]
+
+    assert open_ground["declared_disadvantage"] is True, "the source of fear is in sight"
+    assert len(open_ground["dice"]) == 2
+    assert open_ground["used"] == min(open_ground["dice"])
+
+    assert behind_wall["declared_disadvantage"] is False, "the wall put it out of sight"
+    assert len(behind_wall["dice"]) == 1
+    assert behind_wall["used"] == behind_wall["dice"][0]
+
+    # The whole point: the entry alone reproduces each, with no state and no terrain.
+    for entry, _ in rulings.values():
+        assert replay_entry(entry, engine_version=ENGINE, recorded_engine=ENGINE).reproduced
+
+    # And no entry carries the terrain it was derived from. Recording that would make replay
+    # recompute the derivation, which reproduces the arithmetic and nothing else — the same
+    # mistake as trusting the recorded dice.
+    for entry, roll in rulings.values():
+        assert not {"obstructions", "lighting", "cover", "terrain"} & set(roll)
+        assert not {"obstructions", "lighting"} & set(entry.payload)
