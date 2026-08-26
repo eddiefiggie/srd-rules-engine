@@ -317,16 +317,56 @@ class Combatant:
         """
         return self.is_player_character and self.is_down and not self.death_saves.is_resolved
 
+    def movement_remaining_in(self, mode: MovementMode) -> int | None:
+        """How much farther this creature may move *in this mode* (p. 188).
+
+        p. 188, *Special Speeds*: "If you have more than one speed, choose which one to use
+        when you move; you can switch between the speeds during your move. Whenever you
+        switch, subtract the distance already moved from the new speed. The result
+        determines how much farther you can move. If the result is 0 or less, you can't use
+        the new speed during the current move."
+
+        So the allowance is **per mode against one shared spend**, not one pool drawn from
+        Speed. `movement_used` is the shared spend; the mode supplies the number it comes
+        off. The document's own worked example is the test: with a Speed of 30 and a Fly
+        Speed of 40 "you could fly 10 feet, walk 10 feet, and leap into the air to fly 20
+        feet more" — 40 feet in total, which no single-pool reading reaches.
+
+        **Which speed governs a mode is not always the special one.** Climbing, swimming
+        and crawling are ordinary moves that cost extra (pp. 178, 189, 179), so a creature
+        without the matching special speed makes them on its Speed; `Speeds.for_mode`
+        already returns `walk` for crawling for that reason. Flying and burrowing have no
+        such fallback — pp. 178 and 182 grant them only through the speed itself — so this
+        answers `None` for a creature that has neither, which is the same refusal
+        `with_movement` makes and is not the same fact as a remaining 0.
+
+        **Dash adds movement, not speed.** p. 180: "you gain extra movement for the current
+        turn", and "if you have a special speed ... you can use that speed instead of your
+        Speed when you take this action". The size of the pool is chosen once, at the Dash;
+        what it grants is feet, so those feet are spendable in any mode the creature has.
+        """
+        speed = self.effective_speeds.for_mode(mode)
+        if speed is None:
+            if mode in _SPEED_ONLY_MODES:
+                return None
+            speed = self.effective_speeds.walk
+        return max(0, speed + self.actions.extra_movement - self.movement_used)
+
     @property
     def movement_remaining(self) -> int:
-        """What is left of this creature's Speed on this turn (p. 188).
+        """What is left of this creature's Speed on this turn (p. 188), walking.
 
         Conditions act on the Speed first: Grappled and the rest set it to 0, and
         Exhaustion reduces it by 5 per level (pp. 182, 181). A creature whose Speed a
         condition zeroed has no movement left however little it has spent.
+
+        Walking only. A creature with a special speed has a *different* number for that
+        mode and `movement_remaining_in` is what answers it — reading this one for a flying
+        creature charges its flight against its Speed, which is the bug #206 filed.
         """
-        allowance = self.conditions.speed_after(self.speeds.walk) + self.actions.extra_movement
-        return max(0, allowance - self.movement_used)
+        walking = self.movement_remaining_in(MovementMode.WALK)
+        assert walking is not None  # WALK always draws on Speed, which is never None
+        return walking
 
     def modifier(self, ability: str) -> int:
         """The SRD's ability modifier, floor-divided so negatives round the right way."""
@@ -1220,6 +1260,11 @@ class EncounterState:
         Refused when the cost exceeds what is left, because a move a creature cannot
         afford is not a move it makes slowly — it is one the rules do not allow, and the
         read surface is what a caller consults before proposing it.
+
+        **What is left is asked of the mode, not of Speed** (p. 188, and #206). One spend
+        is shared across every mode; the number it comes off belongs to the mode being
+        used, so a Fly Speed of 40 buys 40 feet of flight rather than the Speed's 30. See
+        `Combatant.movement_remaining_in`.
         """
         target = self.combatant(combatant_id)
         if target.position is None:
@@ -1240,9 +1285,11 @@ class EncounterState:
 
         feet = distance_feet(target.position, to)
         cost = movement_cost(feet, mode=mode, difficult_terrain=difficult_terrain, speeds=speeds)
-        if cost > target.movement_remaining:
+        remaining = target.movement_remaining_in(mode)
+        assert remaining is not None  # the refusal above covers the modes that answer None
+        if cost > remaining:
             raise ValueError(
-                f"{target.name} has {target.movement_remaining} feet of movement left and "
+                f"{target.name} has {remaining} feet of {mode.value} movement left and "
                 f"that move costs {cost}"
             )
 

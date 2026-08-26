@@ -105,6 +105,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "climbing": f"core.position.MovementMode.{MovementMode.CLIMB.name}",
         "swimming": f"core.position.MovementMode.{MovementMode.SWIM.name}",
         "crawling": f"core.position.MovementMode.{MovementMode.CRAWL.name}",
+        # Claimed since #17 and wrong until #206: `with_movement` charged every mode
+        # against the walking Speed, so p. 188's own worked example — fly 10, walk 10,
+        # fly 20 more — was not expressible. A claimed clause is not a checked one, which
+        # is the second time this instrument has misreported in as many builds.
         "split-movement": "core.state.EncounterState.with_movement",
         # The special speeds, and the one of them that is a rule rather than a number.
         #

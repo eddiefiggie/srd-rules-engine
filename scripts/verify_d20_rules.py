@@ -647,6 +647,30 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"when it moves on its turn",
     ),
     (
+        188,
+        "the allowance is per mode against one shared spend, not one pool from Speed (#206)",
+        r"If you have more than one speed, choose which one to use when you move; you can "
+        r"switch between the speeds during your move\.\s*Whenever you switch, subtract the "
+        r"distance already moved from the new speed",
+    ),
+    (
+        188,
+        "and a mode whose speed the spend has exhausted is refused, not merely reduced",
+        r"If the result is 0 or less, you can.t use the new speed during the current move",
+    ),
+    (
+        188,
+        "the document's own worked example, which no single-pool reading reaches (#206)",
+        r"if you have a Speed of 30 and a Fly Speed of 40, you could fly 10 feet, walk 10 "
+        r"feet, and leap into the air to fly 20 feet more",
+    ),
+    (
+        180,
+        "Dash sizes its pool from a special speed if the creature chooses one",
+        r"If you have a special speed, such as a Fly Speed or Swim Speed, you can use that "
+        r"speed instead of your Speed when you take this action",
+    ),
+    (
         181,
         "Difficult Terrain costs 1 extra foot per foot, and does not stack with itself",
         r"every foot of movement in that space costs 1 extra foot.{0,140}Difficult Terrain "
