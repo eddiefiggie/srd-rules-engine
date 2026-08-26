@@ -33,6 +33,11 @@
    "id": "mechanism-not-exemplar",
    "rule": "A shape is named for the mechanism it is, not for the feature that exhibits it. Two features whose rules differ only in a parameter are one shape.",
    "decided_by": "0013, Q1, Q3 and Q5"
+  },
+  {
+   "id": "one-thing-under-two-names",
+   "rule": "A term whose entry states it denotes the same thing as an inventoried term is one shape with it, however often the document uses the term. The test is identity, not usage. Two ids resolving to one symbol is the machine-checkable form of it; a similar name is not, which is why a specialised namesake with its own resolver stays a shape.",
+   "decided_by": "0035"
   }
  ],
  "kind_values": [
@@ -887,14 +892,6 @@
    "tag": null,
    "reference": "Rules Glossary, p. 187",
    "kind": "spellcasting",
-   "implemented": true
-  },
-  {
-   "id": "save",
-   "name": "Save",
-   "tag": null,
-   "reference": "Rules Glossary, p. 187",
-   "kind": "test",
    "implemented": true
   },
   {
@@ -1857,6 +1854,13 @@
    "tag": null,
    "reference": "Rules Glossary, p. 187",
    "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "save",
+   "name": "Save",
+   "tag": null,
+   "reference": "Rules Glossary, p. 187",
+   "reason": "Not a separate shape: p. 187 states it is another name for `saving-throw`, and the parent entry declares the alias itself ('A saving throw—also called a save—'). It fixes no parameter and names the identical set, so the two are one shape. The deciding evidence is that both ids already resolved to the same symbol, `core.d20.TestKind.SAVE`, on adjacent lines of `core.inventory` — one mechanic counted twice in the numerator and the denominator both. Heavy use is not evidence either way: the document uses 'save' 1544 times and 'saving throw' 636, and use of a synonym is use of the thing it names. Decision 0035."
   },
   {
    "id": "spell",

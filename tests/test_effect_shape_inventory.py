@@ -399,12 +399,23 @@ def test_the_glossary_claims_agree_with_the_generator_that_writes_them() -> None
 
 #: Entries whose *glossary body* states no mechanic, and which are claimed anyway because the
 #: document states the mechanic elsewhere. This is the set 0033 clause 1 governs.
+#:
+#: **It had a fifth member, and where it went is recorded rather than left to be noticed.**
+#: `save` was here — "the entry renames a saving throw rather than defining one" — and 0035
+#: moved it to `vocabulary`: p. 187 says outright it is another name for a saving throw, and
+#: both ids already resolved to `TestKind.SAVE`. It is not a shape any more, so it cannot be
+#: a shape claimed on outside text.
+#:
+#: 0033 is not weakened by the loss. Its finding was that contentlessness does not decide
+#: whether a shape is claimed, and the four below still carry it — each is as definitional in
+#: the glossary as Bright Light was, and each is claimed on text elsewhere. A guard member
+#: vanishing without a reason is how a guard comes to inspect less than it appears to, which
+#: is the failure 0033 was written about.
 CLAIMED_ON_TEXT_OUTSIDE_THE_ENTRY = {
     "bright-light": 'p. 11: "Bright Light lets most creatures see normally."',
     "damage": "p. 17, and the damage rules the glossary entry points at.",
     "damage-types": "p. 17: the entry says types have no rules of their own, and points on.",
     "healing": "p. 17, and the Hit Point rules the glossary entry points at.",
-    "save": "the D20 Test rules — the entry renames a saving throw rather than defining one.",
 }
 
 #: Asserted **unclaimed**, so this guard fails in both directions. Without it the test is
