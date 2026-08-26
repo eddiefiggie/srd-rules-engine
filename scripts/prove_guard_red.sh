@@ -176,5 +176,28 @@ if [ "$PYTEST_STATUS" -eq 0 ]; then
     exit 1
 fi
 
+# Only exit 1 — "tests were collected and some failed" — is a red. pytest spends 2, 3, 4
+# and 5 on runs that did not happen: interrupted, internal error, bad usage, and nothing
+# collected. Every one of them is a non-zero status that this script used to report as
+# PROOF HELD, which made the instrument that checks whether a guard inspects anything
+# capable of inspecting nothing itself. A mistyped path is the ordinary way in — quoting
+# the pytest arguments as one word yields exit 4 and a confident green.
+if [ "$PYTEST_STATUS" -ne 1 ]; then
+    echo "NOT A PROOF: pytest exited ${PYTEST_STATUS} against a corrupt ${TARGET}."
+    echo
+    case "$PYTEST_STATUS" in
+    2) echo "Exit 2 is an interrupted run or an error during collection. If the corruption" ;;
+    3) echo "Exit 3 is an internal pytest error. If the corruption" ;;
+    4) echo "Exit 4 is a usage error — most often a mistyped or mis-quoted path. If it" ;;
+    5) echo "Exit 5 means no tests were collected at all. If the selector" ;;
+    *) echo "That status is not one pytest spends on a failing assertion. If the run" ;;
+    esac
+    echo "stopped the run from happening, no assertion was ever evaluated — and a guard"
+    echo "that was never run is exactly what this script exists to detect. Fix the"
+    echo "invocation, or corrupt something narrower, and try again."
+    echo "(The working tree has been restored from the snapshot.)"
+    exit 1
+fi
+
 echo "PROOF HELD: the guard went red against a corrupt ${TARGET} (pytest exit ${PYTEST_STATUS})."
 echo "(The working tree has been restored from the snapshot.)"

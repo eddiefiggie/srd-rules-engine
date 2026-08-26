@@ -312,6 +312,41 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "and Total Cover is defined by what it does to TARGETING, not to seeing",
         r"Total Cover \(can.t be targeted directly\)",
     ),
+    # --- Flying, and what brings a flyer down ---------------------------------------------
+    (
+        182,
+        "a flyer falls on Incapacitated, on Prone, or on a Fly Speed reduced to 0 — and "
+        "hovering is the single exception to all three",
+        r"While flying, you fall if you have the Incapacitated or Prone condition or your "
+        r"Fly Speed is reduced to 0\.\s*You can stay aloft in those circumstances if you "
+        r"can hover",
+    ),
+    (
+        182,
+        "and otherwise a Fly Speed keeps you up until something ends it",
+        r"While you have a Fly Speed, you can stay aloft until you land, fall, or die",
+    ),
+    (
+        179,
+        "a Climb Speed removes the extra cost rather than adding a speed — which is what "
+        "movement_cost already implements",
+        r"A Climb Speed can be used in place of Speed to traverse a vertical surface "
+        r"without expending the extra movement normally associated with climbing",
+    ),
+    (
+        189,
+        "and a Swim Speed says the same for water",
+        r"A Swim Speed can be used to swim without expending the extra movement normally "
+        r"associated with swimming",
+    ),
+    (
+        178,
+        "a Burrow Speed moves through sand, earth, mud or ice and NOT solid rock — the "
+        "clause that keeps this shape unclaimed, because no medium is modelled",
+        r"can use that speed to move through sand, earth, mud, or ice\.\s*The creature "
+        r"can.t burrow through solid rock unless the creature has a trait that allows it to "
+        r"do so",
+    ),
     # --- Jumping ------------------------------------------------------------------------
     (
         184,

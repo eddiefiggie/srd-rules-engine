@@ -247,7 +247,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 179",
    "kind": "movement",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "concentration",
@@ -511,7 +511,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 182",
    "kind": "movement",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "fly-speed",
@@ -519,7 +519,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 182",
    "kind": "movement",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "friendly",
@@ -631,7 +631,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 183",
    "kind": "movement",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "illusions",
@@ -1039,7 +1039,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 189",
    "kind": "movement",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "target",

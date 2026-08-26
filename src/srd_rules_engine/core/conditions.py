@@ -44,14 +44,14 @@ obstructions. The conditions are held and reported; those two clauses are not en
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Final
 
 from srd_rules_engine.core.d20 import Advantage
 from srd_rules_engine.core.duration import Duration, SaveEnds
-from srd_rules_engine.core.position import Position, within
+from srd_rules_engine.core.position import Position, Speeds, within
 from srd_rules_engine.core.rules import (
     Verification,
     VerificationMethod,
@@ -365,6 +365,63 @@ class Conditions:
         if any(e.speed_zero for e in self.effects):
             return 0
         return max(0, speed - 5 * self.exhaustion_level)
+
+    def speeds_after(self, speeds: Speeds) -> Speeds:
+        """Every speed left after the held conditions have acted, not only Speed (p. 188).
+
+        p. 188, *Changes to Your Speeds*: "If an effect increases or decreases your Speed
+        for a time, any special speed you have increases or decreases by an equal amount
+        for the same duration", worked as "if your Speed is reduced to 0 and you have a
+        Climb Speed, your Climb Speed is also reduced to 0".
+
+        So the two effects this engine models reach a creature's special speeds too, and
+        they reach them differently:
+
+        * **A condition that zeroes Speed zeroes all of them.** Not "subtract the walking
+          Speed from each" — a creature with a Speed of 30 and a Fly Speed of 60 does not
+          keep 30 feet of flight while Grappled. p. 188's example states the outcome
+          outright, and pp. 182, 186, 187 and 191 add that the Speed "can't increase".
+        * **Exhaustion takes its 5 feet per level from each**, floored at 0, because
+          p. 181 denominates that reduction in feet and "an equal amount" of feet is what
+          p. 188 then transfers.
+
+        A speed the creature does not have stays `None`. Reducing an absent speed to 0
+        would hand it a Fly Speed of 0 — which p. 182 distinguishes from having none, and
+        which `falls_if_flying` reads.
+
+        **What is not applied is a proportional effect**, and the reason is that p. 188
+        contradicts itself there: "an equal amount" subtracts feet, while the section's
+        other example — "if your Speed is halved ... your Fly Speed is also halved" —
+        scales. A Speed of 30 halved takes 15 feet from a Fly Speed of 40 under the first
+        reading and 20 under the second, and picking one would be inferring a rule value
+        (R31). This engine implements no proportional speed effect, so nothing reaches the
+        disagreement today; it is filed as #205 against the day one arrives.
+        """
+        if any(e.speed_zero for e in self.effects):
+            return replace(
+                speeds,
+                walk=0,
+                climb=None if speeds.climb is None else 0,
+                fly=None if speeds.fly is None else 0,
+                swim=None if speeds.swim is None else 0,
+                burrow=None if speeds.burrow is None else 0,
+            )
+
+        lost = 5 * self.exhaustion_level
+        if lost == 0:
+            return speeds
+
+        def less(speed: int | None) -> int | None:
+            return None if speed is None else max(0, speed - lost)
+
+        return replace(
+            speeds,
+            walk=max(0, speeds.walk - lost),
+            climb=less(speeds.climb),
+            fly=less(speeds.fly),
+            swim=less(speeds.swim),
+            burrow=less(speeds.burrow),
+        )
 
     def cannot_act(self) -> bool:
         return any(e.cannot_act for e in self.effects)

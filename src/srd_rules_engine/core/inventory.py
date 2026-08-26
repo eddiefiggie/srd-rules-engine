@@ -106,6 +106,26 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "swimming": f"core.position.MovementMode.{MovementMode.SWIM.name}",
         "crawling": f"core.position.MovementMode.{MovementMode.CRAWL.name}",
         "split-movement": "core.state.EncounterState.with_movement",
+        # The special speeds, and the one of them that is a rule rather than a number.
+        #
+        # `climb-speed` and `swim-speed` say only that the speed removes the extra cost of
+        # climbing or swimming, which `movement_cost` has enforced since #17 — they were
+        # unclaimed because nothing had read their glossary entries, not because anything
+        # was missing. A count that was wrong in this direction is worth naming: the
+        # instrument that measures this engine's gaps had two false ones.
+        "climb-speed": "core.position.movement_cost",
+        "swim-speed": "core.position.movement_cost",
+        # p. 182's Flying is the whole of `falls_if_flying`, and `fly-speed` is the same
+        # sentence read from the other side — "you can stay aloft until you land, fall, or
+        # die" is the False branch. p. 183's Hover is its one exception.
+        "flying": "core.state.Combatant.falls_if_flying",
+        "fly-speed": "core.state.Combatant.falls_if_flying",
+        "hover": "core.position.Speeds.hover",
+        # `burrow-speed` is NOT here. p. 178 permits sand, earth, mud and ice and refuses
+        # solid rock "unless the creature has a trait that allows it to do so" — a medium
+        # this engine does not model and a trait it cannot read. `Speeds.burrow` carries the
+        # number and `with_movement` refuses the mode without it; the entry's substance is
+        # the restriction, and none of it is enforced.
         "reach": "core.position.DEFAULT_REACH_FEET",
         "weapon-range": "core.combat.Weapon.normal_range",
         # The six areas of effect, as unobstructed volume (#20, and #91 for what is missing).

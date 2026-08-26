@@ -179,6 +179,16 @@ class DeathSaves:
         return self.stable or self.dead
 
 
+#: The modes no creature performs without the matching special speed (pp. 178, 182).
+#:
+#: Climbing, swimming and crawling are each priced for a creature that lacks the speed —
+#: "1 extra foot (2 extra feet in Difficult Terrain)" — so anyone may do them slowly. The
+#: SRD prices neither flying nor burrowing that way, and 0030 clause 1 settles what to make
+#: of the silence: granting a move the rules never granted manufactures movement, refusing
+#: it cannot.
+_SPEED_ONLY_MODES: Final = (MovementMode.FLY, MovementMode.BURROW)
+
+
 @dataclass(frozen=True)
 class Combatant:
     """One participant's mechanical state. Narrative facts live behind the memory port."""
@@ -253,6 +263,46 @@ class Combatant:
         """
         return still_dodging(
             self.actions, self.conditions, self.conditions.speed_after(self.speeds.walk)
+        )
+
+    @property
+    def effective_speeds(self) -> Speeds:
+        """This creature's speeds with its conditions applied (p. 188).
+
+        `speeds` is what the creature has; this is what it can use now. Everything asking
+        how far it may move, or whether it stays in the air, reads this one.
+        """
+        return self.conditions.speeds_after(self.speeds)
+
+    @property
+    def falls_if_flying(self) -> bool:
+        """Whether being aloft would end right now (p. 182).
+
+        p. 182, *Flying*: "While flying, you fall if you have the Incapacitated or Prone
+        condition or your Fly Speed is reduced to 0. You can stay aloft in those
+        circumstances if you can hover." Three triggers and one exception that covers all
+        three — "those circumstances", plural, which is also what p. 183's Hover entry
+        means by "prevents you from falling in certain circumstances".
+
+        **The engine does not claim to know the creature is flying.** No state says a
+        creature is airborne on its Fly Speed rather than standing on a ledge, and nothing
+        in the SRD makes that derivable from a position. This answers p. 182's condition
+        and leaves the antecedent to the caller, which is a read reporting a rule value
+        rather than an adjudication (R19).
+
+        A creature with no Fly Speed at all answers `True`, and that is not a tiebreak:
+        p. 182 grants staying aloft to a creature that *has* a Fly Speed, so there is no
+        reading under which one without stays up.
+        """
+        speeds = self.effective_speeds
+        if speeds.fly is None:
+            return True
+        if speeds.hover:
+            return False
+        return (
+            speeds.fly == 0
+            or Condition.INCAPACITATED in self.conditions.held
+            or Condition.PRONE in self.conditions.held
         )
 
     @property
@@ -1178,10 +1228,18 @@ class EncounterState:
                 "encounter that tracks no positions cannot answer a movement question"
             )
 
+        speeds = target.effective_speeds
+        if mode in _SPEED_ONLY_MODES and speeds.for_mode(mode) is None:
+            raise ValueError(
+                f"{target.name} has no {mode.value} speed, so there is no {mode.value} "
+                f"move to make. pp. 178, 179 and 189 price climbing, swimming and crawling "
+                f"for a creature that lacks the speed; flying and burrowing are priced "
+                f"nowhere, because a Fly Speed and a Burrow Speed are the only things that "
+                f"grant them (pp. 178, 182)"
+            )
+
         feet = distance_feet(target.position, to)
-        cost = movement_cost(
-            feet, mode=mode, difficult_terrain=difficult_terrain, speeds=target.speeds
-        )
+        cost = movement_cost(feet, mode=mode, difficult_terrain=difficult_terrain, speeds=speeds)
         if cost > target.movement_remaining:
             raise ValueError(
                 f"{target.name} has {target.movement_remaining} feet of movement left and "

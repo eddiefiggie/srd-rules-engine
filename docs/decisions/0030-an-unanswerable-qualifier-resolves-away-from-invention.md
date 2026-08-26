@@ -144,7 +144,7 @@ answerable in 0029 without any clause becoming enforced.
 
 | Clause | State |
 |---|---|
-| 1 — resolve away from invention | Not built as a mechanism, and it is not one. It is the rule the next author applies; the two sites that already follow it were written before it had a name |
+| 1 — resolve away from invention | Not built as a mechanism, and it is not one. It is the rule the next author applies; the two sites that already follow it were written before it had a name. **A third site now follows it and was decided by it**, which is the first time this record did the work it exists for — see below |
 | 2 — both precedents follow | Already true in the tree. `core.reactions` withholds, `core.conditions` applies, and neither changes |
 | 3 — the test is asked of the outcome | Nothing to build; it is how clause 1 is applied |
 | 4 — the read surface still reports `UNSTATED` | Already true. `Sight.verdict` has three values and `Situation` reports them |
@@ -163,4 +163,18 @@ withheld. Kindness to the creature would have moved them together and been wrong
 its target to be seen", and nothing in this engine marks one — a resolver knows whether its
 own rule needs sight and records it nowhere.
 
-_Updated 2026-08-25 as #192 and #193 landed._
+**Clause 1 decided a question outside sight, which the record did not anticipate.** p. 188
+prices climbing, swimming and crawling for a creature lacking the matching special speed and
+prices flying and burrowing nowhere. That silence is a qualifier this engine cannot answer —
+whether a creature without a Fly Speed may fly at all — and the two readings are not
+symmetric: permitting the move grants movement no rule grants, while refusing it can only
+withhold movement the rules may have allowed. `EncounterState.with_movement` refuses, and
+the refusal quotes the pricing asymmetry rather than an invented rule.
+
+Worth noting because the record's own framing was narrower than the rule turned out to be.
+Every site it reasoned from was a *sight* qualifier, and clause 1 reads as a tiebreak for
+`can_see`. It is not — it is a tiebreak for any clause the document leaves unanswerable, and
+the first one to arrive after the record was written had nothing to do with sight.
+
+_Updated 2026-08-25 as #192 and #193 landed, and again as p. 188's movement modes applied
+clause 1 outside the area it was written for._
