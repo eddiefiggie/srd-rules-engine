@@ -558,6 +558,50 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"When the creature lands, it has the Prone condition unless it avoids taking any "
         r"damage from the fall",
     ),
+    # --- What else depends on damage already dealt (0032, #173) ------------------------
+    # Asserted ahead of any implementation, because the TAXONOMY is the design question and
+    # it should be settled against the sentences rather than against a memory of them — the
+    # same reason the five hazards above are asserted. Seven rules key off damage dealt and
+    # they are three different shapes; sorting them wrongly would put a defence outside the
+    # one place defences are applied.
+    (
+        18,
+        "the third branch of p. 18, which the clause above stops short of: death is decided "
+        "by the damage NUMBER against the hit point maximum, so this is a predicate over a "
+        "settled amount and not merely over whether any landed (0032 clause 2)",
+        r"If the damage equals or exceeds your Hit Point maximum, you die",
+    ),
+    (
+        124,
+        "Disintegrate keys on the STATE AFTER the damage rather than on the amount — "
+        '"reduces it to 0 Hit Points" is answerable only once the blow has been applied',
+        r"On a failed save, the target takes 10d6 \+ 40 Force damage\.\s*If this damage "
+        r"reduces it to 0 Hit Points, it and everything nonmagical it is wearing and "
+        r"carrying are disintegrated into gray dust",
+    ),
+    (
+        314,
+        "and a monster says the same thing in the same words, which is what makes it a "
+        "shape rather than one spell's phrasing",
+        r"If this damage reduces the target to 0 Hit Points, the target becomes Stable, and "
+        r"it has the Poisoned condition for 1 hour",
+    ),
+    (
+        311,
+        "the one instance that is NOT a predicate: the second effect's magnitude is a "
+        "function of the first's settled amount. 0032 clause 6 leaves it out of scope (#216)",
+        r"If the target takes damage from the Dream spell, the target.s Hit Point maximum "
+        r"decreases by an amount equal to that damage",
+    ),
+    (
+        180,
+        "and Damage Threshold is NOT this shape at all: the document says IMMUNITY, and what "
+        "it modifies is the damage itself, which places it beside p. 17 rather than among "
+        "conditional effects (#214)",
+        r"has Immunity to all damage unless it takes an amount of damage from a single "
+        r"attack or effect equal to or greater than its damage threshold, in which case it "
+        r"takes that entire instance of damage",
+    ),
     (
         213,
         "a weapon bonus applies to attack rolls AND damage rolls, not one of them",
