@@ -43,7 +43,7 @@ from srd_rules_engine.core import (
 from srd_rules_engine.core.actions import ActionBudget, dodging
 from srd_rules_engine.core.adjudicate import Proposal, _apply, _roll_declared
 from srd_rules_engine.core.conditions import Condition, Conditions
-from srd_rules_engine.core.d20 import DAMAGE_OFFSET, D20Test, roll
+from srd_rules_engine.core.d20 import DAMAGE_OFFSET, D20Test, TestKind, roll
 from srd_rules_engine.core.d20 import resolve as roll_d20
 from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.position import Position
@@ -1068,3 +1068,59 @@ def test_an_invisible_attacker_gains_advantage_only_against_a_blind_target() -> 
     assert d20(_propose_with(club, state=blinded)).has_advantage, (
         "p. 177 says the boar cannot see, so p. 184's exception does not fire"
     )
+
+
+# --- Total Cover cannot be targeted (#20, p. 179) -----------------------------------------
+
+
+def _walled_state(*, blocking_wall: bool) -> EncounterState:
+    """The boar is five feet away; the wall is between them, or beside them."""
+    from dataclasses import replace as _replace
+
+    from srd_rules_engine.core.obstructions import Obstruction
+    from srd_rules_engine.core.position import Position
+
+    wall = (
+        Obstruction(lo=Position(2, -20, 0), hi=Position(3, 20, 20))
+        if blocking_wall
+        else Obstruction(lo=Position(-20, 10, 0), hi=Position(20, 11, 20))
+    )
+    state = encounter()
+    return _replace(
+        state,
+        combatants=tuple(
+            _replace(c, position=Position(0, 0, 0) if c.id == "pc" else Position(5, 0, 0))
+            for c in state.combatants
+        ),
+        obstructions=(wall,),
+    )
+
+
+def test_an_attack_through_total_cover_is_refused() -> None:
+    """p. 179: Total Cover "can't be targeted directly".
+
+    A refusal rather than a penalty, for the reason a shot beyond long range is refused —
+    the rules forbid the attack, so a ruling for it would be an outcome for something that
+    never happened.
+
+    Until #20 nothing in this module looked at cover, and an arrow flew through a stone
+    wall. The geometry was ready from #91 and the walls have been state since 0026; what was
+    missing was anyone asking.
+    """
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    with pytest.raises(ValueError, match="Total Cover"):
+        _propose_with(club, state=_walled_state(blocking_wall=True))
+
+
+def test_a_wall_beside_them_is_not_cover() -> None:
+    """Blocking is per-line (#91). The control that says the refusal is the wall's position
+    doing work rather than the wall's presence."""
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    proposal = _propose_with(club, state=_walled_state(blocking_wall=False))
+    assert d20(proposal).kind is TestKind.ATTACK
+
+
+def test_an_encounter_without_walls_is_unaffected() -> None:
+    """The common case, and the one that must not acquire a wall by implication."""
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    assert d20(_propose_with(club)).kind is TestKind.ATTACK

@@ -312,6 +312,23 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "and Total Cover is defined by what it does to TARGETING, not to seeing",
         r"Total Cover \(can.t be targeted directly\)",
     ),
+    # --- What may be targeted at all (#20) ----------------------------------------------
+    (
+        105,
+        "a spell's range takes one of three forms, and only one of them is a number — "
+        "Touch is the caster's reach and Self is the caster",
+        r"A range usually takes one of the following forms: Distance\.\s*The range is "
+        r"expressed in feet\.\s*Touch\.\s*The spell.s effect originates on something, as "
+        r"defined by the spell, that the spellcaster must touch within their reach\.\s*"
+        r"Self\.",
+    ),
+    (
+        105,
+        "and a movable effect is NOT re-checked against the range once cast, which is the "
+        "clause an implementation adds by accident",
+        r"If a spell has movable effects, they aren.t restricted by its range unless the "
+        r"spell.s description says otherwise",
+    ),
     # --- Rituals and preparation (#19) --------------------------------------------------
     (
         187,

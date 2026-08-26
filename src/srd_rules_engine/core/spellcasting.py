@@ -27,26 +27,36 @@ be the inferred rule value R31 forbids. `SpellSlots` is the shape a ruleset fill
 
 ## What is deliberately absent
 
-* **Long Rest recovery has no trigger.** "Finishing a Long Rest restores any expended spell
-  slots" (p. 104). `restored()` is that operation and nothing calls it. `core.clock` now
-  supplies the campaign time this was waiting on (#85), so what is missing is the rest
-  itself — a Long Rest is "a period of extended downtime—at least 8 hours" (p. 185) with
-  benefits this module does not model — [#19](https://github.com/eddiefiggie/srd-rules-engine/issues/19).
 * **Components, and the Spellcasting Focus that substitutes for them** (p. 188), need item
-  and inventory state that does not exist. So does a Ritual's ten extra minutes (p. 187).
-* **Prepared versus known** is class data, and `modify-a-spell` and `multiclass-spell-slots`
-  likewise. None is claimed.
+  and inventory state that does not exist.
+* **Which spells a class prepares, when, and how many** is class data — p. 104 puts it in the
+  spellcasting feature and summarises it per class. Not claimed, for the reason no slot table
+  ships. *Whether a given spell is prepared* is state (`Combatant.prepared`, #19), because
+  that is the question castability asks.
+* **Enumerating what is castable right now** needs a spell list, and this engine ships none
+  ([#21](https://github.com/eddiefiggie/srd-rules-engine/issues/21)). So R18's "never offered
+  as legal" half waits: `spell_reaches` answers the range question for a spell a caller
+  names, and nothing can walk the spells to offer them.
+* `modify-a-spell` and `multiclass-spell-slots` are class data likewise, and unclaimed.
+
+Long Rest recovery had no trigger until #19. It has one now —
+`EncounterState.with_long_rest` calls `restored()` — and this paragraph said otherwise for a
+build after that landed, which is the failure mode a stale disclosure has: it reads as an
+explanation long after it has become a description of a bug.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from enum import StrEnum
 from types import MappingProxyType
 from typing import Final
 
 from srd_rules_engine.core.conditions import Conditions
 from srd_rules_engine.core.d20 import D20Test, TestKind
+from srd_rules_engine.core.obstructions import Obstruction, line_is_blocked
+from srd_rules_engine.core.position import Position, within
 from srd_rules_engine.core.rules import (
     Verification,
     VerificationMethod,
@@ -323,3 +333,74 @@ def ritual_cast(
             "a higher slot, and there is no slot here to be higher"
         )
     return RitualCast(spell_id=spell_id)
+
+
+class RangeForm(StrEnum):
+    """The three forms p. 105 gives a spell's range. Only one of them is a number."""
+
+    DISTANCE = "distance"
+    TOUCH = "touch"
+    SELF = "self"
+
+
+@dataclass(frozen=True)
+class SpellRange:
+    """How far from the caster a spell's effect may originate (p. 105).
+
+    "A spell's range indicates how far from the spellcaster the spell's effect can originate,
+    and the spell's description specifies which part of the effect is limited by the range."
+
+    **The range bounds the origin, not the effect.** p. 105 is explicit that the description
+    says which part is limited, and that "if a spell has movable effects, they aren't
+    restricted by its range" — so a spell whose area later moves is not re-checked. Nothing
+    here re-checks one, and that is the clause an implementation adds by accident rather than
+    one it drops.
+    """
+
+    form: RangeForm
+    feet: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.form is RangeForm.DISTANCE:
+            if self.feet is None or self.feet < 0:
+                raise ValueError(
+                    "a Distance range is expressed in feet (p. 105), and a negative or "
+                    "absent one is not a distance"
+                )
+        elif self.feet is not None:
+            raise ValueError(
+                f"a {self.form.value} range carries no distance — p. 105 gives Touch as the "
+                "caster's reach and Self as the caster, neither of which is a number this "
+                "engine may invent"
+            )
+
+
+def spell_reaches(
+    origin: Position,
+    *,
+    caster: Position,
+    spell_range: SpellRange,
+    reach_feet: int,
+    obstructions: Sequence[Obstruction] = (),
+) -> bool:
+    """Whether a spell of this range may originate there, from a caster standing here.
+
+    Two independent tests, both from the document, and a spell must pass both:
+
+    **The range** (p. 105). `Self` is the caster's own space; `Touch` is the caster's reach,
+    which p. 186 puts at 5 feet unless a rule says otherwise; `Distance` is the number.
+
+    **A clear path** (p. 106): "To target something with a spell, a caster must have a clear
+    path to it, so it can't be behind Total Cover." That is the same refusal `core.combat`
+    makes for a weapon attack, from a different page — and the reason obstructions are a
+    parameter here rather than a caller's choice is that this function takes them from
+    `EncounterState` at its one call site, per 0026.
+    """
+    if obstructions and line_is_blocked(caster, origin, obstructions):
+        return False
+    if spell_range.form is RangeForm.SELF:
+        return origin == caster
+    if spell_range.form is RangeForm.TOUCH:
+        return within(caster, origin, reach_feet)
+    assert spell_range.feet is not None  # __post_init__ refuses one without
+    return within(caster, origin, spell_range.feet)

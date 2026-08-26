@@ -52,6 +52,7 @@ from srd_rules_engine.core.adjudicate import (
 from srd_rules_engine.core.d20 import Advantage, D20Test, Modifier, TestKind, roll
 from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.memory_port import Resolution
+from srd_rules_engine.core.obstructions import Cover, total_cover
 from srd_rules_engine.core.position import distance_feet, within
 from srd_rules_engine.core.read_surface import attack_target
 from srd_rules_engine.core.rules import (
@@ -194,6 +195,7 @@ def attack_resolver(weapon: Weapon) -> Resolver:
         actor = state.combatant(declaration.actor_id)
         ability = actor.modifier(weapon.ability)
 
+        _refuse_if_behind_total_cover(state, actor, target)
         beyond_normal = _out_of_range(weapon, actor, target)
         # p. 184's exception to Invisible, asked in both directions (#193). Each needs
         # CERTAINTY to move away from the answer that cannot manufacture an outcome, so an
@@ -280,6 +282,34 @@ def attack_resolver(weapon: Weapon) -> Resolver:
         )
 
     return resolve
+
+
+def _refuse_if_behind_total_cover(
+    state: EncounterState, actor: Combatant, target: Combatant
+) -> None:
+    """p. 179: Total Cover "can't be targeted directly" (#20).
+
+    A refusal rather than a penalty, for the reason a shot beyond long range is refused: the
+    rules forbid the attack, so a ruling for it would be an outcome for something that never
+    happened. Half and Three-Quarters Cover *are* penalties (+2 and +5 to AC, p. 15), and
+    this engine determines neither — the document supplies no method for measuring what
+    fraction of a target is covered, so `Cover.bonus` still has no caller and says so.
+
+    Until #20 nothing here looked at cover at all, and an arrow flew through a stone wall.
+    The geometry was ready from #91 and the walls have been state since 0026; what was
+    missing was anyone asking.
+
+    An encounter tracking no positions or no obstructions cannot answer this, and lets the
+    attack through rather than inventing a wall.
+    """
+    if actor.position is None or target.position is None or not state.obstructions:
+        return
+    if total_cover(actor.position, target.position, state.obstructions) is Cover.TOTAL:
+        raise ValueError(
+            f"{target.name} is behind Total Cover from {actor.name}, and p. 179 says Total "
+            "Cover can't be targeted directly. This is a refusal rather than a penalty — "
+            "the attack the rules forbid has no outcome to record"
+        )
 
 
 def _out_of_range(weapon: Weapon, actor: Combatant, target: Combatant) -> bool:
