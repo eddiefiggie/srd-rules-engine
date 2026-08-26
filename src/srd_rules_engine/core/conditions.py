@@ -172,7 +172,12 @@ EFFECTS: Final[dict[Condition, ConditionEffects]] = {
         attack_rolls_against=Advantage.DISADVANTAGE,
         own_attack_rolls=Advantage.ADVANTAGE,
         initiative=Advantage.ADVANTAGE,
-        unenforced_clauses=("concealed-from-effects-requiring-sight", "unless-seen-exception"),
+        # `unless-seen-exception` left this list in #193, when the condition surface
+        # could be told whether one creature sees another. The other clause needs a
+        # notion of "an effect that requires its target to be seen", which nothing here
+        # marks — a resolver knows whether its own rule needs sight and records it
+        # nowhere.
+        unenforced_clauses=("concealed-from-effects-requiring-sight",),
     ),
     Condition.PARALYZED: ConditionEffects(
         attack_rolls_against=Advantage.ADVANTAGE,
@@ -365,9 +370,24 @@ class Conditions:
         return any(e.cannot_act for e in self.effects)
 
     def attack_rolls_against(
-        self, *, attacker: Position | None, target: Position | None
+        self,
+        *,
+        attacker: Position | None,
+        target: Position | None,
+        attacker_sees_you: bool = False,
     ) -> Advantage:
         """What an attack against this creature has, given where the attacker stands.
+
+        `attacker_sees_you` is p. 184's exception to Invisible: "Attack rolls against you
+        have Disadvantage... If a creature can somehow see you, you don't gain this benefit
+        against that creature." It defaults to **False** — the reading that keeps the
+        Disadvantage — because 0030 clause 1 asks what the wrong answer would *produce*, and
+        dropping a Disadvantage the rules require makes an attacker hit more often and
+        manufactures damage. Keeping one they do not require can only omit a hit.
+
+        Its sibling `own_attack_rolls` takes the opposite default for the same sentence,
+        which is 0030 clause 3 inside one condition: the question is asked of the outcome,
+        not of the creature, and Invisible's two halves point opposite ways.
 
         Prone is the reason this takes positions rather than being a flat field. p. 186:
         an attack against a Prone creature "has Advantage if the attacker is within 5 feet
@@ -377,8 +397,13 @@ class Conditions:
 
         Sources combine by the d20's own rule: holding both cancels to neither (p. 8).
         """
-        advantage = any(e.attack_rolls_against is Advantage.ADVANTAGE for e in self.effects)
-        disadvantage = any(e.attack_rolls_against is Advantage.DISADVANTAGE for e in self.effects)
+        # Invisible's Disadvantage is dropped only against a creature that certainly sees
+        # this one (p. 184). Every other condition contributes unconditionally.
+        contributing = [
+            EFFECTS[c] for c in self.held if not (c is Condition.INVISIBLE and attacker_sees_you)
+        ]
+        advantage = any(e.attack_rolls_against is Advantage.ADVANTAGE for e in contributing)
+        disadvantage = any(e.attack_rolls_against is Advantage.DISADVANTAGE for e in contributing)
 
         if self.has(Condition.PRONE):
             if attacker is not None and target is not None:
@@ -394,7 +419,11 @@ class Conditions:
         return _combine(advantage, disadvantage)
 
     def own_attack_rolls(
-        self, *, target_id: str | None = None, fear_in_sight: bool = True
+        self,
+        *,
+        target_id: str | None = None,
+        fear_in_sight: bool = True,
+        target_blind_to_you: bool = False,
     ) -> Advantage:
         """What this creature's own attack rolls have.
 
@@ -413,8 +442,16 @@ class Conditions:
         """
         # Iterated over the conditions rather than over `self.effects`, because one of them
         # now has to be skipped by name and the effects tuple does not say which is which.
+        # Two conditional clauses, defaulting in opposite directions because 0030 clause 3
+        # asks what the wrong answer would produce rather than which reading is kinder.
+        # Frightened's Disadvantage is KEPT when unknown — keeping it can only omit a hit.
+        # Invisible's Advantage is WITHHELD when unknown — granting one the rules may not
+        # grant makes this creature hit more often and manufactures damage (p. 184).
         contributing = [
-            EFFECTS[c] for c in self.held if not (c is Condition.FRIGHTENED and not fear_in_sight)
+            EFFECTS[c]
+            for c in self.held
+            if not (c is Condition.FRIGHTENED and not fear_in_sight)
+            and not (c is Condition.INVISIBLE and not target_blind_to_you)
         ]
         advantage = any(e.own_attack_rolls is Advantage.ADVANTAGE for e in contributing)
         disadvantage = any(e.own_attack_rolls is Advantage.DISADVANTAGE for e in contributing)

@@ -978,3 +978,93 @@ def test_a_dodge_that_no_longer_stands_does_not_reach_the_roll() -> None:
     )
     proposal = _propose_with(club, state=state)
     assert not d20(proposal).has_disadvantage
+
+
+# --- Invisible's exception, through the resolver that wires it (#193) --------------------
+
+
+def _invisible_target_state(*, seer: bool = False) -> EncounterState:
+    """The boar is Invisible. `seer` gives the attacker Truesight, which is one of the two
+    routes p. 184's "somehow see you" is answered for."""
+    from dataclasses import replace as _replace
+
+    from srd_rules_engine.core.conditions import Condition, Conditions
+    from srd_rules_engine.core.position import Position
+    from srd_rules_engine.core.sight import Lighting, LightLevel, Senses
+
+    state = encounter()
+    hidden = _replace(
+        state.combatant("boar"),
+        conditions=Conditions(held=frozenset({Condition.INVISIBLE})),
+        position=Position(5, 0, 0),
+    )
+    watcher = _replace(
+        state.combatant("pc"),
+        senses=Senses(truesight=120) if seer else Senses(),
+        position=Position(0, 0, 0),
+    )
+    return _replace(
+        state,
+        combatants=tuple({"boar": hidden, "pc": watcher}.get(c.id, c) for c in state.combatants),
+        lighting=Lighting(ambient=LightLevel.BRIGHT),
+    )
+
+
+def test_an_unstated_view_keeps_the_invisible_targets_disadvantage() -> None:
+    """The resolver's own wiring, which #193's first guard did not reach.
+
+    `can_see` says `UNSTATED` for an Invisible target under ordinary sight, and p. 184's
+    exception needs *certainty* to fire. Dropping the Disadvantage on `UNSTATED` would make
+    every attacker hit an invisible creature more often on a guess (0030 clause 1).
+    """
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    proposal = _propose_with(club, state=_invisible_target_state())
+    assert d20(proposal).has_disadvantage
+    assert not d20(proposal).has_advantage
+
+
+def test_truesight_drops_it_through_the_resolver() -> None:
+    """The control: with certainty the exception fires, so the same attack is unmodified."""
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    proposal = _propose_with(club, state=_invisible_target_state(seer=True))
+    assert not d20(proposal).has_disadvantage
+
+
+def test_an_invisible_attacker_gains_advantage_only_against_a_blind_target() -> None:
+    """The other half of p. 184's exception, through the resolver that wires it.
+
+    Certainty is required to *grant* here, where certainty was required to *remove* above —
+    0030 clause 3, in one condition. Granting Advantage on a guess makes the invisible
+    creature hit more often and manufactures damage.
+    """
+    from dataclasses import replace as _replace
+
+    from srd_rules_engine.core.conditions import Condition, Conditions
+    from srd_rules_engine.core.position import Position
+    from srd_rules_engine.core.sight import Lighting, LightLevel
+
+    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    state = encounter()
+    unseen = _replace(
+        state.combatant("pc"),
+        conditions=Conditions(held=frozenset({Condition.INVISIBLE})),
+        position=Position(0, 0, 0),
+    )
+    sighted = _replace(state.combatant("boar"), position=Position(5, 0, 0))
+    lit = _replace(
+        state,
+        combatants=tuple({"pc": unseen, "boar": sighted}.get(c.id, c) for c in state.combatants),
+        lighting=Lighting(ambient=LightLevel.BRIGHT),
+    )
+    assert not d20(_propose_with(club, state=lit)).has_advantage, (
+        "the boar's view of an Invisible creature is UNSTATED, so the Advantage is withheld"
+    )
+
+    blind_boar = _replace(sighted, conditions=Conditions(held=frozenset({Condition.BLINDED})))
+    blinded = _replace(
+        lit,
+        combatants=tuple({"pc": unseen, "boar": blind_boar}.get(c.id, c) for c in lit.combatants),
+    )
+    assert d20(_propose_with(club, state=blinded)).has_advantage, (
+        "p. 177 says the boar cannot see, so p. 184's exception does not fire"
+    )

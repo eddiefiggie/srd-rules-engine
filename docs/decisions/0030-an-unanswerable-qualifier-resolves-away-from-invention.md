@@ -153,8 +153,14 @@ answerable in 0029 without any clause becoming enforced.
 **One of the three sight-blocked entries has left.**
 [#192](https://github.com/eddiefiggie/srd-rules-engine/issues/192) stored the source of fear
 and enforced Frightened's `line-of-sight-qualifier`, which is clause 5 working as intended:
-the entry moved when the behaviour changed, not when `can_see` grew sharper in 0029. The two
-`invisible` clauses stay, and
-[#193](https://github.com/eddiefiggie/srd-rules-engine/issues/193) is what would move them.
+the entry moved when the behaviour changed, not when `can_see` grew sharper in 0029. [#193](https://github.com/eddiefiggie/srd-rules-engine/issues/193) then moved
+`unless-seen-exception`, and it is the sharpest demonstration of clause 3 in the tree: p. 184's
+one sentence governs both halves of Invisible, and they default **apart**. The Disadvantage on
+attacks against the creature is kept when unknown; the Advantage on its own attacks is
+withheld. Kindness to the creature would have moved them together and been wrong once.
 
-_Updated 2026-08-25 when #192 landed._
+`concealed-from-effects-requiring-sight` stays: it needs a notion of "an effect that requires
+its target to be seen", and nothing in this engine marks one — a resolver knows whether its
+own rule needs sight and records it nowhere.
+
+_Updated 2026-08-25 as #192 and #193 landed._
