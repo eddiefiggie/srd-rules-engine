@@ -1126,6 +1126,80 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "sixteen hours must pass before another Long Rest may start",
         r"you must wait at least 16 hours before starting another one",
     ),
+    # --- The three cases of an attack roll (#229, 0034) --------------------------------
+    # 0034 files `weapon-attack` as vocabulary because the document defines the term and
+    # never uses it. These three clauses pin the text that argument reads, and the count it
+    # rests on is in DOCUMENT_CLAUSES below — presence alone cannot state an absence.
+    (
+        177,
+        "an attack roll's own entry enumerates its three cases — weapon, Unarmed Strike, "
+        "spell — so `weapon-attack` restates one of them rather than extending anything "
+        "(0034 clause 1)",
+        r"An attack roll is a D20 Test that represents making an attack with a weapon, an "
+        r"Unarmed Strike, or a spell",
+    ),
+    (
+        191,
+        "and Weapon Attack's whole entry fixes a parameter of that roll and states nothing "
+        "else — the sentence 0034 declines to count as a second shape",
+        r"A weapon attack is an attack roll made with a weapon",
+    ),
+    (
+        188,
+        "Spell Attack reads the same way and is a shape anyway, which is why 0034 clause 2 "
+        "turns on consumers rather than on how an entry is phrased",
+        r"A spell attack is an attack roll made as part of a spell or another magical "
+        r"effect",
+    ),
+    (
+        106,
+        "because a spell attack has a bonus formula of its own that an attack roll does not "
+        "state — the mechanism `spell-attack` is claimed for",
+        r"Spell attack modifier = your spellcasting ability modifier \+ your Proficiency "
+        r"Bonus",
+    ),
+    (
+        217,
+        "the Dancing Sword's 'hovering weapon attacks' is a noun and a verb, not the "
+        "defined term — the third raw hit the sweep discards, pinned so the count below "
+        "reads as 3 rather than looking like an off-by-one (0034 Evidence)",
+        r"After the hovering weapon attacks for the fourth time",
+    ),
+)
+
+#: Clauses about the document as a whole rather than about one page, as
+#: (what it settles, pattern, comparison, count). Checked case-insensitively across every
+#: page's normalised text.
+#:
+#: **These make the opposite kind of claim to `CLAUSES`, which is why they are a separate
+#: table rather than a flag on the tuple above.** A `CLAUSES` row says a sentence is *there*;
+#: a row here says a term is used a given number of times, which is the only way to assert
+#: that something is *absent*. 0034 clause 3 requires it: a claim resting on text outside an
+#: entry cites the page and asserts the sentence (0033 clause 3), so a declassification
+#: resting on the **absence** of such text has to assert the absence, or it decays silently —
+#: nothing goes red when a term the document did not use starts being used.
+DOCUMENT_CLAUSES: tuple[tuple[str, str, str, int], ...] = (
+    # --- The absence 0034 rests on, and the control that proves the sweep ran ------------
+    (
+        "the defined term 'weapon attack' is used nowhere in the document but its own p. 191 "
+        "entry (heading plus one sentence) and p. 217's Dancing Sword verb phrase — so it "
+        "gates no mechanic, and `weapon-attack` is vocabulary rather than a second shape",
+        r"weapon attack",
+        "exactly",
+        3,
+    ),
+    (
+        "'spell attack', by contrast, is used throughout. This is a CONTROL, not a rule the "
+        "engine depends on. It does not guard against a text layer that extracted NOTHING — "
+        "`exactly 3` already goes red at 0, which was proved rather than assumed. It guards "
+        "the narrower and likelier case: an extraction that degrades PARTIALLY, losing "
+        "column-split or hyphenated occurrences. 3 is a small number a damaged parse can "
+        "reach by accident; 62 is not, so this row certifies the sweep read a substantially "
+        "intact document rather than merely a non-empty one",
+        r"spell attack",
+        "at least",
+        20,
+    ),
 )
 
 
@@ -1176,6 +1250,17 @@ def main(argv: list[str]) -> int:
         else:
             print(f"  ok  p. {printed:>3}  {settles}")
 
+    for settles, pattern, comparison, expected in DOCUMENT_CLAUSES:
+        found = sum(len(re.findall(pattern, text, re.I)) for text in pages.values())
+        held = found == expected if comparison == "exactly" else found >= expected
+        if not held:
+            failures.append(
+                f"document: {pattern!r} occurs {found} times, expected {comparison} "
+                f"{expected}\n    settles: {settles}"
+            )
+        else:
+            print(f"  ok  doc     {pattern!r} x{found} ({comparison} {expected})")
+
     if failures:
         raise SystemExit(
             "\nthe cited text no longer matches the document:\n\n"
@@ -1184,7 +1269,10 @@ def main(argv: list[str]) -> int:
             "document before touching the implementation to make this pass."
         )
 
-    print(f"\nall {len(CLAUSES)} clauses verified against {pdf.name}")
+    print(
+        f"\nall {len(CLAUSES)} clauses and {len(DOCUMENT_CLAUSES)} document-wide "
+        f"clauses verified against {pdf.name}"
+    )
     return 0
 
 

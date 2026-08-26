@@ -477,3 +477,76 @@ def test_the_page_bright_lights_claim_rests_on_is_asserted_against_the_document(
     the sentence. Presence, not truth — the verifier needs the PDF and CI has no copy."""
     verifier = (REPO_ROOT / "scripts" / "verify_d20_rules.py").read_text(encoding="utf-8")
     assert "Bright Light lets most creatures see normally" in verifier
+
+
+def test_the_absence_weapon_attacks_declassification_rests_on_is_asserted() -> None:
+    """0034 clause 3: a claim resting on text outside the entry cites the page and asserts
+    the sentence (0033 clause 3), so a **de**classification resting on the *absence* of such
+    text must assert the absence. Presence, not truth — the verifier needs the PDF and CI has
+    no copy.
+
+    An absence is the claim that decays most quietly: nothing goes red when a term the
+    document did not use starts being used. `DOCUMENT_CLAUSES` is the table that holds it,
+    and this guard exists so deleting the table is visible to CI, which cannot run it.
+
+    The control row is checked by name too. It is the part a later reader is most likely to
+    prune as redundant — it asserts a term the engine does not depend on — and pruning it
+    would leave the count assertion unable to tell a substantially intact extraction from a
+    partially degraded one.
+    """
+    verifier = (REPO_ROOT / "scripts" / "verify_d20_rules.py").read_text(encoding="utf-8")
+    assert "DOCUMENT_CLAUSES" in verifier, (
+        "the document-wide clause table is gone. 0034 clause 3 rests on it: without an "
+        "asserted count there is nothing to go red when the SRD starts using the term."
+    )
+    assert "A weapon attack is an attack roll made with a weapon" in verifier
+    assert "An attack roll is a D20 Test that represents making an attack with a weapon" in verifier
+    assert "This is a CONTROL" in verifier, (
+        "the control row was removed. The count assertion alone cannot distinguish an "
+        "intact extraction from a partially degraded one, which is the case it guards."
+    )
+
+
+#: 0034 clause 2: the three cases p. 177's own entry enumerates, and where each one lands.
+#: The value is the mechanism that decides it — which is the whole content of the rule, since
+#: all three entries are phrased identically ("an attack roll made with/as part of ...").
+THE_THREE_CASES_OF_AN_ATTACK_ROLL: dict[str, str] = {
+    "spell-attack": "p. 106 gives it a bonus formula `attack-roll` does not state",
+    "unarmed-strike": "p. 190 gives it three effect options, a damage expression and a save",
+}
+
+
+def test_a_renamed_mechanism_with_no_consumers_is_vocabulary_and_one_with_them_is_not(
+    inventory: Inventory,
+) -> None:
+    """0034, pinned in both directions.
+
+    `weapon-attack` is vocabulary because SRD 5.2 defines the term on p. 191 and never uses
+    it: three occurrences in the document, two in its own entry and one on p. 217 that is a
+    noun and a verb. It renames `attack-roll` with a parameter fixed and gates nothing.
+
+    **The counter-direction is the point.** "Renames a parent with a parameter fixed"
+    describes `spell-attack` word for word — *"A spell attack is an attack roll made as part
+    of a spell"* — and it is a shape, correctly, because p. 106 gives it a formula of its
+    own. A guard that only asserted `weapon-attack` had moved would be satisfied by moving
+    every sub-case to vocabulary, which is the deflation failure mirroring the inflation
+    0034 clause 1 avoids. So the two that stay are asserted here too.
+    """
+    moved = inventory.by_id("weapon-attack")
+    assert moved is None, (
+        "`weapon-attack` is back in `shapes`. 0034 files it as vocabulary: the document "
+        "defines the term on p. 191 and never uses it, so there is no consequence to "
+        "produce and nothing to claim. Re-read the record before moving it back."
+    )
+    assert "Weapon Attack" in inventory.vocabulary, (
+        "`weapon-attack` is in neither `shapes` nor `vocabulary`. Silent omission is the "
+        "exact failure R17 names — an entry set aside stays visible, with its reason."
+    )
+
+    for sid, mechanism in THE_THREE_CASES_OF_AN_ATTACK_ROLL.items():
+        shape = inventory.by_id(sid)
+        assert shape is not None, (
+            f"`{sid}` is no longer a shape. 0034 clause 2 turns on consumers, not on how an "
+            f"entry is phrased: {mechanism}, so it differs from `attack-roll` in mechanism "
+            "rather than in a parameter and stays a shape."
+        )

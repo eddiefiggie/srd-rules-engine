@@ -194,7 +194,8 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Unoccupied Space": ("targeting", False),
     "Vulnerability": ("effect", True),
     "Weapon": ("vocabulary", False),
-    "Weapon Attack": ("test", False),
+    # Not a `test`: the document defines the term on p. 191 and never uses it (0034, #229).
+    "Weapon Attack": ("vocabulary", False),
 }
 
 #: Why a glossary entry is vocabulary rather than an effect shape. Keyed by kind so the
@@ -212,6 +213,17 @@ VOCABULARY_REASONS: dict[str, str] = {
         "Mechanical, but not a separate shape: it is the document's own name for one "
         "instance of `die-replacement`, differing from Halfling Luck and Wish in trigger "
         "and cost rather than in mechanism. Decision 0013, Q5."
+    ),
+    "Weapon Attack": (
+        "Not a separate shape: it renames `attack-roll` with a parameter fixed — p. 177's "
+        "entry already enumerates its three cases as weapon, Unarmed Strike and spell — and "
+        "differs from it in that parameter rather than in mechanism. The deciding evidence "
+        "is that the document defines the term on p. 191 and never uses it: `weapon attack` "
+        "occurs three times in the whole document, twice in its own entry and once on p. 217 "
+        "as a noun and a verb ('the hovering weapon attacks'). Nothing gates a mechanic on "
+        "it. `spell-attack` reads the same way and is a shape anyway, because p. 106 gives "
+        "it a bonus formula of its own — which is why the test is consumers rather than "
+        "phrasing. Decisions 0034 and 0013, Q1/Q3/Q5."
     ),
 }
 
