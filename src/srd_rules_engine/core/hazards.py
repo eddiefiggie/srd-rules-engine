@@ -11,11 +11,21 @@ unchanged: an event resolves where the event happens, not in a catch-all).
 engine has held since 0027 clauses 1-4 — the same one the death save fires in.
 
 The other three are not blocked on an occasion any more. Suffocation has one (the turn's end,
-built by 0023); Dehydration and Malnutrition fire at a day's end on the campaign axis. All
-three are blocked on the same thing instead: **each inflicts an Exhaustion *level*, and
-nothing can raise one through a ruling** — no `EffectKind`, no state mutator, no method on
-`Conditions` ([#178](https://github.com/eddiefiggie/srd-rules-engine/issues/178)). Burning is
-the exception because it deals Fire *damage*, and damage has worked since #88.
+built by 0023); Dehydration and Malnutrition fire at a day's end on the campaign axis. Nor are
+they blocked on *gaining* an Exhaustion level any more —
+[#178](https://github.com/eddiefiggie/srd-rules-engine/issues/178) built
+`EffectKind.EXHAUSTION_GAINED` and `EncounterState.with_exhaustion`.
+
+What blocks them now is **removal**, and it is a design question rather than a missing part.
+Four rules remove Exhaustion levels and no two agree: a Long Rest removes one (p. 181),
+breathing again removes every level *suffocation* caused (p. 189), and dehydration's and
+malnutrition's levels are removable by nothing until the creature drinks or eats (pp. 181,
+185). Two of those are about a level's **provenance**, and one integer cannot say which of a
+creature's levels are which — [#180](https://github.com/eddiefiggie/srd-rules-engine/issues/180).
+
+Suffocation is the one this bites hardest: its removal rule is half its glossary entry, so
+building it with a suffocation-shaped counter would answer #180 in code rather than in a
+record. Burning needed none of this, because it deals Fire *damage*.
 
 ## Falling asks nothing of the d20
 

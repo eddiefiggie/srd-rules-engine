@@ -259,6 +259,51 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"Tremorsense can.t detect creatures or objects in the air, and it doesn.t count as "
         r"a form of sight",
     ),
+    # --- Exhaustion levels, and who may remove them (#178) -----------------------------
+    (
+        181,
+        "an Exhaustion level is gained one at a time, and the condition is cumulative — "
+        "which is why raising it needs its own effect rather than an application of the "
+        "condition, whose arithmetic is entirely in the level",
+        r"This condition is cumulative\.\s*Each time you receive it, you gain 1 Exhaustion "
+        r"level\.\s*You die if your Exhaustion level is 6",
+    ),
+    (
+        181,
+        "the general removal rule: a Long Rest removes ONE level, and the condition ends at "
+        "zero rather than being removed outright",
+        r"Finishing a Long Rest removes 1 of your Exhaustion levels\.\s*When your Exhaustion "
+        r"level reaches 0, the condition ends",
+    ),
+    (
+        189,
+        "Suffocation removes ALL the levels IT caused when the creature breathes again — "
+        "the sentence that makes a level's source load-bearing, because a bare count cannot "
+        "say which levels these are",
+        r"When a creature can breathe again, it removes all levels of Exhaustion it gained "
+        r"from suffocating",
+    ),
+    (
+        181,
+        "and dehydration's levels run the other way: removable by nothing until the "
+        "creature drinks a full day's water",
+        r"Exhaustion caused by dehydration can.t be removed until the creature drinks the "
+        r"full amount of water required for a day",
+    ),
+    (
+        185,
+        "as do malnutrition's. Three different removal rules over one integer is why #178 "
+        "clause 3 is a design question rather than a field",
+        r"Exhaustion caused by malnutrition can.t be removed until the creature eats the "
+        r"full amount of food required for a day",
+    ),
+    (
+        189,
+        "how long a creature holds its breath — 1 plus its Constitution modifier in "
+        "MINUTES, with a floor of 30 seconds that an integer-minutes clock cannot hold",
+        r"A creature can hold its breath for a number of minutes equal to 1 plus its "
+        r"Constitution modifier \(minimum of 30 seconds\) before suffocation begins",
+    ),
     # --- The five hazards (#140) -------------------------------------------------------
     # Asserted ahead of any implementation, because the OCCASION each one fires on is the
     # design question and it should be settled against the sentences rather than against a
