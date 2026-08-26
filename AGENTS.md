@@ -173,6 +173,18 @@ genuinely needed, make it relative to the repository root. `tests/test_no_local_
 scans every tracked text file and fails CI on a hit. Local-only metadata belongs in the
 gitignored `GARAGE.md`.
 
+**A file that lives outside the repository is written `/path/to/<name>`**, because "relative to
+the repository root" has no answer for it. The SRD PDF is the case that matters and it is
+deliberately outside the tree — `NOTICE.md` explains why the document is not ours to
+redistribute — so every mention of it is a path to somewhere on somebody's machine. The
+convention already existed in `scripts/verify_d20_rules.py`'s usage line and in
+[0013](docs/decisions/0013-effect-shape-normalisation.md) and
+[0014](docs/decisions/0014-positional-state.md); it was never stated as a rule, and the omission
+has a cost. A plan written for [#228](https://github.com/eddiefiggie/srd-rules-engine/issues/228)
+named the PDF five times at a home-relative path, followed the rule above as far as it goes,
+found it did not reach, and guessed. The leak guard caught it at `git add` — which is the guard
+working, and also the latest possible moment for a rule to be learned.
+
 **Narration bounds are advisory to the caller** (R7). The engine states what may and may not be
 asserted; it does not enforce it. Do not add enforcement machinery that implies otherwise, and do
 not describe bounds as enforced in user-facing prose.
