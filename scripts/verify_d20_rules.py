@@ -500,6 +500,21 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "reconciles neither (#182)",
         r"it removes any Exhaustion levels you have and ends the Poisoned condition on you",
     ),
+    # The second contradiction, and unlike #182's it fits in one paragraph (0031, #205).
+    # Both halves are asserted so the pair goes red together if a revision reworded either —
+    # which is the only way this project can learn the publisher resolved it rather than us.
+    (
+        188,
+        "a change to Speed reaches a special speed by AN EQUAL AMOUNT — feet, subtracted",
+        r"If an effect increases or decreases your Speed for a time, any special speed you "
+        r"have increases or decreases by an equal amount for the same duration",
+    ),
+    (
+        188,
+        "and the same paragraph then works it PROPORTIONALLY, which is a different number "
+        "the moment two speeds differ. The document states both and reconciles neither (#205)",
+        r"if your Speed is halved and you have a Fly Speed, your Fly Speed is also halved",
+    ),
     # --- The five hazards (#140) -------------------------------------------------------
     # Asserted ahead of any implementation, because the OCCASION each one fires on is the
     # design question and it should be settled against the sentences rather than against a

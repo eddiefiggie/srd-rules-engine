@@ -96,6 +96,7 @@ rejected options and the reason survive, not the exact headings.
 | [0028](0028-a-level-carries-the-rule-that-caused-it.md) | An Exhaustion level carries the rule id that caused it and the count is derived, because four of the five removal rules turn on a level's provenance | [#180](https://github.com/eddiefiggie/srd-rules-engine/issues/180) |
 | [0029](0029-whether-a-wall-blocks-sight-is-a-property-of-the-wall.md) | Whether a barrier blocks sight is a field on the barrier, not a rule — the document answers it per wall and answers it both ways | [#188](https://github.com/eddiefiggie/srd-rules-engine/issues/188) |
 | [0030](0030-an-unanswerable-qualifier-resolves-away-from-invention.md) | A qualifier this engine cannot check resolves in whichever direction cannot manufacture an outcome — which is why reactions withhold and Frightened applies | [#190](https://github.com/eddiefiggie/srd-rules-engine/issues/190) |
+| [0031](0031-a-contradiction-in-the-document-is-an-absent-rule.md) | Two printed rules that disagree state no rule, so the mechanic is excluded under R31 — and [0030](0030-an-unanswerable-qualifier-resolves-away-from-invention.md) clause 1 must not be reached for one | [#182](https://github.com/eddiefiggie/srd-rules-engine/issues/182), [#205](https://github.com/eddiefiggie/srd-rules-engine/issues/205) |
 
 ## What belongs here, and what doesn't
 
