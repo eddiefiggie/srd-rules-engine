@@ -12,6 +12,8 @@ import pytest
 
 from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.d20 import TestKind
+from srd_rules_engine.core.obstructions import Obstruction
+from srd_rules_engine.core.position import Position
 from srd_rules_engine.core.rules import VerificationState
 from srd_rules_engine.core.spellcasting import (
     CANTRIP_LEVEL,
@@ -23,11 +25,14 @@ from srd_rules_engine.core.spellcasting import (
     SPELLCASTING_VERIFICATION,
     Concentration,
     NoSlotAvailable,
+    RangeForm,
+    SpellRange,
     SpellSlots,
     concentration_save,
     concentration_save_dc,
     ritual_cast,
     spell_attack_modifier,
+    spell_reaches,
     spell_save_dc,
 )
 
@@ -302,13 +307,28 @@ def test_no_slot_table_ships_in_this_module() -> None:
 
 
 def test_the_module_says_what_it_does_not_carry() -> None:
+    """R32. The exclusions are named, and named as what they currently are.
+
+    This test used to assert the docstring said "Long Rest recovery has no trigger". #19
+    gave it one, and the sentence became false while the guard kept it in place — a guard on
+    a disclosure keeps the disclosure honest only if it moves when the fact does, and this
+    one held a stale claim for a build.
+
+    So it now pins the gaps that are open, and the paragraph recording that the recovery gap
+    closed. A disclosure that quietly disappears is as misleading as one that quietly
+    persists: a reader who remembers it should be able to see what happened.
+    """
     from srd_rules_engine.core import spellcasting
 
-    assert spellcasting.__doc__ is not None
-    assert "Long Rest recovery has no trigger" in spellcasting.__doc__
-    assert "issues/19" in spellcasting.__doc__, (
-        "the gap is the rest, not the clock — #85 shipped the clock, so the disclosure has "
-        "to point at the issue that is still open or it reads as tracked when it is not"
+    doc = spellcasting.__doc__
+    assert doc is not None
+    assert "Long Rest recovery had no trigger until #19" in doc, (
+        "the closed gap is recorded as closed rather than deleted"
+    )
+    assert "Components, and the Spellcasting Focus" in doc, "still open, and still said"
+    assert "issues/21" in doc, (
+        "enumerating what is castable needs a spell list, and the disclosure has to point "
+        "at the issue that is open or it reads as tracked when it is not"
     )
 
 
@@ -436,3 +456,81 @@ def test_preparation_is_one_set_because_castability_asks_one_question() -> None:
     )
     assert "detect-magic" in caster.prepared
     assert not hasattr(caster, "always_prepared"), "one set, per p. 104's own scoping"
+
+
+# --- A spell's range, and the clear path it also needs (#20) ------------------------------
+
+
+def test_the_three_forms_a_range_takes() -> None:
+    """p. 105. Only one of them is a number, which is why this is a form and a distance
+    rather than an integer with sentinel values."""
+    assert SpellRange(RangeForm.DISTANCE, 60).feet == 60
+    assert SpellRange(RangeForm.TOUCH).feet is None
+    assert SpellRange(RangeForm.SELF).feet is None
+
+
+def test_a_distance_range_needs_a_distance() -> None:
+    with pytest.raises(ValueError, match="expressed in feet"):
+        SpellRange(RangeForm.DISTANCE)
+
+
+def test_touch_and_self_carry_no_number_to_invent() -> None:
+    """p. 105 gives Touch as the caster's reach and Self as the caster. Neither is a
+    distance this engine may supply, so neither may carry one."""
+    with pytest.raises(ValueError, match="carries no distance"):
+        SpellRange(RangeForm.TOUCH, 5)
+
+
+def test_self_reaches_only_the_caster() -> None:
+    here, there = Position(0, 0, 0), Position(5, 0, 0)
+    assert spell_reaches(here, caster=here, spell_range=SpellRange(RangeForm.SELF), reach_feet=5)
+    assert not spell_reaches(
+        there, caster=here, spell_range=SpellRange(RangeForm.SELF), reach_feet=5
+    )
+
+
+def test_touch_reaches_as_far_as_the_caster_does() -> None:
+    """p. 105 defers to the caster's reach, and p. 186 puts that at 5 feet unless a rule
+    says otherwise — so a creature with longer reach touches further, and this engine takes
+    the number from the creature rather than from a constant."""
+    here = Position(0, 0, 0)
+    touch = SpellRange(RangeForm.TOUCH)
+    assert spell_reaches(Position(5, 0, 0), caster=here, spell_range=touch, reach_feet=5)
+    assert not spell_reaches(Position(10, 0, 0), caster=here, spell_range=touch, reach_feet=5)
+    assert spell_reaches(Position(10, 0, 0), caster=here, spell_range=touch, reach_feet=10)
+
+
+def test_a_distance_range_reaches_exactly_that_far() -> None:
+    here = Position(0, 0, 0)
+    sixty = SpellRange(RangeForm.DISTANCE, 60)
+    assert spell_reaches(Position(60, 0, 0), caster=here, spell_range=sixty, reach_feet=5)
+    assert not spell_reaches(Position(65, 0, 0), caster=here, spell_range=sixty, reach_feet=5)
+
+
+def test_total_cover_stops_a_spell_however_close_it_is() -> None:
+    """p. 106: "To target something with a spell, a caster must have a clear path to it, so
+    it can't be behind Total Cover."
+
+    A second, independent test — the range being satisfied is not enough, and a wall five
+    feet away defeats a 120-foot spell.
+    """
+    wall = Obstruction(lo=Position(2, -20, 0), hi=Position(3, 20, 20))
+    assert not spell_reaches(
+        Position(10, 0, 0),
+        caster=Position(0, 0, 0),
+        spell_range=SpellRange(RangeForm.DISTANCE, 120),
+        reach_feet=5,
+        obstructions=(wall,),
+    )
+
+
+def test_a_wall_that_is_not_between_them_stops_nothing() -> None:
+    """Blocking is per-line (#91). Standing beside a wall is not standing behind it."""
+    wall = Obstruction(lo=Position(2, -20, 0), hi=Position(3, 20, 20))
+    assert spell_reaches(
+        Position(0, 30, 0),
+        caster=Position(0, 0, 0),
+        spell_range=SpellRange(RangeForm.DISTANCE, 120),
+        reach_feet=5,
+        obstructions=(wall,),
+    )
