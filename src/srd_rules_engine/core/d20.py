@@ -48,8 +48,8 @@ be used — so this is a replacement, not a take-the-better-of-two.
 
 Three properties make it a seam rather than a second roller:
 
-* **The replacement comes from the same seed**, in an index space of its own
-  (`REPLACEMENT_OFFSET`). Replay reproduces a rerolled result from the original seed plus
+* **The replacement comes from the same seed**, in a band of its own
+  (`REPLACEMENT_BAND`). Replay reproduces a rerolled result from the original seed plus
   the record of what was replaced. Drawing it from a fresh seed would reproduce the roll and
   not the reroll — a replay that fails in the quiet direction, which is worse than one that
   fails loudly.
@@ -68,6 +68,7 @@ The engine still rolls (R4): a caller names *which* die and *why*, never what it
 from __future__ import annotations
 
 import hashlib
+import itertools
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Final
@@ -135,49 +136,131 @@ MODIFIER_VERIFICATION: Final = Verification(
 #: The width of the hash slice a single die consumes.
 _BITS: Final = 32
 
-#: Where damage dice start in a seed's index space. One adjudication draws its d20 from
-#: the low indices and its damage from here, so the two can never collide on a die.
-DAMAGE_OFFSET: Final = 100
 
-#: Where replacement dice start. The seed's index space is banded — d20 at 0-1, damage from
-#: 100, replacements from 200 — so a rerolled die is drawn from the same seed as the roll it
-#: replaces without ever landing on a die that seed has already produced.
+@dataclass(frozen=True)
+class Band:
+    """A reserved run of one seed's index space, with a name and a **capacity** (#82).
+
+    The capacity is the whole point. Before it, the bands were three integers a reader had
+    to compare and nothing checked: `roll` took an arbitrary `count` and an arbitrary
+    `offset`, so a large enough run walked out of its band and aliased onto the next one's
+    dice. That collision does not raise — it produces a replacement die identical to a
+    damage die from the same seed, a reroll agreeing with the thing it is supposed to be
+    independent of, which is the class of defect nobody finds by inspection.
+    """
+
+    name: str
+    start: int
+    capacity: int
+
+    def __post_init__(self) -> None:
+        if self.start < 0 or self.capacity < 1:
+            raise ValueError(f"band {self.name!r} needs a non-negative start and room for a die")
+
+    @property
+    def last(self) -> int:
+        """The highest index this band owns. Inclusive, because bands sit adjacent."""
+        return self.start + self.capacity - 1
+
+    def holds(self, index: int) -> bool:
+        return self.start <= index <= self.last
+
+    def at(self, n: int) -> int:
+        """The `n`th index of this band, refusing one that would leave it."""
+        if not 0 <= n < self.capacity:
+            raise ValueError(
+                f"index {n} is outside the {self.name} band, which holds {self.capacity} "
+                f"({self.start}-{self.last}). A die drawn past a band's end lands on the "
+                "next band's dice and silently agrees with one of them"
+            )
+        return self.start + n
+
+
+#: The seed's index bands, stated **once** rather than as constants a reader must compare
+#: (#82). Order is ascending and `_no_band_overlaps` holds it.
 #:
-#: The bands are a **convention, not an enforced invariant**: `roll` takes an arbitrary
-#: `count` and `offset`, so a large enough damage roll would cross into this band and
-#: silently alias a replacement onto a damage die. No caller does, and nothing checks.
-#: Disclosed rather than assumed away — see
-#: https://github.com/eddiefiggie/srd-rules-engine/issues/82.
-REPLACEMENT_OFFSET: Final = 200
+#: Every band above the d20 is bounded, and that is what lets the next one start: an
+#: unbounded band leaves no room for a neighbour, which is the shape of the problem this
+#: fixes. Initiative is the one that had to *move* — it rolled one die per combatant from
+#: index 0, sharing the d20's band with no bound at all, so an encounter large enough
+#: aliased a combatant's initiative onto a damage die of the same seed. Nothing recorded
+#: initiative in the ledger, so moving it rewrites no history.
+D20_BAND: Final = Band("d20", 0, 2)
+DAMAGE_BAND: Final = Band("damage", 100, 100)
+REPLACEMENT_BAND: Final = Band("replacement", 200, 68)
+ADJUSTMENT_BAND: Final = Band("adjustment", 300, 128)
+RECOVERY_BAND: Final = Band("recovery", 500, 1)
+INITIATIVE_BAND: Final = Band("initiative", 1000, 256)
+
+BANDS: Final = (
+    D20_BAND,
+    DAMAGE_BAND,
+    REPLACEMENT_BAND,
+    ADJUSTMENT_BAND,
+    RECOVERY_BAND,
+    INITIATIVE_BAND,
+)
+
+
+def _no_band_overlaps() -> None:
+    """Refuse at import if two bands share an index, or if `BANDS` stops ascending.
+
+    A map stated in one place is only worth having if the one place is checked. This runs
+    on import rather than in a test so that a bad edit cannot be merged behind a test
+    somebody forgot to run — though `tests/test_d20_test.py` proves it fails, because a
+    guard nobody has seen red is a guard that might be inspecting nothing.
+    """
+    for earlier, later in itertools.pairwise(BANDS):
+        if later.start <= earlier.last:
+            raise ValueError(
+                f"the {later.name} band starts at {later.start}, inside the "
+                f"{earlier.name} band ({earlier.start}-{earlier.last}). Bands exist so two "
+                "rolls from one seed cannot land on the same die"
+            )
+
+
+_no_band_overlaps()
+
+
+def band_holding(index: int) -> Band:
+    """The band an index belongs to, or a refusal naming the map.
+
+    Every index a die is drawn from is in some band. The gaps between bands are not spare
+    room — they are the margin that keeps a band's overrun from reaching its neighbour, so
+    drawing from one is a caller that has lost track of which band it is in.
+    """
+    for band in BANDS:
+        if band.holds(index):
+            return band
+    raise ValueError(
+        f"index {index} is in no band of the seed's index space. The bands are "
+        + ", ".join(f"{b.name} {b.start}-{b.last}" for b in BANDS)
+    )
+
+
+#: Where damage dice start. One adjudication draws its d20 from the low indices and its
+#: damage from here, so the two can never collide on a die.
+DAMAGE_OFFSET: Final = DAMAGE_BAND.start
+
+#: Where replacement dice start, so a rerolled die comes from the same seed as the roll it
+#: replaces without landing on a die that seed has already produced.
+REPLACEMENT_OFFSET: Final = REPLACEMENT_BAND.start
 
 #: Indices a single replacement consumes: two, because the replacement may itself be rolled
 #: with Advantage or Disadvantage (Wish, p. 175).
 _REPLACEMENT_STRIDE: Final = 2
 
-#: How many times one roll may be replaced. Bounded so the replacement band *ends*, which
-#: is what lets another band start above it — an unbounded band leaves no room for a
-#: neighbour and is the shape of the problem #82 describes. Sixteen is far past any real
-#: sequence: the document's rerolls cost a resource each.
+#: How many times one roll may be replaced. Sixteen is far past any real sequence: the
+#: document's rerolls cost a resource each.
 _MAX_GENERATION: Final = 16
 
 #: Where dice applied to an already-resolved roll start. Bardic Inspiration (p. 32) and
 #: Boon of Fate (p. 88) both roll dice *after* the d20 and apply the total to it.
-ADJUSTMENT_OFFSET: Final = 300
+ADJUSTMENT_OFFSET: Final = ADJUSTMENT_BAND.start
 
 #: The most dice one adjustment may roll, and so the width of a generation's block.
 MAX_ADJUSTMENT_DICE: Final = 8
 _MAX_ADJUSTMENTS: Final = 16
-
-# The seed's index bands, in one place rather than as constants a reader must compare:
-#
-#     0   - 1     the d20 itself, one die or two
-#     100 - 199   damage (DAMAGE_OFFSET)
-#     200 - 267   replacements, 16 generations of 4 (REPLACEMENT_OFFSET)
-#     300 - 427   adjustments, 16 generations of 8 (ADJUSTMENT_OFFSET)
-#
-# Nothing enforces that a caller stays inside its band — `roll` still takes an arbitrary
-# `count` and `offset`, which is #82. Bounding the two upper bands is what makes them
-# finite enough to sit next to each other at all.
 
 
 class TestKind(StrEnum):
@@ -365,7 +448,7 @@ def resolve(test: D20Test, *, seed: int) -> D20Result:
     """Roll the test and return its result. The engine rolls; no caller supplies one."""
     effective = _effective_advantage(test)
     count = 1 if effective is Advantage.NONE else 2
-    dice = tuple(die(seed, index) for index in range(count))
+    dice = tuple(die(seed, D20_BAND.at(index)) for index in range(count))
 
     used = _pick(dice, effective)
 
@@ -505,8 +588,8 @@ def adjust_roll(
     if generation > _MAX_ADJUSTMENTS:
         raise ValueError(f"a roll cannot be adjusted more than {_MAX_ADJUSTMENTS} times")
 
-    base = ADJUSTMENT_OFFSET + (generation - 1) * MAX_ADJUSTMENT_DICE
-    rolled = tuple(die(result.seed, base + n, sides) for n in range(count))
+    base = (generation - 1) * MAX_ADJUSTMENT_DICE
+    rolled = tuple(die(result.seed, ADJUSTMENT_BAND.at(base + n), sides) for n in range(count))
     adjustment = Adjustment(dice=rolled, value=sum(rolled), penalty=penalty, source=source)
 
     total = result.total + adjustment.applied
@@ -539,14 +622,18 @@ def override_to_success(result: D20Result, *, source: str) -> D20Result:
 
 
 def _replacement_index(generation: int, position: int) -> int:
-    """The first index a replacement draws from.
+    """The first index a replacement draws from, **relative to the replacement band**.
 
     Banded so that no two replacements of the same roll can land on the same die: each
     generation gets its own block, each position its own pair inside that block, and the
     pair is what lets a forced reroll carry Advantage or Disadvantage.
+
+    Relative rather than absolute since #82, so `Band.at` is what turns it into an index —
+    which is also what refuses one past the band's end. An absolute index computed here
+    and added to the band's start would apply the start twice.
     """
     block = generation * _REPLACEMENT_STRIDE * 2
-    return REPLACEMENT_OFFSET + block + position * _REPLACEMENT_STRIDE
+    return block + position * _REPLACEMENT_STRIDE
 
 
 def replace_die(
@@ -583,7 +670,7 @@ def replace_die(
     effective = _cancel(with_advantage, with_disadvantage)
     count = 1 if effective is Advantage.NONE else 2
     base = _replacement_index(generation, position)
-    rolled = tuple(die(result.seed, base + n) for n in range(count))
+    rolled = tuple(die(result.seed, REPLACEMENT_BAND.at(base + n)) for n in range(count))
     value = _pick(rolled, effective)
 
     dice = list(result.dice)
@@ -655,9 +742,18 @@ def die(seed: int, index: int, sides: int = DIE_SIDES) -> int:
 def roll(seed: int, *, count: int, sides: int, offset: int = 0) -> tuple[int, ...]:
     """Several dice of one size from one seed. `offset` keeps separate rolls apart.
 
-    `offset` is not checked against the band it lands in, so a large enough `count` runs
-    past the next band's start and aliases onto its dice. See #82.
+    The run is checked against the band `offset` lands in (#82). A `count` large enough to
+    walk out of that band would draw its last dice from the band above and silently agree
+    with whatever that seed already produced there — a reroll matching the damage die it
+    was meant to be independent of, or an initiative matching a d20. Refused, because the
+    collision is invisible in the output and the output is what a replay compares.
     """
     if count < 0:
         raise ValueError("a roll has a non-negative number of dice")
+    if count == 0:
+        return ()
+
+    band = band_holding(offset)
+    within = offset - band.start
+    band.at(within + count - 1)
     return tuple(die(seed, offset + n, sides) for n in range(count))
