@@ -447,7 +447,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 181",
    "kind": "environment",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "disadvantage",
@@ -719,7 +719,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 184",
    "kind": "environment",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "line",
@@ -951,7 +951,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 188",
    "kind": "state",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "speed",

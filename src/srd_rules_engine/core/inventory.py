@@ -97,6 +97,27 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # claiming it would count a definition.
         "darkness": "core.sight.OBSCUREMENT_BY_LIGHT",
         "heavily-obscured": "core.state.EncounterState.can_see",
+        # #138's keystone, and the two shapes that were waiting behind it. p. 184's
+        # Disadvantage was *derivable* from the day #150 filled the tables and **produced by
+        # nothing** — so by this sweep's own standard neither resolved. A Wisdom (Perception)
+        # check now reads the obscurement, which makes the consequence real:
+        #
+        # * `lightly-obscured` (p. 184) — the Disadvantage is applied to a real D20Test.
+        # * `dim-light` (p. 181) — its whole entry is "an area with Dim Light is Lightly
+        #   Obscured", and that classification is now read rather than computed and dropped.
+        #
+        # `bright-light` still is not here: p. 178 states no consequence to produce, so
+        # there is nothing for the engine to be judged as producing.
+        "lightly-obscured": "core.state.EncounterState.perception_of",
+        "dim-light": "core.state.EncounterState.perception_of",
+        # p. 188's Skill, whole: the association with an ability (p. 9's table) and the one
+        # rule the entry states — proficiency adds the Proficiency Bonus to a check.
+        #
+        # `proficiency` is NOT here. p. 186 gives it four kinds — "a skill or saving throw
+        # or with a weapon or tool" — and this engine models two, so claiming it would
+        # report two of four as four. `expertise` is not here either: p. 182 doubles the
+        # bonus for a class feature, and no class data ships.
+        "skill": "core.state.Combatant.check_bonus",
         # p. 187's Ritual, whole: the prepared-and-tagged precondition, the 10 minutes, the
         # slot it does not expend, and the upcasting that therefore cannot happen (#19).
         "ritual": "core.spellcasting.ritual_cast",

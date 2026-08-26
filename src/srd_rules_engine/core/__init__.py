@@ -153,6 +153,12 @@ from srd_rules_engine.core.memory_port import (
     is_extension,
     resolve,
 )
+from srd_rules_engine.core.perception import (
+    PERCEPTION_RULE_ID,
+    PERCEPTION_VERIFICATION,
+    perception_resolver,
+    perception_rule,
+)
 from srd_rules_engine.core.read_surface import (
     ATTACK,
     END_TURN,
@@ -197,6 +203,12 @@ from srd_rules_engine.core.save_ends import (
     save_ends_rule_id,
     save_ends_rules,
 )
+from srd_rules_engine.core.skills import (
+    SKILL_ABILITY,
+    SKILLS_VERIFICATION,
+    PerceptionCheck,
+    Skill,
+)
 from srd_rules_engine.core.state import (
     Combatant,
     DeathSaves,
@@ -236,11 +248,15 @@ __all__ = [
     "MAX_SAFE_INTEGER",
     "MINUTES_PER_DAY",
     "MINUTES_PER_HOUR",
+    "PERCEPTION_RULE_ID",
+    "PERCEPTION_VERIFICATION",
     "READER_VERSION",
     "RECOVERY_OFFSET",
     "REPLACEMENT_OFFSET",
     "SAVE_ENDS_PREFIX",
     "SAVE_ENDS_VERIFICATION",
+    "SKILLS_VERIFICATION",
+    "SKILL_ABILITY",
     "STABLE_RECOVERY_HIT_POINTS",
     "STABLE_RECOVERY_SIDES",
     "SUFFOCATION_RULE_ID",
@@ -292,6 +308,7 @@ __all__ = [
     "ObligationOutstanding",
     "Operator",
     "Override",
+    "PerceptionCheck",
     "Proposal",
     "Provenance",
     "ReadResult",
@@ -309,6 +326,7 @@ __all__ = [
     "SaveEnds",
     "SessionReport",
     "Shape",
+    "Skill",
     "SpanUnit",
     "StatedSpan",
     "Status",
@@ -352,6 +370,8 @@ __all__ = [
     "load_inventory",
     "load_ruleset",
     "override_to_success",
+    "perception_resolver",
+    "perception_rule",
     "read",
     "read_ledger",
     "render",

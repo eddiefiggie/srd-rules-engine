@@ -528,6 +528,33 @@ class Conditions:
 
         return _combine(advantage, disadvantage)
 
+    def own_ability_checks(self, *, fear_in_sight: bool = True) -> Advantage:
+        """What this creature's own ability checks have (#138).
+
+        Two conditions confer it and the document phrases them differently. **Poisoned**
+        (p. 186) gives "Disadvantage on attack rolls and ability checks" flat. **Frightened**
+        (p. 182) gives the same "while the source of fear is within line of sight", so it
+        carries the qualifier `own_attack_rolls` already asks — and for the same reason:
+        #192 stored the source, and `EncounterState.fear_in_sight` answers it.
+
+        `fear_in_sight` defaults to `True` for 0030 clause 1's reason, unchanged here. A
+        caller that cannot answer gets the reading that omits nothing: applying a
+        Disadvantage the rules may not require can only make a check harder, while dropping
+        one they do require makes a creature succeed at something it should not.
+
+        **This field had no consumer until now.** It has been transcribed correctly on both
+        conditions since #18 and nothing ever read it — the same shape `saves_due_after` was
+        in before #110, and the reason a Perception check was worth building rather than
+        only reported.
+        """
+        contributing = [
+            EFFECTS[c] for c in self.held if not (c is Condition.FRIGHTENED and not fear_in_sight)
+        ]
+        return _combine(
+            any(e.own_ability_checks is Advantage.ADVANTAGE for e in contributing),
+            any(e.own_ability_checks is Advantage.DISADVANTAGE for e in contributing),
+        )
+
     # --- Duration (#18) ---------------------------------------------------------------
 
     def expired_after(self, round_number: int, actor_id: str) -> frozenset[Condition]:

@@ -222,6 +222,51 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"You have Disadvantage on Wisdom \(Perception\) checks to see something in a "
         r"Lightly Obscured space",
     ),
+    # --- The Perception check that finally reads obscurement (#138) ---------------------
+    # p. 184's Disadvantage was produced by nothing until these were composed. The third
+    # clause is the one an implementer drops: p. 182 says a CONDITION applies, and what that
+    # condition costs a check is p. 177's sentence, not p. 182's.
+    (
+        177,
+        "Blinded does not merely obscure — it AUTOMATICALLY FAILS a check that needs sight, "
+        "which is what makes p. 182's Heavily Obscured an outcome rather than a penalty",
+        r"You can.t see and automatically fail any ability check that requires sight",
+    ),
+    (
+        188,
+        "a skill is an area of specialization, and proficiency in one ADDS the Proficiency "
+        "Bonus to an ability check associated with it",
+        r"If you have proficiency in a skill, you can add your Proficiency Bonus when you "
+        r"make an ability check associated with that skill",
+    ),
+    (
+        186,
+        "and proficiency comes in FOUR kinds, which is why the `proficiency` shape stays "
+        "unclaimed with two of them modelled (#138)",
+        r"A creature might have proficiency in a skill or saving throw or with a weapon or "
+        r"tool",
+    ),
+    (
+        9,
+        "the Skills table pairs Perception with WISDOM — the pairing is the mechanical half, "
+        "and a set of names without it leaves every caller recalling which ability applies",
+        r"Perception Wisdom Using a combination of senses, notice something that.s easy to "
+        r"miss",
+    ),
+    (
+        187,
+        "the Search action is the occasion: a Wisdom check to discern something that isn't "
+        "obvious, with Perception the skill for a concealed creature",
+        r"When you take the Search action, you make a Wisdom check to discern something "
+        r"that isn.t obvious",
+    ),
+    (
+        186,
+        "Passive Perception is 10 + the check bonus, shifted 5 by Advantage or Disadvantage "
+        "— and the worked example is 14 for Wisdom 15 with proficiency at level 1",
+        r"a level 1 character with a Wisdom of 15 and proficiency in Perception has a "
+        r"Passive Perception of 14 \(10 \+ 2 \+ 2\)",
+    ),
     (
         182,
         "what Heavily Obscured costs, and the clause that decides this subsystem reads "
