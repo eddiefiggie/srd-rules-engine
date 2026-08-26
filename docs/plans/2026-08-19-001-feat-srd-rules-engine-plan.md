@@ -241,7 +241,9 @@ flowchart TB
 ### Success Criteria
 
 - Full SRD 5.2 mechanical coverage is the definition of done for v1: every entry in the published effect-shape inventory can be expressed and resolved by the engine. Partial coverage is an incomplete release, not a smaller one.
-- A solo session run with a live DM agent produces no asserted outcome that did not originate in a Ruling, measured from the session-review report. This is the bar the playable vertical slice must clear.
+- A solo session run with a live DM agent produces **every narration behind a Ruling, and every Ruling narrated**, measured from the session-review report. This is the bar the playable vertical slice must clear.
+  - **Amended by #197.** This read "no asserted outcome that did not originate in a Ruling" until a session was driven against the report and the two were found not to be the same claim. The report measures whether a narration **has** a Ruling; it never compares what the narration asserts against what the Ruling decided, and nothing else does either — R7 makes the narration bounds advisory by design, and enforcing them would need the engine to read prose. `tests/test_skip_guarantee.py` shows a missed attack narrated as a kill with the report coming back clean.
+  - **What is therefore not measured**, and is stated here rather than left to be inferred from a green report: whether a narration stays inside the bounds the Ruling gave it. An agent that narrates beyond them is outside every instrument this project has, and R7 says that is by design.
 - The rules test end to end with no model in the loop, and encounters replay deterministically from a seed.
 - A reader can answer "why did this ruling come out this way" from the ledger alone, without reconstructing the session.
 - A developer building an agent on this engine can implement the memory port and reach a working adjudication loop from the published schemas without reading engine internals.
@@ -323,7 +325,7 @@ The slice runs on a fixture ruleset of invented mechanics. Nothing in M1 states 
 
 - KTD5. Every guard test lands with the unit whose invariant it protects, and is proven red before that unit's PR opens. The standing repository rule already requires this; naming it here matters because M1 introduces the layer-import guard, the float-rejection guard, the loader provenance gate, and the label-free matcher projection — four guards whose failure mode is silently inspecting nothing.
 
-- KTD6. The session-review report is in the slice rather than deferred. The contract's primary success criterion — that no asserted outcome originated outside a Ruling — is measured from that report, so a slice without it cannot demonstrate the thing the slice exists to demonstrate. (session-settled: user-approved — chosen over deferring it to a later milestone.)
+- KTD6. The session-review report is in the slice rather than deferred. The contract's primary success criterion — that every narration has a Ruling behind it (amended by #197; it read "no asserted outcome originated outside a Ruling" until that turned out to be a stronger claim than the report makes) — is measured from that report, so a slice without it cannot demonstrate the thing the slice exists to demonstrate. (session-settled: user-approved — chosen over deferring it to a later milestone.)
 
 - KTD7. Slice depth stops at the d20 test plus initiative, attacks against AC, damage, and hit points. Conditions and movement would make a more convincing demo and both interact with the d20 test in ways better settled on a foundation that already works end to end. (session-settled: user-approved — chosen over adding conditions and movement, and over a check-only slice with no combat.)
 
@@ -663,7 +665,7 @@ Units land in the dependency order above, one PR each. Three ordering constraint
 - **Patterns to follow:** the fixture ruleset never states an SRD value; where a real ruleset would cite a section, the fixture records that it is invented.
 - **Test scenarios:**
   - A full encounter runs from initiative to a combatant at 0 hit points with no model and no network.
-  - The report over the finished encounter shows no asserted outcome that did not originate in a Ruling.
+  - The report over the finished encounter shows every narration behind a Ruling and every Ruling narrated (#197).
   - A no-test claim mid-encounter is challenged and the resubmission is adjudicated, and both appear in the report. Covers AE1.
   - Every Ruling in the encounter replays to an identical outcome. Covers AE5.
   - The same seed reruns the entire encounter to an identical ledger, chain digests included.
@@ -692,7 +694,7 @@ Two proof obligations sit on top of the gate and are not satisfied by a green su
 - **Every new guard is proven red.** Corrupt the input the guard exists to reject, confirm it fails, restore. The guards this milestone introduces are the layer-import guard (U1), the float rejection (U2), the loader's three refusals (U7), and the matcher projection's absent label (U10). A guard that has never been seen red may be inspecting nothing.
 - **Every new test is proven to fail against the pre-change tree.** Export the base commit to a scratch directory, copy the new tests over it, and run them. Anything still passing covers nothing. Deliberate no-change guards are the exception.
 
-The milestone's own proof is U14's session-review report over a completed fixture encounter, showing no asserted outcome that did not originate in a Ruling.
+The milestone's own proof is U14's session-review report over a completed fixture encounter, showing every narration behind a Ruling and every Ruling narrated (#197).
 
 ---
 
@@ -717,6 +719,6 @@ The milestone's own proof is U14's session-review report over a completed fixtur
 - The build stamp and README's current-build line are bumped together and say what actually shipped. _(Amended 2026-08-24 by [0024](../decisions/0024-the-build-line-is-the-build-record.md): this criterion also required a `CHANGELOG.md` entry, and that file is retired — [#146](https://github.com/eddiefiggie/srd-rules-engine/issues/146).)_
 - All five acceptance examples are covered by named tests: the silent-skip refusal, the unrolled-consequence bound, the absent-fact disclosure, the fact that moves a target number visibly, and deterministic replay. The last two are reached through invented fixture fact types rather than the SRD's attitude and social-interaction rules — the mechanism under test is that a resolved fact moves the target number and is cited with its provenance, which is indifferent to which rule consumes it.
 
-**Explicitly not cleared by this milestone.** The contract's primary success criterion is that *a solo session run with a live DM agent* produces no asserted outcome that did not originate in a Ruling. M1 cannot clear it: a scripted driver asserts only what it is told to, so it cannot produce an unprompted silent skip, and the slice therefore proves the report's **detection**, not an agent's **inability to evade it**. That validation needs a live agent and is filed as #42. Reading M1's green suite as having met the contract's bar would be the one misreading this plan most invites.
+**Explicitly not cleared by this milestone.** The contract's primary success criterion is that *a solo session run with a live DM agent* has every narration behind a Ruling (#197). M1 cannot clear it: a scripted driver asserts only what it is told to, so it cannot produce an unprompted silent skip, and the slice therefore proves the report's **detection**, not an agent's **inability to evade it**. That validation needs a live agent and is filed as #42. Reading M1's green suite as having met the contract's bar would be the one misreading this plan most invites.
 
 **Explicitly not required for this milestone:** conditions, movement in feet, spellcasting, weapon and spell range, the effect-shape inventory, MCP and HTTP adapters, and any SRD-derived rule content.
