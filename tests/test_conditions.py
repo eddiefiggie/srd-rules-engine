@@ -119,7 +119,7 @@ def test_an_unconscious_creature_attacked_from_range_has_neither() -> None:
 def test_grappled_spares_the_grappler() -> None:
     """p. 182: Disadvantage "on attack rolls against any target other than the grappler",
     so attacking the grappler itself is unaffected."""
-    grappled = held(Condition.GRAPPLED, grappler_id="ogre")
+    grappled = held(Condition.GRAPPLED, sources={Condition.GRAPPLED: frozenset({"ogre"})})
     assert grappled.own_attack_rolls(target_id="ogre") is Advantage.NONE
     assert grappled.own_attack_rolls(target_id="rat") is Advantage.DISADVANTAGE
 
@@ -251,21 +251,47 @@ def test_restrained_is_the_only_one_that_merely_hampers_dexterity_saves() -> Non
 
 def test_unenforced_clauses_are_named_rather_than_left_to_discovery() -> None:
     """Charmed's "can't attack the charmer" needs target legality (#16); Frightened's
-    line-of-sight qualifier needs obstructions (#91). Both are held and reported, and
+    "can't willingly move closer" needs movement legality. Both are held and reported, and
     neither is enforced — so the gap is a value a caller can read.
+
+    Frightened's *other* clause used to be here too. It left in #192, which is the shape
+    this list is meant to have: entries leave when the behaviour changes, one at a time.
     """
     assert "cannot-attack-or-target-the-charmer" in held(Condition.CHARMED).unenforced_clauses()
-    assert "line-of-sight-qualifier" in held(Condition.FRIGHTENED).unenforced_clauses()
+    assert "cannot-willingly-approach-the-source" in held(Condition.FRIGHTENED).unenforced_clauses()
 
 
-def test_frightened_applies_its_penalty_without_the_line_of_sight_test() -> None:
-    """The stricter reading, and deliberately so: line of sight is not modelled, and
-    applying a penalty that might not apply cannot invent a success. Disclosed rather than
-    silent — the qualifier is named in `unenforced_clauses`.
+def test_frightened_keeps_its_penalty_when_the_source_cannot_be_placed() -> None:
+    """0030 clause 1, now that #192 made the qualifier askable.
+
+    `fear_in_sight` defaults to True, so a caller that cannot answer gets the reading that
+    omits nothing — applying a Disadvantage the rules may not require can only omit a hit,
+    while dropping one they do require produces damage that should not exist.
     """
     frightened = held(Condition.FRIGHTENED)
     assert frightened.own_attack_rolls() is Advantage.DISADVANTAGE
-    assert "line-of-sight-qualifier" in frightened.unenforced_clauses()
+
+
+def test_frightened_loses_its_penalty_when_the_source_is_out_of_sight() -> None:
+    """p. 182: the Disadvantage holds "while the source of fear is within line of sight".
+
+    This is the half that could not be asked before #192, because the source of fear was
+    not recorded anywhere. An engine that applied the penalty regardless would penalise a
+    creature that had broken line of sight — which is the whole point of breaking it.
+    """
+    frightened = held(Condition.FRIGHTENED)
+    assert frightened.own_attack_rolls(fear_in_sight=False) is Advantage.NONE
+
+
+def test_the_qualifier_has_left_the_unenforced_list() -> None:
+    """0030 clause 5: a clause leaves this list when it is **enforced**, not when it becomes
+    answerable. It became answerable in 0029 and stayed; #192 enforced it, so it goes."""
+    frightened = held(Condition.FRIGHTENED)
+    assert "line-of-sight-qualifier" not in frightened.unenforced_clauses()
+    assert "cannot-willingly-approach-the-source" in frightened.unenforced_clauses(), (
+        "the other Frightened clause is untouched — nothing stops a frightened creature "
+        "walking towards what it fears"
+    )
 
 
 def test_the_module_discloses_what_it_does_not_enforce() -> None:

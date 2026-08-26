@@ -157,7 +157,9 @@ EFFECTS: Final[dict[Condition, ConditionEffects]] = {
     Condition.FRIGHTENED: ConditionEffects(
         own_attack_rolls=Advantage.DISADVANTAGE,
         own_ability_checks=Advantage.DISADVANTAGE,
-        unenforced_clauses=("line-of-sight-qualifier", "cannot-willingly-approach-the-source"),
+        # `line-of-sight-qualifier` left this list in #192, when the source of fear
+        # became state and `own_attack_rolls` could be told whether it is visible.
+        unenforced_clauses=("cannot-willingly-approach-the-source",),
     ),
     Condition.GRAPPLED: ConditionEffects(speed_zero=True),
     Condition.INCAPACITATED: ConditionEffects(
@@ -242,8 +244,19 @@ class Conditions:
     #: them, and a closed set in the data is a branch in every consumer (0019). It is the
     #: shape 0027 clause 2 chose for obligations.
     exhaustion_levels: tuple[str, ...] = ()
-    #: p. 182: who is grappling, so "any target other than the grappler" is computable.
-    grappler_id: str | None = None
+    #: Who imposed each condition, where the condition's own text turns on it (#192).
+    #:
+    #: A mapping rather than a field per condition, because two of the fifteen already need
+    #: one and a third field beside the first two is the shape that arrives one PR at a time:
+    #: Grappled's "any target other than the grappler" (p. 182) and Frightened's "while the
+    #: source of fear is within line of sight" (p. 182).
+    #:
+    #: **A set per condition, because a condition is binary but its causes are not.** p. 179:
+    #: "A condition doesn't stack with itself; a recipient either has a condition or doesn't."
+    #: So a creature frightened by two monsters holds *one* Frightened condition with two
+    #: sources — and Exhaustion, which p. 179 names as the exception to that rule, is why
+    #: 0028 gave it levels instead.
+    sources: Mapping[Condition, frozenset[str]] = field(default_factory=dict)
     #: How long each **applied** condition lasts (#18). Keyed by condition, and an implied
     #: one never appears here — it is held because its source is, so it lifts when that
     #: source does rather than carrying a span of its own. A condition absent from this map
@@ -286,6 +299,17 @@ class Conditions:
                 "for a condition nobody applied has nothing to end"
             )
         object.__setattr__(self, "durations", MappingProxyType(dict(self.durations)))
+
+    @property
+    def grappler_id(self) -> str | None:
+        """Who is grappling, or `None`. p. 182 speaks of one grappler and this engine keeps
+        the singular reading: a second grappler is not expressible, and would be a second
+        application of a condition that does not stack (p. 179)."""
+        return next(iter(sorted(self.sources.get(Condition.GRAPPLED, frozenset()))), None)
+
+    def sources_of(self, condition: Condition) -> frozenset[str]:
+        """Who imposed this condition, in no particular order. Empty when nobody said."""
+        return self.sources.get(condition, frozenset())
 
     def has(self, condition: Condition) -> bool:
         return condition in self.held
@@ -369,14 +393,31 @@ class Conditions:
 
         return _combine(advantage, disadvantage)
 
-    def own_attack_rolls(self, *, target_id: str | None = None) -> Advantage:
+    def own_attack_rolls(
+        self, *, target_id: str | None = None, fear_in_sight: bool = True
+    ) -> Advantage:
         """What this creature's own attack rolls have.
 
         Grappled is conditional: Disadvantage "on attack rolls against any target other
         than the grappler" (p. 182), so attacking the grappler itself is unaffected.
+
+        **Frightened is conditional too, and was not until #192.** p. 182 gives its
+        Disadvantage "while the source of fear is within line of sight", and the source was
+        not recorded, so the qualifier could not be asked. `fear_in_sight` is that answer,
+        supplied by whoever holds the encounter — `EncounterState.fear_in_sight`.
+
+        It **defaults to True**, which is 0030 clause 1 rather than convenience: a caller
+        that cannot answer gets the reading that omits nothing, because applying a
+        Disadvantage the rules may not require can only omit a hit, while dropping one they
+        do require produces damage that should not exist.
         """
-        advantage = any(e.own_attack_rolls is Advantage.ADVANTAGE for e in self.effects)
-        disadvantage = any(e.own_attack_rolls is Advantage.DISADVANTAGE for e in self.effects)
+        # Iterated over the conditions rather than over `self.effects`, because one of them
+        # now has to be skipped by name and the effects tuple does not say which is which.
+        contributing = [
+            EFFECTS[c] for c in self.held if not (c is Condition.FRIGHTENED and not fear_in_sight)
+        ]
+        advantage = any(e.own_attack_rolls is Advantage.ADVANTAGE for e in contributing)
+        disadvantage = any(e.own_attack_rolls is Advantage.DISADVANTAGE for e in contributing)
 
         if self.has(Condition.GRAPPLED) and target_id != self.grappler_id:
             disadvantage = True
@@ -446,7 +487,7 @@ class Conditions:
         return Conditions(
             held=frozenset(remaining),
             exhaustion_levels=self.exhaustion_levels,
-            grappler_id=None if Condition.GRAPPLED in ending else self.grappler_id,
+            sources={c: s for c, s in self.sources.items() if c not in ending},
             durations={c: d for c, d in self.durations.items() if c in remaining},
         )
 
