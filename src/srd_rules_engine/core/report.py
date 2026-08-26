@@ -100,6 +100,11 @@ NOT_MEASURED: Final[tuple[str, ...]] = (
     "cannot distinguish 'no skip' from 'no row'",
     "anything about a caller that reached adjudication without the turn loop, which is "
     "outside the skip guarantee and disclosed as such",
+    "how many turns a session took. A `Turn` is one declaration slot, and an engine-authored "
+    "obligation — a save-ends save (p. 63) or a death save — opens a slot of its own, so a "
+    "creature that acted once and owed one save reports two. `Turn.improvised` tells them "
+    "apart today; how they should be *grouped* is undecided, and deliberately, because "
+    "reactions are the second source of the same question and do not exist yet (#120)",
 )
 
 
@@ -139,7 +144,19 @@ class Replay:
 
 @dataclass(frozen=True)
 class Turn:
-    """One declaration slot as the ledger recorded it."""
+    """One declaration slot as the ledger recorded it.
+
+    **A slot, not a game turn**, and the distinction is load-bearing rather than pedantic.
+    An engine-authored obligation opens a slot of its own — 0023 clause 2 is explicit that
+    its `Declaration` "is not the agent's" — so a creature that acted once and owed one
+    save-ends save reports two `Turn`s. `improvised` is `True` on the second, and no
+    `read_token` was ever issued for it, so the two are distinguishable; what nothing here
+    decides is how they should be **grouped**, which is #120 and is left open on purpose
+    until reactions supply the second half of the question.
+
+    `SessionReport.not_measured` says so, because a count a reader takes at face value is
+    the failure mode this report already exists to prevent.
+    """
 
     seq: int
     actor: str

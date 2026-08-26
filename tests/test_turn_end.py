@@ -34,7 +34,9 @@ from srd_rules_engine.core import (
     Adjudicator,
     Combatant,
     Condition,
+    Declaration,
     EncounterState,
+    Intent,
     Ledger,
     ObligationOutstanding,
     SaveEnds,
@@ -43,7 +45,9 @@ from srd_rules_engine.core import (
     save_ends_resolvers,
     save_ends_rule_id,
     save_ends_rules,
+    session_report,
 )
+from srd_rules_engine.core.read_surface import END_TURN
 from srd_rules_engine.loop import TurnEnd, TurnLoop
 from srd_rules_engine.loop.drivers import ScriptedDriver, drive
 from srd_rules_engine.memory.store import JsonMemoryStore
@@ -344,3 +348,55 @@ def test_the_death_save_is_not_wired_and_says_why(tmp_path: Path) -> None:
     # owed, so the call itself is the check that nothing blocks the turn on the death
     # save's account. It read as an assert with a message and was a discarded tuple.
     downed.advanced_turn()
+
+
+# --- How the report groups an obligation (#120) -----------------------------------------
+
+
+def test_an_obligation_opens_a_slot_of_its_own_and_the_report_says_so(tmp_path: Path) -> None:
+    """#120's first question — *is it decidable today* — answered by reproducing it.
+
+    A creature that acts once and owes one save-ends save reports **two** `Turn`s: the
+    agent's declaration slot, and the engine-authored obligation's. That is the report
+    describing declaration slots faithfully, and it is not what a reader counting
+    `len(report.turns)` expects a *turn* to mean.
+
+    The two are distinguishable today. The obligation's declaration is `improvised` and
+    carries no read token, because 0023 clause 2 makes it the engine's artefact rather than
+    the agent's. So the facts a grouping rule needs are in the record.
+
+    **What is not decided is the rule**, and that is deliberate: reactions are the second
+    source of the same question (0015) and do not exist yet, so a rule chosen now would be
+    fitted to one of two cases. `SessionReport.not_measured` carries the disclosure until
+    then — this test pins both halves, so a future attribution rule has to change the
+    behaviour and the disclosure together rather than one quietly.
+    """
+    loop = build_loop(tmp_path)
+    state = poisoned()
+    state = state.with_condition(
+        "first", Condition.BLINDED, duration=state.for_minutes(1, "first", save=POISON)
+    )
+
+    # An ordinary, agent-made declaration: not improvised, and it settles the slot.
+    adjudicator = loop.adjudicator
+    ruling, state = adjudicator.adjudicate(
+        state,
+        Declaration(
+            actor_id="first",
+            intent=Intent(action_key=END_TURN),
+            rule_id=save_ends_rule_id(Condition.BLINDED),
+        ),
+    )
+    adjudicator.record_narration(ruling, "the agent's own turn")
+
+    end_turn(loop, state, "first")
+
+    turns = session_report(tmp_path / "ledger.jsonl").turns
+    assert len(turns) == 2, "one act and one obligation, reported as two slots"
+    assert [t.improvised for t in turns] == [False, True]
+    assert turns[1].rule_id == save_ends_rule_id(Condition.POISONED)
+    assert turns[1].alternatives_verdict == "unread", "nothing offered it, because nothing chose"
+
+    disclosure = " ".join(session_report(tmp_path / "ledger.jsonl").not_measured)
+    assert "how many turns a session took" in disclosure
+    assert "#120" in disclosure
