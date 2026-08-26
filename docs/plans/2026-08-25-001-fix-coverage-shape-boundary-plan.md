@@ -18,7 +18,7 @@ origin: https://github.com/eddiefiggie/srd-rules-engine/issues/228
 - **Headline finding:** #228 is **misscoped, not wrong**. Its observation holds — Bright Light's glossary entry states no mechanic. Its inference does not: the glossary entry defines the term and points onward (*"Bright Light is normal illumination."* plus `See also "Playing the Game" ("Exploration")`), while **p. 11** carries the mechanic — *"Bright Light. Bright Light lets most creatures see normally."* The engine produces exactly that consequence.
 - **The rule:** a shape's content is what the document states about it **anywhere**, not what its glossary paragraph states. The glossary is an index into the rules, not the boundary of one.
 - **Consequence:** none of #228's three candidate answers is taken. The 211 denominator does not move, no vacuous-claim rule is introduced, and the ceiling is not disclosed as unreachable — because it is reachable.
-- **Product authority:** `AGENTS.md`, then `docs/decisions/`. The official SRD v5.2.1 PDF at `~/Downloads/SRD_CC_v5.2.1.pdf` is the authority on every mechanic; no mechanic is inferred from memory (R31).
+- **Product authority:** `AGENTS.md`, then `docs/decisions/`. The official SRD v5.2.1 PDF at `/path/to/SRD_CC_v5.2.1.pdf` is the authority on every mechanic; no mechanic is inferred from memory (R31).
 - **Stop conditions:** Stop and ask if applying the rule would require claiming a shape whose consequence the engine does not actually produce, or if a sweep result contradicts a labelled KTD below.
 - **Tail ownership:** One PR. Issues filed for every question the rule surfaces and does not settle, before the PR merges.
 
@@ -94,7 +94,7 @@ The others: that test's hard-coded claimed set (six ids, no `bright-light`); `te
 
 **KTD5 — The ceiling is not disclosed as unreachable.** Rejecting #228's option 3: it is reachable, so a disclosure would be false. **Scoped honestly:** the sweep covered the 135 Rules-Glossary shapes, where contentless entries can exist because that population was enumerated by typography. The other 76 were found by sweeping their sections *for mechanics*, so they are contentful by construction and are not at risk — stated as reasoning rather than left as an untested assumption (R32).
 
-**KTD6 — Grounded in the PDF, read before deciding.** *(session-settled: user-directed — chosen over reasoning from general 5e knowledge: a wrong rule value is indistinguishable from a right one once inside a finished ruling (R31).)* Every claim above was read from `~/Downloads/SRD_CC_v5.2.1.pdf` during planning; p. 11's sentences become verifier clauses in U2.
+**KTD6 — Grounded in the PDF, read before deciding.** *(session-settled: user-directed — chosen over reasoning from general 5e knowledge: a wrong rule value is indistinguishable from a right one once inside a finished ruling (R31).)* Every claim above was read from `/path/to/SRD_CC_v5.2.1.pdf` during planning; p. 11's sentences become verifier clauses in U2.
 
 **KTD7 — One rule, applied to all 155 glossary entries.** *(session-settled: user-directed — chosen over fixing `bright-light` alone: a rule applied to one entry is not a rule.)* The sweep *examined* all 155, the 41 tagged entries (`[Condition]`, `[Action]`, ...) included — they are unambiguously mechanical, which is a sweep result and not an exemption. Scope Boundaries excludes them from *re-classification*, not from examination. U1 records the outcome so the next sweep starts from the finding rather than repeating it.
 
@@ -137,7 +137,7 @@ The others: that test's hard-coded claimed set (six ids, no `bright-light`); `te
 - **Patterns to follow:** the `--- The nine sight shapes (#150, 0025 clause 5) ---` block, and the sight clauses added in #225. For the CI anchor, `tests/test_hazards.py::test_the_prone_qualifier_is_asserted_against_the_document` — a presence check that reads the verifier's source, so CI can tell a hand-run clause was deleted even though it cannot run the verifier. Add one for the p. 11 Bright Light clause.
 - **Test scenarios:** run the verifier against the PDF and confirm the clause count rises by three and all pass. Corrupt the Bright Light pattern to the plausible-wrong value — "lets most creatures see in Dim Light" — and confirm it goes red.
 - **Execution note:** the verifier is hand-run and needs the PDF; CI has no copy. `scripts/prove_guard_red.sh` runs pytest and cannot drive it, so prove the corruption on a **copy** of the script and delete the copy afterwards.
-- **Verification:** `python scripts/verify_d20_rules.py ~/Downloads/SRD_CC_v5.2.1.pdf` reports all clauses verified; the corrupted copy reports the Bright Light clause unmatched.
+- **Verification:** `python scripts/verify_d20_rules.py /path/to/SRD_CC_v5.2.1.pdf` reports all clauses verified; the corrupted copy reports the Bright Light clause unmatched.
 
 ### U3. Claim `bright-light`, and correct the six sites that argue against it
 
@@ -191,8 +191,8 @@ The others: that test's hard-coded claimed set (six ids, no `bright-light`); `te
 ## Verification Contract
 
 - `pytest && ruff check . && ruff format --check . && mypy` — all four, per `AGENTS.md`.
-- `python scripts/verify_d20_rules.py ~/Downloads/SRD_CC_v5.2.1.pdf` — all clauses verified.
-- `python scripts/derive_effect_shapes.py ~/Downloads/SRD_CC_v5.2.1.pdf` then `git diff --stat` — regeneration is a no-op.
+- `python scripts/verify_d20_rules.py /path/to/SRD_CC_v5.2.1.pdf` — all clauses verified.
+- `python scripts/derive_effect_shapes.py /path/to/SRD_CC_v5.2.1.pdf` then `git diff --stat` — regeneration is a no-op.
 - `scripts/prove_guard_red.sh` for **U4 only**, both directions. It runs `python -m pytest "$@"`, so it cannot drive the hand-run verifier, and it corrupts the tracked file in place.
 - **U2 by hand:** copy `scripts/verify_d20_rules.py` aside, corrupt the copy's Bright Light pattern to "lets most creatures see in Dim Light", run the copy against the PDF, confirm the clause reports unmatched, delete the copy. Never edit the tracked script to prove this.
 - `scripts/prove_against_base.sh main tests/test_effect_shape_inventory.py`.

@@ -169,7 +169,7 @@ def test_only_the_sight_shapes_whose_consequence_is_produced_are_claimed() -> No
     consequence its entry states.** #138 applied it to the four this test originally grouped
     together and did not separate, and it splits them two and two.
 
-    Six resolve:
+    Seven resolve:
 
     * **Blindsight** — every clause of its entry `EncounterState.can_see` answers: range, the
       Total Cover bound, Darkness, the Blinded override and the Invisible condition.
@@ -182,8 +182,13 @@ def test_only_the_sight_shapes_whose_consequence_is_produced_are_claimed() -> No
       and the consequence flows: the mapping produces it and `can_see` acts on it.
     * **Lightly Obscured** (p. 184) and **Dim Light** (p. 181) — a Wisdom (Perception) check
       now reads the obscurement and applies the Disadvantage (#138).
+    * **Bright Light** — claimed on **p. 11**, not on its glossary entry: *"Bright Light lets
+      most creatures see normally."* That is a mechanical statement — it says Bright Light
+      imposes nothing — and `OBSCUREMENT_BY_LIGHT` produces exactly it. The glossary entry
+      (p. 178) states no obscurement and points onward, which is a property of the index
+      rather than of the shape (0033, #228).
 
-    Four are not claimed, and each for its own reason rather than for want of effort:
+    Three are not claimed, and each for its own reason rather than for want of effort:
 
     * **Truesight** also pierces visual illusions, transformations and the Ethereal Plane
       (p. 190). `can_see` answers two of its five clauses.
@@ -193,9 +198,6 @@ def test_only_the_sight_shapes_whose_consequence_is_produced_are_claimed() -> No
       because they were one blockage: p. 184's Disadvantage was produced by nothing, so
       p. 181's classification into it was computed and read by nobody. `perception_of` is
       the consumer both were waiting for — see `tests/test_perception.py`.
-    * **Bright Light** (p. 178) states no consequence at all — "normal illumination" — so
-      there is nothing for the engine to be judged as producing. Claiming it would count a
-      definition.
     * **Telepathy** is not in this chain at all (0025 clause 1, #149).
 
     The count is what makes "full SRD 5.2 coverage" falsifiable, so a shape half-answered is
@@ -208,6 +210,7 @@ def test_only_the_sight_shapes_whose_consequence_is_produced_are_claimed() -> No
     claimed = {s.id for s in sight_shapes if s.implemented}
     assert claimed == {
         "blindsight",
+        "bright-light",
         "darkness",
         "darkvision",
         "dim-light",

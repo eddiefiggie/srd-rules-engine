@@ -98,7 +98,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Bloodied": ("state", False),
     "Bonus Action": ("action", True),
     "Breaking Objects": ("effect", False),
-    "Bright Light": ("environment", False),
+    "Bright Light": ("environment", True),
     "Burrow Speed": ("movement", False),
     "Campaign": ("vocabulary", False),
     "Cantrip": ("spellcasting", True),
