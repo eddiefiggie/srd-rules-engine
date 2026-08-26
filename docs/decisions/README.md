@@ -95,6 +95,7 @@ rejected options and the reason survive, not the exact headings.
 | [0027](0027-occasions-and-outcomes-without-a-roll.md) | The turn's start is a phase too, an obligation is identified by its rule id, and an outcome may exist without a d20 test — extends [0023](0023-the-turns-end-is-a-loop-owned-phase.md) one phase earlier | [#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124), [#140](https://github.com/eddiefiggie/srd-rules-engine/issues/140) |
 | [0028](0028-a-level-carries-the-rule-that-caused-it.md) | An Exhaustion level carries the rule id that caused it and the count is derived, because four of the five removal rules turn on a level's provenance | [#180](https://github.com/eddiefiggie/srd-rules-engine/issues/180) |
 | [0029](0029-whether-a-wall-blocks-sight-is-a-property-of-the-wall.md) | Whether a barrier blocks sight is a field on the barrier, not a rule — the document answers it per wall and answers it both ways | [#188](https://github.com/eddiefiggie/srd-rules-engine/issues/188) |
+| [0030](0030-an-unanswerable-qualifier-resolves-away-from-invention.md) | A qualifier this engine cannot check resolves in whichever direction cannot manufacture an outcome — which is why reactions withhold and Frightened applies | [#190](https://github.com/eddiefiggie/srd-rules-engine/issues/190) |
 
 ## What belongs here, and what doesn't
 
