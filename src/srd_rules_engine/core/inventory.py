@@ -75,6 +75,11 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # p. 187's Ritual, whole: the prepared-and-tagged precondition, the 10 minutes, the
         # slot it does not expend, and the upcasting that therefore cannot happen (#19).
         "ritual": "core.spellcasting.ritual_cast",
+        # Jumping. `high-jump` is NOT here: p. 183 adds one and a half times the creature's
+        # height to what it can reach, and nothing models height — the arithmetic exists in
+        # `core.position.high_jump_feet` and the entry says more than it computes.
+        "jumping": "core.position.long_jump_feet",
+        "long-jump": "core.hazards.landing_resolver",
         # Death saving throws and what follows them (#15).
         "death-saving-throw": "core.death.death_save_resolver",
         "stable": "core.state.DeathSaves.stable",

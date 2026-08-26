@@ -703,7 +703,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 184",
    "kind": "movement",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "knocking-out-a-creature",
@@ -735,7 +735,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 184",
    "kind": "movement",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "long-rest",

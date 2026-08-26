@@ -92,6 +92,7 @@ from srd_rules_engine.core.adjudicate import (
     condition_applied,
 )
 from srd_rules_engine.core.conditions import Condition
+from srd_rules_engine.core.d20 import D20Test, Modifier, TestKind
 from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.rules import (
@@ -398,6 +399,92 @@ def suffocation_resolver() -> Resolver:
                 "that the creature caught its breath; this engine cannot observe air and "
                 "has recorded none",
                 "that it died, unless the ruling recorded the sixth level",
+            ),
+        )
+
+    return resolve
+
+
+#: p. 185: landing a Long Jump in Difficult Terrain is a DC 10 Dexterity (Acrobatics) check.
+LANDING_DC: Final = 10
+
+#: The rule id a landing is adjudicated under.
+LANDING_RULE_ID: Final = "long-jump-landing"
+
+#: R31. p. 185's sentence, asserted with the rest of the Long Jump entry.
+LANDING_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference=(
+        "SRD v5.2.1, Rules Glossary, Long Jump pp. 184-185 — the DC 10 Dexterity "
+        "(Acrobatics) check on landing in Difficult Terrain, and the Prone that follows a "
+        "failure"
+    ),
+    date="2026-08-25",
+    method=VerificationMethod.ASSERTED,
+)
+
+
+def landing_rule() -> Rule:
+    """The SRD rule for landing a Long Jump in Difficult Terrain (p. 185)."""
+    return Rule(
+        id=LANDING_RULE_ID,
+        summary=(
+            "A creature landing a Long Jump in Difficult Terrain makes a DC 10 Dexterity "
+            "(Acrobatics) check or has the Prone condition."
+        ),
+        provenance=RuleProvenance.SRD,
+        verification=LANDING_VERIFICATION,
+    )
+
+
+def landing_resolver() -> Resolver:
+    """Build the resolver for a Long Jump's landing (p. 185).
+
+    "If you land in Difficult Terrain, you must succeed on a DC 10 Dexterity (Acrobatics)
+    check or have the Prone condition."
+
+    **Only in Difficult Terrain**, which is a fact about where the creature landed and so
+    the caller's to state — `core.position` models Difficult Terrain as a cost, not as a map,
+    and this engine holds no terrain grid to look it up in. Adjudicating a landing on ordinary
+    ground would invent a check the document does not call for.
+
+    Unlike Falling, this one *is* a test: p. 185 states a DC, so the d20 resolves it and the
+    Prone follows a failure rather than a distance.
+    """
+
+    def resolve(
+        *,
+        state: EncounterState,
+        declaration: Declaration,
+        facts: Mapping[str, Resolution],
+    ) -> Proposal:
+        actor_id = declaration.actor_id
+        actor = state.combatant(actor_id)
+
+        return Proposal(
+            test=D20Test(
+                kind=TestKind.CHECK,
+                target=LANDING_DC,
+                target_basis=(
+                    "DC 10 Dexterity (Acrobatics) to land a Long Jump in Difficult Terrain (p. 185)"
+                ),
+                modifiers=(Modifier(source="ability:dex", value=actor.modifier("dex")),),
+            ),
+            on_failure=(
+                condition_applied(
+                    actor_id,
+                    Condition.PRONE,
+                    description="a stumbled landing in Difficult Terrain (p. 185)",
+                ),
+            ),
+            citations=("srd:rules-glossary/long-jump",),
+            may_claim=(
+                "that the creature landed where it jumped to",
+                "that it kept its feet, or did not, as the roll says",
+            ),
+            may_not_claim=(
+                "that the jump fell short; the distance is not what this check decides",
+                "any injury from the landing — p. 185 gives Prone and no damage",
             ),
         )
 

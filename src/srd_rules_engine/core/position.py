@@ -219,3 +219,46 @@ def movement_cost(feet: int, *, mode: MovementMode, difficult_terrain: bool, spe
         extra = 2 if difficult_terrain else 1
 
     return feet * (1 + extra)
+
+
+#: p. 183: a High Jump is "3 plus your Strength modifier (minimum of 0 feet)".
+HIGH_JUMP_BASE_FEET: Final = 3
+
+#: pp. 183-185: both jumps need "at least 10 feet" of movement immediately before, or they
+#: are standing jumps and reach half as far.
+RUN_UP_FEET: Final = 10
+
+
+def long_jump_feet(strength_score: int, *, running: bool = True) -> int:
+    """How far a creature leaps horizontally (pp. 184-185).
+
+    "You leap horizontally a number of feet up to your Strength **score**" — the score, not
+    the modifier, which is the half of this pair most easily swapped with the other. A
+    Strength 16 creature jumps 16 feet and high-jumps 6, and an engine that used the modifier
+    for both would give it 3 and 3 while looking entirely reasonable.
+
+    "When you make a standing Long Jump, you can leap only half that distance", rounded down
+    like everything else (p. 187).
+
+    Each foot costs a foot of movement, which is the caller's to spend — `movement_cost`
+    charges it, and this returns the distance rather than deducting it.
+    """
+    if strength_score < 0:
+        raise ValueError(f"a Strength score is not {strength_score}")
+    return strength_score if running else strength_score // 2
+
+
+def high_jump_feet(strength_modifier: int, *, running: bool = True) -> int:
+    """How far a creature leaps vertically (p. 183).
+
+    "3 plus your Strength modifier (minimum of 0 feet)" — the **modifier** here, where the
+    Long Jump takes the score. The floor is applied before the standing halving, because the
+    document states it as a property of the distance rather than of the run-up.
+
+    **What a creature can reach is not this**, and is not modelled: p. 183 adds "1½ times
+    your height" to the jump, and nothing here knows how tall anything is. So `high-jump`
+    stays unclaimed in the inventory while this arithmetic exists — the shape is the entry,
+    and the entry says more than this can compute.
+    """
+    reached = max(0, HIGH_JUMP_BASE_FEET + strength_modifier)
+    return reached if running else reached // 2
