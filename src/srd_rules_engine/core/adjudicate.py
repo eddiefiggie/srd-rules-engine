@@ -141,6 +141,16 @@ class EffectKind(StrEnum):
     #: ledger entry behind it, which is the thing R1 exists to prevent.
     CONDITION_APPLIED = "condition-applied"
     CONDITION_ENDED = "condition-ended"
+    #: Exhaustion levels gained (#178). Its own kind rather than a `CONDITION_APPLIED` for
+    #: `Condition.EXHAUSTION`, because applying that condition cannot say **how many**, and
+    #: the level is where all of its arithmetic lives — p. 181 reduces every D20 Test by
+    #: twice the level and Speed by five feet times it, and kills at 6. A condition applied
+    #: with no level attached is the one member of the fifteen that carries no effect.
+    #:
+    #: `amount` is the number of levels, as the death-save kinds use it for marks. Every
+    #: SRD rule that grants Exhaustion grants exactly one, so the field is generality rather
+    #: than a case anything exercises today.
+    EXHAUSTION_GAINED = "exhaustion-gained"
 
 
 #: The kinds that carry a condition rather than a number. Named because three places have
@@ -953,6 +963,8 @@ def _apply(
         elif effect.kind is EffectKind.CONDITION_ENDED:
             assert effect.condition is not None
             state = state.with_condition_ended(effect.target_id, effect.condition)
+        elif effect.kind is EffectKind.EXHAUSTION_GAINED:
+            state = state.with_exhaustion(effect.target_id, effect.amount)
         else:
             # Death was this branch until #119, which is the hazard: every kind added since
             # would have silently become a death. An unhandled kind now says so instead.

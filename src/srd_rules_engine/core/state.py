@@ -33,7 +33,12 @@ from srd_rules_engine.core.clock import (
     Clock,
     stable_recovery_minute,
 )
-from srd_rules_engine.core.conditions import Condition, Conditions, save_ends_rule_id
+from srd_rules_engine.core.conditions import (
+    MAX_EXHAUSTION,
+    Condition,
+    Conditions,
+    save_ends_rule_id,
+)
 from srd_rules_engine.core.damage import (
     DamageOutcome,
     DamageType,
@@ -689,6 +694,47 @@ class EncounterState:
             durations=durations,
         )
         return self._evolve(combatants=self._replacing(replace(target, conditions=updated)))
+
+    def with_exhaustion(self, combatant_id: str, levels: int = 1) -> EncounterState:
+        """Raise this creature's Exhaustion level (p. 181, #178).
+
+        "This condition is cumulative. Each time you receive it, you gain 1 Exhaustion
+        level." So this adds rather than sets, and the condition follows from the level
+        being above zero rather than being applied alongside it — `Conditions` already
+        derives that.
+
+        **Six is death, and seven is nothing.** p. 181 says "You die if your Exhaustion
+        level is 6", so a level of 6 is a state the rules describe and 7 is not. A gain
+        that would pass 6 is refused rather than clamped: clamping would silently discard
+        the caller's arithmetic, and no SRD rule grants more than one level at a time, so
+        reaching this is a caller doing something the document does not describe.
+
+        Nothing here decides *who may remove* what it adds, which is the harder half. p. 181
+        has a Long Rest remove one level; p. 189 has breathing again remove every level
+        suffocation caused; pp. 181 and 185 have dehydration's and malnutrition's levels
+        removable by nothing until the creature drinks or eats. One integer cannot say which
+        of a creature's levels are which, and that is
+        [#180](https://github.com/eddiefiggie/srd-rules-engine/issues/180) rather than a
+        field.
+        """
+        if levels < 1:
+            raise ValueError(
+                f"an Exhaustion gain is at least one level; {levels} is not a gain. "
+                "Removal runs by its own rules and is not a negative gain (#180)"
+            )
+        target = self.combatant(combatant_id)
+        raised = target.conditions.exhaustion_level + levels
+        if raised > MAX_EXHAUSTION:
+            raise ValueError(
+                f"{target.name} is at Exhaustion level {target.conditions.exhaustion_level} "
+                f"and gaining {levels} would reach {raised}. p. 181 says a creature dies at "
+                f"{MAX_EXHAUSTION}, so nothing above it is a state the document describes"
+            )
+        return self._evolve(
+            combatants=self._replacing(
+                replace(target, conditions=replace(target.conditions, exhaustion_level=raised))
+            )
+        )
 
     def with_condition_ended(self, combatant_id: str, condition: Condition) -> EncounterState:
         """End a condition now — a successful save, or an effect that removes it.
