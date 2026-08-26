@@ -82,6 +82,27 @@ class ReplayVerdict(StrEnum):
     NO_ROLL = "no-roll"
 
 
+#: What no reading of this report can establish, whatever its flags say (#197).
+#:
+#: The contract's success criterion once read "no asserted outcome that did not originate in
+#: a Ruling". It does not, since #197: the flags below measure whether a narration **has** a
+#: Ruling, and nothing here compares what a narration asserts against what its Ruling
+#: decided. R7 makes the bounds advisory by design and enforcing them would need the engine
+#: to read prose, which is the capability this project exists to remove.
+#:
+#: `tests/test_skip_guarantee.py` drives a session where an attack misses, the narration
+#: claims a kill, and this report comes back with no flags at all.
+NOT_MEASURED: Final[tuple[str, ...]] = (
+    "whether a narration stayed inside the bounds its Ruling gave it — R7 states them and "
+    "does not enforce them, and no instrument here reads prose",
+    "whether a rule that applied was skipped without the trigger catalogue holding a row "
+    "for it — the catalogue is known-incomplete by construction (0004), so a clean report "
+    "cannot distinguish 'no skip' from 'no row'",
+    "anything about a caller that reached adjudication without the turn loop, which is "
+    "outside the skip guarantee and disclosed as such",
+)
+
+
 class Flag(StrEnum):
     """R30's flags. Named so a report can be counted rather than read."""
 
@@ -152,6 +173,18 @@ class SessionReport:
     turns: tuple[Turn, ...] = ()
     orphan_narrations: int = 0
     findings: tuple[str, ...] = field(default=())
+
+    @property
+    def not_measured(self) -> tuple[str, ...]:
+        """What a clean report does **not** establish (#197).
+
+        Named rather than left to be inferred, which is this engine's habit everywhere the
+        answer stops short — `Conditions.unenforced_clauses`, `Visibility.UNSTATED`, an
+        `unverified` rule table. A report with no flags is the most inviting place in the
+        project to read more than was measured, because a green instrument looks like a
+        cleared bar.
+        """
+        return NOT_MEASURED
 
     @property
     def flags(self) -> tuple[tuple[int, Flag], ...]:
@@ -492,7 +525,13 @@ def render(report: SessionReport) -> str:
         if turn.terminal_reason:
             body.append(f"    ended: {turn.terminal_reason}")
         body.extend(f"    FLAG {flag}" for flag in turn.flags)
-    return "\n".join(header + body)
+
+    # #197. Printed on every report, flags or none, because the reading this is here to
+    # prevent is the one a *clean* report invites. A footnote only on failures would appear
+    # exactly where nobody needs it.
+    footer = ["", "NOT MEASURED BY THIS REPORT:"]
+    footer.extend(f"  - {limit}" for limit in report.not_measured)
+    return "\n".join(header + body + footer)
 
 
 def _text(value: object) -> str | None:

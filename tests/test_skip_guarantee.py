@@ -216,3 +216,63 @@ def test_the_engine_still_said_what_may_not_be_claimed(tmp_path: Path) -> None:
     assert any(
         "is dead, unless its hit points reached 0" in line for line in ruling.bounds.may_not
     ), "and forbade precisely the claim an evading narration makes"
+
+
+# --- The report says what it does not measure (#197) ---------------------------------------
+
+
+def test_the_report_names_what_it_cannot_establish() -> None:
+    """#197. The habit this engine already has everywhere else the answer stops short —
+    `unenforced_clauses`, `Visibility.UNSTATED`, an `unverified` rule table.
+
+    A report with no flags is the most inviting place in the project to read more than was
+    measured, because a green instrument looks like a cleared bar.
+    """
+    from srd_rules_engine.core.report import NOT_MEASURED
+
+    assert NOT_MEASURED, "a report that names no limit claims it has none"
+    joined = " ".join(NOT_MEASURED)
+    assert "bounds its Ruling gave it" in joined, "the gap #42's session found"
+    assert "known-incomplete" in joined, "and the one 0004 has always disclosed"
+
+
+def test_the_limits_are_printed_even_on_a_clean_report(tmp_path: Path) -> None:
+    """A footnote shown only on failures appears exactly where nobody needs it."""
+    from srd_rules_engine.core.report import render
+
+    path = tmp_path / "clean"
+    terminal = Terminal([attack_key("boar"), STRIKE.id, "The club swings."])
+    drive(
+        loop_for(path, seed=3).run(encounter(), "pc"),
+        HumanCliDriver(ask=terminal.ask, show=terminal.show),
+    )
+
+    report = session_report(path / "ledger.jsonl")
+    text = render(report)
+    assert report.flags == (), "a clean run is the case that matters here"
+    assert "NOT MEASURED BY THIS REPORT" in text
+    assert "bounds its Ruling gave it" in text
+
+
+def test_the_plan_no_longer_claims_more_than_the_report_measures() -> None:
+    """The load-bearing half of #197: the criterion is a sentence in the plan, and the plan
+    is what a reader takes the bar from.
+
+    It matches phrasings rather than meaning, which is the same real limit
+    `test_changelog_is_retired.py` carries — a new way of writing the old claim passes here.
+    What it catches is the old sentence coming back verbatim, which is how it would.
+    """
+    plan = (
+        Path(__file__).resolve().parents[1]
+        / "docs"
+        / "plans"
+        / "2026-08-19-001-feat-srd-rules-engine-plan.md"
+    ).read_text()
+
+    criteria = plan.split("### Success Criteria", 1)[1].split("\n###", 1)[0]
+    assert "every narration behind a Ruling" in criteria, "the amended claim is the stated one"
+    assert "Amended by #197" in criteria, "and it says it was amended, so the trail survives"
+    assert "What is therefore not measured" in criteria, (
+        "a criterion that narrows without naming what it gave up is the same overclaim in a "
+        "smaller font"
+    )
