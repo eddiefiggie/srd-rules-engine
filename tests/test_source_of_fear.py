@@ -26,11 +26,13 @@ Two things are tested against the wrong answer:
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.d20 import Advantage
 from srd_rules_engine.core.obstructions import Obstruction
 from srd_rules_engine.core.position import Position
-from srd_rules_engine.core.sight import Lighting, LightLevel
+from srd_rules_engine.core.sight import Lighting, LightLevel, Senses, Visibility
 from srd_rules_engine.core.state import Combatant, EncounterState
 
 OPAQUE = Obstruction(lo=Position(10, -20, 0), hi=Position(12, 20, 20), blocks_sight=True)
@@ -172,3 +174,85 @@ def test_a_creature_with_no_recorded_source_keeps_the_penalty() -> None:
 def test_a_creature_that_is_not_frightened_is_not_asked() -> None:
     state = EncounterState.new([creature("pc", Position(0, 0, 0))])
     assert state.fear_in_sight("pc") is True
+
+
+# --- Invisible's exception, asked in both directions (#193) -------------------------------
+
+
+def _invisible_scene(*, walls: tuple[Obstruction, ...] = ()) -> EncounterState:
+    """The pc is Invisible; the ogre attacks it, or is attacked by it."""
+    pc = Combatant(
+        id="pc",
+        name="Pc",
+        hit_points=20,
+        max_hit_points=20,
+        armour_class=13,
+        abilities={"str": 12},
+        proficiency_bonus=2,
+        position=Position(0, 0, 0),
+        conditions=Conditions(held=frozenset({Condition.INVISIBLE})),
+    )
+    return EncounterState(
+        generation=0,
+        combatants=(pc, creature("ogre", Position(30, 0, 0))),
+        lighting=Lighting(ambient=LightLevel.BRIGHT),
+        obstructions=walls,
+    )
+
+
+def test_an_invisible_creature_keeps_its_disadvantage_when_sight_is_unstated() -> None:
+    """p. 184's exception needs certainty to fire. `can_see` says UNSTATED for an invisible
+    target under ordinary sight, so the attacker keeps the Disadvantage (0030 clause 1) —
+    dropping it would make them hit more often on a guess."""
+    state = _invisible_scene()
+    assert state.can_see("ogre", "pc").verdict is Visibility.UNSTATED
+
+    pc = state.combatant("pc")
+    assert (
+        pc.conditions.attack_rolls_against(
+            attacker=state.combatant("ogre").position,
+            target=pc.position,
+            attacker_sees_you=state.can_see("ogre", "pc").verdict is Visibility.CAN_SEE,
+        )
+        is Advantage.DISADVANTAGE
+    )
+
+
+def test_truesight_takes_the_disadvantage_away() -> None:
+    """ "If a creature can somehow see you, you don't gain this benefit against that
+    creature." Truesight is one of the two routes p. 184's "somehow" is answered for."""
+    state = _invisible_scene()
+    seer = replace(state.combatant("ogre"), senses=Senses(truesight=60))
+    state = replace(
+        state, combatants=tuple(seer if c.id == "ogre" else c for c in state.combatants)
+    )
+    assert state.can_see("ogre", "pc").verdict is Visibility.CAN_SEE
+
+    pc = state.combatant("pc")
+    assert (
+        pc.conditions.attack_rolls_against(
+            attacker=seer.position, target=pc.position, attacker_sees_you=True
+        )
+        is Advantage.NONE
+    )
+
+
+def test_the_invisible_creatures_own_advantage_is_withheld_until_the_target_is_blind() -> None:
+    """The other half, and it defaults the other way. Granting Advantage on a guess makes
+    the invisible creature hit more often, which manufactures damage — so certainty is
+    required to grant it, where certainty was required to remove the Disadvantage."""
+    state = _invisible_scene()
+    pc = state.combatant("pc")
+
+    assert state.can_see("ogre", "pc").verdict is not Visibility.CANNOT_SEE
+    assert pc.conditions.own_attack_rolls(target_blind_to_you=False) is Advantage.NONE
+
+    blind_ogre = replace(
+        state.combatant("ogre"),
+        conditions=Conditions(held=frozenset({Condition.BLINDED})),
+    )
+    blinded = replace(
+        state, combatants=tuple(blind_ogre if c.id == "ogre" else c for c in state.combatants)
+    )
+    assert blinded.can_see("ogre", "pc").verdict is Visibility.CANNOT_SEE
+    assert pc.conditions.own_attack_rolls(target_blind_to_you=True) is Advantage.ADVANTAGE

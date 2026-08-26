@@ -199,12 +199,43 @@ def test_blinded_fails_sight_checks_and_swings_both_attack_rolls() -> None:
     assert blinded.own_attack_rolls() is Advantage.DISADVANTAGE
 
 
-def test_invisible_swings_both_the_other_way() -> None:
-    """p. 184, and it is the mirror of Blinded rather than a different shape."""
+def test_invisible_swings_both_ways_and_its_halves_default_apart() -> None:
+    """p. 184, and since #193 each half carries the exception "if a creature can somehow see
+    you, you don't gain this benefit against that creature".
+
+    **They default in opposite directions, and that is 0030 clause 3 rather than an
+    inconsistency.** The test is what the wrong answer would produce, not which reading is
+    kinder to the invisible creature:
+
+    * the Disadvantage on attacks against it is **kept** when unknown — dropping one the
+      rules require makes an attacker hit more often and manufactures damage;
+    * the Advantage on its own attacks is **withheld** when unknown — granting one the rules
+      may not grant makes it hit more often, which manufactures damage just the same.
+
+    Initiative's Advantage carries no such exception (p. 184 attaches it to Surprise), so it
+    is unconditional.
+    """
     invisible = held(Condition.INVISIBLE)
+
     assert invisible.attack_rolls_against(attacker=DISTANT, target=TARGET) is Advantage.DISADVANTAGE
-    assert invisible.own_attack_rolls() is Advantage.ADVANTAGE
+    assert invisible.own_attack_rolls() is Advantage.NONE, (
+        "withheld until the target is known blind"
+    )
+
+    assert invisible.own_attack_rolls(target_blind_to_you=True) is Advantage.ADVANTAGE
+    assert (
+        invisible.attack_rolls_against(attacker=DISTANT, target=TARGET, attacker_sees_you=True)
+        is Advantage.NONE
+    )
     assert EFFECTS[Condition.INVISIBLE].initiative is Advantage.ADVANTAGE
+
+
+def test_the_unless_seen_exception_has_left_the_unenforced_list() -> None:
+    """0030 clause 5. The other Invisible clause stays: `concealed-from-effects-requiring-sight`
+    needs a notion of "an effect that requires its target to be seen", and nothing marks one."""
+    invisible = held(Condition.INVISIBLE)
+    assert "unless-seen-exception" not in invisible.unenforced_clauses()
+    assert "concealed-from-effects-requiring-sight" in invisible.unenforced_clauses()
 
 
 def test_incapacitated_stops_actions_and_breaks_concentration() -> None:

@@ -59,6 +59,7 @@ from srd_rules_engine.core.rules import (
     VerificationMethod,
     VerificationState,
 )
+from srd_rules_engine.core.sight import Visibility
 from srd_rules_engine.core.state import Combatant, EncounterState
 
 INITIATIVE_DIE = 20
@@ -194,13 +195,26 @@ def attack_resolver(weapon: Weapon) -> Resolver:
         ability = actor.modifier(weapon.ability)
 
         beyond_normal = _out_of_range(weapon, actor, target)
+        # p. 184's exception to Invisible, asked in both directions (#193). Each needs
+        # CERTAINTY to move away from the answer that cannot manufacture an outcome, so an
+        # UNSTATED view leaves both where 0030 clause 1 puts them.
+        target_blind_to_actor = (
+            state.can_see(target_id, declaration.actor_id).verdict is Visibility.CANNOT_SEE
+        )
+        actor_sees_target = (
+            state.can_see(declaration.actor_id, target_id).verdict is Visibility.CAN_SEE
+        )
+
         attacker_state = actor.conditions.own_attack_rolls(
             target_id=target_id,
             # p. 182's qualifier, askable since #192 stored the source of fear.
             fear_in_sight=state.fear_in_sight(declaration.actor_id),
+            target_blind_to_you=target_blind_to_actor,
         )
         defender_state = target.conditions.attack_rolls_against(
-            attacker=actor.position, target=target.position
+            attacker=actor.position,
+            target=target.position,
+            attacker_sees_you=actor_sees_target,
         )
         # p. 181: while Dodging, attacks against you have Disadvantage. It reaches the same
         # pair of flags as everything else, so it cancels against Advantage rather than
