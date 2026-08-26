@@ -375,6 +375,66 @@ def test_supplying_the_facts_resumes_the_same_declaration(tmp_path: Path) -> Non
     assert outcome.refusals == (), "a block is not charged to the agent's budget"
 
 
+def test_a_resumption_is_recorded_as_one_and_not_as_a_second_declaration(
+    tmp_path: Path,
+) -> None:
+    """#59. The agent declared once; the engine asked its own port twice.
+
+    `adjudicate` appends a `declaration` entry per call and the loop calls it again to
+    resume, so one declaration left two identical entries and a reader counting them
+    over-reported agent declarations by one per block. The entries still pair one-to-one
+    with rulings — breaking that would strand a ruling with no declaration before it — and
+    the second now says which it is.
+    """
+    loop, path = loop_for(tmp_path)
+    state = encounter()
+
+    drive(
+        loop.run(state, "pc"),
+        ScriptedDriver(
+            declarations=[declaration(state, rule_id="needy")],
+            narrations=["the omens were read"],
+            facts=[[Fact("omen", "pc", True, NOTED), Fact("portent", "pc", False, NOTED)]],
+        ),
+    )
+
+    entries = [e for e in read_ledger(path).entries if e.type == "declaration"]
+    assert len(entries) == 2, "two entries, because adjudicate ran twice"
+    assert [e.payload["resumption"] for e in entries] == [False, True]
+
+
+def test_the_field_is_written_even_when_nothing_was_resumed(tmp_path: Path) -> None:
+    """Always present rather than only when true. A reader must be able to tell "not a
+    resumption" from "written before the field existed", and an absent key says only the
+    second — which is the ambiguity #59 was."""
+    loop, path = loop_for(tmp_path)
+    state = encounter()
+
+    drive(
+        loop.run(state, "pc"),
+        ScriptedDriver(
+            declarations=[declaration(state, rule_id="plain-effort")],
+            narrations=["done"],
+        ),
+    )
+
+    entries = [e for e in read_ledger(path).entries if e.type == "declaration"]
+    assert [e.payload["resumption"] for e in entries] == [False]
+
+
+def test_a_resumption_claim_that_cannot_be_true_is_refused(tmp_path: Path) -> None:
+    """The mirror of the defect. An unmarked resumption over-counted agent declarations;
+    a mislabelled fresh one would under-count them, so the flag is checked against what the
+    adjudicator actually last produced rather than taken on trust."""
+    loop, _ = loop_for(tmp_path)
+    state = encounter()
+
+    with pytest.raises(ValueError, match="A resumption follows the block it resumes"):
+        loop.adjudicator.adjudicate(
+            state, declaration(state, rule_id="plain-effort"), resuming=True
+        )
+
+
 def test_a_block_names_every_unresolved_fact_at_once(tmp_path: Path) -> None:
     loop, _ = loop_for(tmp_path)
     state = encounter()

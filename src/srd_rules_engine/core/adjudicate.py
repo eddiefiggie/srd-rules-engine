@@ -78,7 +78,13 @@ RULING_COMPAT = 1
 NARRATION_COMPAT = 1
 TERMINATION_COMPAT = 1
 
-DECLARATION_VERSION = 1
+#: 2 adds `resumption` (#59). A block is a *suspension*: the turn loop re-adjudicates the
+#: same declaration once the missing facts arrive, and the agent is never asked again — so
+#: the second entry recorded an agent declaration that did not happen. Recorded as a field
+#: rather than inferred from the preceding ruling's status, for the reason `testless` was:
+#: a resumption and a genuine second declaration look identical from the surrounding
+#: entries alone, and only one of them is the agent trying again.
+DECLARATION_VERSION = 2
 #: 2 records the advantage the test was declared under. A v1 roll cannot be reconstructed
 #: — a reader would build a test with neither flag set, roll one die where two were rolled,
 #: and report a mismatch that looks like drift. Replay refuses those rather than guessing.
@@ -613,6 +619,11 @@ class Adjudicator:
         self._ledger = ledger
         self._catalogue = catalogue or Catalogue(version=1)
         self._seed_source = seed_source
+        #: The status of the last ruling this adjudicator produced, so a `resuming=True`
+        #: claim can be checked against what actually preceded it (#59). Set by
+        #: `adjudicate` alone — `record_narration` and `record_termination` append entries
+        #: but produce no ruling, so they leave it where it was.
+        self._last_status: Status | None = None
 
     @property
     def port(self) -> MemoryPort:
@@ -689,18 +700,44 @@ class Adjudicator:
         declaration: Declaration,
         *,
         situation: Mapping[str, object] | None = None,
+        resuming: bool = False,
     ) -> tuple[Ruling, EncounterState]:
-        """The single entry point. Returns the Ruling and the state it left behind."""
+        """The single entry point. Returns the Ruling and the state it left behind.
+
+        `resuming` marks this call as the turn loop picking a **blocked** declaration back
+        up once the missing facts arrived, rather than the agent declaring again (#59, and
+        [0010](../../../docs/decisions/0010-blocked-loop.md)). It changes no outcome — only
+        what the record says happened, which is the whole of the defect: one declaration by
+        the agent used to leave two identical `declaration` entries, and a reader counting
+        them over-reported agent declarations by one per block.
+
+        **The caller states it because only the caller knows.** This method is called once
+        per adjudication and has no view of the sequence; the loop that suspends and resumes
+        does. Inferring it from the preceding ruling's status would be reading the record to
+        write the record, and inference is how the advantage gap got in (`REPLAYABLE_FROM`).
+
+        A claim that cannot be true is refused rather than recorded, so the flag cannot
+        under-count agent declarations the way its absence over-counted them.
+        """
+        if resuming and self._last_status is not Status.BLOCKED:
+            raise ValueError(
+                "resuming=True says this declaration is being picked back up after a "
+                "block, and the last ruling this adjudicator produced was "
+                f"{self._last_status}. A resumption follows the block it resumes"
+            )
         with self._ledger.escape_boundary():
             self._ledger.append(
                 "declaration",
                 v=DECLARATION_VERSION,
-                payload=_declaration_payload(declaration, self._catalogue.version),
+                payload=_declaration_payload(
+                    declaration, self._catalogue.version, resuming=resuming
+                ),
             )
             ruling, next_state = self._decide(state, declaration, situation or {})
             self._ledger.append(
                 _entry_type(ruling.status), v=RULING_VERSION, payload=_ruling_payload(ruling)
             )
+        self._last_status = ruling.status
         return ruling, next_state
 
     # --- The decision, in the order R5 requires it to be reconstructable ------------
@@ -1197,9 +1234,16 @@ def _entry_type(status: Status) -> str:
     return "ruling"
 
 
-def _declaration_payload(declaration: Declaration, catalogue_version: int) -> Mapping[str, object]:
+def _declaration_payload(
+    declaration: Declaration, catalogue_version: int, *, resuming: bool = False
+) -> Mapping[str, object]:
     return {
         COMPAT: DECLARATION_COMPAT,
+        # #59. True when the engine picked this declaration back up after a block, rather
+        # than the agent declaring again. Always present rather than only when true: a
+        # reader must be able to tell "not a resumption" from "written before the field
+        # existed", and an absent key says only the second.
+        "resumption": resuming,
         # R6: replay uses the catalogue version in force, not the current one, so a
         # grown catalogue never reports a sound ledger as inconsistent.
         "catalogue_version": catalogue_version,
