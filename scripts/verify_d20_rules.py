@@ -304,6 +304,21 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"A creature can hold its breath for a number of minutes equal to 1 plus its "
         r"Constitution modifier \(minimum of 30 seconds\) before suffocation begins",
     ),
+    (
+        194,
+        "a contagion SUPPRESSES the general removal rule outright rather than locking its "
+        "own levels — while any Exhaustion is held, a Long Rest reduces none of it. A third "
+        "removal shape, and the one that cannot be expressed by marking levels (#180)",
+        r"While the creature has any Exhaustion levels, finishing a Long Rest neither "
+        r"restores lost Hit Points nor reduces the creature.s Exhaustion level",
+    ),
+    (
+        236,
+        "and a Potion of Vitality removes ANY levels regardless of source, which the "
+        "dehydration and malnutrition locks say cannot happen. The document states both and "
+        "reconciles neither (#182)",
+        r"it removes any Exhaustion levels you have and ends the Poisoned condition on you",
+    ),
     # --- The five hazards (#140) -------------------------------------------------------
     # Asserted ahead of any implementation, because the OCCASION each one fires on is the
     # design question and it should be settled against the sentences rather than against a
