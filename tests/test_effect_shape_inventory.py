@@ -14,9 +14,11 @@ A test that checked one direction would pass through the other.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 from importlib import resources
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -32,6 +34,9 @@ from srd_rules_engine.core.inventory import (
 @pytest.fixture
 def inventory() -> Inventory:
     return load_inventory()
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_every_engine_shape_is_listed_in_the_inventory(inventory: Inventory) -> None:
@@ -343,3 +348,48 @@ def test_the_shape_field_says_what_kind_is_for() -> None:
 
     source = Path("src/srd_rules_engine/core/inventory.py").read_text(encoding="utf-8")
     assert "decision 0019" in source
+
+
+# --- The generator and the data it generated (#138) -----------------------------------
+
+
+def test_the_glossary_claims_agree_with_the_generator_that_writes_them() -> None:
+    """`derive_effect_shapes.py` is the stated source of `effect_shapes.json`, so re-running
+    it must not change what the engine claims.
+
+    It would have. `KINDS` carried `("sense", False)` for **Blindsight and Darkvision** while
+    the shipped data said `True` for both — claimed in the JSON by hand when `can_see` and
+    `effective_light` landed, and never written back to the generator. Regenerating would have
+    silently un-claimed two shapes and dropped coverage by two, with every other guard green:
+    `test_every_engine_shape_is_marked_implemented` compares `ENGINE_SHAPES` against the
+    **data**, and the data was right. Nothing compared the data against the thing that writes
+    it.
+
+    This reads `KINDS` directly rather than regenerating, because regenerating needs the SRD
+    PDF and CI has no copy of it (`NOTICE.md`). The flag is the half that can be checked
+    without the document — and the flag is the half that drifted.
+    """
+    spec = importlib.util.spec_from_file_location(
+        "derive_effect_shapes", REPO_ROOT / "scripts" / "derive_effect_shapes.py"
+    )
+    assert spec is not None and spec.loader is not None
+    generator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(generator)
+
+    inventory = load_inventory()
+    disagreements = []
+    for name, (_kind, implemented) in generator.KINDS.items():
+        shape = inventory.by_id(generator.slug(name))
+        if shape is None:
+            continue  # `vocabulary` entries are defined in the generator, not filed as shapes
+        if shape.implemented != implemented:
+            disagreements.append(
+                f"{shape.id}: data says implemented={shape.implemented}, KINDS says {implemented}"
+            )
+
+    assert not disagreements, (
+        "re-running scripts/derive_effect_shapes.py would change what the engine claims:\n  "
+        + "\n  ".join(disagreements)
+        + "\n\nClaim a shape in BOTH places — the generator's KINDS and the shipped "
+        "effect_shapes.json — or the next regeneration silently rewrites coverage."
+    )

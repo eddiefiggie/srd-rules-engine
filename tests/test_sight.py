@@ -162,15 +162,26 @@ def test_the_inventory_still_reports_telepathy_as_unimplemented() -> None:
     assert not telepathy.implemented
 
 
-def test_only_the_two_sight_shapes_that_resolve_in_full_are_claimed() -> None:
+def test_only_the_sight_shapes_whose_consequence_is_produced_are_claimed() -> None:
     """Structure is not resolution, and neither is a partial answer.
 
-    Two resolve: **Blindsight**, every clause of whose entry `EncounterState.can_see`
-    answers — range, the Total Cover bound, Darkness, the Blinded override and the Invisible
-    condition — and **Darkvision**, whose entry is the conversion `effective_light` performs.
+    The standard is one sentence: **a shape is claimed when the engine produces the
+    consequence its entry states.** #138 applied it to the four this test originally grouped
+    together and did not separate, and it splits them two and two.
 
-    The other eight are not claimed, and each for its own reason rather than for want of
-    effort:
+    Four resolve:
+
+    * **Blindsight** — every clause of its entry `EncounterState.can_see` answers: range, the
+      Total Cover bound, Darkness, the Blinded override and the Invisible condition.
+    * **Darkvision** — its entry *is* the conversion `effective_light` performs.
+    * **Heavily Obscured** (p. 182) — "You have the Blinded condition **while trying to see
+      something** in a Heavily Obscured space". Scoped to the attempt, so it is a relation
+      between observer and target rather than a condition on a creature; `can_see` answers
+      that relation and cites that sentence. There is no wholesale Blinded left unapplied.
+    * **Darkness** (p. 180) — "An area of Darkness is Heavily Obscured" is the whole entry,
+      and the consequence flows: the mapping produces it and `can_see` acts on it.
+
+    Six are not claimed, and each for its own reason rather than for want of effort:
 
     * **Truesight** also pierces visual illusions, transformations and the Ethereal Plane
       (p. 190). `can_see` answers two of its five clauses.
@@ -178,19 +189,23 @@ def test_only_the_two_sight_shapes_that_resolve_in_full_are_claimed() -> None:
       Nothing here answers the question it does answer.
     * **Lightly Obscured** costs Disadvantage on Perception checks (p. 184), and nothing
       produces that penalty — `can_see` treats the space as visible, which it is.
-    * **Heavily Obscured**, **Bright Light**, **Dim Light** and **Darkness** feed the chain
-      and are read by it, but each is claimed by the shape that *applies* its consequence,
-      and for three of them that consequence is Lightly Obscured's unproduced penalty.
+    * **Dim Light** (p. 181) *is* Lightly Obscured, which the mapping produces — and which
+      nothing then reads, because the penalty above is unproduced. Computed, then consumed by
+      nobody, which resolves nothing.
+    * **Bright Light** (p. 178) states no consequence at all — "normal illumination" — so
+      there is nothing for the engine to be judged as producing. Claiming it would count a
+      definition.
     * **Telepathy** is not in this chain at all (0025 clause 1, #149).
 
     The count is what makes "full SRD 5.2 coverage" falsifiable, so a shape half-answered is
-    a shape unclaimed.
+    a shape unclaimed — and a shape fully answered and left unclaimed is the same instrument
+    lying in the other direction (#207).
     """
     sight_shapes = [s for s in load_inventory().shapes if s.kind in ("sense", "environment")]
     assert len(sight_shapes) == 10
 
     claimed = {s.id for s in sight_shapes if s.implemented}
-    assert claimed == {"blindsight", "darkvision"}
+    assert claimed == {"blindsight", "darkness", "darkvision", "heavily-obscured"}
 
 
 # --- Clause 3: senses are per-creature state, shaped like Speeds --------------------
