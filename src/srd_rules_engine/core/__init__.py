@@ -75,6 +75,8 @@ from srd_rules_engine.core.d20 import (
     Override,
     Replacement,
     TestKind,
+    adjust_roll,
+    override_to_success,
     replace_die,
 )
 from srd_rules_engine.core.damage import (
@@ -197,6 +199,7 @@ from srd_rules_engine.core.save_ends import (
 )
 from srd_rules_engine.core.state import (
     Combatant,
+    DeathSaves,
     EncounterState,
     ObligationOutstanding,
 )

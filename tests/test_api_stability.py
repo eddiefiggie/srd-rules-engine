@@ -187,6 +187,47 @@ def test_most_of_core_is_deliberately_unpromised() -> None:
     )
 
 
+def test_every_exported_name_resolves() -> None:
+    """#200. `from srd_rules_engine.core import *` raised on `main` for three of 159 names.
+
+    `core/__init__.py` exists to be R34's re-export surface: an outer layer may reach a core
+    symbol **only** through it. So a name in `__all__` that resolves to nothing is not an
+    untidy list — it is a capability the engine claims and an adapter cannot reach.
+
+    All three were worse than unreachable. `DeathSaves`, `adjust_roll` and
+    `override_to_success` are each named in `ENGINE_SHAPES` as what resolves an inventory
+    shape, so the inventory said the engine could do it, R34 said there was one way to get
+    at it, and that way raised.
+
+    `tests/test_layer_boundaries.py` cannot see this: it checks the *direction* of imports,
+    and a name missing from a re-export is not an import at all. Nothing else looked, which
+    is how a hand-maintained list of 159 entries drifted.
+    """
+    import srd_rules_engine.core as core
+
+    unresolvable = sorted(name for name in core.__all__ if not hasattr(core, name))
+    assert unresolvable == [], (
+        f"{unresolvable} are exported by name and resolve to nothing. An outer layer "
+        "following R34 cannot reach them, and `from core import *` raises"
+    )
+
+
+def test_nothing_is_exported_twice() -> None:
+    """The other way a hand-maintained list drifts. A duplicate is harmless to Python and is
+    a reliable sign that two edits added the same name without either seeing the other.
+
+    **A deliberate "nothing changed" guard** — `AGENTS.md`'s named exception. It passes
+    against the base commit, because the list happened to be free of duplicates; the sibling
+    above is the one that was red. It is here because the two failure modes of a
+    hand-maintained list are drift in each direction, and checking one of them would have
+    read as checking the list.
+    """
+    import srd_rules_engine.core as core
+
+    duplicates = sorted({n for n in core.__all__ if core.__all__.count(n) > 1})
+    assert duplicates == [], f"{duplicates} appear more than once in core.__all__"
+
+
 # --- What a name at the package root resolves to (#112) --------------------------------
 
 
