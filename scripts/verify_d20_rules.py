@@ -312,6 +312,31 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "and Total Cover is defined by what it does to TARGETING, not to seeing",
         r"Total Cover \(can.t be targeted directly\)",
     ),
+    # --- Rituals and preparation (#19) --------------------------------------------------
+    (
+        187,
+        "a Ritual needs the spell PREPARED and tagged, costs 10 minutes more, and expends "
+        "no slot — and the consequence the document draws itself, which an implementer "
+        "drops: no slot means no upcasting",
+        r"If you have a spell prepared that has the Ritual tag, you can cast that spell as "
+        r"a Ritual\.\s*The Ritual version of a spell takes 10 minutes longer to cast than "
+        r"normal\.\s*It also doesn.t expend a spell slot, which means the ritual version of "
+        r"a spell can.t be cast at a higher level",
+    ),
+    (
+        104,
+        "WHEN a prepared list may change, and how many, is the spellcasting feature's to "
+        "say — class data this engine ships none of, the way it ships no slot table",
+        r"your spellcasting feature specifies when you can change the list and the number "
+        r"of spells you can change",
+    ),
+    (
+        104,
+        "an always-prepared spell is prepared, and only the CHANGE LIMIT treats it "
+        "differently — so castability needs one set, not two",
+        r"a spell that you always have prepared doesn.t count against the number of spells "
+        r"on that list",
+    ),
     # --- What finishing a Long Rest does (#185) ----------------------------------------
     (
         185,

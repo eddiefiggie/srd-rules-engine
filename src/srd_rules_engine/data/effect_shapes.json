@@ -887,7 +887,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 187",
    "kind": "spellcasting",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "save",

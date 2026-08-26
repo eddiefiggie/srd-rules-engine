@@ -18,12 +18,15 @@ from srd_rules_engine.core.spellcasting import (
     CONCENTRATION_DC_CAP,
     CONCENTRATION_DC_FLOOR,
     MAX_SPELL_LEVEL,
+    RITUAL_EXTRA_MINUTES,
+    RITUAL_VERIFICATION,
     SPELLCASTING_VERIFICATION,
     Concentration,
     NoSlotAvailable,
     SpellSlots,
     concentration_save,
     concentration_save_dc,
+    ritual_cast,
     spell_attack_modifier,
     spell_save_dc,
 )
@@ -80,9 +83,9 @@ def test_a_cantrip_costs_no_slot_at_all() -> None:
     assert WIZARD.payable_by(CANTRIP_LEVEL) == ()
 
 
-def test_a_long_rest_restores_every_expended_slot() -> None:
-    """p. 104. The operation exists; nothing triggers it, because the *rest* is not modelled
-    (#19). The clock it used to wait on arrived with #85."""
+def test_restoring_returns_every_slot() -> None:
+    """p. 104, as an operation on `SpellSlots`. Whether anything *calls* it is the next test
+    down — it went a build without a caller after the rest landed in #185."""
     spent = WIZARD.cast(1).cast(2).cast(3)
     assert spent.restored().remaining(1) == 4
     assert spent.restored().remaining(3) == 2
@@ -291,6 +294,10 @@ def test_no_slot_table_ships_in_this_module() -> None:
         "CONCENTRATION_DC_FLOOR",
         "CONCENTRATION_DC_CAP",
         "SPELLCASTING_VERIFICATION",
+        # Added by #19 and each a scalar or a citation, which is the property this guard is
+        # really about: a name may join this list, a *table* may not.
+        "RITUAL_EXTRA_MINUTES",
+        "RITUAL_VERIFICATION",
     }, "a slot table hiding in a module constant would read like a verified rule"
 
 
@@ -303,3 +310,129 @@ def test_the_module_says_what_it_does_not_carry() -> None:
         "the gap is the rest, not the clock — #85 shipped the clock, so the disclosure has "
         "to point at the issue that is still open or it reads as tracked when it is not"
     )
+
+
+# --- Rituals, and the preparation they need (#19) -----------------------------------------
+
+
+def test_a_prepared_tagged_spell_may_be_cast_as_a_ritual() -> None:
+    """p. 187: "If you have a spell prepared that has the Ritual tag, you can cast that
+    spell as a Ritual"."""
+    cast = ritual_cast(
+        spell_id="detect-magic", prepared=frozenset({"detect-magic"}), has_ritual_tag=True
+    )
+    assert cast.spell_id == "detect-magic"
+    assert cast.extra_minutes == RITUAL_EXTRA_MINUTES == 10
+    assert cast.expends_slot is False
+
+
+def test_a_spell_that_is_not_prepared_may_not_be_ritualled() -> None:
+    """The precondition comes before the permission in p. 187's own sentence. A spell merely
+    known is not one you may ritual, and an engine that skipped this would let a caster cast
+    anything for free."""
+    with pytest.raises(ValueError, match="not prepared"):
+        ritual_cast(spell_id="detect-magic", prepared=frozenset(), has_ritual_tag=True)
+
+
+def test_a_spell_without_the_tag_may_not_be_ritualled() -> None:
+    """The tag is the spell's own, and arrives from the ruleset — this engine ships no spell
+    list to look it up in (#21)."""
+    with pytest.raises(ValueError, match="no Ritual tag"):
+        ritual_cast(
+            spell_id="magic-missile", prepared=frozenset({"magic-missile"}), has_ritual_tag=False
+        )
+
+
+def test_a_ritual_cannot_be_upcast() -> None:
+    """**The clause an implementation drops.** p. 187 draws the consequence itself: "It also
+    doesn't expend a spell slot, which means the ritual version of a spell can't be cast at a
+    higher level."
+
+    An engine that accepted a level here would let a caster upcast for free, which is the one
+    thing the sentence exists to prevent — and it would look like a feature.
+    """
+    with pytest.raises(ValueError, match="expends no spell slot"):
+        ritual_cast(
+            spell_id="detect-magic",
+            prepared=frozenset({"detect-magic"}),
+            has_ritual_tag=True,
+            at_level=3,
+        )
+
+
+def test_ritual_carries_a_verified_citation() -> None:
+    assert RITUAL_VERIFICATION.state is VerificationState.VERIFIED
+    assert "p. 187" in (RITUAL_VERIFICATION.reference or "")
+
+
+# --- A Long Rest restores the slots (#19, p. 104) ------------------------------------------
+
+
+def test_the_rest_itself_restores_them() -> None:
+    """p. 104: "Finishing a Long Rest restores any expended spell slots."
+
+    Not p. 185 — the Long Rest's own entry never mentions slots, which is why this benefit
+    was missing from `with_long_rest` for a build after the rest landed in #185. The
+    operation existed and the occasion existed and nothing joined them.
+    """
+    from srd_rules_engine.core.state import Combatant, EncounterState
+
+    caster = Combatant(
+        id="pc",
+        name="Pc",
+        hit_points=4,
+        max_hit_points=20,
+        armour_class=13,
+        abilities={"int": 16},
+        proficiency_bonus=2,
+        is_player_character=True,
+        slots=SpellSlots(total={1: 4, 2: 2}, spent={1: 3, 2: 2}),
+    )
+    state = EncounterState.new([caster])
+    before = state.combatant("pc").slots
+    assert before is not None and before.remaining(1) == 1
+
+    rested = state.with_long_rest("pc")
+    slots = rested.combatant("pc").slots
+    assert slots is not None
+    assert slots.remaining(1) == 4
+    assert slots.remaining(2) == 2
+
+
+def test_a_creature_with_no_slots_rests_without_acquiring_any() -> None:
+    """`None` means this creature is not a caster, and a rest does not make it one."""
+    from srd_rules_engine.core.state import Combatant, EncounterState
+
+    fighter = Combatant(
+        id="pc",
+        name="Pc",
+        hit_points=4,
+        max_hit_points=20,
+        armour_class=13,
+        abilities={"str": 16},
+        proficiency_bonus=2,
+        is_player_character=True,
+    )
+    rested = EncounterState.new([fighter]).with_long_rest("pc")
+    assert rested.combatant("pc").slots is None
+
+
+def test_preparation_is_one_set_because_castability_asks_one_question() -> None:
+    """p. 104 separates always-prepared spells from the changeable list only for the *change
+    limit*: "a spell that you always have prepared doesn't count against the number of spells
+    on that list". For "is it prepared now", the distinction does not exist — so this engine
+    keeps one set and does not model the limit, which is class data."""
+    from srd_rules_engine.core.state import Combatant
+
+    caster = Combatant(
+        id="pc",
+        name="Pc",
+        hit_points=20,
+        max_hit_points=20,
+        armour_class=13,
+        abilities={"int": 16},
+        proficiency_bonus=2,
+        prepared=frozenset({"detect-magic", "shield"}),
+    )
+    assert "detect-magic" in caster.prepared
+    assert not hasattr(caster, "always_prepared"), "one set, per p. 104's own scoping"

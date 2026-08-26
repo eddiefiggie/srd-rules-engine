@@ -220,6 +220,19 @@ class Combatant:
     #: Spell slots, for a creature that has any. `None` for one that does not, which is a
     #: different thing from having none left.
     slots: SpellSlots | None = None
+    #: The spells this creature has prepared, by id (p. 104, #19). Ids are the ruleset's,
+    #: because this engine ships no spell list (#21) and will not invent one.
+    #:
+    #: **One set, not two.** p. 104 distinguishes always-prepared spells from the list you
+    #: may change — but only for the *change limit*: "a spell that you always have prepared
+    #: doesn't count against the number of spells on that list". For the question this engine
+    #: asks — is it prepared *now* — the distinction does not exist.
+    #:
+    #: **The change limit is not modelled.** p. 104 puts when a list may change, and how
+    #: many, in the spellcasting feature, and summarises it in a per-class table. That is
+    #: class data, and this engine ships none of it, for the reason `core.spellcasting`
+    #: ships no slot table.
+    prepared: frozenset[str] = frozenset()
     #: Only meaningful at 0 hit points. Reset rather than carried once healing lands.
     death_saves: DeathSaves = DeathSaves()
 
@@ -1014,6 +1027,12 @@ class EncounterState:
           score.
         * *Special Feature* recharge is not modelled, because no feature has a recharge.
 
+        **Spell slots come back**, and that sentence is not on p. 185 at all — p. 104 carries
+        it: "Finishing a Long Rest restores any expended spell slots." `SpellSlots.restored`
+        existed from #95 with a docstring saying nothing triggered it because there was no
+        rest. There was a rest from #185, and this did not call it for a build: a benefit the
+        document states, absent from the one method that exists to apply them (#19).
+
         **A creature at 0 hit points cannot start one.** p. 185: "To start a Long Rest, you
         must have at least 1 Hit Point." Every other benefit reads as unconditional, which is
         why this precondition is the one an implementation drops — and dropping it would let
@@ -1037,7 +1056,12 @@ class EncounterState:
                 "does not rest"
             )
 
-        restored = replace(target, hit_points=target.max_hit_points)
+        restored = replace(
+            target,
+            hit_points=target.max_hit_points,
+            # p. 104, not p. 185. A caster with no slots is left as one.
+            slots=target.slots.restored() if target.slots is not None else None,
+        )
         held = restored.conditions.exhaustion_levels
         removable = [i for i, rule in enumerate(held) if rule not in LOCKED_EXHAUSTION_RULES]
         if removable:
