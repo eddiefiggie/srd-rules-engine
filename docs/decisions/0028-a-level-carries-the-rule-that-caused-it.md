@@ -166,17 +166,22 @@ deferral.
 
 ## Status of implementation
 
-**Decided, not built.** No clause here exists in the tree; `Conditions.exhaustion_level` is still
-a plain integer.
+**Clauses 1 and 2 are built. Clauses 3-5 are not, and clause 6 is why.**
+`Conditions.exhaustion_levels` landed 2026-08-25 with Suffocation, the first rule whose
+removal needed it.
 
 | Clause | State |
 |---|---|
-| 1 — a level carries its rule id | Not built. [#183](https://github.com/eddiefiggie/srd-rules-engine/issues/183) |
-| 2 — removal is a rule, not a subtraction | Not built. Part of #183 |
-| 3 — a locked level is invisible to the general rule | Not built. Part of #183 |
-| 4 — most recently gained first, by engine convention | Not built. Part of #183 |
+| 1 — a level carries its rule id | **Built.** `Conditions.exhaustion_levels` is a tuple of rule ids and `exhaustion_level` is a derived sum. `exhaustion_from(rule_id)` answers p. 189's question. A level with an empty id is refused |
+| 2 — removal is a rule, not a subtraction | **Built** for the one removal with a live consumer: `with_exhaustion_removed(caused_by=...)` takes the rule whose levels go, never a count. `with_breath_regained` is p. 189's caller |
+| 3 — a locked level is invisible to the general rule | Not built, and unreachable: the general rule is the Long Rest, which does not exist. [#185](https://github.com/eddiefiggie/srd-rules-engine/issues/185) |
+| 4 — most recently gained first, by engine convention | Not built, for the same reason. The order only matters to the general rule. #185 |
 | 5 — a removal may be suppressed by state | Not built, and deliberately not exercised until the contagion exists ([#141](https://github.com/eddiefiggie/srd-rules-engine/issues/141)) |
-| 6 — the general rule lands with the Long Rest | Nothing to build here; it is the scoping fact #183 rests on |
+| 6 — the general rule lands with the Long Rest | Still true, and now the only thing between clauses 3 and 4 and being built. #185 |
 | 7 — the potion is not reconciled | Nothing to build. [#182](https://github.com/eddiefiggie/srd-rules-engine/issues/182) |
 
-**No effect shape is resolved by any of it.** Coverage stays at 78 of 211.
+**Suffocation resolves because of clauses 1 and 2**, and nothing else here does. Coverage is
+79 of 211.
+
+_Updated 2026-08-25 when [#183](https://github.com/eddiefiggie/srd-rules-engine/issues/183)
+landed. This record shipped saying "Decided, not built"._

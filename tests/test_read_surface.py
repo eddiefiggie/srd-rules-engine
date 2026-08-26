@@ -404,7 +404,7 @@ def test_implied_conditions_are_reported_too() -> None:
 def test_the_situation_reports_speed_after_conditions_have_acted_on_it() -> None:
     """Exhaustion reduces Speed by 5 per level (p. 181), and the agent is told the number
     it actually has rather than the one on its sheet."""
-    result = read(_rich(conditions=Conditions(exhaustion_level=1)), "pc")
+    result = read(_rich(conditions=Conditions(exhaustion_levels=("a-tiring-march",) * 1)), "pc")
     assert result.situation is not None
     assert result.situation.speed == 25
     assert result.situation.movement_remaining == 25
@@ -455,7 +455,7 @@ def test_they_are_withdrawn_once_the_action_is_spent() -> None:
 
 def test_dash_offers_the_speed_the_creature_actually_has() -> None:
     """p. 180: "The increase equals your Speed **after applying any modifiers**.\""""
-    state = _rich(conditions=Conditions(exhaustion_level=1))
+    state = _rich(conditions=Conditions(exhaustion_levels=("a-tiring-march",) * 1))
     dash = next(a for a in read(state, "pc").actions if a.key == DASH)
     assert dash.detail["extra_movement"] == 25
 

@@ -62,6 +62,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # three hazards each inflict an Exhaustion level, which nothing can raise through a
         # ruling (#178) — that, not the occasion, is what blocks them now.
         "burning": "core.hazards.burning_resolver",
+        # Suffocation, once 0028 gave a level the rule id that caused it — p. 189's removal
+        # is "all levels of Exhaustion it gained from suffocating", which a count could not
+        # answer (#183).
+        "suffocation": "core.hazards.suffocation_resolver",
         # Death saving throws and what follows them (#15).
         "death-saving-throw": "core.death.death_save_resolver",
         "stable": "core.state.DeathSaves.stable",

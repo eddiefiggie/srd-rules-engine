@@ -229,8 +229,19 @@ class Conditions:
     """
 
     held: frozenset[Condition] = field(default_factory=frozenset)
-    #: p. 181: 1 to 6. Zero means the condition is not held at all.
-    exhaustion_level: int = 0
+    #: Every Exhaustion level this creature holds, as the **rule id that caused it**, oldest
+    #: first (0028 clause 1). The count is `exhaustion_level` and is derived from this.
+    #:
+    #: A tuple rather than an integer because four of the five removal rules turn on which
+    #: level is which: breathing again takes every level *suffocation* caused (p. 189), and
+    #: dehydration's and malnutrition's cannot be taken at all until the creature drinks or
+    #: eats (pp. 181, 185). A count cannot answer either.
+    #:
+    #: The rule id rather than an enum of sources: seven sources appear across the Rules
+    #: Glossary, the Gameplay Toolbox and the magic items, nothing suggests that is all of
+    #: them, and a closed set in the data is a branch in every consumer (0019). It is the
+    #: shape 0027 clause 2 chose for obligations.
+    exhaustion_levels: tuple[str, ...] = ()
     #: p. 182: who is grappling, so "any target other than the grappler" is computable.
     grappler_id: str | None = None
     #: How long each **applied** condition lasts (#18). Keyed by condition, and an implied
@@ -244,15 +255,21 @@ class Conditions:
     applied: frozenset[Condition] = field(default_factory=frozenset)
 
     def __post_init__(self) -> None:
-        if not 0 <= self.exhaustion_level <= MAX_EXHAUSTION:
+        if len(self.exhaustion_levels) > MAX_EXHAUSTION:
             raise ValueError(
                 f"an Exhaustion level runs from 0 to {MAX_EXHAUSTION}, not "
-                f"{self.exhaustion_level} — 6 is death (p. 181)"
+                f"{len(self.exhaustion_levels)} — 6 is death (p. 181)"
+            )
+        if any(not rule_id for rule_id in self.exhaustion_levels):
+            raise ValueError(
+                "every Exhaustion level names the rule that caused it (0028 clause 1). An "
+                "unattributed level cannot be answered for by four of the five rules that "
+                "remove one"
             )
         # `held` is given as what was applied and is replaced by its closure, so a caller
         # constructing one the ordinary way needs to know nothing about implication.
         object.__setattr__(self, "applied", self.applied or self.held)
-        object.__setattr__(self, "held", _closure(self.held, self.exhaustion_level))
+        object.__setattr__(self, "held", _closure(self.held, len(self.exhaustion_levels)))
         unknown = set(self.durations) - set(self.applied)
         if unknown:
             raise ValueError(
@@ -264,6 +281,25 @@ class Conditions:
 
     def has(self, condition: Condition) -> bool:
         return condition in self.held
+
+    @property
+    def exhaustion_level(self) -> int:
+        """p. 181: 1 to 6, and the number all of its arithmetic reads. Zero means the
+        condition is not held at all.
+
+        Derived rather than stored (0028 clause 1). p. 181 reduces every D20 Test by twice
+        it and Speed by five feet times it, and kills at 6 — all over the total, and none of
+        it over which levels they are.
+        """
+        return len(self.exhaustion_levels)
+
+    def exhaustion_from(self, rule_id: str) -> int:
+        """How many of this creature's levels that rule caused.
+
+        p. 189's "all levels of Exhaustion it gained from suffocating" is this question, and
+        it is the one a bare count could not answer.
+        """
+        return sum(1 for held in self.exhaustion_levels if held == rule_id)
 
     @property
     def dead_of_exhaustion(self) -> bool:
@@ -401,7 +437,7 @@ class Conditions:
             remaining = remaining | {Condition.PRONE}
         return Conditions(
             held=frozenset(remaining),
-            exhaustion_level=self.exhaustion_level,
+            exhaustion_levels=self.exhaustion_levels,
             grappler_id=None if Condition.GRAPPLED in ending else self.grappler_id,
             durations={c: d for c, d in self.durations.items() if c in remaining},
         )

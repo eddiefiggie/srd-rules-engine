@@ -73,6 +73,19 @@ class ObligationOutstanding(Exception):
     """0023 clause 6. The departing creature owes a repeated save this turn (p. 63)."""
 
 
+#: The rule ids the two built hazards are enumerated and recorded under.
+#:
+#: They live here rather than in `core.hazards` for the reason `Hazards` itself does, and the
+#: reason `save_ends_rule_id` lives in `core.conditions`: an id that **keys state** has to sit
+#: where state can reach it, and `core.hazards` imports `core.adjudicate`, which imports this
+#: module. Since 0028 clause 1 a Suffocation level literally carries `SUFFOCATION_RULE_ID`,
+#: so this is not a naming convenience — it is the value in the field.
+#:
+#: `core.hazards` re-exports both, which is where a reader looks for them.
+BURNING_RULE_ID: Final = "burning"
+SUFFOCATION_RULE_ID: Final = "suffocation"
+
+
 @dataclass(frozen=True)
 class Hazards:
     """Ongoing hazards a creature is subject to (0027 clause 5).
@@ -101,6 +114,9 @@ class Hazards:
     """
 
     burning: bool = False
+    #: p. 189. Set when a creature "runs out of breath or is choking" — both narrative facts
+    #: this engine cannot observe, so a caller says so, as it does for `burning`.
+    suffocating: bool = False
 
 
 @dataclass(frozen=True)
@@ -689,13 +705,13 @@ class EncounterState:
             durations.pop(condition, None)
         updated = Conditions(
             held=held.applied | {condition},
-            exhaustion_level=held.exhaustion_level,
+            exhaustion_levels=held.exhaustion_levels,
             grappler_id=grappler_id if grappler_id is not None else held.grappler_id,
             durations=durations,
         )
         return self._evolve(combatants=self._replacing(replace(target, conditions=updated)))
 
-    def with_exhaustion(self, combatant_id: str, levels: int = 1) -> EncounterState:
+    def with_exhaustion(self, combatant_id: str, rule_id: str, levels: int = 1) -> EncounterState:
         """Raise this creature's Exhaustion level (p. 181, #178).
 
         "This condition is cumulative. Each time you receive it, you gain 1 Exhaustion
@@ -720,20 +736,79 @@ class EncounterState:
         if levels < 1:
             raise ValueError(
                 f"an Exhaustion gain is at least one level; {levels} is not a gain. "
-                "Removal runs by its own rules and is not a negative gain (#180)"
+                "Removal runs by its own rules and is not a negative gain (0028 clause 2)"
+            )
+        if not rule_id:
+            raise ValueError(
+                "an Exhaustion level names the rule that caused it (0028 clause 1), because "
+                "four of the five rules that remove one turn on which level it is"
             )
         target = self.combatant(combatant_id)
-        raised = target.conditions.exhaustion_level + levels
-        if raised > MAX_EXHAUSTION:
+        held = target.conditions.exhaustion_levels
+        if len(held) + levels > MAX_EXHAUSTION:
             raise ValueError(
-                f"{target.name} is at Exhaustion level {target.conditions.exhaustion_level} "
-                f"and gaining {levels} would reach {raised}. p. 181 says a creature dies at "
+                f"{target.name} is at Exhaustion level {len(held)} and gaining {levels} "
+                f"would reach {len(held) + levels}. p. 181 says a creature dies at "
                 f"{MAX_EXHAUSTION}, so nothing above it is a state the document describes"
             )
         return self._evolve(
             combatants=self._replacing(
-                replace(target, conditions=replace(target.conditions, exhaustion_level=raised))
+                replace(
+                    target,
+                    conditions=replace(
+                        target.conditions, exhaustion_levels=held + (rule_id,) * levels
+                    ),
+                )
             )
+        )
+
+    def with_exhaustion_removed(self, combatant_id: str, *, caused_by: str) -> EncounterState:
+        """Remove every Exhaustion level that rule caused (0028 clause 2).
+
+        p. 189's shape: "When a creature can breathe again, it removes all levels of
+        Exhaustion it gained from suffocating." Scoped to one rule's levels and silent about
+        every other, which is why a count could not answer it.
+
+        **Removal is a rule rather than a subtraction**, so this takes the rule whose levels
+        go rather than a number of levels to drop. A caller that could say "remove two" would
+        be choosing which two, and the four removal rules disagree about that.
+
+        Removing nothing is not an error: a creature that breathes again having never
+        suffocated has lost nothing, and refusing would make the caller check first.
+        """
+        target = self.combatant(combatant_id)
+        remaining = tuple(r for r in target.conditions.exhaustion_levels if r != caused_by)
+        if len(remaining) == len(target.conditions.exhaustion_levels):
+            return self
+        return self._evolve(
+            combatants=self._replacing(
+                replace(
+                    target,
+                    conditions=replace(target.conditions, exhaustion_levels=remaining),
+                )
+            )
+        )
+
+    def with_breath_regained(self, combatant_id: str) -> EncounterState:
+        """p. 189: the creature can breathe again, and every level suffocation caused goes.
+
+        Deterministic bookkeeping rather than an outcome, and no die is thrown — the same
+        rule `with_time_passed` states for what it applies. p. 189 removes the levels
+        outright and offers no save, so arriving at air decides nothing that was not already
+        decided.
+
+        It resolves here rather than through a turn-loop occasion because "can breathe
+        again" is an event rather than a schedule: 0023 clause 5, applied the way 0027
+        clause 7 applied it to Falling. The caller says when, because air is a narrative
+        fact this engine cannot observe.
+
+        Levels from any other source stay, which is the whole point of 0028 clause 1 — a
+        creature that suffocated *and* marched through the night keeps the march.
+        """
+        target = self.combatant(combatant_id)
+        cleared = replace(target, hazards=replace(target.hazards, suffocating=False))
+        return self._evolve(combatants=self._replacing(cleared)).with_exhaustion_removed(
+            combatant_id, caused_by=SUFFOCATION_RULE_ID
         )
 
     def with_condition_ended(self, combatant_id: str, condition: Condition) -> EncounterState:

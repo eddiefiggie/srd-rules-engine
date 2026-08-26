@@ -145,7 +145,7 @@ def test_dash_adds_speed_to_the_turns_movement() -> None:
 def test_dash_uses_the_speed_after_modifiers() -> None:
     """ "The increase equals your Speed **after applying any modifiers**", so a creature
     slowed by Exhaustion Dashes the shorter distance rather than the printed one."""
-    tired = Conditions(exhaustion_level=2)
+    tired = Conditions(exhaustion_levels=("a-tiring-march",) * 2)
     speed = tired.speed_after(30)
     assert speed == 20
     hero = combatant(conditions=tired, actions=ActionBudget().dashed(speed))

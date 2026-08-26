@@ -85,6 +85,8 @@ from typing import Final
 from srd_rules_engine.core.adjudicate import (
     DamageDice,
     Declaration,
+    Effect,
+    EffectKind,
     Proposal,
     Resolver,
     condition_applied,
@@ -99,6 +101,11 @@ from srd_rules_engine.core.rules import (
     VerificationMethod,
     VerificationState,
 )
+
+# Both re-exported: 0028 clause 1 makes a Suffocation level carry its rule id, so the ids
+# key state and had to move where state can reach them. This is where callers look.
+from srd_rules_engine.core.state import BURNING_RULE_ID as BURNING_RULE_ID
+from srd_rules_engine.core.state import SUFFOCATION_RULE_ID as SUFFOCATION_RULE_ID
 from srd_rules_engine.core.state import EncounterState
 
 #: p. 182: "1d6 Bludgeoning damage ... for every 10 feet it fell".
@@ -218,9 +225,6 @@ def falling_resolver(feet: int) -> Resolver:
 #: turns."
 BURNING_DIE_SIDES: Final = 4
 
-#: The rule id the turn's start enumerates Burning under (0027 clause 2).
-BURNING_RULE_ID: Final = "burning"
-
 #: R31. The sentence is a clause in `scripts/verify_d20_rules.py` (#140), including the part
 #: that says *start* — which is what put it in the same phase as the death save rather than
 #: the one save-ends lives in.
@@ -293,6 +297,107 @@ def burning_resolver() -> Resolver:
                 "a test, and nothing about it can be passed",
                 "that the fire went out; this engine cannot observe dousing, submersion or "
                 "an action spent putting it out, and it has recorded none",
+            ),
+        )
+
+    return resolve
+
+
+#: p. 189: "a number of minutes equal to 1 plus its Constitution modifier (minimum of 30
+#: seconds)". Held in **seconds** because the floor is not a whole minute and `core.clock`
+#: counts minutes — 0020 says nothing at campaign scale is finer, and it is right about
+#: campaign scale. A breath is not campaign scale.
+BREATH_FLOOR_SECONDS: Final = 30
+SECONDS_PER_MINUTE: Final = 60
+
+#: R31. Every sentence of p. 189 is a clause in `scripts/verify_d20_rules.py` — the breath
+#: duration (#178), the gain at the end of each turn, and the removal on breathing again.
+SUFFOCATION_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference=(
+        "SRD v5.2.1, Rules Glossary, Suffocation p. 189 — how long a creature holds its "
+        "breath, the Exhaustion level gained at the end of each of its turns, and the "
+        "removal of every level suffocation caused once it can breathe again"
+    ),
+    date="2026-08-25",
+    method=VerificationMethod.ASSERTED,
+)
+
+
+def breath_seconds(constitution_modifier: int) -> int:
+    """How long a creature can hold its breath before suffocation begins (p. 189).
+
+    "A number of minutes equal to 1 plus its Constitution modifier (minimum of 30 seconds)".
+
+    Returned in seconds rather than minutes because the floor is half a minute, and there is
+    no honest integer-minutes answer for a creature whose Constitution modifier is -1 or
+    worse. Rounding it to 0 would say suffocation begins at once; rounding to 1 would give
+    it twice the breath the document allows.
+    """
+    return max(BREATH_FLOOR_SECONDS, (1 + constitution_modifier) * SECONDS_PER_MINUTE)
+
+
+def suffocation_rule() -> Rule:
+    """The SRD rule the turn's end incurs for a suffocating creature (p. 189)."""
+    return Rule(
+        id=SUFFOCATION_RULE_ID,
+        summary=(
+            "A creature that has run out of breath or is choking gains 1 Exhaustion level "
+            "at the end of each of its turns."
+        ),
+        provenance=RuleProvenance.SRD,
+        verification=SUFFOCATION_VERIFICATION,
+    )
+
+
+def suffocation_resolver() -> Resolver:
+    """Build the resolver for Suffocation's Exhaustion at the end of a turn.
+
+    No d20 (0027 clause 6): p. 189 states the level outright and asks nothing of the dice.
+    The level carries this rule's id, which is what makes the removal below expressible.
+
+    **Recovery is not here**, and it is not missing either — p. 189 removes the levels "when
+    a creature can breathe again", which is a narrative fact rather than an occasion. It
+    resolves where the state change happens, which is 0023 clause 5 applied the way 0027
+    clause 7 applied it to Falling: `EncounterState.with_breath_regained`.
+    """
+
+    def resolve(
+        *,
+        state: EncounterState,
+        declaration: Declaration,
+        facts: Mapping[str, Resolution],
+    ) -> Proposal:
+        actor_id = declaration.actor_id
+        actor = state.combatant(actor_id)
+        if not actor.hazards.suffocating:
+            raise ValueError(
+                f"{actor.name} is not suffocating, so there is nothing for p. 189 to "
+                "resolve. Suffocation is read off state and never declared"
+            )
+
+        return Proposal(
+            outcome=(
+                Effect(
+                    kind=EffectKind.EXHAUSTION_GAINED,
+                    target_id=actor_id,
+                    amount=1,
+                    description=(
+                        "out of breath at the end of its turn: 1 Exhaustion level (p. 189)"
+                    ),
+                ),
+            ),
+            citations=("srd:rules-glossary/suffocation",),
+            may_claim=(
+                "that the creature is still without breath at the end of this turn",
+                "that it is one Exhaustion level worse for it",
+            ),
+            may_not_claim=(
+                "that anything was rolled for, tested, resisted or avoided — running out "
+                "of breath is not a test, and nothing about it can be passed",
+                "that the creature caught its breath; this engine cannot observe air and "
+                "has recorded none",
+                "that it died, unless the ruling recorded the sixth level",
             ),
         )
 

@@ -1015,7 +1015,7 @@
    "tag": "Hazard",
    "reference": "Rules Glossary, p. 189",
    "kind": "hazard",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "surprise",

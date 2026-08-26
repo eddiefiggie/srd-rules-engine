@@ -177,12 +177,12 @@ def test_the_senses_and_light_slice_is_the_one_the_row_names() -> None:
     # it described this set instead of the one the row names, and it stays wrong now for a
     # second reason. Asserting the count keeps the slice real rather than merely absent.
     resolved, total = _slice(("sense", "environment", "hazard", "affliction", "attitude"))
-    assert (resolved, total) == (2, 23)
+    assert (resolved, total) == (3, 23)
 
     row = MILESTONE_ROW.search(_readme())
     assert row is not None
     assert "0 of 10" in row.group(0)
     assert "0 of 23" not in row.group(0)
-    assert "1 of 23" not in row.group(0), (
+    assert "3 of 23" not in row.group(0), (
         "the five-category group is still not what this row names, whatever its count"
     )
