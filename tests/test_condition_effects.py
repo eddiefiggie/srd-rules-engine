@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -56,9 +57,11 @@ from srd_rules_engine.core.adjudicate import (
     RULING_VERSION,
     Effect,
     EffectKind,
+    When,
     _apply,
 )
 from srd_rules_engine.core.d20 import D20Test, Modifier, TestKind
+from srd_rules_engine.core.damage import DamageType, Defences
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.memory.store import JsonMemoryStore
 
@@ -92,7 +95,7 @@ def encounter() -> EncounterState:
 
 
 def apply_one(state: EncounterState, effect: Effect) -> EncounterState:
-    after, _ = _apply(state, (effect,), seed=1)
+    after, _, _withheld = _apply(state, (effect,), seed=1)
     return after
 
 
@@ -457,3 +460,111 @@ def test_the_payload_version_moved_for_the_new_fields() -> None:
 
     assert RULING_VERSION >= 4, "3 -> 4 carried condition, duration and grappler"
     assert RULING_COMPAT < RULING_VERSION, "a v3 reader misreads none of them"
+
+
+# --- Conditional effects, and the shapes that are resolver defects (0032, #173) ---------
+
+
+def _defended(defences: Defences) -> EncounterState:
+    """The shared `encounter()` with the actor's defences replaced, so these tests can drive
+    p. 17 without touching a helper twenty other tests depend on."""
+    state = encounter()
+    actor = replace(state.combatant("pc"), defences=defences)
+    return replace(state, combatants=(actor, *(c for c in state.combatants if c.id != "pc")))
+
+
+def _prone(target_id: str = "pc", *, when: When | None = None) -> Effect:
+    return condition_applied(
+        target_id, Condition.PRONE, description="an invented conditional", when=when
+    )
+
+
+def _hurt(target_id: str = "pc", amount: int = 4) -> Effect:
+    return Effect(
+        kind=EffectKind.DAMAGE, target_id=target_id, amount=amount, description="an invented blow"
+    )
+
+
+def test_a_conditional_effect_applies_when_the_damage_landed() -> None:
+    """0032 clause 2, the positive branch. The predicate reads the accumulator `_apply`
+    fills as it walks, so the damage has to precede it — and does."""
+    _, landed, withheld = _apply(encounter(), (_hurt(), _prone(when=When.DAMAGE_TAKEN)), seed=1)
+    assert [e.kind for e in landed] == [EffectKind.DAMAGE, EffectKind.CONDITION_APPLIED]
+    assert withheld == ()
+
+
+def test_a_conditional_effect_is_withheld_when_the_damage_came_to_nothing() -> None:
+    """The negative branch, driven by Immunity so no dice are involved: the accumulator
+    holds what `damage_after_defences` left, which for an immune target is zero."""
+    immune = _defended(Defences(immunities=frozenset({DamageType.FIRE})))
+    blow = replace(_hurt(amount=9), damage_type=DamageType.FIRE)
+    _, landed, withheld = _apply(immune, (blow, _prone(when=When.DAMAGE_TAKEN)), seed=1)
+
+    assert [e.kind for e in landed] == [EffectKind.DAMAGE]
+    assert [e.condition for e in withheld] == [Condition.PRONE]
+
+
+def test_the_predicate_reads_the_taken_number_and_not_the_rolled_one() -> None:
+    """0032 clause 2 in one assertion, and the whole of #173.
+
+    Resistance to a 1 halves to 0. An implementation asking one function earlier would see
+    the rolled 1, find it greater than zero, and apply the effect — which is the bug, in a
+    more elaborate form than the one being fixed.
+    """
+    resistant = _defended(Defences(resistances=frozenset({DamageType.FIRE})))
+    one_point = replace(_hurt(amount=1), damage_type=DamageType.FIRE)
+    _, landed, withheld = _apply(resistant, (one_point, _prone(when=When.DAMAGE_TAKEN)), seed=1)
+
+    damage = next(e for e in landed if e.kind is EffectKind.DAMAGE)
+    assert (damage.rolled, damage.amount) == (1, 0), "rolled 1, took none"
+    assert [e.condition for e in withheld] == [Condition.PRONE]
+
+
+def test_a_predicate_reads_only_damage_to_its_own_target() -> None:
+    """The accumulator is per target. A blow landing on someone else says nothing about
+    whether this creature took any, and reading a shared total would knock down bystanders."""
+    _, landed, withheld = _apply(
+        encounter(), (_hurt("troll"), _prone("pc", when=When.DAMAGE_TAKEN)), seed=1
+    )
+    assert [e.kind for e in landed] == [EffectKind.DAMAGE]
+    assert [e.target_id for e in withheld] == ["pc"]
+
+
+def test_a_conditional_with_no_damage_before_it_is_refused_at_proposal_time() -> None:
+    """A resolver defect, not a rule question. Every predicate reads what a sibling settled
+    to, so one placed first is false before the branch runs — and an effect that never
+    applies looks exactly like a rule that never fires."""
+    with pytest.raises(ValueError, match="no damage to that creature precedes it"):
+        Proposal(outcome=(_prone(when=When.DAMAGE_TAKEN), _hurt()))
+
+
+def test_a_conditional_after_damage_to_someone_else_is_refused_too() -> None:
+    """The same defect wearing a disguise. Order alone is not the test — the damage has to
+    be to the creature the predicate asks about."""
+    with pytest.raises(ValueError, match="no damage to that creature precedes it"):
+        Proposal(outcome=(_hurt("troll"), _prone("pc", when=When.DAMAGE_TAKEN)))
+
+
+def test_every_branch_is_checked_not_only_the_first() -> None:
+    """`on_failure` and the natural-die branches are branches too. A guard covering one of
+    five certifies exactly the four it does not look at."""
+    test = D20Test(kind=TestKind.CHECK, target=10, target_basis="invented")
+    bad = (_prone(when=When.DAMAGE_TAKEN),)
+    refused = "no damage to that creature precedes it"
+
+    with pytest.raises(ValueError, match=refused):
+        Proposal(test=test, on_success=bad)
+    with pytest.raises(ValueError, match=refused):
+        Proposal(test=test, on_failure=bad)
+    with pytest.raises(ValueError, match=refused):
+        Proposal(test=test, on_natural_20=bad)
+    with pytest.raises(ValueError, match=refused):
+        Proposal(test=test, on_natural_1=bad)
+
+
+def test_damage_cannot_itself_be_conditional_on_damage() -> None:
+    """Whether it applied would turn on where it sat in the branch, because a damage effect
+    both feeds the accumulator and would read it. No rule the sweep behind 0032 asks for
+    this, so it is refused rather than given an order-dependent meaning."""
+    with pytest.raises(ValueError, match="damage cannot be conditional on damage"):
+        replace(_hurt(), when=When.DAMAGE_TAKEN)

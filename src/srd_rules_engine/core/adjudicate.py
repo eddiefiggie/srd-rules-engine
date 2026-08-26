@@ -93,6 +93,12 @@ DECLARATION_VERSION = 1
 #: the version and **not** `RULING_COMPAT`, which is 0022's rule — compat is what a reader
 #: must be to read the payload *correctly*, not a record of the payload having changed.
 #:
+#: 7 adds `when` to every effect and an optional `withheld` list beside `effects` (0032,
+#: #173). Additive, and not a `RULING_COMPAT` move: a v6 reader sees the effects that
+#: applied exactly as before and simply cannot see which of them were conditional, or that
+#: any were withheld. That is less of the record rather than a wrong reading of it — the
+#: same judgement `testless` got at 5.
+#:
 #: 6 renames an effect's `grappler` to `source` (#192). Grappled was the only condition
 #: whose text turned on who imposed it until Frightened's line-of-sight qualifier became
 #: enforceable, and a field named for one of two users is a field that misleads about the
@@ -105,7 +111,7 @@ DECLARATION_VERSION = 1
 #: how the advantage gap got in: `REPLAYABLE_FROM = 2` exists because a ruling made with
 #: advantage replayed as though it had none. A v4 reader sees no `testless` key and reports
 #: such an entry unreplayable, which is the old behaviour rather than a new wrong answer.
-RULING_VERSION = 6
+RULING_VERSION = 7
 NARRATION_VERSION = 1
 TERMINATION_VERSION = 1
 
@@ -165,6 +171,36 @@ class EffectKind(StrEnum):
 CONDITION_KINDS: Final = frozenset({EffectKind.CONDITION_APPLIED, EffectKind.CONDITION_ENDED})
 
 
+class When(StrEnum):
+    """What an effect may be made conditional on (0032 clauses 1 and 3).
+
+    **Data, not a callable.** A predicate the engine can evaluate but not *record* would let
+    a withheld effect leave no trace, and an effect the rules withheld would then be
+    indistinguishable from one nobody considered — which is the confusion
+    [#173](https://github.com/eddiefiggie/srd-rules-engine/issues/173) exists to remove
+    rather than relocate. R5 makes the ledger the record of what the engine decided, so the
+    question has to be as recordable as the answer.
+
+    **The vocabulary grows one printed sentence at a time** (0032 clause 3). An entry
+    invented ahead of the rule that needs it is a rule value inferred from memory of a game
+    (R31), so each member names the sentence it serves and that sentence is a clause in
+    `scripts/verify_d20_rules.py`.
+    """
+
+    #: p. 182, Falling: "When the creature lands, it has the Prone condition **unless it
+    #: avoids taking any damage from the fall**." True when damage this ruling already
+    #: applied to the *same target* came to more than zero.
+    DAMAGE_TAKEN = "damage-taken"
+
+
+#: Why each predicate failed, for the narration bound a withheld effect earns (0032 clause 5).
+#: Phrased as the reason rather than the negated predicate: "took no damage" is what a reader
+#: needs, and "damage-taken was false" is what a reader has to translate.
+WITHHELD_BECAUSE: Final[Mapping[When, str]] = MappingProxyType(
+    {When.DAMAGE_TAKEN: "no damage was taken"}
+)
+
+
 @dataclass(frozen=True)
 class Effect:
     """A mechanical change a ruling applies. The engine applies it; the narrator reports it.
@@ -212,6 +248,12 @@ class Effect:
     #: Named `grappler` in the ledger until `RULING_VERSION` 6, when Grappled stopped being
     #: the only condition that needed one.
     source_id: str | None = None
+    #: 0032 clauses 1-3. When set, this effect applies only if the predicate holds against
+    #: what a **sibling** effect in the same branch settled to — and `_apply` is the only
+    #: place that can ask, because it is the only place the settled number exists.
+    #:
+    #: `None` is the ordinary effect: it applies because the branch selected it.
+    when: When | None = None
 
     def __post_init__(self) -> None:
         carries_condition = self.kind in CONDITION_KINDS
@@ -232,6 +274,13 @@ class Effect:
                 "one would be read as meaning something — stacking, or a level — and "
                 "nothing in the document says what"
             )
+        if self.when is not None and self.kind is EffectKind.DAMAGE:
+            raise ValueError(
+                "damage cannot be conditional on damage. Every predicate in `When` reads "
+                "what siblings settled to, and a damage effect both contributes to that "
+                "and would depend on it — so whether it applied would turn on where it sat "
+                "in the branch. No rule the sweep behind 0032 found asks for this"
+            )
         if self.kind is not EffectKind.CONDITION_APPLIED and (
             self.duration is not None or self.source_id is not None
         ):
@@ -249,6 +298,7 @@ def condition_applied(
     description: str,
     duration: Duration | None = None,
     source_id: str | None = None,
+    when: When | None = None,
 ) -> Effect:
     """A condition imposed by the ruling that caused it (#119).
 
@@ -268,6 +318,7 @@ def condition_applied(
         condition=condition,
         duration=duration,
         source_id=source_id,
+        when=when,
     )
 
 
@@ -365,6 +416,35 @@ class NarrationBounds:
     may_not: tuple[str, ...] = ()
 
 
+def _refuse_undecidable_conditional(branch_name: str, branch: Sequence[Declared]) -> None:
+    """Refuse a conditional effect no sibling can ever satisfy (0032 clauses 1 and 2).
+
+    Every predicate in `When` reads what damage a sibling **already applied** settled to, so
+    a conditional placed before any damage to its own target is decided before the branch
+    runs: it is always false. That is a resolver defect and not a rule question, and it is
+    silent without this — the effect is simply withheld every time, which looks exactly like
+    a rule that never applies.
+
+    Order is the test rather than mere membership. `_apply` walks the branch once and
+    accumulates as it goes, so a conditional reads only what precedes it.
+    """
+    damaged: set[str] = set()
+    for declared in branch:
+        if isinstance(declared, DamageDice):
+            damaged.add(declared.target_id)
+            continue
+        if declared.kind is EffectKind.DAMAGE:
+            damaged.add(declared.target_id)
+            continue
+        if declared.when is not None and declared.target_id not in damaged:
+            raise ValueError(
+                f"the {branch_name} branch makes an effect on {declared.target_id!r} "
+                f"conditional on {declared.when}, but no damage to that creature precedes "
+                f"it. Every predicate reads what a sibling settled to, so this one is "
+                f"false before the branch runs and the effect would never apply"
+            )
+
+
 @dataclass(frozen=True)
 class Proposal:
     """What a resolver returns: the test to roll, and what follows from either outcome.
@@ -421,6 +501,8 @@ class Proposal:
                 "the branch taken when there is no test, so nothing would select it here. "
                 "Use on_success/on_failure for a proposal that rolls"
             )
+        for name in ("outcome", "on_success", "on_failure", "on_natural_20", "on_natural_1"):
+            _refuse_undecidable_conditional(name, getattr(self, name) or ())
 
 
 class Resolver(Protocol):
@@ -464,6 +546,11 @@ class Ruling:
     rule_id: str | None = None
     result: D20Result | None = None
     effects: tuple[Effect, ...] = ()
+    #: Effects this ruling considered and did not apply, because a `when` predicate did not
+    #: hold (0032 clause 4). Kept apart from `effects` because the standing narration bound
+    #: is "that the effects recorded here happened", and these did not — but recorded,
+    #: because an effect the rules withheld must not read like one nobody thought of.
+    withheld: tuple[Effect, ...] = ()
     facts: tuple[Resolution, ...] = ()
     citations: tuple[str, ...] = ()
     bounds: NarrationBounds = field(default_factory=NarrationBounds)
@@ -665,7 +752,7 @@ class Adjudicator:
         # The effects that go into the Ruling are the ones `_apply` hands back, not the
         # ones it was given: damage is rolled before a target is consulted, so only the
         # applier knows what p. 17's defences left of it (#105).
-        next_state, effects = _apply(state, effects, seed=seed, rule_id=rule.id)
+        next_state, effects, withheld = _apply(state, effects, seed=seed, rule_id=rule.id)
 
         return (
             Ruling(
@@ -675,9 +762,13 @@ class Adjudicator:
                 rule_id=rule.id,
                 result=result,
                 effects=effects,
+                withheld=withheld,
                 facts=tuple(resolutions),
                 citations=proposal.citations,
-                bounds=_bounds(proposal, result),
+                # `withheld` is known only after `_apply`, which is the whole of 0032
+                # clause 5: a bound naming a conditional effect cannot be written at
+                # proposal time, because the proposal does not yet know whether it applied.
+                bounds=_bounds(proposal, result, withheld),
             ),
             next_state,
         )
@@ -812,13 +903,42 @@ def _blocked(
     )
 
 
-def _bounds(proposal: Proposal, result: D20Result | None) -> NarrationBounds:
+def _withheld_bound(effect: Effect) -> str:
+    """The bound a withheld effect earns (0032 clauses 4 and 5).
+
+    Written here rather than by the resolver, and that is the point. `_bounds` runs after
+    `_apply`, so this is the first moment anything knows the predicate failed — a resolver
+    naming the outcome in `may_claim` would be asserting a branch it could not yet see.
+    """
+    subject = (
+        f"{effect.target_id} has the {effect.condition} condition"
+        if effect.condition is not None
+        else f"a {effect.kind} effect reached {effect.target_id}"
+    )
+    assert effect.when is not None  # only a conditional effect can be withheld
+    return (
+        f"that {subject} — this ruling considered it and withheld it, because "
+        f"{WITHHELD_BECAUSE[effect.when]}"
+    )
+
+
+def _bounds(
+    proposal: Proposal, result: D20Result | None, withheld: Sequence[Effect] = ()
+) -> NarrationBounds:
     """R7. What may be claimed, and the standing limit on everything else.
 
     A testless outcome may not be narrated as a success or a failure, because it was
     neither — nothing was tested. Saying "the save succeeded" over a fall would describe a
     roll that never happened, which is the narration bound doing exactly its job.
+
+    **A conditional effect states no bound of its own at proposal time** (0032 clause 5).
+    The proposal is built before `_apply`, so a `may_claim` naming one would license a claim
+    the predicate may have withheld — which is the defect being fixed, moved from the effect
+    to the record of it. The positive case needs nothing: "that the effects recorded here
+    happened" already covers an effect that applied, and one that did not is absent from the
+    list. The negative case is added here, where it is known.
     """
+    refusals = tuple(_withheld_bound(effect) for effect in withheld)
     if result is None:
         return NarrationBounds(
             may=("that the effects recorded here happened", *proposal.may_claim),
@@ -826,6 +946,7 @@ def _bounds(proposal: Proposal, result: D20Result | None) -> NarrationBounds:
                 "that anything was rolled for, tested, resisted or avoided — this rule "
                 "resolves without a d20",
                 "any consequence this ruling did not resolve; it needs its own declaration",
+                *refusals,
                 *proposal.may_not_claim,
             ),
         )
@@ -834,6 +955,7 @@ def _bounds(proposal: Proposal, result: D20Result | None) -> NarrationBounds:
         may=(f"that the {result.kind} {outcome}", *proposal.may_claim),
         may_not=(
             "any consequence this ruling did not resolve; it needs its own declaration",
+            *refusals,
             *proposal.may_not_claim,
         ),
     )
@@ -928,8 +1050,8 @@ def _apply(
     *,
     seed: int,
     rule_id: str | None = None,
-) -> tuple[EncounterState, tuple[Effect, ...]]:
-    """Apply the settled effects, and hand back what they came to (R5, #105).
+) -> tuple[EncounterState, tuple[Effect, ...], tuple[Effect, ...]]:
+    """Apply the settled effects, and hand back what landed and what was withheld (R5, #105).
 
     Damage arrives here as rolled, because the dice are rolled before a target's defences
     are consulted. p. 17's Immunity, Resistance and Vulnerability act inside `with_damage`,
@@ -940,13 +1062,39 @@ def _apply(
 
     `seed` travels because becoming Stable rolls a die — p. 18's 1d4 hours to recovery,
     drawn at stabilisation rather than on demand (0020).
+
+    ## Where a conditional effect is asked, and why it can only be here (0032 clause 2)
+
+    An effect carrying a `when` applies only if its predicate holds. This is the one place
+    that can ask, and the reason is one word: **taken**.
+
+    A fall deals `1d6` and the creature is Prone "unless it avoids taking any damage"
+    (p. 182). There are three moments a branch passes through — the resolver, which has no
+    number at all; `_roll_declared`, which has the **rolled** number; and here, which has the
+    number the target actually **took**. p. 17's Resistance is the entire difference between
+    the last two, and it is exactly the case
+    [#173](https://github.com/eddiefiggie/srd-rules-engine/issues/173) is about: a resistant
+    creature rolling a 1 on one die takes 0 and must not be Prone. Asking one function
+    earlier would look right and ship that bug.
+
+    `taken` accumulates per target as the walk proceeds, so a conditional reads only what
+    precedes it — which `Proposal.__post_init__` refuses to leave empty.
+
+    **Withheld effects are returned, not dropped** (0032 clause 4). A withheld Prone that
+    left no trace would be indistinguishable from a Prone nobody considered, and the second
+    is the failure this engine exists to prevent. They are kept apart from `landed` because
+    the standing narration bound is "that the effects recorded here happened" — an effect
+    that did not happen cannot sit in the list that sentence describes.
     """
     landed: list[Effect] = []
+    withheld: list[Effect] = []
+    taken: dict[str, int] = {}
     for effect in effects:
         if effect.kind is EffectKind.DAMAGE:
             outcome = state.damage_after_defences(
                 effect.target_id, effect.amount, effect.damage_type
             )
+            taken[effect.target_id] = taken.get(effect.target_id, 0) + outcome.amount
             landed.append(_as_taken(effect, outcome))
             state = state.with_damage(
                 effect.target_id,
@@ -954,6 +1102,10 @@ def _apply(
                 critical=effect.critical,
                 damage_type=effect.damage_type,
             )
+            continue
+
+        if effect.when is not None and not _holds(effect.when, effect.target_id, taken):
+            withheld.append(effect)
             continue
 
         landed.append(effect)
@@ -993,7 +1145,25 @@ def _apply(
                 "through a branch here or not at all — falling through to another kind's "
                 "transition is the quiet direction to be wrong in"
             )
-    return state, tuple(landed)
+    return state, tuple(landed), tuple(withheld)
+
+
+def _holds(when: When, target_id: str, taken: Mapping[str, int]) -> bool:
+    """Whether a predicate holds, against damage this ruling has already applied.
+
+    One member, one sentence (0032 clause 3). A new member arrives with the printed rule it
+    serves and a clause asserting it, and the exhaustiveness below is what makes forgetting
+    the second half impossible to do quietly.
+    """
+    if when is When.DAMAGE_TAKEN:
+        # p. 182: "unless it avoids taking any damage". Any amount at all satisfies it, so
+        # the test is `> 0` rather than a threshold — and it reads `taken`, which is the
+        # post-defences figure, never the roll.
+        return taken.get(target_id, 0) > 0
+    raise ValueError(  # pragma: no cover - unreachable while `When` has one member
+        f"no evaluation for {when}. A predicate reaches an answer through a branch here or "
+        "not at all; falling through to a default would withhold or apply silently"
+    )
 
 
 def _as_taken(effect: Effect, outcome: DamageOutcome) -> Effect:
@@ -1046,6 +1216,36 @@ def _declaration_payload(declaration: Declaration, catalogue_version: int) -> Ma
     }
 
 
+def _effect_payload(e: Effect) -> Mapping[str, object]:
+    """One effect as the ledger records it.
+
+    Shared by `effects` and `withheld` (0032 clause 4) rather than written twice: a withheld
+    effect that recorded less than an applied one would be a record that says least about
+    the case a reader is most likely to be checking.
+    """
+    return {
+        "kind": str(e.kind),
+        "target": e.target_id,
+        # What the target took. `rolled` and `damage_type` are what make that recomputable:
+        # without the type there is no way to check p. 17's arithmetic from the record,
+        # which is the state this fixed (#105).
+        "amount": e.amount,
+        "rolled": e.rolled,
+        "damage_type": str(e.damage_type) if e.damage_type else None,
+        # #119. A condition effect's amount is 0, so without these the record says a
+        # condition changed and not which one — and a replay comparing effects would call
+        # two different conditions identical.
+        "condition": str(e.condition) if e.condition else None,
+        "duration": e.duration.derivation() if e.duration else None,
+        "source": e.source_id,
+        # 0032 clause 4. The predicate, so the record says what was ASKED as well as what
+        # was answered — an effect that applied unconditionally and one whose condition
+        # happened to hold are different facts.
+        "when": str(e.when) if e.when else None,
+        "description": e.description,
+    }
+
+
 def _ruling_payload(ruling: Ruling) -> Mapping[str, object]:
     result = ruling.result
     return {
@@ -1073,26 +1273,12 @@ def _ruling_payload(ruling: Ruling) -> Mapping[str, object]:
             }
             for r in ruling.facts
         ],
-        "effects": [
-            {
-                "kind": str(e.kind),
-                "target": e.target_id,
-                # What the target took. `rolled` and `damage_type` are what make that
-                # recomputable: without the type there is no way to check p. 17's
-                # arithmetic from the record, which is the state this fixed (#105).
-                "amount": e.amount,
-                "rolled": e.rolled,
-                "damage_type": str(e.damage_type) if e.damage_type else None,
-                # #119. A condition effect's amount is 0, so without these the record says
-                # a condition changed and not which one — and a replay comparing effects
-                # would call two different conditions identical.
-                "condition": str(e.condition) if e.condition else None,
-                "duration": e.duration.derivation() if e.duration else None,
-                "source": e.source_id,
-                "description": e.description,
-            }
-            for e in ruling.effects
-        ],
+        "effects": [_effect_payload(e) for e in ruling.effects],
+        # 0032 clause 4. Considered and not applied, kept in its own list so that "effects"
+        # stays the set the standing narration bound describes — "the effects recorded here
+        # happened". Absent from a record that withheld nothing, so a reader never has to
+        # tell an empty list from a ruling that could not have one.
+        **({"withheld": [_effect_payload(e) for e in ruling.withheld]} if ruling.withheld else {}),
         "bounds": {"may": list(ruling.bounds.may), "may_not": list(ruling.bounds.may_not)},
         # 0027 clause 6. Whether this outcome HAD a d20, stated rather than left to be
         # inferred from `roll` being null — a thin record and a rule that never rolled look

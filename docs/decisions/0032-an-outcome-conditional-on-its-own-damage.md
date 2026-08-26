@@ -1,9 +1,8 @@
 # 0032 — An effect may be conditional on what a sibling effect turned out to be, and the only honest place to ask is where the damage settles
 
-- **Status:** Accepted, 2026-08-25
-- **Settles:** the design question in
-  [#173](https://github.com/eddiefiggie/srd-rules-engine/issues/173), which stays open as the
-  defect it also describes
+- **Status:** Accepted, 2026-08-25 · clauses 1-5 implemented 2026-08-25
+- **Settles:** [#173](https://github.com/eddiefiggie/srd-rules-engine/issues/173) — the design
+  question in this record, and the defect it describes in the change that followed
 - **Requirements:** R1, R4, R5, R7 · touches R14, R31, R32
 - **Related:** [0027 — occasions and outcomes without a roll](0027-occasions-and-outcomes-without-a-roll.md),
   whose clause 6 moved the proposal shape for the same module and the same reason;
@@ -189,13 +188,13 @@ The moment the branch moves later than the bounds, that trick stops working.
 - **Two engines of conditionality will coexist** — this one, and p. 18's inside `with_damage` —
   until somebody decides clause 7 the other way. Named here so it reads as a choice rather than
   as drift.
-- **This does not make Falling correct.** It decides how to make it correct. #173 stays open,
-  and the disclosure in `core/hazards.py` stays accurate until it closes.
+- **This record decided how to make Falling correct rather than making it correct**; the
+  change that did landed alongside it, and `core/hazards.py`'s disclosure was rewritten to
+  describe a qualifier that is now checked in full rather than one half-checked.
 
 **Follow-on effects.**
 
-- Nothing in this record is built. #173 is the tracker for clauses 1-5 reaching the tree, and
-  Falling is their first and smallest instance.
+- Clauses 1-5 landed against Falling, which closes #173. See **Status of implementation**.
 - [#214](https://github.com/eddiefiggie/srd-rules-engine/issues/214) — Damage Threshold, as a
   defence.
 - [#215](https://github.com/eddiefiggie/srd-rules-engine/issues/215) — Concentration's DC, as a
@@ -228,18 +227,30 @@ In the tree, read rather than recalled:
 
 ## Status of implementation
 
-**Decided, not built.** No clause of this record is in the tree, and #173 — the defect that
-prompted it — is deliberately still open.
+**Clauses 1-5 are built, against Falling — their first and smallest instance.** #173 is
+closed by the same change.
 
 | Clause | State |
 |---|---|
-| 1 — an effect may be conditional on a sibling's settled damage | **Not built.** [#173](https://github.com/eddiefiggie/srd-rules-engine/issues/173) |
-| 2 — evaluated in `_apply`, against damage *taken* | **Not built**, and it is the clause #173 turns on. The number is already computed there for a different reason (#105) |
-| 3 — the predicate is data, from a vocabulary that grows one sentence at a time | **Not built.** The first entry is p. 182's "unless it avoids taking any damage" |
-| 4 — a conditional that does not fire is recorded | **Not built.** The ruling payload records effects that landed and has no shape for one considered and withheld |
-| 5 — a conditional's claim stays out of static `may_claim` | **Not built**, and it is a constraint on how 1-4 are built rather than a thing of its own. `falling_resolver` currently does the opposite, legitimately, because its branch is decided at proposal time |
-| 6 — predicates only; magnitude derivation is out of scope | **Decided.** Filed as [#216](https://github.com/eddiefiggie/srd-rules-engine/issues/216) |
-| 7 — p. 18 is not migrated | **Decided.** `with_damage` is unchanged and stays correct where it is |
+| 1 — an effect may be conditional on a sibling's settled damage | **Built.** `Effect.when`, and `condition_applied(..., when=)`. `Proposal.__post_init__` refuses a conditional no sibling can satisfy, in every one of the five branches |
+| 2 — evaluated in `_apply`, against damage *taken* | **Built.** `_apply` accumulates `damage_after_defences(...).amount` per target as it walks, and `_holds` reads that. Proved by corrupting the accumulator to take `effect.amount` — the rolled figure — which is the plausible wrong implementation, and four tests go red |
+| 3 — the predicate is data, from a vocabulary that grows one sentence at a time | **Built,** with one member. `When.DAMAGE_TAKEN` carries p. 182's sentence, which is a clause in `scripts/verify_d20_rules.py`. `_holds` raises on an unhandled member rather than defaulting |
+| 4 — a conditional that does not fire is recorded | **Built.** `Ruling.withheld`, and a `withheld` list in the ruling payload beside `effects` — absent rather than empty when nothing was withheld. Every effect now records its `when`, so an effect that applied unconditionally and one whose predicate held are different facts in the record. `RULING_VERSION` 7 |
+| 5 — a conditional's claim stays out of static `may_claim` | **Built.** `falling_resolver` names Prone in neither list; `_bounds` takes `withheld` and writes the refusal where it is known, which is after `_apply` |
+| 6 — predicates only; magnitude derivation is out of scope | **Decided, unbuilt.** [#216](https://github.com/eddiefiggie/srd-rules-engine/issues/216) |
+| 7 — p. 18 is not migrated | **Decided.** `with_damage` is unchanged and stays correct where it is. Two engines of conditionality now coexist, as the Consequences said they would |
+
+**The defect is fixed and was reproduced first.** Against `main` at 21a8359, a creature with
+Resistance to Bludgeoning falling 10 feet at seed 4 rolls a 1, takes 0, and is **Prone**.
+The same scenario on this tree is **not Prone**. The seed is found by search in
+`tests/test_hazards.py` rather than written down, so it cannot go on passing while testing
+something else.
+
+**What the mechanism still does not do**, and neither is a gap this record left silent:
+p. 18's three branches stay inside `with_damage` by clause 7, and no predicate yet reads the
+*state after* the damage — which is what pp. 124 and 314 need ("if this damage reduces it to
+0 Hit Points"). That is a second member of `When`, and clause 3 says it arrives with its
+sentence when a rule that needs it does.
 
 **Two findings left this record for issues of their own**, because they are not this shape:
 [#214](https://github.com/eddiefiggie/srd-rules-engine/issues/214) (Damage Threshold is a
@@ -247,4 +258,4 @@ defence, p. 180) and [#215](https://github.com/eddiefiggie/srd-rules-engine/issu
 (Concentration's DC is a further test, p. 179). Both were found by the sweep that produced the
 table above, and both would have been built wrongly had the seven been treated as one shape.
 
-_Written 2026-08-25 against SRD v5.2.1._
+_Written 2026-08-25 against SRD v5.2.1, and updated the same day as clauses 1-5 landed._
