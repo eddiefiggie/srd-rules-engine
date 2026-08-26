@@ -273,8 +273,8 @@ def test_the_same_seed_reruns_the_encounter_to_a_byte_identical_ledger(
 
 def test_a_different_seed_produces_a_different_encounter(tmp_path: Path) -> None:
     """Otherwise byte-identity would be proving the harness ignores the seed."""
-    first = run_encounter(tmp_path / "seed-a", seed=11)
-    second = run_encounter(tmp_path / "seed-b", seed=2)
+    first = run_encounter(tmp_path / "seed-a", seed=10)
+    second = run_encounter(tmp_path / "seed-b", seed=4)
     assert first.ledger.read_bytes() != second.ledger.read_bytes()
 
 
@@ -305,8 +305,8 @@ def test_a_challenge_left_un_resubmitted_is_reported_as_never_re_adjudicated(
     challenge: the process exits, or the person walks away. So the injection is a direct
     adjudication with nothing after it, which is exactly that.
     """
-    adjudicator = build_adjudicator(tmp_path / "unanswered", seed=11)
-    state = opening_state(seed=11)
+    adjudicator = build_adjudicator(tmp_path / "unanswered", seed=10)
+    state = opening_state(seed=10)
     request = _declaration_request(state, "pc")
     ruling, _ = adjudicator.adjudicate(state, claims_no_test(request), situation=LOOSE_SCREE)
     assert ruling.status is Status.CHALLENGED
@@ -345,8 +345,8 @@ def test_a_narration_after_a_challenge_is_reported_as_having_no_ruling(
     A challenge produced no outcome. Prose describing one anyway is exactly the failure the
     engine is meant to make impossible, and the report has to be able to see it.
     """
-    adjudicator = build_adjudicator(tmp_path / "orphan", seed=11)
-    state = opening_state(seed=11)
+    adjudicator = build_adjudicator(tmp_path / "orphan", seed=10)
+    state = opening_state(seed=10)
     ruling, _ = adjudicator.adjudicate(
         state, claims_no_test(_declaration_request(state, "pc")), situation=LOOSE_SCREE
     )
@@ -413,10 +413,10 @@ def test_a_seed_the_record_cannot_hold_is_refused_at_the_seed_source(tmp_path: P
     """Naming the seed source, not the ledger. The seed is never clamped: a quietly altered
     seed reproduces a different roll on replay, so the honest options are as-given or a
     refusal."""
-    adjudicator = build_adjudicator(tmp_path / "wide", seed=11)
+    adjudicator = build_adjudicator(tmp_path / "wide", seed=10)
     object.__setattr__(adjudicator, "_seed_source", lambda: MAX_SAFE_INTEGER + 1)
 
-    state = opening_state(seed=11)
+    state = opening_state(seed=10)
     with pytest.raises(ValueError, match="seed source returned"):
         adjudicator.adjudicate(state, policy_declaration(_declaration_request(state, "pc")))
 
@@ -429,9 +429,9 @@ def test_a_terminated_slot_does_not_swallow_the_next_declaration(tmp_path: Path)
     and the first as having taken two attempts, so a session would lose a whole turn from
     the count the milestone is read from.
     """
-    adjudicator = build_adjudicator(tmp_path / "twice", seed=11)
+    adjudicator = build_adjudicator(tmp_path / "twice", seed=10)
     loop = TurnLoop(adjudicator=adjudicator)
-    state = opening_state(seed=11)
+    state = opening_state(seed=10)
 
     for _ in range(2):
         outcome = drive(loop.run(state, "pc"), SliceDriver(scripted=[needs_nerve]))
@@ -521,7 +521,7 @@ def test_the_policy_never_names_an_action_it_was_not_offered(tmp_path: Path) -> 
 
 
 def test_the_opening_state_has_initiative_and_a_moved_generation() -> None:
-    state = opening_state(seed=11)
+    state = opening_state(seed=10)
     assert state.in_combat
     assert state.round_number == 1
     assert state.generation > 0, "applying initiative is a change, so it moves the generation"

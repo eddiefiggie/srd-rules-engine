@@ -49,7 +49,14 @@ from srd_rules_engine.core.adjudicate import (
     Proposal,
     Resolver,
 )
-from srd_rules_engine.core.d20 import Advantage, D20Test, Modifier, TestKind, roll
+from srd_rules_engine.core.d20 import (
+    INITIATIVE_BAND,
+    Advantage,
+    D20Test,
+    Modifier,
+    TestKind,
+    roll,
+)
 from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.obstructions import Cover, total_cover
@@ -170,7 +177,16 @@ def initiative_order(
     Returned rather than applied, because applying it is `EncounterState.with_initiative`
     and that is the only thing allowed to move the generation.
     """
-    faces = roll(seed, count=len(state.combatants), sides=INITIATIVE_DIE)
+    # #82. Its own band, and a bounded one. This used to draw from index 0 — the d20's
+    # band — with one die per combatant and no bound, so a large enough encounter aliased a
+    # combatant's initiative onto a damage die of the same seed. Nothing records initiative
+    # in the ledger, so moving it rewrites no history.
+    faces = roll(
+        seed,
+        count=len(state.combatants),
+        sides=INITIATIVE_DIE,
+        offset=INITIATIVE_BAND.start,
+    )
     return {
         combatant.id: face + combatant.modifier(ability)
         for combatant, face in zip(state.combatants, faces, strict=True)

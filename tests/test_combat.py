@@ -43,7 +43,7 @@ from srd_rules_engine.core import (
 from srd_rules_engine.core.actions import ActionBudget, dodging
 from srd_rules_engine.core.adjudicate import Proposal, _apply, _roll_declared
 from srd_rules_engine.core.conditions import Condition, Conditions
-from srd_rules_engine.core.d20 import DAMAGE_OFFSET, D20Test, TestKind, roll
+from srd_rules_engine.core.d20 import DAMAGE_OFFSET, INITIATIVE_BAND, D20Test, TestKind, roll
 from srd_rules_engine.core.d20 import resolve as roll_d20
 from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.position import Position
@@ -153,7 +153,9 @@ def test_initiative_covers_every_combatant_and_applies_its_modifier() -> None:
     rolled = initiative_order(state, seed=7, ability="dex")
     assert set(rolled) == {"pc", "boar"}
 
-    faces = roll(7, count=2, sides=20)
+    # From initiative's own band (#82), not index 0 — sharing the d20's band is what let a
+    # combatant's initiative alias onto a die of the same seed.
+    faces = roll(7, count=2, sides=20, offset=INITIATIVE_BAND.start)
     assert rolled["pc"] == faces[0] + 2, "dex 14 is +2"
     assert rolled["boar"] == faces[1] + 0, "dex 10 is +0"
 

@@ -14,28 +14,39 @@ outcomes is not a defect anyone would find by inspection.
 from __future__ import annotations
 
 import dataclasses
+import itertools
 import subprocess
 import sys
 from collections import Counter
+from unittest import mock
 
 import pytest
 
+from srd_rules_engine.core import d20
 from srd_rules_engine.core.d20 import (
     ADJUSTMENT_OFFSET,
     ADVANTAGE_VERIFICATION,
+    BANDS,
     CRITICAL_VERIFICATION,
+    D20_BAND,
+    DAMAGE_BAND,
     DAMAGE_OFFSET,
     DIE_SIDES,
+    INITIATIVE_BAND,
     MAX_ADJUSTMENT_DICE,
+    REPLACEMENT_BAND,
     REPLACEMENT_OFFSET,
     REROLL_VERIFICATION,
     Adjustment,
     Advantage,
+    Band,
     Critical,
     D20Test,
     Modifier,
     TestKind,
+    _no_band_overlaps,
     adjust_roll,
+    band_holding,
     die,
     override_to_success,
     passive_score,
@@ -960,3 +971,86 @@ def test_an_unadjusted_result_carries_an_empty_record() -> None:
     assert rolled.adjustments == ()
     assert rolled.override is None
     assert Adjustment(dice=(3,), value=3, penalty=False, source="x").applied == 3
+
+
+# --- The seed's index bands (#82) ------------------------------------------------------
+#
+# Before this, the bands were three integers a reader had to compare and nothing checked.
+# `roll` took an arbitrary `count` and an arbitrary `offset`, so a long enough run walked
+# out of its band onto the next one's dice — and that collision does not raise. It produces
+# a replacement die identical to a damage die from the same seed: a reroll agreeing with the
+# thing it exists to be independent of.
+
+
+def test_a_roll_that_would_leave_its_band_is_refused() -> None:
+    """The case #82 named. 150 damage dice from index 100 reach 249, well inside the
+    replacement band — and every die from 200 up would be one a reroll of this same seed
+    would later draw."""
+    with pytest.raises(ValueError, match="outside the damage band"):
+        roll(1, count=150, sides=6, offset=DAMAGE_OFFSET)
+
+
+def test_a_roll_that_exactly_fills_its_band_is_allowed() -> None:
+    """The boundary, which is where an off-by-one in the check would hide. The damage band
+    holds 100, so 100 dice fit and 101 do not."""
+    assert len(roll(1, count=DAMAGE_BAND.capacity, sides=6, offset=DAMAGE_OFFSET)) == 100
+    with pytest.raises(ValueError, match="outside the damage band"):
+        roll(1, count=DAMAGE_BAND.capacity + 1, sides=6, offset=DAMAGE_OFFSET)
+
+
+def test_a_run_starting_partway_through_a_band_still_cannot_leave_it() -> None:
+    """`_roll_declared` advances the offset for each damage expression in a branch, so a
+    run rarely starts at a band's first index. The room that remains is what is checked,
+    not the band's whole capacity."""
+    assert roll(1, count=10, sides=6, offset=DAMAGE_OFFSET + 90)
+    with pytest.raises(ValueError, match="outside the damage band"):
+        roll(1, count=11, sides=6, offset=DAMAGE_OFFSET + 90)
+
+
+def test_an_offset_in_no_band_is_refused_and_the_message_names_the_map() -> None:
+    """The gaps between bands are margin, not spare room. Drawing from one is a caller that
+    has lost track of which band it is in, and the refusal prints the map so it can find
+    out without reading the source."""
+    with pytest.raises(ValueError, match="in no band"):
+        roll(1, count=1, sides=6, offset=50)
+    with pytest.raises(ValueError, match="damage 100-199"):
+        band_holding(50)
+
+
+def test_no_two_bands_overlap() -> None:
+    """`_no_band_overlaps` runs at import, so this cannot fail while the module loads — and
+    that is exactly why the check needs proving separately. A guard nobody has seen red is
+    a guard that might be inspecting nothing."""
+    for earlier, later in itertools.pairwise(BANDS):
+        assert later.start > earlier.last, f"{later.name} starts inside {earlier.name}"
+
+    overlapping = (Band("low", 0, 10), Band("high", 5, 10))
+    with (
+        mock.patch.object(d20, "BANDS", overlapping),
+        pytest.raises(ValueError, match="inside the low band"),
+    ):
+        _no_band_overlaps()
+
+
+def test_initiative_has_a_band_of_its_own() -> None:
+    """It used to draw from index 0 — the d20's band — one die per combatant and unbounded,
+    so a large enough encounter aliased a combatant's initiative onto a die of the same
+    seed. The d20 band holds two: one die, or two under Advantage."""
+    assert D20_BAND.capacity == 2
+    assert INITIATIVE_BAND.start > D20_BAND.last
+    assert not D20_BAND.holds(INITIATIVE_BAND.start)
+
+
+def test_an_encounter_larger_than_the_initiative_band_is_refused_not_aliased() -> None:
+    """The bound has to exist for the band above it to start anywhere. Refusing names an
+    engine limit; not refusing would roll two combatants the same initiative from indices
+    that belong to somebody else."""
+    with pytest.raises(ValueError, match="outside the initiative band"):
+        roll(1, count=INITIATIVE_BAND.capacity + 1, sides=20, offset=INITIATIVE_BAND.start)
+
+
+def test_a_band_index_past_the_capacity_is_refused() -> None:
+    with pytest.raises(ValueError, match="outside the replacement band"):
+        REPLACEMENT_BAND.at(REPLACEMENT_BAND.capacity)
+    assert REPLACEMENT_BAND.at(0) == REPLACEMENT_BAND.start
+    assert REPLACEMENT_BAND.at(REPLACEMENT_BAND.capacity - 1) == REPLACEMENT_BAND.last

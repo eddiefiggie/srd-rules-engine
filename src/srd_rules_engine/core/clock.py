@@ -74,7 +74,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from srd_rules_engine.core.d20 import die
+from srd_rules_engine.core.d20 import RECOVERY_BAND, die
 from srd_rules_engine.core.rules import (
     Verification,
     VerificationMethod,
@@ -126,11 +126,10 @@ STABLE_RECOVERY_SIDES: Final = 4
 STABLE_RECOVERY_HIT_POINTS: Final = 1
 
 #: Where the recovery die is drawn from in a seed's index space. `core.d20` bands the space
-#: — d20 at 0-1, damage from 100, replacements from 200, adjustments from 300 — so a die
-#: drawn here can never land on one that seed has already produced. The bands are still a
-#: convention rather than an enforced invariant (#82); this one is deliberately far above
-#: the highest band in use.
-RECOVERY_OFFSET: Final = 500
+#: — see `core.d20.BANDS`, which states the map once and refuses an overlap — so a die
+#: drawn here can never land on one that seed has already produced. Since #82 the band is
+#: a `Band` with a capacity rather than a bare integer, and this constant is its start.
+RECOVERY_OFFSET: Final = RECOVERY_BAND.start
 
 
 @dataclass(frozen=True)
@@ -182,5 +181,5 @@ def stable_recovery_minute(now: Clock, *, seed: int) -> int:
     see this module's docstring. `seed` is the adjudication's own seed, so the recovery
     replays from the record like every other die this engine throws (R4).
     """
-    rolled = die(seed, RECOVERY_OFFSET, STABLE_RECOVERY_SIDES)
+    rolled = die(seed, RECOVERY_BAND.at(0), STABLE_RECOVERY_SIDES)
     return now.elapsed_minutes + hours(rolled)

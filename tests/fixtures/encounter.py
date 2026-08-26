@@ -109,9 +109,27 @@ def creature() -> Combatant:
 
 
 def opening_state(*, seed: int) -> EncounterState:
-    """The encounter with initiative rolled and applied, ready for the first turn."""
+    """The encounter with initiative rolled and applied, ready for the first turn.
+
+    **The slice needs the player character to act first**, because every test built on this
+    declares for `pc` and a state where the creature leads rejects that declaration before
+    anything under test runs. That used to hold by luck: the seed the callers happened to
+    pass produced the order they happened to need, and nothing said so. When #82 moved
+    initiative into a band of its own, the same seed produced the other order and four
+    tests failed for reasons that named neither initiative nor the seed.
+
+    So the requirement is stated and checked here, where the message can say what to do.
+    """
     start = EncounterState.new([character(), creature()])
-    return start.with_initiative(initiative_order(start, seed=seed))
+    ordered = start.with_initiative(initiative_order(start, seed=seed))
+    if ordered.combatants[0].id != "pc":
+        raise AssertionError(
+            f"seed {seed} puts {ordered.combatants[0].id!r} first, and this fixture is "
+            "built for encounters the player character opens. Pick another seed — the "
+            "order derives from the seed, so a literal stops meaning what it says the "
+            "moment the derivation moves"
+        )
+    return ordered
 
 
 # --- Resolvers ----------------------------------------------------------------------------
@@ -315,7 +333,7 @@ class SliceRun:
 def run_encounter(
     path: Path,
     *,
-    seed: int = 11,
+    seed: int = 10,
     driver: SliceDriver | None = None,
     engine: str = ENGINE_VERSION,
     budget: int | None = 3,
