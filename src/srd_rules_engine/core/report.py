@@ -423,8 +423,13 @@ def _turns(entries: Sequence[Entry]) -> tuple[tuple[Turn, ...], int]:
                 # declaration once the facts arrive and the agent is never re-consulted.
                 # Counting that as a retry would report a driver's omission as an agent
                 # failing to declare correctly, which is the opposite attribution.
-                # The duplicate declaration entry a resumption leaves behind is #59.
-                if pending.get("status") != "blocked":
+                #
+                # The entry now says which it is (#59, `DECLARATION_VERSION` 2), so this
+                # reads the recorded fact and only falls back to inferring it from the
+                # preceding status for entries written before the field existed. Both
+                # paths are kept because ledgers outlive the code that wrote them, and the
+                # recorded one wins where it exists: a fact beats a reconstruction of it.
+                if not _resumption(entry, preceding_status=pending.get("status")):
                     pending["attempts"] += 1
                 pending["status"] = None
                 pending.update(declaration_fields(entry))
@@ -532,6 +537,20 @@ def render(report: SessionReport) -> str:
     footer = ["", "NOT MEASURED BY THIS REPORT:"]
     footer.extend(f"  - {limit}" for limit in report.not_measured)
     return "\n".join(header + body + footer)
+
+
+def _resumption(entry: Entry, *, preceding_status: object) -> bool:
+    """Whether this declaration entry is the engine picking a blocked one back up (#59).
+
+    `resumption` is recorded from `DECLARATION_VERSION` 2. A v1 entry carries no such key,
+    and `None` there means "nobody wrote it down" rather than "no" — so the old inference
+    stands in, which is sound for those ledgers because the loop ends a slot on a terminal
+    block and no fresh declaration follows one within a slot.
+    """
+    recorded = entry.payload.get("resumption")
+    if isinstance(recorded, bool):
+        return recorded
+    return preceding_status == "blocked"
 
 
 def _text(value: object) -> str | None:

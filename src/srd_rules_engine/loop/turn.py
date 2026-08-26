@@ -554,7 +554,12 @@ class TurnLoop:
         """
         outstanding: tuple[str, ...] | None = None
         while True:
-            ruling, state = self.adjudicator.adjudicate(state, declaration, situation=situation)
+            # `resuming` is what keeps the record honest about who acted (#59). The agent
+            # declared once; every pass after the first is the engine asking its own port
+            # again, and an unmarked second `declaration` entry said otherwise.
+            ruling, state = self.adjudicator.adjudicate(
+                state, declaration, situation=situation, resuming=outstanding is not None
+            )
             if ruling.status is not Status.BLOCKED:
                 return ruling, state, None
 

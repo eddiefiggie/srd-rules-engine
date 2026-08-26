@@ -57,6 +57,7 @@ from srd_rules_engine.core import (
     replay_entry,
     session_report,
 )
+from srd_rules_engine.core.adjudicate import Status
 from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.ledger_reader import Entry
 from srd_rules_engine.core.obstructions import Obstruction
@@ -156,6 +157,18 @@ def strike(state: EncounterState) -> Declaration:
         actor_id="pc",
         intent=Intent(action_key=attack_key("boar")),
         rule_id=STRIKE.id,
+        alternatives=offered.actions,
+        read_token=offered.token,
+    )
+
+
+def needy(state: EncounterState) -> Declaration:
+    """A declaration for the rule that consumes a fact nobody has supplied, so it blocks."""
+    offered = read(state, "pc")
+    return Declaration(
+        actor_id="pc",
+        intent=Intent(action_key=END_TURN),
+        rule_id=NEEDY.id,
         alternatives=offered.actions,
         read_token=offered.token,
     )
@@ -964,3 +977,57 @@ def test_terrain_reaches_a_roll_and_the_entry_records_the_derived_value(tmp_path
     for entry, roll in rulings.values():
         assert not {"obstructions", "lighting", "cover", "terrain"} & set(roll)
         assert not {"obstructions", "lighting"} & set(entry.payload)
+
+
+# --- A resumption is not a second declaration (#59) ------------------------------------
+
+
+def test_a_fresh_declaration_after_a_block_is_counted_as_an_attempt(tmp_path: Path) -> None:
+    """#59, and it is a live miscount rather than only an untidy record.
+
+    The report counts a repeated slot as an *attempt* unless the agent was not asked again.
+    It used to decide that by looking at the preceding ruling's status — a block meant a
+    resumption — and that inference is wrong for a caller the turn loop does not drive.
+    A blocked ruling neither settles nor closes a slot, so a **fresh** declaration for the
+    same actor lands in the same slot and was silently absorbed.
+
+    `AGENTS.md` is explicit that such callers exist: "the skip guarantee holds only for
+    callers the turn loop drives. A consumer calling adjudication directly gets outcome
+    authority without skip prevention."
+
+    Against `main` this reports **1** attempt for two genuine declarations. The entry now
+    records which it is, so the report reads the fact instead of reconstructing it.
+    """
+    path = tmp_path / "fresh-after-block"
+    path.mkdir(parents=True)
+    state = encounter()
+    adjudicator = build(path)
+
+    blocked, state = adjudicator.adjudicate(state, needy(state))
+    assert blocked.status is Status.BLOCKED, "the fixture rule consumes a fact nobody supplied"
+
+    ruled, state = adjudicator.adjudicate(state, strike(state))
+    assert ruled.status is Status.RULED, "a different declaration entirely, freshly made"
+
+    turns = session_report(path / "ledger.jsonl").turns
+    assert len(turns) == 1, "a block neither settles nor closes the slot"
+    assert turns[0].attempts == 2, "two declarations by the agent, counted as two"
+
+
+def test_a_resumed_declaration_is_still_only_one_attempt(tmp_path: Path) -> None:
+    """The other half, and the behaviour that must not regress: a genuine resumption is the
+    engine asking its own port again, so charging it as a retry would report a driver's
+    omission as the agent failing to declare correctly."""
+    path = tmp_path / "resumed"
+    path.mkdir(parents=True)
+    state = encounter()
+    adjudicator = build(path)
+
+    blocked, state = adjudicator.adjudicate(state, needy(state))
+    assert blocked.status is Status.BLOCKED
+    adjudicator.port.put(Fact("omen", "pc", True, NOTED))
+    resumed, state = adjudicator.adjudicate(state, needy(state), resuming=True)
+    assert resumed.status is Status.RULED
+
+    turns = session_report(path / "ledger.jsonl").turns
+    assert turns[0].attempts == 1, "the agent declared once"
