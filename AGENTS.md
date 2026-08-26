@@ -131,11 +131,29 @@ resolves *inside* the export before trusting the run. The second is the one that
 the only step that can tell a real red from a false green, so the script aborts rather than
 reporting when it fails.
 
-**Bump the build stamp and the README together, every build.** `src/srd_rules_engine/__init__.py`
-carries `__version__` in `mmddyyyy.x` form (see the `build-versioning` skill). README.md's
-`**Current build:**` line must match it, and must say what actually shipped.
-`tests/test_build_stamp.py` fails CI on drift, so the two cannot separate silently — but the test
-only checks that they *match*, not that the prose is honest. That part is on you.
+**Bump the build stamp and the README together, on every pull request.** Not "every build" —
+that wording left it open whether a docs-only or test-only change ships one, and the repository
+answered in practice long before it said so: the last PR to merge without a bump was
+[#122](https://github.com/eddiefiggie/srd-rules-engine/pull/122) on 2026-08-24, and the 44 since
+have all bumped, records and test-only changes included.
+`src/srd_rules_engine/__init__.py` carries `__version__` in `mmddyyyy.x` form (see the
+`build-versioning` skill). README.md's `**Current build:**` line and its `_Last updated:_` footer
+must both match it, and the prose must say what actually shipped.
+
+Two guards, because they catch different things
+([#147](https://github.com/eddiefiggie/srd-rules-engine/issues/147)):
+
+- `tests/test_build_stamp.py` fails on **drift** — the three stamps disagreeing. It is blind to
+  the pair standing still *together*, which is how build `08232026.39` came to cover two merged
+  pull requests.
+- The **Build stamp advanced** CI job runs `scripts/check_build_stamp_advanced.py` and fails when
+  `__version__` is not strictly later than the one at the **tip of the base branch**. The tip,
+  not the merge base: two branches cut from the same commit can each advance past their shared
+  base and still land on the same stamp, which happened on 2026-08-25 with #208 and #210 and is
+  why the merge-base version of this check was rejected. If `main` moves under you, rebase and
+  re-stamp — a bump has to be *free at merge time*, not merely later than where you started.
+
+Neither guard checks that the prose is honest. That part is on you.
 
 **That line is the build record; there is no changelog.** `CHANGELOG.md` is retired and frozen at
 build `08232026.36` — it duplicated the README line, went fifteen PRs without an entry, and nothing
