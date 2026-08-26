@@ -477,3 +477,31 @@ def test_the_page_bright_lights_claim_rests_on_is_asserted_against_the_document(
     the sentence. Presence, not truth — the verifier needs the PDF and CI has no copy."""
     verifier = (REPO_ROOT / "scripts" / "verify_d20_rules.py").read_text(encoding="utf-8")
     assert "Bright Light lets most creatures see normally" in verifier
+
+
+def test_the_absence_weapon_attacks_declassification_rests_on_is_asserted() -> None:
+    """0034 clause 3: a claim resting on text outside the entry cites the page and asserts
+    the sentence (0033 clause 3), so a **de**classification resting on the *absence* of such
+    text must assert the absence. Presence, not truth — the verifier needs the PDF and CI has
+    no copy.
+
+    An absence is the claim that decays most quietly: nothing goes red when a term the
+    document did not use starts being used. `DOCUMENT_CLAUSES` is the table that holds it,
+    and this guard exists so deleting the table is visible to CI, which cannot run it.
+
+    The control row is checked by name too. It is the part a later reader is most likely to
+    prune as redundant — it asserts a term the engine does not depend on — and pruning it
+    would leave the count assertion unable to tell a substantially intact extraction from a
+    partially degraded one.
+    """
+    verifier = (REPO_ROOT / "scripts" / "verify_d20_rules.py").read_text(encoding="utf-8")
+    assert "DOCUMENT_CLAUSES" in verifier, (
+        "the document-wide clause table is gone. 0034 clause 3 rests on it: without an "
+        "asserted count there is nothing to go red when the SRD starts using the term."
+    )
+    assert "A weapon attack is an attack roll made with a weapon" in verifier
+    assert "An attack roll is a D20 Test that represents making an attack with a weapon" in verifier
+    assert "This is a CONTROL" in verifier, (
+        "the control row was removed. The count assertion alone cannot distinguish an "
+        "intact extraction from a partially degraded one, which is the case it guards."
+    )

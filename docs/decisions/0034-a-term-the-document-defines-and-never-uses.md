@@ -60,10 +60,11 @@ would also catch `spell-attack`, which is claimed and correct — see clause 3.
 **1. `weapon-attack` is vocabulary. It is neither a second shape nor a double count,
 because there is no mechanic there to count either way.** SRD 5.2 defines *Weapon Attack* on
 p. 191 and **never uses the term again**. Swept across the document, `weapon attack` occurs
-**twice**, both on p. 191: the entry's heading and the one sentence of its body. Nothing in
-the rules gates a mechanic on whether an attack is a *weapon* attack. The entry renames
-`attack-roll` with a parameter fixed — what the attack is made with — and supplies nothing
-else.
+**three** times: twice on p. 191 — the entry's heading and the one sentence of its body —
+and once on p. 217, where it is a noun followed by a verb rather than the defined term (see
+**Evidence**). Nothing in the rules gates a mechanic on whether an attack is a *weapon*
+attack. The entry renames `attack-roll` with a parameter fixed — what the attack is made
+with — and supplies nothing else.
 
 **2. The operative test is zero consumers, not the phrasing of the entry.** This is the
 clause that keeps clause 1 from over-firing, and it is the one this record would have got
@@ -74,11 +75,18 @@ glossary sentence reads but whether the document uses the term to gate anything:
 
 | Term | Occurrences | Disposition |
 |---|---|---|
-| `weapon attack` | **2**, both the entry itself | **vocabulary** |
-| `spell attack` | 56 | shape — and p. 106 gives it a formula of its own |
-| `melee attack` | 406 | the term the document actually uses |
-| `ranged attack` | 104 | likewise |
-| `Unarmed Strike` | 28 | shape — p. 190 gives it three effect options |
+| `weapon attack` | **3** — two are its own entry, one is not the term | **vocabulary** |
+| `spell attack` | 62 | shape — and p. 106 gives it a formula of its own |
+| `melee attack` | 410 | the term the document actually uses |
+| `ranged attack` | 110 | likewise |
+| `Unarmed Strike` | 40 | shape — p. 190 gives it three effect options |
+
+Counts are over the **normalised** page text the verifier reads — whitespace collapsed and
+words de-hyphenated across column breaks — because that is what clause 3's assertion runs
+against. Raw extraction reports fewer for every used term (56, 406, 104, 28), since
+de-hyphenation recovers occurrences split across a line break. **The figure the decision
+turns on is 3 under both**, which is the point: the terms that vary with extraction are the
+ones used often enough for it to matter, and `weapon attack` is not one of them.
 
 So the three disjuncts of `attack-roll` split two-to-one on a stated test. `spell-attack`
 differs in **mechanism**: p. 106 states *"Spell attack modifier = your spellcasting ability
@@ -143,13 +151,18 @@ negative, and negatives are the claims that rot without anyone noticing. There i
 cite and no sentence to quote — the evidence *is* the absence — so the only way to hold it is
 to assert the count and let a future revision break it.
 
-**The control row is not decoration.** Asserting "this term appears exactly twice" passes
-just as happily against a PDF whose text layer failed to extract, and a guard that passes on
-an empty document is inspecting nothing. So `spell attack` is asserted to exceed two
-occurrences in the same sweep: an extraction that loses the term loses the control too, and
-the verifier goes red rather than confirming the convenient answer. This is the same lesson
-`AGENTS.md` records about proving a guard red — a guard nobody has seen fail may be
-inspecting nothing.
+**The control row earns its place, but not for the reason it first appeared to.** The
+obvious argument is that a count assertion passes just as happily against a PDF whose text
+layer failed to extract. **That argument is wrong, and running it is what showed so:** the
+clause asserts *exactly* 3, so a document extracting to nothing reports 0 and goes red on
+the load-bearing row itself. Both corruptions were run — see **Evidence**.
+
+What the control actually guards is narrower and likelier: an extraction that degrades
+**partially**, losing occurrences split across columns or hyphenated across line breaks. 3
+is a small number a damaged parse can arrive at by accident; 62 is not. So `spell attack` at
+20 or more certifies the sweep read a substantially intact document, where the `exactly`
+comparison only certifies it read a non-empty one. That is a weaker claim than the one first
+written down here, and it is the true one.
 
 **The precedent was already here, with its guard.** `heroic-inspiration` sits in
 `vocabulary` carrying a per-entry reason: *"Mechanical, but not a separate shape: it is the
@@ -213,8 +226,15 @@ the page of each. Its results are the table in clause 2.
 **three** occurrences of `weapon attack`, not two. The third is **p. 217**, the Dancing Sword
 magic item: *"After the hovering weapon attacks for the fourth time, it flies back to you"* —
 a noun followed by a verb, not the defined term. A sweep that reported 3 and stopped would
-have read as three consumers and reversed the decision. This is why clause 3 asserts **2**
-rather than "few", and why 3 is the plausible-wrong value the corruption proof uses.
+have read as three consumers and reversed the decision.
+
+**The assertion is nonetheless 3, not 2.** Asserting 2 would encode this editorial discard
+into the count and hide it: a reader re-running the verifier would see a number that does
+not match the document, and the p. 217 line would be invisible. So the raw truth is
+asserted, and the discard is pinned by its own presence clause on p. 217 — the count reads
+3, and the clause beside it says why one of the three is not the term. **2** is therefore
+the plausible-wrong value the corruption proof uses: it is exactly the "helpful" correction
+a later reader would be tempted to make.
 
 Engine side, in the tree: `weapon-attack` appears in neither `ENGINE_SHAPES` nor any resolver.
 `spell-attack` resolves to `core.spellcasting.spell_attack_modifier` — the p. 106 formula,
@@ -229,7 +249,7 @@ that `spell-attack`'s claim rests on its own mechanism rather than on being an a
 |---|---|
 | 1 — `weapon-attack` is vocabulary | **Built.** `KINDS` and `effect_shapes.json` agree; the entry carries a `VOCABULARY_REASONS` reason naming `attack-roll`. Coverage reports 96 of 210 |
 | 2 — the operative test is zero consumers | Not a mechanism. Pinned in both directions by `tests/test_effect_shape_inventory.py`, which asserts `weapon-attack` is vocabulary **and** that `spell-attack` and `unarmed-strike` remain shapes. Enforced by review beyond those three |
-| 3 — a declassification resting on an absence must assert the absence | **Built for this instance.** A document-wide clause table in `scripts/verify_d20_rules.py` asserts `weapon attack` at exactly 2 occurrences, with `spell attack` as the control, plus presence clauses for the p. 177 and p. 191 sentences and a CI check anchoring the table. A standing obligation on future declassifications, enforced by review |
+| 3 — a declassification resting on an absence must assert the absence | **Built for this instance.** A document-wide clause table in `scripts/verify_d20_rules.py` asserts `weapon attack` at exactly 3 occurrences, with `spell attack` at 20 or more as the control, plus five presence clauses (pp. 177, 188, 191, 106, 217) and a CI check anchoring the table. Both corruptions were run. A standing obligation on future declassifications, enforced by review |
 | 4 — the denominator moves to 210 | **Built.** README publishes 96 of 210 and the d20 test 12 of 13, both derived from the inventory by `tests/test_readme_reports_real_coverage.py` |
 | 5 — the numerator does not move | **Built** by not moving. `ENGINE_SHAPES` is unchanged in this diff |
 | 6 — exactly one entry moves | **Built** by not moving anything else. [#230](https://github.com/eddiefiggie/srd-rules-engine/issues/230) stays open and unclaimed |
