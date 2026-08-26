@@ -1130,14 +1130,6 @@
    "implemented": true
   },
   {
-   "id": "weapon-attack",
-   "name": "Weapon Attack",
-   "tag": null,
-   "reference": "Rules Glossary, p. 191",
-   "kind": "test",
-   "implemented": false
-  },
-  {
    "id": "half-damage-on-save",
    "name": "Half Damage on a Successful Save",
    "tag": null,
@@ -1886,6 +1878,13 @@
    "tag": null,
    "reference": "Rules Glossary, p. 191",
    "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "weapon-attack",
+   "name": "Weapon Attack",
+   "tag": null,
+   "reference": "Rules Glossary, p. 191",
+   "reason": "Not a separate shape: it renames `attack-roll` with a parameter fixed — p. 177's entry already enumerates its three cases as weapon, Unarmed Strike and spell — and differs from it in that parameter rather than in mechanism. The deciding evidence is that the document defines the term on p. 191 and never uses it: `weapon attack` occurs three times in the whole document, twice in its own entry and once on p. 217 as a noun and a verb ('the hovering weapon attacks'). Nothing gates a mechanic on it. `spell-attack` reads the same way and is a shape anyway, because p. 106 gives it a bonus formula of its own — which is why the test is consumers rather than phrasing. Decisions 0034 and 0013, Q1/Q3/Q5."
   }
  ]
 }
