@@ -169,7 +169,7 @@ def test_only_the_sight_shapes_whose_consequence_is_produced_are_claimed() -> No
     consequence its entry states.** #138 applied it to the four this test originally grouped
     together and did not separate, and it splits them two and two.
 
-    Four resolve:
+    Six resolve:
 
     * **Blindsight** — every clause of its entry `EncounterState.can_see` answers: range, the
       Total Cover bound, Darkness, the Blinded override and the Invisible condition.
@@ -180,18 +180,19 @@ def test_only_the_sight_shapes_whose_consequence_is_produced_are_claimed() -> No
       that relation and cites that sentence. There is no wholesale Blinded left unapplied.
     * **Darkness** (p. 180) — "An area of Darkness is Heavily Obscured" is the whole entry,
       and the consequence flows: the mapping produces it and `can_see` acts on it.
+    * **Lightly Obscured** (p. 184) and **Dim Light** (p. 181) — a Wisdom (Perception) check
+      now reads the obscurement and applies the Disadvantage (#138).
 
-    Six are not claimed, and each for its own reason rather than for want of effort:
+    Four are not claimed, and each for its own reason rather than for want of effort:
 
     * **Truesight** also pierces visual illusions, transformations and the Ethereal Plane
       (p. 190). `can_see` answers two of its five clauses.
     * **Tremorsense** pinpoints a location and "doesn't count as a form of sight" (p. 190).
       Nothing here answers the question it does answer.
-    * **Lightly Obscured** costs Disadvantage on Perception checks (p. 184), and nothing
-      produces that penalty — `can_see` treats the space as visible, which it is.
-    * **Dim Light** (p. 181) *is* Lightly Obscured, which the mapping produces — and which
-      nothing then reads, because the penalty above is unproduced. Computed, then consumed by
-      nobody, which resolves nothing.
+    * ~~**Lightly Obscured**~~ and ~~**Dim Light**~~ **resolved in #138**, and together,
+      because they were one blockage: p. 184's Disadvantage was produced by nothing, so
+      p. 181's classification into it was computed and read by nobody. `perception_of` is
+      the consumer both were waiting for — see `tests/test_perception.py`.
     * **Bright Light** (p. 178) states no consequence at all — "normal illumination" — so
       there is nothing for the engine to be judged as producing. Claiming it would count a
       definition.
@@ -205,7 +206,14 @@ def test_only_the_sight_shapes_whose_consequence_is_produced_are_claimed() -> No
     assert len(sight_shapes) == 10
 
     claimed = {s.id for s in sight_shapes if s.implemented}
-    assert claimed == {"blindsight", "darkness", "darkvision", "heavily-obscured"}
+    assert claimed == {
+        "blindsight",
+        "darkness",
+        "darkvision",
+        "dim-light",
+        "heavily-obscured",
+        "lightly-obscured",
+    }
 
 
 # --- Clause 3: senses are per-creature state, shaped like Speeds --------------------

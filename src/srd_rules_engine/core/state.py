@@ -39,6 +39,7 @@ from srd_rules_engine.core.conditions import (
     Conditions,
     save_ends_rule_id,
 )
+from srd_rules_engine.core.d20 import Advantage
 from srd_rules_engine.core.damage import (
     DamageOutcome,
     DamageType,
@@ -71,6 +72,7 @@ from srd_rules_engine.core.sight import (
     Visibility,
     obscurement_at,
 )
+from srd_rules_engine.core.skills import SKILL_ABILITY, PerceptionCheck, Skill
 from srd_rules_engine.core.spellcasting import SpellSlots
 
 #: p. 17: "On your third success, you become Stable... On your third failure, you die."
@@ -223,6 +225,10 @@ class Combatant:
     reach: int = DEFAULT_REACH_FEET
     #: Movement spent this turn. Reset when the turn advances, not carried.
     movement_used: int = 0
+    #: Skills this creature is proficient in (p. 188, #138). A set, because proficiency is
+    #: held or not — p. 182's Expertise doubles the bonus and is a class feature this engine
+    #: ships no data for, so a count would represent something the document does not give.
+    skills: frozenset[Skill] = frozenset()
     #: Active conditions, with implication already resolved (R14, R18).
     conditions: Conditions = field(default_factory=Conditions)
     #: What is left of the action economy this turn (p. 176-177, 186).
@@ -371,6 +377,20 @@ class Combatant:
     def modifier(self, ability: str) -> int:
         """The SRD's ability modifier, floor-divided so negatives round the right way."""
         return (self.abilities.get(ability, 10) - 10) // 2
+
+    def check_bonus(self, skill: Skill) -> int:
+        """The bonus on an ability check associated with this skill (p. 188).
+
+        "If you have proficiency in a skill, you can add your Proficiency Bonus when you
+        make an ability check associated with that skill" — so the ability's modifier
+        always, and the Proficiency Bonus only when the skill is held.
+
+        Which ability is the skill's, not the caller's: a Wisdom (Perception) check is a
+        Wisdom check whoever rolls it, and `SKILL_ABILITY` is p. 9's table rather than a
+        memory of it.
+        """
+        bonus = self.modifier(SKILL_ABILITY[skill])
+        return bonus + self.proficiency_bonus if skill in self.skills else bonus
 
 
 def _recovers_by(participant: Combatant, clock: Clock) -> bool:
@@ -639,6 +659,125 @@ class EncounterState:
                 f"the target stands in {level.value} and nothing between blocks the view "
                 f"({obscured.value})"
             ),
+        )
+
+    def perception_of(self, observer_id: str, target_id: str) -> PerceptionCheck:
+        """What a Wisdom (Perception) check to see this creature has (#138).
+
+        The consumer `core.sight`'s tables never had. Obscurement has been derivable since
+        #150 and nothing read it, so p. 184's Disadvantage was produced by nothing.
+
+        Here rather than in `core.perception` for the reason `can_see` is here: the answer
+        needs the encounter's lighting and its obstructions, and taking either as an
+        argument is the dial [0026](../../../docs/decisions/0026-terrain-enters-as-state.md)
+        removed — a caller choosing the light is a caller choosing the outcome.
+
+        ## The order, and why sight is asked first
+
+        **A special sense answers before obscurement does.** p. 177 gives Blindsight sight
+        "without relying on physical sight ... even if you have the Blinded condition or are
+        in Darkness", and p. 190 gives Truesight sight in "normal and magical Darkness".
+        Both are exemptions from the chain rather than positions along it, so a creature
+        that sees by one has no light-based penalty at all — and applying one would be
+        inventing a cost the document does not charge.
+
+        **Then the Blinded condition**, held outright: p. 177's automatic failure.
+
+        **Then obscurement**, which is where pp. 184 and 182 land. Heavily Obscured is not a
+        worse Disadvantage — p. 182 confers *the Blinded condition* for the attempt, and
+        p. 177 says what that costs a check, which is the whole of it.
+
+        **Then Frightened**, whose Disadvantage on ability checks (p. 182) is not about
+        sight at all and had no consumer until now. It cancels against nothing here, because
+        nothing in this chain grants Advantage — but it is asked so that a Frightened
+        creature peering into Dim Light is not reported as merely obscured.
+
+        An unstated light is not a penalty. 0025 clause 2 refuses to assume daylight, and
+        assuming Dim Light instead would be the same invention pointing the other way.
+        """
+        observer = self.combatant(observer_id)
+        target = self.combatant(target_id)
+
+        sight = self.can_see(observer_id, target_id)
+        if sight.can_see and sight.by is not None:
+            return PerceptionCheck(
+                advantage=Advantage.NONE,
+                because=(
+                    f"{sight.by} does not rely on physical sight, so no light level "
+                    f"modifies this check — {sight.because}"
+                ),
+            )
+
+        if observer.conditions.has(Condition.BLINDED):
+            return PerceptionCheck(
+                advantage=Advantage.NONE,
+                because=(
+                    "p. 177: the observer has the Blinded condition — \"You can't see and "
+                    'automatically fail any ability check that requires sight"'
+                ),
+                automatic_failure=True,
+            )
+
+        # p. 182's Frightened and p. 186's Poisoned both give Disadvantage on ability
+        # checks, and neither is about sight. Named separately from the obscurement reason
+        # so a creature penalised by a condition is not reported as penalised by the light.
+        from_condition = observer.conditions.own_ability_checks(
+            fear_in_sight=self.fear_in_sight(observer_id)
+        )
+        condition_note = (
+            "" if from_condition is Advantage.NONE else f"; a held condition gives {from_condition}"
+        )
+
+        if target.position is None:
+            return PerceptionCheck(
+                advantage=from_condition,
+                because=(
+                    "no light level applies, because the target has no position and this "
+                    f"encounter cannot say what it is standing in{condition_note}"
+                ),
+            )
+
+        level = self.lighting.level_at(target.position)
+        if level is None:
+            return PerceptionCheck(
+                advantage=from_condition,
+                because=(
+                    "nobody has stated the light where the target is, and this engine does "
+                    "not assume daylight (0025 clause 2) — so no obscurement is applied"
+                    f"{condition_note}"
+                ),
+            )
+
+        away = (
+            distance_feet(observer.position, target.position)
+            if observer.position is not None
+            else 0
+        )
+        obscured = obscurement_at(level, senses=observer.senses, distance_feet=away)
+
+        if obscured is Obscurement.HEAVILY_OBSCURED:
+            return PerceptionCheck(
+                advantage=Advantage.NONE,
+                because=(
+                    "p. 182: the target stands in a Heavily Obscured space, which gives the "
+                    "observer the Blinded condition while trying to see it — and p. 177: "
+                    '"automatically fail any ability check that requires sight"'
+                ),
+                automatic_failure=True,
+            )
+
+        if obscured is Obscurement.LIGHTLY_OBSCURED:
+            return PerceptionCheck(
+                advantage=Advantage.DISADVANTAGE,
+                because=(
+                    f"p. 184: the target stands in a Lightly Obscured space ({level.value}), "
+                    "so a Wisdom (Perception) check to see it has Disadvantage"
+                ),
+            )
+
+        return PerceptionCheck(
+            advantage=from_condition,
+            because=(f"the target stands in {level.value}, which obscures nothing{condition_note}"),
         )
 
     def fear_in_sight(self, combatant_id: str) -> bool:
