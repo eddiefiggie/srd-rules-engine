@@ -259,6 +259,44 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"Tremorsense can.t detect creatures or objects in the air, and it doesn.t count as "
         r"a form of sight",
     ),
+    (
+        177,
+        "the Blinded condition is absolute about the one thing it names, which is why an "
+        "observer holding it settles this question before any light does",
+        r"Can.t See\.\s*You can.t see and automatically fail any ability check that "
+        r"requires sight",
+    ),
+    (
+        184,
+        "the Invisible condition never says you CANNOT be seen — it says effects needing "
+        "sight miss you 'unless the effect.s creator can somehow see you', and leaves how "
+        "open. So ordinary sight of an Invisible creature is unstated (#166)",
+        r"You aren.t affected by any effect that requires its target to be seen unless the "
+        r"effect.s creator can somehow see you",
+    ),
+    (
+        177,
+        "Blindsight says outright that it does see one",
+        r"Moreover, in that range, you can see something that has the Invisible condition",
+    ),
+    (
+        190,
+        "and so does Truesight — the two senses the document gives an answer for",
+        r"Invisibility\.\s*You see creatures and objects that have the Invisible condition",
+    ),
+    # --- What the document does NOT say about sight (#166) ------------------------------
+    (
+        173,
+        "a WALL has to say it blocks line of sight, which is the evidence that no general "
+        "rule does. If an obstruction blocked sight by default this clause would be "
+        "redundant, and the SRD defines 'line of sight' nowhere at all",
+        r"The wall blocks line of sight",
+    ),
+    (
+        179,
+        "and Total Cover is defined by what it does to TARGETING, not to seeing",
+        r"Total Cover \(can.t be targeted directly\)",
+    ),
     # --- What finishing a Long Rest does (#185) ----------------------------------------
     (
         185,

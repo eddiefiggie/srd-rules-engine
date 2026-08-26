@@ -159,7 +159,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 177",
    "kind": "sense",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "bloodied",
@@ -383,7 +383,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 180",
    "kind": "sense",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "dash",
