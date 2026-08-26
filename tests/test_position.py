@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import pytest
 
+from srd_rules_engine.core.actions import ActionBudget
+from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.position import (
     DEFAULT_REACH_FEET,
     MOVEMENT_VERIFICATION,
@@ -161,7 +163,7 @@ def test_a_move_beyond_the_remaining_speed_is_refused() -> None:
     """Not a slower move — one the rules do not allow. The read surface is what a caller
     consults before proposing it."""
     state = EncounterState.new([hero(speeds=Speeds(walk=30))])
-    with pytest.raises(ValueError, match="feet of movement left"):
+    with pytest.raises(ValueError, match="feet of walk movement left"):
         state.with_movement("hero", Position(40, 0, 0))
 
 
@@ -209,6 +211,115 @@ def test_movement_resets_when_the_turn_comes_round_again() -> None:
     back_round = spent.advanced_turn().advanced_turn()
     assert back_round.combatant("hero").movement_used == 0
     assert back_round.combatant("hero").movement_remaining == 30
+
+
+# --- The per-mode allowance (p. 188, #206) --------------------------------------------
+
+#: A Speed of 30 and a Fly Speed of 40 — the document's own numbers on p. 188, and
+#: deliberately unequal, so an implementation charging flight against Speed is visible.
+WINGED = Speeds(walk=30, fly=40)
+
+
+def test_each_mode_draws_on_its_own_speed() -> None:
+    """p. 188: "If you have more than one speed, choose which one to use when you move."
+
+    Not one pool sized by Speed. A creature with a Fly Speed of 40 has 40 feet of flight
+    available on a turn it has spent nothing, whatever its Speed happens to be.
+    """
+    winged = hero(speeds=WINGED)
+    assert winged.movement_remaining_in(MovementMode.WALK) == 30
+    assert winged.movement_remaining_in(MovementMode.FLY) == 40
+
+
+def test_the_spend_is_shared_and_comes_off_whichever_speed_is_asked() -> None:
+    """p. 188: "Whenever you switch, subtract the distance already moved from the new
+    speed."
+
+    One spend, two allowances. Ten feet of flight leaves 30 of flying and 20 of walking —
+    the same ten feet, subtracted from different numbers.
+    """
+    state = EncounterState.new([hero(speeds=WINGED)])
+    flown = state.with_movement("hero", Position(0, 0, 10), mode=MovementMode.FLY)
+
+    moved = flown.combatant("hero")
+    assert moved.movement_used == 10
+    assert moved.movement_remaining_in(MovementMode.FLY) == 30
+    assert moved.movement_remaining_in(MovementMode.WALK) == 20
+
+
+def test_the_documents_own_worked_example() -> None:
+    """p. 188, in full: "if you have a Speed of 30 and a Fly Speed of 40, you could fly 10
+    feet, walk 10 feet, and leap into the air to fly 20 feet more."
+
+    Forty feet in total, from a creature whose Speed is 30. This is the sentence #206 was
+    filed against: no reading that charges every mode against Speed can express it, and
+    the third leg is where it fails — 20 more feet with 20 already spent.
+    """
+    state = EncounterState.new([hero(speeds=WINGED)])
+
+    state = state.with_movement("hero", Position(0, 0, 10), mode=MovementMode.FLY)
+    state = state.with_movement("hero", Position(10, 0, 10))
+    state = state.with_movement("hero", Position(10, 0, 30), mode=MovementMode.FLY)
+
+    assert state.combatant("hero").movement_used == 40
+    assert state.combatant("hero").position == Position(10, 0, 30)
+
+
+def test_the_forty_first_foot_of_flight_is_refused() -> None:
+    """p. 188: "If the result is 0 or less, you can't use the new speed during the current
+    move." The Fly Speed is an allowance, not an exemption."""
+    state = EncounterState.new([hero(speeds=WINGED)])
+    spent = state.with_movement("hero", Position(0, 0, 40), mode=MovementMode.FLY)
+
+    assert spent.combatant("hero").movement_remaining_in(MovementMode.FLY) == 0
+    with pytest.raises(ValueError, match="feet of fly movement left"):
+        spent.with_movement("hero", Position(0, 0, 45), mode=MovementMode.FLY)
+
+
+def test_walking_still_charges_the_walking_speed_when_flight_is_the_larger() -> None:
+    """The other direction, which a naive per-mode fix gets wrong by taking the maximum:
+    30 feet of Speed is still 30 feet of walking for a creature that can fly 40."""
+    state = EncounterState.new([hero(speeds=WINGED)])
+    with pytest.raises(ValueError, match="feet of walk movement left"):
+        state.with_movement("hero", Position(35, 0, 0))
+
+
+def test_climbing_without_a_climb_speed_draws_on_speed() -> None:
+    """p. 178 prices climbing for a creature that lacks the speed — it is an ordinary move
+    that costs extra, so its allowance is the Speed. Only flying and burrowing have no
+    such fallback."""
+    plain = hero(speeds=Speeds(walk=30))
+    assert plain.movement_remaining_in(MovementMode.CLIMB) == 30
+    assert plain.movement_remaining_in(MovementMode.CRAWL) == 30
+
+
+def test_a_mode_the_creature_cannot_use_answers_none_rather_than_zero() -> None:
+    """pp. 178 and 182 grant flying and burrowing only through the speed itself, so "no
+    flight" is a different fact from "no flight left". A 0 would say the creature had run
+    out of something it never had."""
+    plain = hero(speeds=Speeds(walk=30))
+    assert plain.movement_remaining_in(MovementMode.FLY) is None
+    assert plain.movement_remaining_in(MovementMode.BURROW) is None
+
+
+def test_a_condition_that_zeroes_speed_zeroes_the_flying_allowance_too() -> None:
+    """p. 188 carries the change across, so the per-mode allowance reads the *effective*
+    speeds. A Grappled creature has no flight left, not 40 feet of it."""
+    grappled = hero(speeds=WINGED, conditions=Conditions(held=frozenset({Condition.GRAPPLED})))
+    assert grappled.movement_remaining_in(MovementMode.FLY) == 0
+    assert grappled.movement_remaining_in(MovementMode.WALK) == 0
+
+
+def test_dash_grants_feet_that_are_spendable_in_any_mode() -> None:
+    """p. 180: "you gain extra movement for the current turn", and "if you have a special
+    speed ... you can use that speed instead of your Speed when you take this action."
+
+    The pool is sized once, at the Dash. What it grants is feet, so a creature that Dashed
+    on its Speed of 30 still adds those 30 feet to its 40 of flight.
+    """
+    dashing = hero(speeds=WINGED, actions=ActionBudget().dashed(30))
+    assert dashing.movement_remaining_in(MovementMode.WALK) == 60
+    assert dashing.movement_remaining_in(MovementMode.FLY) == 70
 
 
 # --- Provenance ----------------------------------------------------------------------

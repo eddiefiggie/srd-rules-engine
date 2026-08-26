@@ -46,7 +46,7 @@ from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.canonical import CanonicalizationError, digest
 from srd_rules_engine.core.conditions import Condition
 from srd_rules_engine.core.d20 import Advantage
-from srd_rules_engine.core.position import distance_feet
+from srd_rules_engine.core.position import MovementMode, distance_feet
 from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.sight import LightLevel, Senses
 from srd_rules_engine.core.state import Combatant, EncounterState
@@ -153,6 +153,17 @@ class Situation:
     cannot_act: bool
     speed: int
     movement_remaining: int
+    #: How much farther this creature may move in each mode it *can* use (p. 188, #206).
+    #: One shared spend, a different number per mode: a creature with a Speed of 30 and a
+    #: Fly Speed of 40 that has flown 10 feet has 20 feet of walking left and 30 of flying.
+    #: `movement_remaining` above is this map's walking entry, kept because it is the
+    #: number for a creature with no special speed at all — which is most of them.
+    #:
+    #: A mode the creature cannot use is **absent** rather than 0. Flying and burrowing are
+    #: granted only by the speed itself (pp. 178, 182), and "no flight" is a different fact
+    #: from "no flight left" — the agent that reads a 0 here would be told the creature had
+    #: run out of something it never had.
+    movement_remaining_by_mode: Mapping[MovementMode, int]
     action_available: bool
     bonus_action_available: bool
     reaction_available: bool
@@ -328,6 +339,13 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
         cannot_act=conditions.cannot_act(),
         speed=speed,
         movement_remaining=actor.movement_remaining,
+        movement_remaining_by_mode=MappingProxyType(
+            {
+                mode: remaining
+                for mode in MovementMode
+                if (remaining := actor.movement_remaining_in(mode)) is not None
+            }
+        ),
         action_available=actor.actions.available(ActionKind.ACTION, conditions),
         bonus_action_available=actor.actions.available(ActionKind.BONUS_ACTION, conditions),
         reaction_available=actor.actions.available(ActionKind.REACTION, conditions),

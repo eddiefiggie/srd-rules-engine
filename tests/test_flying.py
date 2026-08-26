@@ -241,5 +241,5 @@ def test_a_grappled_creature_cannot_fly_away() -> None:
         [flyer(speeds=Speeds(walk=30, fly=60), held=frozenset({Condition.GRAPPLED}))]
     )
 
-    with pytest.raises(ValueError, match="feet of movement left"):
+    with pytest.raises(ValueError, match="feet of fly movement left"):
         state.with_movement("roc", Position(10, 0, 60), mode=MovementMode.FLY)

@@ -181,6 +181,12 @@ def situation_payload(situation: object) -> dict[str, Any] | None:
         "reaction_available",
     )
     out: dict[str, Any] = {name: getattr(situation, name) for name in fields}
+    # p. 188, #206: one shared spend, a different allowance per mode. A mode the creature
+    # cannot use is absent rather than 0 — see `Situation.movement_remaining_by_mode`.
+    out["movement_remaining_by_mode"] = {
+        str(mode): feet
+        for mode, feet in situation.movement_remaining_by_mode.items()  # type: ignore[attr-defined]
+    }
     out["conditions"] = [str(c) for c in situation.conditions]  # type: ignore[attr-defined]
     out["attack_rolls_against_you"] = str(situation.attack_rolls_against_you)  # type: ignore[attr-defined]
     out["your_attack_rolls"] = str(situation.your_attack_rolls)  # type: ignore[attr-defined]
