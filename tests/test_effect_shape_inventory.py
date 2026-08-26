@@ -430,8 +430,16 @@ def test_a_definitional_glossary_body_does_not_decide_whether_a_shape_is_claimed
     were all claimed. The rule was already being followed; only the one entry where nobody
     noticed it applied was left out. That is what this guard stops from happening twice.
     """
+    claims = {sid: inventory.by_id(sid) for sid in CLAIMED_ON_TEXT_OUTSIDE_THE_ENTRY}
+    absent = sorted(sid for sid, shape in claims.items() if shape is None)
+    assert not absent, (
+        f"{absent} are named by this guard and are not in the inventory at all. A renamed id "
+        "makes the guard inspect nothing while still passing, which is the failure mode it "
+        "exists to prevent — fix the id here rather than dropping the entry."
+    )
+
     unclaimed = sorted(
-        sid for sid in CLAIMED_ON_TEXT_OUTSIDE_THE_ENTRY if not inventory.by_id(sid).implemented
+        sid for sid, shape in claims.items() if shape is not None and not shape.implemented
     )
     assert not unclaimed, (
         f"{unclaimed} are claimed on text outside their glossary entry (0033 clause 1) and "
@@ -447,8 +455,15 @@ def test_the_rule_does_not_license_claiming_everything(inventory: Inventory) -> 
     being modelled. These three have no implementation at all, so a rule that claimed them
     would be the vacuous claim #228 offered as its first option and 0033 rejected.
     """
+    counter = {sid: inventory.by_id(sid) for sid in NOT_CLAIMED_AND_NOT_BECAUSE_OF_THIS_RULE}
+    absent = sorted(sid for sid, shape in counter.items() if shape is None)
+    assert not absent, (
+        f"{absent} are named by this guard and are not in the inventory at all. The "
+        "counter-direction is only a counter-direction while its ids resolve."
+    )
+
     wrongly_claimed = sorted(
-        sid for sid in NOT_CLAIMED_AND_NOT_BECAUSE_OF_THIS_RULE if inventory.by_id(sid).implemented
+        sid for sid, shape in counter.items() if shape is not None and shape.implemented
     )
     assert not wrongly_claimed, (
         f"{wrongly_claimed} are claimed and nothing in the engine resolves them. 0033 does "
