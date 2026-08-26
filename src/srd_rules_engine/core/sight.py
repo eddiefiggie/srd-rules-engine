@@ -205,7 +205,8 @@ class Lighting:
 SIGHT_VERIFICATION: Final = Verification(
     state=VerificationState.VERIFIED,
     reference=(
-        "SRD v5.2.1, Rules Glossary: Blindsight p. 177, Bright Light p. 178, Darkness and "
+        "SRD v5.2.1, Vision and Light p. 11 (Bright Light, Dim Light and Darkness stated as "
+        "mechanics); Rules Glossary: Blindsight p. 177, Bright Light p. 178, Darkness and "
         "Darkvision p. 180, Dim Light p. 181, Heavily Obscured p. 182, Lightly Obscured "
         "p. 184, Tremorsense and Truesight p. 190"
     ),
@@ -217,10 +218,16 @@ SIGHT_VERIFICATION: Final = Verification(
 #:
 #: Dim Light and Darkness are not *related to* an obscurement by some further rule — the
 #: glossary says each **is** one ("An area with Dim Light is Lightly Obscured", p. 181; "An
-#: area of Darkness is Heavily Obscured", p. 180). Bright Light states no obscurement at all,
-#: only that it "is normal illumination" (p. 178), so `Obscurement.NONE` here is this engine's
-#: representation of an absence rather than a term the glossary defines — the same
-#: construction as `Cover.NONE`.
+#: area of Darkness is Heavily Obscured", p. 180).
+#:
+#: **Bright Light's row is produced from p. 11, not from p. 178.** The glossary entry states
+#: no obscurement, only that Bright Light "is normal illumination" — but the mechanic is on
+#: p. 11, under *Vision and Light -> Light*: "Bright Light lets most creatures see normally."
+#: That is a statement that Bright Light imposes nothing, and this row is it. `Obscurement.NONE`
+#: remains this engine's representation of an absence rather than a term the glossary defines —
+#: the same construction as `Cover.NONE` — and p. 178 is simply not where the rule lives
+#: ([0033](../../../docs/decisions/0033-a-glossary-entry-is-an-index-not-a-shapes-boundary.md),
+#: #228).
 OBSCUREMENT_BY_LIGHT: Final[Mapping[LightLevel, Obscurement]] = MappingProxyType(
     {
         LightLevel.BRIGHT: Obscurement.NONE,

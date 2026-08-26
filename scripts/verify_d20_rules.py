@@ -195,13 +195,42 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"A Stable creature doesn.t make Death Saving Throws.{0,200}If the creature takes "
         r"damage, it stops being Stable",
     ),
+    # --- Where the light rules actually live (#228, 0033 clause 3) ---------------------
+    # p. 11, *Vision and Light -> Light*. The Rules Glossary is an index into the rules and
+    # not the boundary of one, and this block is the evidence: the glossary repeats **some**
+    # of these consequences on pp. 180 and 181, and does not repeat Bright Light's. So the
+    # three sentences are asserted here as well as there, deliberately — the redundancy is
+    # what shows the pattern rather than merely pinning the fact.
+    #
+    # 0033 clause 3 makes this obligatory rather than tidy: `bright-light` is claimed on
+    # text outside its own entry, so the page is cited and the sentence asserted, or the
+    # published coverage figure moves on reasoning that decays in a commit message.
+    (
+        11,
+        "Bright Light lets most creatures see normally — the mechanic p. 178's entry points "
+        "at and does not state, and the sentence `bright-light`'s claim rests on (0033)",
+        r"Bright Light lets most creatures see normally",
+    ),
+    (
+        11,
+        "Dim Light creates a Lightly Obscured area — the same rule p. 181 repeats, asserted "
+        "in both places to show the glossary is an index rather than the boundary",
+        r"Dim Light, also called shadows, creates a Lightly Obscured area",
+    ),
+    (
+        11,
+        "Darkness creates a Heavily Obscured area — the same rule p. 180 repeats",
+        r"Darkness creates a Heavily Obscured area",
+    ),
     # --- The nine sight shapes (#150, 0025 clause 5) ---------------------------------
     # These are the rule values `core.sight` refused to state until they were read. Each is
     # the sentence one row of the mapping rests on.
     (
         178,
-        "Bright Light is normal illumination — it states no obscurement, which is why "
-        "Obscurement.NONE is this engine's absence rather than a glossary term",
+        "the glossary entry for Bright Light names no obscurement, which is why "
+        "Obscurement.NONE is this engine's absence rather than a glossary term — the "
+        "mechanic itself is p. 11's sentence above (0033 supersedes the reading that this "
+        "entry's silence meant the shape had no consequence to produce)",
         r"Bright Light is normal illumination",
     ),
     (

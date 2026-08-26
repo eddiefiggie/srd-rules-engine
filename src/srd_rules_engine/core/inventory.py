@@ -66,19 +66,22 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # is "all levels of Exhaustion it gained from suffocating", which a count could not
         # answer (#183).
         "suffocation": "core.hazards.suffocation_resolver",
-        # Sight. Four shapes stay unclaimed and each for a stated reason, so that the next
+        # Sight. Three shapes stay unclaimed and each for a stated reason, so that the next
         # sweep does not have to re-derive them: Truesight pierces illusions, transformations
         # and the Ethereal Plane besides the two piercings `can_see` enforces, and the entry's
         # substance is that list; Tremorsense pinpoints a location and p. 190 says outright it
-        # "doesn't count as a form of sight", so nothing consumes its range; Lightly Obscured's
-        # Disadvantage on Wisdom (Perception) checks (p. 184) is produced by nothing, because
-        # no check path reads obscurement; Telepathy needs languages, which this engine does
-        # not model at all (#149).
+        # "doesn't count as a form of sight", so nothing consumes its range; Telepathy needs
+        # languages, which this engine does not model at all (#149).
+        #
+        # Lightly Obscured was the fourth until #138 gave p. 184's Disadvantage a consumer,
+        # and this note went on saying it was produced by nothing for as long as nobody read
+        # it — which is the same decay #228 found one block below.
         "blindsight": "core.state.EncounterState.can_see",
         "darkvision": "core.sight.effective_light",
-        # Two `environment` shapes, added by #138 under the standard the sight sweep already
-        # used — **a shape is claimed when the engine produces the consequence its entry
-        # states** — applied to the four the sweep grouped together and did not separate.
+        # Three `environment` shapes under the standard the sight sweep already used — **a
+        # shape is claimed when the engine produces the consequence its entry states** — two
+        # from #138, applied to the four the sweep grouped together and did not separate, and
+        # the third from #228, which found the standard had never said where "its entry" ends.
         #
         # * p. 182, Heavily Obscured: "You have the Blinded condition **while trying to see
         #   something** in a Heavily Obscured space." Scoped to the attempt, so it is a
@@ -88,13 +91,16 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         #   wholesale Blinded to apply, so withholding one is not a gap.
         # * p. 180, Darkness: "An area of Darkness is Heavily Obscured." The whole entry, and
         #   the consequence flows: the mapping produces it and `can_see` acts on it.
-        #
-        # **Bright Light and Dim Light stay unclaimed, and the same test is why.** p. 181's
-        # Dim Light *is* Lightly Obscured, which the mapping produces — but Lightly Obscured's
-        # own consequence is a Disadvantage nothing applies, so the value is computed and then
-        # read by nothing. p. 178's Bright Light states no consequence at all ("normal
-        # illumination"), so there is nothing for the engine to be judged as producing;
-        # claiming it would count a definition.
+        # * p. 11, Bright Light: "Bright Light lets most creatures see normally." **The
+        #   mechanic is here rather than in the glossary entry**, whose whole body is "Bright
+        #   Light is normal illumination" and whose `See also` points at *Playing the Game*.
+        #   A shape's content is what the document states about it anywhere, not what its
+        #   glossary paragraph states — the same rule under which `healing`, `save`, `damage`
+        #   and `damage-types` were already claimed, and the one entry nobody had noticed it
+        #   applied to (0033, #228). The consequence is a null one, and the mapping produces
+        #   it: `OBSCUREMENT_BY_LIGHT[BRIGHT]` is `Obscurement.NONE`, `can_see` returns
+        #   `CAN_SEE`, and `perception_of` says the light obscures nothing.
+        "bright-light": "core.sight.OBSCUREMENT_BY_LIGHT",
         "darkness": "core.sight.OBSCUREMENT_BY_LIGHT",
         "heavily-obscured": "core.state.EncounterState.can_see",
         # #138's keystone, and the two shapes that were waiting behind it. p. 184's
@@ -106,8 +112,9 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # * `dim-light` (p. 181) — its whole entry is "an area with Dim Light is Lightly
         #   Obscured", and that classification is now read rather than computed and dropped.
         #
-        # `bright-light` still is not here: p. 178 states no consequence to produce, so
-        # there is nothing for the engine to be judged as producing.
+        # `bright-light` **is** here now, above — not because p. 178 gained a consequence,
+        # but because the mechanic was never on p. 178. It is on p. 11, and the sweep that
+        # wrote this note read the glossary entry as the shape's boundary (0033, #228).
         "lightly-obscured": "core.state.EncounterState.perception_of",
         "dim-light": "core.state.EncounterState.perception_of",
         # p. 188's Skill, whole: the association with an ability (p. 9's table) and the one

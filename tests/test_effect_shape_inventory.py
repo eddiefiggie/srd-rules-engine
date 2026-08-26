@@ -393,3 +393,87 @@ def test_the_glossary_claims_agree_with_the_generator_that_writes_them() -> None
         + "\n\nClaim a shape in BOTH places — the generator's KINDS and the shipped "
         "effect_shapes.json — or the next regeneration silently rewrites coverage."
     )
+
+
+# --- 0033: a glossary entry is an index, not a shape's boundary (#228) -------------------
+
+#: Entries whose *glossary body* states no mechanic, and which are claimed anyway because the
+#: document states the mechanic elsewhere. This is the set 0033 clause 1 governs.
+CLAIMED_ON_TEXT_OUTSIDE_THE_ENTRY = {
+    "bright-light": 'p. 11: "Bright Light lets most creatures see normally."',
+    "damage": "p. 17, and the damage rules the glossary entry points at.",
+    "damage-types": "p. 17: the entry says types have no rules of their own, and points on.",
+    "healing": "p. 17, and the Hit Point rules the glossary entry points at.",
+    "save": "the D20 Test rules — the entry renames a saving throw rather than defining one.",
+}
+
+#: Asserted **unclaimed**, so this guard fails in both directions. Without it the test is
+#: satisfiable by claiming everything, which is exactly the vacuous claim 0033 rejects.
+#: Each is unclaimed for a reason that predates 0033 and is unaffected by it: these four have
+#: no implementation at all.
+NOT_CLAIMED_AND_NOT_BECAUSE_OF_THIS_RULE = ("bloodied", "occupied-space", "temporary-hit-points")
+
+
+def test_a_definitional_glossary_body_does_not_decide_whether_a_shape_is_claimed(
+    inventory: Inventory,
+) -> None:
+    """0033 clause 1, pinned. #228 read Bright Light's glossary entry — "Bright Light is
+    normal illumination" — as the shape's whole content, and concluded that 211 of 211 was
+    unreachable because some entries state no mechanic.
+
+    The entry is not the shape. **p. 11** states the mechanic: *"Bright Light lets most
+    creatures see normally"* — Bright Light imposes nothing, and `OBSCUREMENT_BY_LIGHT`
+    produces exactly that. A shape's content is what the document states about it anywhere.
+
+    Before 0033 this set was split four to one for no stated reason: `healing`, `save`,
+    `damage` and `damage-types` are as definitional in the glossary as `bright-light` and
+    were all claimed. The rule was already being followed; only the one entry where nobody
+    noticed it applied was left out. That is what this guard stops from happening twice.
+    """
+    claims = {sid: inventory.by_id(sid) for sid in CLAIMED_ON_TEXT_OUTSIDE_THE_ENTRY}
+    absent = sorted(sid for sid, shape in claims.items() if shape is None)
+    assert not absent, (
+        f"{absent} are named by this guard and are not in the inventory at all. A renamed id "
+        "makes the guard inspect nothing while still passing, which is the failure mode it "
+        "exists to prevent — fix the id here rather than dropping the entry."
+    )
+
+    unclaimed = sorted(
+        sid for sid, shape in claims.items() if shape is not None and not shape.implemented
+    )
+    assert not unclaimed, (
+        f"{unclaimed} are claimed on text outside their glossary entry (0033 clause 1) and "
+        "the inventory no longer claims them. If a claim was withdrawn, withdraw the record "
+        "too — a definitional glossary body is not a reason, and it was not one for the four "
+        "of these that were already claimed before #228 asked about the fifth."
+    )
+
+
+def test_the_rule_does_not_license_claiming_everything(inventory: Inventory) -> None:
+    """The counter-direction. 0033 clause 2 keeps clause 1 asymmetric: text outside an entry
+    may *supply* a consequence, never *enlarge* the bar — and nothing is claimed for merely
+    being modelled. These three have no implementation at all, so a rule that claimed them
+    would be the vacuous claim #228 offered as its first option and 0033 rejected.
+    """
+    counter = {sid: inventory.by_id(sid) for sid in NOT_CLAIMED_AND_NOT_BECAUSE_OF_THIS_RULE}
+    absent = sorted(sid for sid, shape in counter.items() if shape is None)
+    assert not absent, (
+        f"{absent} are named by this guard and are not in the inventory at all. The "
+        "counter-direction is only a counter-direction while its ids resolve."
+    )
+
+    wrongly_claimed = sorted(
+        sid for sid, shape in counter.items() if shape is not None and shape.implemented
+    )
+    assert not wrongly_claimed, (
+        f"{wrongly_claimed} are claimed and nothing in the engine resolves them. 0033 does "
+        "not license claiming a shape for being modelled — it says where a claimed shape's "
+        "consequence may be *read from*, which is a different question."
+    )
+
+
+def test_the_page_bright_lights_claim_rests_on_is_asserted_against_the_document() -> None:
+    """0033 clause 3: a claim resting on text outside the entry cites the page and asserts
+    the sentence. Presence, not truth — the verifier needs the PDF and CI has no copy."""
+    verifier = (REPO_ROOT / "scripts" / "verify_d20_rules.py").read_text(encoding="utf-8")
+    assert "Bright Light lets most creatures see normally" in verifier

@@ -191,7 +191,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 178",
    "kind": "environment",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "burning",
