@@ -268,8 +268,16 @@ class Conditions:
             )
         # `held` is given as what was applied and is replaced by its closure, so a caller
         # constructing one the ordinary way needs to know nothing about implication.
-        object.__setattr__(self, "applied", self.applied or self.held)
-        object.__setattr__(self, "held", _closure(self.held, len(self.exhaustion_levels)))
+        # Exhaustion is **implied by the level and never applied on its own**, so it is
+        # stripped from `applied` before the closure puts it back from the level. Without
+        # that, `replace(conditions, exhaustion_levels=())` keeps it: `applied` is legitimately
+        # empty, `or` reads that as unspecified, and the already-closed `held` — which
+        # contains the derived Exhaustion — becomes what was applied. The condition then
+        # outlives its last level, which p. 181 says ends it ("When your Exhaustion level
+        # reaches 0, the condition ends"). Found by #185, where a Long Rest first took one.
+        applied = (self.applied or self.held) - {Condition.EXHAUSTION}
+        object.__setattr__(self, "applied", applied)
+        object.__setattr__(self, "held", _closure(applied, len(self.exhaustion_levels)))
         unknown = set(self.durations) - set(self.applied)
         if unknown:
             raise ValueError(
