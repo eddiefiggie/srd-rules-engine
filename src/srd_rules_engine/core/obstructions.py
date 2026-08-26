@@ -109,10 +109,25 @@ def most_protective(degrees: Iterable[Cover]) -> Cover:
 class Obstruction(Box):
     """A `Box` in feet that provides Total Cover.
 
-    It adds one thing to the box: `blocks`. The corners, their normalisation and `contains`
-    are the box's, shared with `LitVolume` since #161 — the same geometry, two different
-    facts about it.
+    It adds two things to the box: `blocks`, and whether it also blocks **sight**. The
+    corners, their normalisation and `contains` are the box's, shared with `LitVolume` since
+    #161 — the same geometry, several different facts about it.
     """
+
+    #: Whether this barrier blocks sight (0029). `None` until somebody says, and `None` means
+    #: the question is unanswered rather than answered "no".
+    #:
+    #: A field rather than a rule, because the document answers it **per barrier and answers
+    #: it two ways**: Wall of Force is "An Invisible wall of force" (p. 172) and Wall of
+    #: Thorns "blocks line of sight" (p. 173). Both give Total Cover. No global rule
+    #: accommodates both, and the SRD supplies no default — Wall of Stone, Wall of Ice and
+    #: Wall of Fire say nothing either way.
+    #:
+    #: Total Cover itself is defined by what it does to **targeting** ("can't be targeted
+    #: directly", p. 179), and `core.areas` blocks a line of *effect* with it (p. 177)
+    #: without consulting this at all. A Fireball is stopped by Wall of Force; a glance is
+    #: not.
+    blocks_sight: bool | None = None
 
     def blocks(self, start: Position, end: Position) -> bool:
         """Whether the segment from `start` to `end` passes through this box.
@@ -144,6 +159,17 @@ class Obstruction(Box):
             if near > far:
                 return False
         return True
+
+
+def blocking(
+    start: Position, end: Position, obstructions: Sequence[Obstruction]
+) -> tuple[Obstruction, ...]:
+    """Which obstructions lie on the segment, rather than merely whether one does.
+
+    Sight has to ask each of them whether it is opaque (0029 clause 4), and blocking is
+    per-line (#91) — a wall beside two creatures is not a wall between them.
+    """
+    return tuple(o for o in obstructions if o.blocks(start, end))
 
 
 def line_is_blocked(start: Position, end: Position, obstructions: Sequence[Obstruction]) -> bool:

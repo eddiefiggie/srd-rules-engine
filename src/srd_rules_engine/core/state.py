@@ -53,7 +53,7 @@ from srd_rules_engine.core.duration import (
     StatedSpan,
     rounds_in_minutes,
 )
-from srd_rules_engine.core.obstructions import Obstruction, line_is_blocked
+from srd_rules_engine.core.obstructions import Obstruction, blocking, line_is_blocked
 from srd_rules_engine.core.position import (
     DEFAULT_REACH_FEET,
     MovementMode,
@@ -428,7 +428,8 @@ class EncounterState:
             )
 
         away = distance_feet(observer.position, target.position)
-        blocked = line_is_blocked(observer.position, target.position, self.obstructions)
+        between = blocking(observer.position, target.position, self.obstructions)
+        blocked = bool(between)
         senses = observer.senses
 
         # Blindsight is the one sense whose bound the document gives, so it is asked first.
@@ -469,17 +470,30 @@ class EncounterState:
                 by=Sense.TRUESIGHT,
             )
 
-        if blocked:
-            return Sight(
-                verdict=Visibility.UNSTATED,
-                because=(
-                    "the target is behind Total Cover, and the SRD never says an "
-                    "obstruction blocks sight — it defines Total Cover by what it does to "
-                    "targeting (p. 179) and defines 'line of sight' nowhere. p. 173 has a "
-                    "spell's wall state that it blocks line of sight, which it would not "
-                    "need to if obstructions did so already (#166)"
-                ),
-            )
+        if between:
+            # 0029 clause 4. Opaque beats unstated beats transparent: one barrier known to
+            # block sight settles it, and a wall nobody has described cannot be assumed
+            # transparent because its neighbour is.
+            if any(o.blocks_sight for o in between):
+                return Sight(
+                    verdict=Visibility.CANNOT_SEE,
+                    because=(
+                        "an obstruction between them blocks sight, as this encounter "
+                        "describes it (0029)"
+                    ),
+                )
+            if any(o.blocks_sight is None for o in between):
+                return Sight(
+                    verdict=Visibility.UNSTATED,
+                    because=(
+                        "the target is behind Total Cover and nobody has said whether that "
+                        "barrier blocks sight. The SRD answers this per barrier and answers "
+                        "it both ways — Wall of Force is Invisible (p. 172) while Wall of "
+                        "Thorns blocks line of sight (p. 173) — so this engine states no "
+                        "default (0029 clause 2). Set `Obstruction.blocks_sight` to say"
+                    ),
+                )
+            # Every barrier on the line is transparent, so the view continues.
 
         if target.conditions.has(Condition.INVISIBLE):
             # p. 184 never says an Invisible creature cannot be seen. It says an effect
