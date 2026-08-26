@@ -101,6 +101,16 @@ from srd_rules_engine.core.duration import (
     StatedSpan,
     rounds_in_minutes,
 )
+from srd_rules_engine.core.hazards import (
+    BURNING_RULE_ID,
+    BURNING_VERIFICATION,
+    FALLING_VERIFICATION,
+    MAX_FALLING_DICE,
+    burning_resolver,
+    burning_rule,
+    falling_dice,
+    falling_resolver,
+)
 from srd_rules_engine.core.inventory import (
     ENGINE_SHAPES,
     Inventory,
@@ -197,6 +207,8 @@ from srd_rules_engine.core.triggers import (
 
 __all__ = [
     "ATTACK",
+    "BURNING_RULE_ID",
+    "BURNING_VERIFICATION",
     "CONDITION_KINDS",
     "CONDITION_VERIFICATION",
     "DAMAGE_OFFSET",
@@ -210,7 +222,9 @@ __all__ = [
     "END_TURN",
     "ENGINE_SHAPES",
     "FACT_WRITE",
+    "FALLING_VERIFICATION",
     "HOURS_PER_DAY",
+    "MAX_FALLING_DICE",
     "MAX_SAFE_INTEGER",
     "MINUTES_PER_DAY",
     "MINUTES_PER_HOUR",
@@ -303,6 +317,8 @@ __all__ = [
     "attack_key",
     "attack_resolver",
     "attack_target",
+    "burning_resolver",
+    "burning_rule",
     "canonicalize",
     "check_storable",
     "condition_applied",
@@ -314,6 +330,8 @@ __all__ = [
     "digest",
     "fact_from_payload",
     "fact_write_payload",
+    "falling_dice",
+    "falling_resolver",
     "hours",
     "initiative_order",
     "is_extension",

@@ -18,6 +18,7 @@ the dice — produce a believable number for most falls and the wrong one at the
 from __future__ import annotations
 
 import itertools
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -29,11 +30,16 @@ from srd_rules_engine.core.adjudicate import (
     Intent,
     Status,
 )
-from srd_rules_engine.core.conditions import Condition
+from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.damage import DamageType, Defences
 from srd_rules_engine.core.hazards import (
+    BURNING_DIE_SIDES,
+    BURNING_RULE_ID,
+    BURNING_VERIFICATION,
     FALLING_VERIFICATION,
     MAX_FALLING_DICE,
+    burning_resolver,
+    burning_rule,
     falling_dice,
     falling_resolver,
 )
@@ -44,9 +50,11 @@ from srd_rules_engine.core.rules import (
     RuleProvenance,
     VerificationState,
     load_fixture_ruleset,
+    load_ruleset,
 )
-from srd_rules_engine.core.state import Combatant, EncounterState
+from srd_rules_engine.core.state import Combatant, EncounterState, Hazards
 from srd_rules_engine.core.triggers import Catalogue
+from srd_rules_engine.loop import Narrated, TurnLoop
 from srd_rules_engine.memory.store import JsonMemoryStore
 
 END_TURN = "end-turn"
@@ -243,3 +251,138 @@ def test_the_prone_qualifier_is_asserted_against_the_document() -> None:
     """Presence, not truth — the verifier needs the PDF and CI has no copy."""
     verifier = (Path(__file__).resolve().parents[1] / "scripts" / "verify_d20_rules.py").read_text()
     assert "it has the Prone condition unless it avoids taking any" in verifier
+
+
+# --- Burning: the other hazard with an occasion (#140, 0027 clause 5) --------------------
+
+
+def _burning(cid: str = "pc") -> EncounterState:
+    state = encounter()
+    alight = replace(state.combatant(cid), hazards=Hazards(burning=True))
+    return EncounterState(
+        generation=0,
+        combatants=tuple(alight if c.id == cid else c for c in state.combatants),
+    ).with_initiative({"pc": 18, "boar": 4})
+
+
+def _burn_loop(tmp_path: Path, *, seed: int = 31337) -> TurnLoop:
+    return TurnLoop(
+        adjudicator=Adjudicator(
+            ruleset=load_ruleset((burning_rule(),)),
+            resolvers={BURNING_RULE_ID: burning_resolver()},
+            fact_types={},
+            port=JsonMemoryStore(tmp_path / "m.json"),
+            ledger=Ledger.open(
+                tmp_path / "l.jsonl", engine_version="t", catalogue_version=1, session_id="s"
+            ),
+            seed_source=lambda: seed,
+        )
+    )
+
+
+def _run_start(loop: TurnLoop, state: EncounterState, actor_id: str = "pc") -> object:
+    generator = loop.start_turn(state, actor_id)
+    try:
+        next(generator)
+        while True:
+            generator.send(Narrated(text="it burns"))
+    except StopIteration as stop:
+        return stop.value
+
+
+def test_burning_is_not_one_of_the_fifteen_conditions() -> None:
+    """0027 clause 5. Filing it among the conditions would corrupt the one structure whose
+    completeness is a checked claim — 15/15 means fifteen."""
+    assert "burning" not in {c.value for c in Condition}
+    assert not hasattr(Conditions(), "burning")
+    assert Hazards().burning is False
+
+
+def test_a_burning_creature_owes_the_fire_at_the_start_of_its_turn(tmp_path: Path) -> None:
+    """p. 178: "at the start of each of its turns" — the phase the death save fires in, not
+    the one save-ends lives in."""
+    obligations = _burn_loop(tmp_path).start_turn_obligations(_burning(), "pc")
+
+    assert [o.rule_id for o in obligations] == [BURNING_RULE_ID]
+    assert "burning" in obligations[0].label
+
+
+def test_a_creature_that_is_not_burning_owes_nothing(tmp_path: Path) -> None:
+    assert _burn_loop(tmp_path).start_turn_obligations(encounter(), "pc") == ()
+
+
+def test_burning_is_not_an_end_of_turn_obligation(tmp_path: Path) -> None:
+    """The phase distinction, pinned. Suffocation is the hazard that fires at a turn's end
+    (p. 189), and it is not built — an engine that put Burning there would deal its damage
+    once per turn and look entirely correct."""
+    assert _burn_loop(tmp_path).end_turn_obligations(_burning(), "pc") == ()
+
+
+def test_the_fire_deals_a_d4_of_fire_damage(tmp_path: Path) -> None:
+    """p. 178, and the type matters: a creature with Resistance or Immunity to Fire is the
+    common case for a thing that is on fire."""
+    started = _run_start(_burn_loop(tmp_path), _burning())
+    (ruling,) = started.rulings  # type: ignore[attr-defined]
+
+    damage = next(e for e in ruling.effects if e.kind is EffectKind.DAMAGE)
+    assert "1d4" in damage.description
+    assert 1 <= damage.amount <= BURNING_DIE_SIDES
+
+
+def test_immunity_to_fire_leaves_a_burning_creature_unharmed(tmp_path: Path) -> None:
+    """p. 17's defences act on it like any other damage, which is the whole reason the
+    resolver names a damage type rather than proposing a bare amount."""
+    immune = Defences(immunities=frozenset({DamageType.FIRE}))
+    state = encounter(defences=immune)
+    alight = replace(state.combatant("pc"), hazards=Hazards(burning=True))
+    state = EncounterState(
+        generation=0,
+        combatants=tuple(alight if c.id == "pc" else c for c in state.combatants),
+    ).with_initiative({"pc": 18, "boar": 4})
+
+    started = _run_start(_burn_loop(tmp_path), state)
+    ruling = started.rulings[0]  # type: ignore[attr-defined]
+    assert next(e for e in ruling.effects if e.kind is EffectKind.DAMAGE).amount == 0
+
+
+def test_burning_resolves_without_a_d20(tmp_path: Path) -> None:
+    """0027 clause 6. p. 178 asks nothing of the dice but the damage."""
+    started = _run_start(_burn_loop(tmp_path), _burning())
+    assert started.rulings[0].result is None  # type: ignore[attr-defined]
+
+
+def test_the_fire_burns_once_per_turn(tmp_path: Path) -> None:
+    """Discharged like any other obligation. One that stayed outstanding would burn the
+    creature to death inside a single turn, producing a plausible ruling at every step."""
+    loop = _burn_loop(tmp_path)
+    started = _run_start(loop, _burning())
+
+    assert len(started.rulings) == 1  # type: ignore[attr-defined]
+    assert loop.start_turn_obligations(started.state, "pc") == ()  # type: ignore[attr-defined]
+
+
+def test_a_creature_not_burning_cannot_be_ruled_as_burning(tmp_path: Path) -> None:
+    """Read off state, never declared. A resolver that trusted the declaration would let a
+    caller set fire to anything by naming the rule."""
+    resolver = burning_resolver()
+    with pytest.raises(ValueError, match="not burning"):
+        resolver(
+            state=encounter(),
+            declaration=Declaration(
+                actor_id="pc", intent=Intent(improvised=True, label="x"), rule_id=BURNING_RULE_ID
+            ),
+            facts={},
+        )
+
+
+def test_nothing_here_claims_the_fire_went_out(tmp_path: Path) -> None:
+    """R7, and the disclosed gap. p. 178 puts fire out when doused, submerged, suffocated or
+    by an action — none of which this engine can observe or spend, so a burning creature
+    burns until a caller clears the flag."""
+    started = _run_start(_burn_loop(tmp_path), _burning())
+    assert any("went out" in line for line in started.rulings[0].bounds.may_not)  # type: ignore[attr-defined]
+
+
+def test_burning_carries_a_verified_citation() -> None:
+    assert BURNING_VERIFICATION.state is VerificationState.VERIFIED
+    assert "p. 178" in (BURNING_VERIFICATION.reference or "")

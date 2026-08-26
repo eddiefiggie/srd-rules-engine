@@ -49,6 +49,7 @@ from enum import StrEnum
 from typing import Final, TypeVar
 
 from srd_rules_engine.core import (
+    BURNING_RULE_ID,
     DEATH_SAVE_RULE_ID,
     Adjudicator,
     Declaration,
@@ -320,14 +321,25 @@ class TurnLoop:
     ) -> tuple[Obligation, ...]:
         """Every obligation the **start** of this creature's turn incurs (0027 clause 1).
 
-        The death save, and nothing else yet. p. 17: "Whenever you start your turn with 0
-        Hit Points, you must make a Death Saving Throw." That is the start of a turn, not
-        its end, and 0023 declined to place it from memory rather than assume it matched
-        save-ends' timing. Had it assumed, the save would have been rolled at the wrong
-        moment and looked correct doing it.
+        Two of them.
 
-        Burning (p. 178) fires here too and is not built — it needs per-creature hazard
-        state, which is 0027 clause 5 and #140.
+        **The death save** — p. 17: "Whenever you start your turn with 0 Hit Points, you
+        must make a Death Saving Throw." That is the start of a turn, not its end, and 0023
+        declined to place it from memory rather than assume it matched save-ends' timing.
+        Had it assumed, the save would have been rolled at the wrong moment and looked
+        correct doing it.
+
+        **Burning** — p. 178: "A burning creature or object takes 1d4 Fire damage at the
+        start of each of its turns." The same phase, which is not a coincidence worth
+        smoothing over: #140 guessed the death save was one of three obligations on one
+        seam, when in fact Burning shares the death save's occasion and Suffocation is on
+        the other one.
+
+        **Order is death save first, and it is not arbitrary.** A creature at 0 hit points
+        that is also burning has both owed, and the save decides whether it is still alive
+        to take the damage. Rolling the damage first would be resolving a fire against a
+        creature whose death this turn had not been settled — and p. 17's third failure is a
+        death, not a hit point total.
 
         Scoped to this occasion rather than taking one as an argument (0027 clause 3): a
         single enumerator returning obligations tagged with their occasion puts the occasion
@@ -336,17 +348,27 @@ class TurnLoop:
         if not state.has(actor_id):
             return ()
         actor = state.combatant(actor_id)
-        if not actor.makes_death_saves:
-            return ()
-        if (actor_id, DEATH_SAVE_RULE_ID) in state.discharged:
-            return ()
-        return (
-            Obligation(
-                actor_id=actor_id,
-                rule_id=DEATH_SAVE_RULE_ID,
-                label="makes a death saving throw, starting its turn at 0 hit points (p. 17)",
-            ),
-        )
+        owed: list[Obligation] = []
+
+        if actor.makes_death_saves and (actor_id, DEATH_SAVE_RULE_ID) not in state.discharged:
+            owed.append(
+                Obligation(
+                    actor_id=actor_id,
+                    rule_id=DEATH_SAVE_RULE_ID,
+                    label=("makes a death saving throw, starting its turn at 0 hit points (p. 17)"),
+                )
+            )
+
+        if actor.hazards.burning and (actor_id, BURNING_RULE_ID) not in state.discharged:
+            owed.append(
+                Obligation(
+                    actor_id=actor_id,
+                    rule_id=BURNING_RULE_ID,
+                    label="takes the fire's damage, starting its turn burning (p. 178)",
+                )
+            )
+
+        return tuple(owed)
 
     def end_turn_obligations(self, state: EncounterState, actor_id: str) -> tuple[Obligation, ...]:
         """Every obligation the **end** of this creature's turn incurs, read off state.

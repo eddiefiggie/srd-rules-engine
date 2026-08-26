@@ -58,6 +58,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # The one hazard that fires on no occasion, so it needed no phase (#140, 0027
         # clause 7). The other four are blocked on occasions this engine does not have.
         "falling": "core.hazards.falling_resolver",
+        # Burning fires at the turn's start, the phase 0027 clauses 1-4 built. The other
+        # three hazards each inflict an Exhaustion level, which nothing can raise through a
+        # ruling (#178) — that, not the occasion, is what blocks them now.
+        "burning": "core.hazards.burning_resolver",
         # Death saving throws and what follows them (#15).
         "death-saving-throw": "core.death.death_save_resolver",
         "stable": "core.state.DeathSaves.stable",

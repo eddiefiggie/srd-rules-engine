@@ -69,6 +69,36 @@ class ObligationOutstanding(Exception):
 
 
 @dataclass(frozen=True)
+class Hazards:
+    """Ongoing hazards a creature is subject to (0027 clause 5).
+
+    **Not `Conditions`, deliberately.** "This creature is Burning" is not one of the fifteen
+    SRD conditions, and filing it there would corrupt the one structure whose completeness is
+    a checked claim — 15/15 means fifteen, and a sixteenth member that is not in the glossary
+    makes that number a different number.
+
+    It lives here rather than in `core.hazards` for the reason `DeathSaves` lives here rather
+    than in `core.death`: this is the state, that is the rules, and `core.hazards` imports
+    `core.adjudicate`, which imports this module. The value object has to sit below both.
+
+    Only `burning` today. Suffocation belongs here and is not built — it inflicts Exhaustion
+    *levels*, and nothing can raise one through a ruling
+    ([#178](https://github.com/eddiefiggie/srd-rules-engine/issues/178)). A field with no
+    consumer would be a stub with a citation attached, which this repository has one of
+    already and does not need two.
+
+    **Nothing applies or removes this through a ruling yet.** p. 178 puts fire out when it is
+    "doused, submerged, or suffocated", or by an action that also makes the creature Prone —
+    the first three are narrative facts the engine cannot observe and the fourth needs an
+    action to spend. So a caller sets it, which is the same disclosed gap `core.death` carries
+    for the Unconscious condition, and it is a real one rather than a technicality: a creature
+    that cannot stop burning burns until it dies.
+    """
+
+    burning: bool = False
+
+
+@dataclass(frozen=True)
 class DeathSaves:
     """How close a creature at 0 hit points is to either end of it.
 
@@ -131,6 +161,8 @@ class Combatant:
     #: none, which is not the same as a creature whose senses nobody recorded — the engine
     #: cannot tell those apart and does not pretend to.
     senses: Senses = field(default_factory=Senses)
+    #: Ongoing hazards (0027 clause 5). Not conditions, and not filed among them.
+    hazards: Hazards = field(default_factory=Hazards)
     #: p. 186: "A creature has a reach of 5 feet unless a rule says otherwise."
     reach: int = DEFAULT_REACH_FEET
     #: Movement spent this turn. Reset when the turn advances, not carried.
