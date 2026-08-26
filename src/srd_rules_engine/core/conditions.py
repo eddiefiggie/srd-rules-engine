@@ -396,6 +396,16 @@ class Conditions:
         reading and 20 under the second, and picking one would be inferring a rule value
         (R31). This engine implements no proportional speed effect, so nothing reaches the
         disagreement today; it is filed as #205 against the day one arrives.
+
+        **Do not resolve it with 0030 clause 1**, which is the mistake this disclosure now
+        exists to prevent rather than merely to record. Resolving away from invention would
+        take the smaller Fly Speed and look principled — but clause 1 grades the
+        *consequences* of a guess, and grading consequences is only legitimate when one of
+        the two readings is actually true. Here both are printed. Per
+        `docs/decisions/0031-a-contradiction-in-the-document-is-an-absent-rule.md` clause 1
+        a contradiction states no rule at all, so the proportional case is excluded under
+        R31/R32 the same way a rule the SRD never states would be — and clause 3 says the
+        cheapest correct response is for there to go on being no code here.
         """
         if any(e.speed_zero for e in self.effects):
             return replace(
