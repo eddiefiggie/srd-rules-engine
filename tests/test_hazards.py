@@ -38,10 +38,15 @@ from srd_rules_engine.core.hazards import (
     BURNING_VERIFICATION,
     FALLING_VERIFICATION,
     MAX_FALLING_DICE,
+    SUFFOCATION_RULE_ID,
+    SUFFOCATION_VERIFICATION,
+    breath_seconds,
     burning_resolver,
     burning_rule,
     falling_dice,
     falling_resolver,
+    suffocation_resolver,
+    suffocation_rule,
 )
 from srd_rules_engine.core.ledger import Ledger
 from srd_rules_engine.core.read_surface import read
@@ -386,3 +391,150 @@ def test_nothing_here_claims_the_fire_went_out(tmp_path: Path) -> None:
 def test_burning_carries_a_verified_citation() -> None:
     assert BURNING_VERIFICATION.state is VerificationState.VERIFIED
     assert "p. 178" in (BURNING_VERIFICATION.reference or "")
+
+
+# --- Suffocation: the hazard 0028 unblocked (#183) ---------------------------------------
+
+
+def _suffocating(cid: str = "pc") -> EncounterState:
+    state = encounter()
+    gasping = replace(state.combatant(cid), hazards=Hazards(suffocating=True))
+    return EncounterState(
+        generation=0,
+        combatants=tuple(gasping if c.id == cid else c for c in state.combatants),
+    ).with_initiative({"pc": 18, "boar": 4})
+
+
+def _suffocation_loop(tmp_path: Path) -> TurnLoop:
+    return TurnLoop(
+        adjudicator=Adjudicator(
+            ruleset=load_ruleset((suffocation_rule(),)),
+            resolvers={SUFFOCATION_RULE_ID: suffocation_resolver()},
+            fact_types={},
+            port=JsonMemoryStore(tmp_path / "m.json"),
+            ledger=Ledger.open(
+                tmp_path / "l.jsonl", engine_version="t", catalogue_version=1, session_id="s"
+            ),
+            seed_source=lambda: 4242,
+        )
+    )
+
+
+def _run_end(loop: TurnLoop, state: EncounterState, actor_id: str = "pc") -> object:
+    generator = loop.end_turn(state, actor_id)
+    try:
+        next(generator)
+        while True:
+            generator.send(Narrated(text="it gasps"))
+    except StopIteration as stop:
+        return stop.value
+
+
+@pytest.mark.parametrize(
+    ("modifier", "seconds"),
+    [(3, 240), (1, 120), (0, 60), (-1, 30), (-3, 30)],
+)
+def test_a_creature_holds_its_breath_for_one_minute_plus_its_constitution(
+    modifier: int, seconds: int
+) -> None:
+    """p. 189, in seconds because the floor is half a minute.
+
+    A Constitution modifier of -1 is the case that matters: 1 + (-1) is zero minutes, and
+    the document floors it at 30 seconds. Rounding that to 0 says suffocation begins at
+    once; rounding to 1 gives twice the breath the document allows. `core.clock` counts
+    whole minutes and 0020 is right that nothing at campaign scale is finer — a breath is
+    not campaign scale.
+    """
+    assert breath_seconds(modifier) == seconds
+
+
+def test_a_suffocating_creature_owes_an_exhaustion_level_at_its_turns_end(
+    tmp_path: Path,
+) -> None:
+    """p. 189: "at the end of each of its turns" — the phase 0023 built, and not the one
+    Burning fires in."""
+    obligations = _suffocation_loop(tmp_path).end_turn_obligations(_suffocating(), "pc")
+
+    assert [o.rule_id for o in obligations] == [SUFFOCATION_RULE_ID]
+    assert "without breath" in obligations[0].label
+
+
+def test_suffocation_is_not_a_start_of_turn_obligation(tmp_path: Path) -> None:
+    """The distinction #140 got backwards. Burning is the start, Suffocation is the end, and
+    an engine that put them in one phase would deal both once a turn and look correct."""
+    assert _suffocation_loop(tmp_path).start_turn_obligations(_suffocating(), "pc") == ()
+
+
+def test_the_level_carries_suffocations_rule_id(tmp_path: Path) -> None:
+    """0028 clause 1, and the reason this shape could not be built before #183. p. 189's
+    removal is scoped to the levels *it* caused, which a bare count cannot name."""
+    ended = _run_end(_suffocation_loop(tmp_path), _suffocating())
+    conditions = ended.state.combatant("pc").conditions  # type: ignore[attr-defined]
+
+    assert conditions.exhaustion_level == 1
+    assert conditions.exhaustion_from(SUFFOCATION_RULE_ID) == 1
+
+
+def test_breathing_again_removes_every_level_suffocation_caused(tmp_path: Path) -> None:
+    """p. 189: "When a creature can breathe again, it removes all levels of Exhaustion it
+    gained from suffocating"."""
+    loop = _suffocation_loop(tmp_path)
+    state = _suffocating()
+    for _ in range(3):
+        state = _run_end(loop, state).state  # type: ignore[attr-defined]
+        state = state.advanced_turn().advanced_turn()
+
+    assert state.combatant("pc").conditions.exhaustion_from(SUFFOCATION_RULE_ID) == 3
+
+    breathing = state.with_breath_regained("pc")
+    assert breathing.combatant("pc").conditions.exhaustion_level == 0
+    assert not breathing.combatant("pc").hazards.suffocating
+
+
+def test_breathing_again_leaves_every_other_source_alone(tmp_path: Path) -> None:
+    """The whole point of 0028 clause 1. A creature that suffocated *and* marched through
+    the night keeps the march — an engine that zeroed the count would hand back levels the
+    document never removes."""
+    loop = _suffocation_loop(tmp_path)
+    state = _run_end(loop, _suffocating()).state  # type: ignore[attr-defined]
+    state = state.with_exhaustion("pc", "a-tiring-march")
+
+    breathing = state.with_breath_regained("pc")
+    assert breathing.combatant("pc").conditions.exhaustion_level == 1
+    assert breathing.combatant("pc").conditions.exhaustion_from("a-tiring-march") == 1
+
+
+def test_breathing_when_never_suffocating_removes_nothing(tmp_path: Path) -> None:
+    """Not an error. Refusing would make every caller check first, and there is nothing to
+    be wrong about."""
+    state = encounter().with_exhaustion("pc", "a-tiring-march")
+    assert state.with_breath_regained("pc").combatant("pc").conditions.exhaustion_level == 1
+
+
+def test_the_level_lands_once_per_turn(tmp_path: Path) -> None:
+    """Discharged like any other obligation. One that stayed outstanding would exhaust the
+    creature to death inside a single turn."""
+    loop = _suffocation_loop(tmp_path)
+    ended = _run_end(loop, _suffocating())
+
+    assert len(ended.rulings) == 1  # type: ignore[attr-defined]
+    assert loop.end_turn_obligations(ended.state, "pc") == ()  # type: ignore[attr-defined]
+
+
+def test_a_creature_with_air_cannot_be_ruled_as_suffocating(tmp_path: Path) -> None:
+    """Read off state, never declared."""
+    with pytest.raises(ValueError, match="not suffocating"):
+        suffocation_resolver()(
+            state=encounter(),
+            declaration=Declaration(
+                actor_id="pc",
+                intent=Intent(improvised=True, label="x"),
+                rule_id=SUFFOCATION_RULE_ID,
+            ),
+            facts={},
+        )
+
+
+def test_suffocation_carries_a_verified_citation() -> None:
+    assert SUFFOCATION_VERIFICATION.state is VerificationState.VERIFIED
+    assert "p. 189" in (SUFFOCATION_VERIFICATION.reference or "")

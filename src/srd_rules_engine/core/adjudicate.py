@@ -654,7 +654,7 @@ class Adjudicator:
         # The effects that go into the Ruling are the ones `_apply` hands back, not the
         # ones it was given: damage is rolled before a target is consulted, so only the
         # applier knows what p. 17's defences left of it (#105).
-        next_state, effects = _apply(state, effects, seed=seed)
+        next_state, effects = _apply(state, effects, seed=seed, rule_id=rule.id)
 
         return (
             Ruling(
@@ -912,7 +912,11 @@ def _signed(modifier: int) -> str:
 
 
 def _apply(
-    state: EncounterState, effects: Sequence[Effect], *, seed: int
+    state: EncounterState,
+    effects: Sequence[Effect],
+    *,
+    seed: int,
+    rule_id: str | None = None,
 ) -> tuple[EncounterState, tuple[Effect, ...]]:
     """Apply the settled effects, and hand back what they came to (R5, #105).
 
@@ -964,7 +968,12 @@ def _apply(
             assert effect.condition is not None
             state = state.with_condition_ended(effect.target_id, effect.condition)
         elif effect.kind is EffectKind.EXHAUSTION_GAINED:
-            state = state.with_exhaustion(effect.target_id, effect.amount)
+            # 0028 clause 1: the level carries the rule that caused it, and the ruling's
+            # own rule is that rule. Taking it from here rather than from the effect keeps
+            # the ledger's existing `rule_id` the record of provenance — no payload field,
+            # and no way for an effect to claim a source its ruling did not have.
+            assert rule_id is not None, "an outcome always names the rule that produced it"
+            state = state.with_exhaustion(effect.target_id, rule_id, effect.amount)
         else:
             # Death was this branch until #119, which is the hazard: every kind added since
             # would have silently become a death. An unhandled kind now says so instead.

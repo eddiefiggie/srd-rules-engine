@@ -51,6 +51,7 @@ from typing import Final, TypeVar
 from srd_rules_engine.core import (
     BURNING_RULE_ID,
     DEATH_SAVE_RULE_ID,
+    SUFFOCATION_RULE_ID,
     Adjudicator,
     Declaration,
     EncounterState,
@@ -373,20 +374,38 @@ class TurnLoop:
     def end_turn_obligations(self, state: EncounterState, actor_id: str) -> tuple[Obligation, ...]:
         """Every obligation the **end** of this creature's turn incurs, read off state.
 
-        Save-ends only. The death save is not here and never was: p. 17 puts it at the
-        turn's start, which is `start_turn_obligations`. Suffocation (p. 189) belongs here
-        and is not built — #140.
+        Save-ends, and Suffocation. The death save is not here and never was: p. 17 puts it
+        at the turn's start, which is `start_turn_obligations`.
+
+        **Save-ends first.** A creature that is suffocating and holds a save-ends condition
+        owes both, and the save may end a condition whose effects would otherwise still be
+        described as holding when the Exhaustion lands. The reverse order decides nothing
+        differently today — an Exhaustion level changes no save's DC — so this is a stable
+        order rather than a rule, and it is stated because a reader would otherwise assume
+        one exists.
         """
         if not state.has(actor_id):
             return ()
-        return tuple(
+        owed = [
             Obligation(
                 actor_id=actor_id,
                 rule_id=save_ends_rule_id(condition),
                 label=f"repeats the save that ends {condition.value} (p. 63)",
             )
             for condition in state.obligations_outstanding(actor_id)
-        )
+        ]
+
+        actor = state.combatant(actor_id)
+        if actor.hazards.suffocating and (actor_id, SUFFOCATION_RULE_ID) not in state.discharged:
+            owed.append(
+                Obligation(
+                    actor_id=actor_id,
+                    rule_id=SUFFOCATION_RULE_ID,
+                    label="gains an Exhaustion level, ending its turn without breath (p. 189)",
+                )
+            )
+
+        return tuple(owed)
 
     def start_turn(
         self, state: EncounterState, actor_id: str

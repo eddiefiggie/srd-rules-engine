@@ -142,17 +142,17 @@ def test_speed_zero_beats_exhaustion_arithmetic() -> None:
         Condition.UNCONSCIOUS,
     ):
         assert held(condition).speed_after(30) == 0, condition
-        assert held(condition, exhaustion_level=2).speed_after(30) == 0
+        assert held(condition, exhaustion_levels=("a-tiring-march",) * 2).speed_after(30) == 0
 
 
 def test_exhaustion_reduces_speed_by_five_per_level() -> None:
     """p. 181: "reduced by a number of feet equal to 5 times your Exhaustion level"."""
-    assert Conditions(exhaustion_level=1).speed_after(30) == 25
-    assert Conditions(exhaustion_level=3).speed_after(30) == 15
+    assert Conditions(exhaustion_levels=("a-tiring-march",) * 1).speed_after(30) == 25
+    assert Conditions(exhaustion_levels=("a-tiring-march",) * 3).speed_after(30) == 15
 
 
 def test_speed_does_not_go_negative() -> None:
-    assert Conditions(exhaustion_level=5).speed_after(20) == 0
+    assert Conditions(exhaustion_levels=("a-tiring-march",) * 5).speed_after(20) == 0
 
 
 # --- Exhaustion ----------------------------------------------------------------------
@@ -162,26 +162,30 @@ def test_exhaustion_reduces_every_d20_test_by_two_per_level() -> None:
     """p. 181: "the roll is reduced by 2 times your Exhaustion level" — a penalty, so it is
     arithmetic rather than Disadvantage. Modelling it as Disadvantage would be a different
     rule with a different distribution."""
-    assert Conditions(exhaustion_level=0).d20_penalty == 0
-    assert Conditions(exhaustion_level=3).d20_penalty == -6
+    assert Conditions(exhaustion_levels=("a-tiring-march",) * 0).d20_penalty == 0
+    assert Conditions(exhaustion_levels=("a-tiring-march",) * 3).d20_penalty == -6
 
 
 def test_a_level_of_six_is_death() -> None:
     """p. 181: "You die if your Exhaustion level is 6."""
-    assert Conditions(exhaustion_level=6).dead_of_exhaustion
-    assert not Conditions(exhaustion_level=5).dead_of_exhaustion
+    assert Conditions(exhaustion_levels=("a-tiring-march",) * 6).dead_of_exhaustion
+    assert not Conditions(exhaustion_levels=("a-tiring-march",) * 5).dead_of_exhaustion
 
 
 def test_exhaustion_is_held_when_its_level_is_above_zero() -> None:
-    assert Conditions(exhaustion_level=1).has(Condition.EXHAUSTION)
-    assert not Conditions(exhaustion_level=0).has(Condition.EXHAUSTION)
+    assert Conditions(exhaustion_levels=("a-tiring-march",) * 1).has(Condition.EXHAUSTION)
+    assert not Conditions(exhaustion_levels=("a-tiring-march",) * 0).has(Condition.EXHAUSTION)
 
 
 def test_an_impossible_exhaustion_level_is_refused() -> None:
     with pytest.raises(ValueError, match="runs from 0 to 6"):
-        Conditions(exhaustion_level=MAX_EXHAUSTION + 1)
-    with pytest.raises(ValueError, match="runs from 0 to 6"):
-        Conditions(exhaustion_level=-1)
+        Conditions(exhaustion_levels=("a-tiring-march",) * (MAX_EXHAUSTION + 1))
+
+    # A negative level used to need refusing and is now unrepresentable: levels are the
+    # rule ids that caused them (0028 clause 1), and there is no such thing as minus one
+    # of those. What replaces that check is the one an id makes possible.
+    with pytest.raises(ValueError, match="names the rule that caused it"):
+        Conditions(exhaustion_levels=("",))
 
 
 # --- A sample of the individual transcriptions ---------------------------------------

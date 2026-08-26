@@ -50,6 +50,9 @@ from srd_rules_engine.memory.store import JsonMemoryStore
 
 END_TURN = "end-turn"
 
+#: An invented source, so a level in these tests names a rule the way 0028 requires.
+MARCH = "a-tiring-march"
+
 TIRING = Rule(
     id="something-tiring",
     summary="An invented rule that costs an Exhaustion level.",
@@ -83,7 +86,7 @@ def combatant(cid: str, *, level: int = 0) -> Combatant:
         armour_class=13,
         abilities={"str": 10, "con": 10},
         proficiency_bonus=2,
-        conditions=Conditions(exhaustion_level=level),
+        conditions=Conditions(exhaustion_levels=(MARCH,) * level),
     )
 
 
@@ -123,7 +126,7 @@ def declare(state: EncounterState) -> Declaration:
 
 def test_a_level_can_be_gained() -> None:
     """The gap #178 was filed for. Before it, nothing could move this number."""
-    after = encounter().with_exhaustion("pc")
+    after = encounter().with_exhaustion("pc", MARCH)
     assert after.combatant("pc").conditions.exhaustion_level == 1
 
 
@@ -131,7 +134,12 @@ def test_levels_are_cumulative() -> None:
     """p. 181: "This condition is cumulative. Each time you receive it, you gain 1
     Exhaustion level." So it adds rather than sets — an engine that set the level would
     leave a creature exhausted three times no worse off than one exhausted once."""
-    after = encounter().with_exhaustion("pc").with_exhaustion("pc").with_exhaustion("pc")
+    after = (
+        encounter()
+        .with_exhaustion("pc", MARCH)
+        .with_exhaustion("pc", MARCH)
+        .with_exhaustion("pc", MARCH)
+    )
     assert after.combatant("pc").conditions.exhaustion_level == 3
 
 
@@ -139,20 +147,25 @@ def test_the_condition_follows_from_the_level() -> None:
     """`Conditions` already derives it, so nothing applies Exhaustion alongside the level —
     which would be two sources for one fact."""
     assert not encounter().combatant("pc").conditions.has(Condition.EXHAUSTION)
-    assert encounter().with_exhaustion("pc").combatant("pc").conditions.has(Condition.EXHAUSTION)
+    assert (
+        encounter()
+        .with_exhaustion("pc", MARCH)
+        .combatant("pc")
+        .conditions.has(Condition.EXHAUSTION)
+    )
 
 
 def test_the_arithmetic_moves_with_the_level() -> None:
     """p. 181: the roll is reduced by twice the level, and Speed by five feet times it. This
     is why raising the level is the mechanic and applying the condition is not."""
-    tired = encounter().with_exhaustion("pc", 2).combatant("pc").conditions
+    tired = encounter().with_exhaustion("pc", MARCH, 2).combatant("pc").conditions
     assert tired.d20_penalty == -4
     assert tired.speed_after(30) == 20
 
 
 def test_reaching_six_is_death() -> None:
     """p. 181: "You die if your Exhaustion level is 6." Six is a state the rules describe."""
-    dying = encounter(level=5).with_exhaustion("pc")
+    dying = encounter(level=5).with_exhaustion("pc", MARCH)
     assert dying.combatant("pc").conditions.exhaustion_level == MAX_EXHAUSTION
     assert dying.combatant("pc").conditions.dead_of_exhaustion
 
@@ -164,7 +177,7 @@ def test_passing_six_is_refused_rather_than_clamped() -> None:
     the rules have killed — the quiet direction to fail in.
     """
     with pytest.raises(ValueError, match="dies at 6"):
-        encounter(level=5).with_exhaustion("pc", 2)
+        encounter(level=5).with_exhaustion("pc", MARCH, 2)
 
 
 def test_a_gain_of_less_than_one_is_refused() -> None:
@@ -172,9 +185,9 @@ def test_a_gain_of_less_than_one_is_refused() -> None:
     levels and no two agree, so a mutator that accepted -1 would be quietly deciding which
     of them applied."""
     with pytest.raises(ValueError, match="at least one level"):
-        encounter().with_exhaustion("pc", 0)
+        encounter().with_exhaustion("pc", MARCH, 0)
     with pytest.raises(ValueError, match="at least one level"):
-        encounter().with_exhaustion("pc", -1)
+        encounter().with_exhaustion("pc", MARCH, -1)
 
 
 # --- Through the one entry point ---------------------------------------------------------
