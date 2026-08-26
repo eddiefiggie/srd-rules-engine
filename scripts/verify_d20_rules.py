@@ -286,6 +286,13 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     # --- What the document does NOT say about sight (#166) ------------------------------
     (
+        172,
+        "Wall of Force is INVISIBLE while giving Total Cover — the counter-example that "
+        "makes any single global answer wrong, whichever way it went (#188)",
+        r"An Invisible wall of force springs into existence at a point you choose within "
+        r"range",
+    ),
+    (
         173,
         "a WALL has to say it blocks line of sight, which is the evidence that no general "
         "rule does. If an obstruction blocked sight by default this clause would be "

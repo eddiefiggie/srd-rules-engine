@@ -148,7 +148,7 @@ def test_a_wall_does_not_make_the_answer_no() -> None:
 
     assert sight.verdict is Visibility.UNSTATED
     assert not sight.can_see, "UNSTATED is not a yes"
-    assert "never says an obstruction blocks sight" in sight.because
+    assert "nobody has said whether that barrier blocks sight" in sight.because
 
 
 def test_blindsight_alone_is_ruled_out_by_a_wall() -> None:
@@ -306,3 +306,58 @@ def test_truesight_does_not_override_being_blinded() -> None:
 def test_darkvision_does_not_override_being_blinded() -> None:
     sight = _blind_watcher(observer=Senses(darkvision=60)).can_see("watcher", "quarry")
     assert sight.verdict is Visibility.CANNOT_SEE
+
+
+# --- 0029: the barrier says, and the document answers it both ways ------------------------
+
+OPAQUE = Obstruction(lo=Position(10, -20, 0), hi=Position(12, 20, 20), blocks_sight=True)
+CLEAR = Obstruction(lo=Position(10, -20, 0), hi=Position(12, 20, 20), blocks_sight=False)
+FURTHER_OPAQUE = Obstruction(lo=Position(20, -20, 0), hi=Position(22, 20, 20), blocks_sight=True)
+
+
+def test_a_barrier_that_blocks_sight_settles_it() -> None:
+    """Wall of Thorns: "The wall blocks line of sight" (p. 173)."""
+    sight = scene(walls=(OPAQUE,)).can_see("watcher", "quarry")
+    assert sight.verdict is Visibility.CANNOT_SEE
+
+
+def test_a_barrier_that_does_not_block_sight_is_seen_through() -> None:
+    """Wall of Force: "An Invisible wall of force" (p. 172). Total Cover, and transparent.
+
+    This is the case that makes any global rule wrong: the same engine has to answer
+    `CANNOT_SEE` for the thorns and `CAN_SEE` here, and both walls are printed three pages
+    apart.
+    """
+    sight = scene(walls=(CLEAR,)).can_see("watcher", "quarry")
+    assert sight.verdict is Visibility.CAN_SEE
+
+
+def test_an_opaque_barrier_beats_a_transparent_one_on_the_same_line() -> None:
+    """One barrier known to block sight is enough, whatever else is between."""
+    sight = scene(walls=(CLEAR, FURTHER_OPAQUE)).can_see("watcher", "quarry")
+    assert sight.verdict is Visibility.CANNOT_SEE
+
+
+def test_an_undescribed_barrier_is_not_assumed_transparent() -> None:
+    """0029 clause 4: unstated loses to opaque and beats transparent.
+
+    A wall nobody has described cannot borrow its neighbour's answer — that would let a
+    caller make a barrier see-through by putting a pane of glass next to it.
+    """
+    sight = scene(walls=(CLEAR, WALL)).can_see("watcher", "quarry")
+    assert sight.verdict is Visibility.UNSTATED
+
+
+def test_a_transparent_barrier_still_blocks_an_area_of_effect() -> None:
+    """p. 177 blocks a line of *effect* with Total Cover, and 0029 does not touch it. A
+    Fireball is stopped by Wall of Force; a glance is not — two questions over one box."""
+    from srd_rules_engine.core.areas import Sphere
+
+    state = scene(walls=(CLEAR,))
+    assert state.can_see("watcher", "quarry").verdict is Visibility.CAN_SEE
+    assert state.creatures_in(Sphere(HERE, 60)) == ("watcher",), "the quarry is not reached"
+
+
+def test_blocks_sight_defaults_to_unstated() -> None:
+    """The SRD supplies no default and this engine invents none (0029 clause 2)."""
+    assert Obstruction(lo=HERE, hi=Position(1, 1, 1)).blocks_sight is None
