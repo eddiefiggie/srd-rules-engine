@@ -36,6 +36,30 @@ jobs:
       - name: Run tests
         run: pytest
 
+  build-stamp:
+    name: Build stamp advanced
+    # Only on a pull request: on `main` there is nothing to advance past, and the question
+    # this asks — is this stamp free — has no meaning outside a proposed merge (#147).
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fetch the base branch
+        # `actions/checkout` is depth 1 by default, so the base tip is not in the clone and
+        # `git show origin/<base>:...` would fail on the revision rather than on the stamp.
+        run: |
+          git fetch --depth=1 origin \
+            "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Check the stamp advanced past the base branch tip
+        # The TIP, not the merge base: two branches from one commit can each advance past
+        # their shared base and still land on the same stamp.
+        run: |
+          python scripts/check_build_stamp_advanced.py \
+            "origin/${{ github.base_ref }}"
+
   lint:
     name: Lint and type-check
     runs-on: ubuntu-latest
