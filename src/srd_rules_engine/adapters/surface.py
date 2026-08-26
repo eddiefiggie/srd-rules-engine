@@ -179,6 +179,10 @@ def situation_payload(situation: object) -> dict[str, Any] | None:
         "action_available",
         "bonus_action_available",
         "reaction_available",
+        # p. 179. A `str | None` and so JSON-safe as it stands: the effect's id as the
+        # caster's declaration named it, or absent. An agent that cannot see this cannot
+        # weigh casting again against losing what is up.
+        "concentrating_on",
     )
     out: dict[str, Any] = {name: getattr(situation, name) for name in fields}
     # p. 188, #206: one shared spend, a different allowance per mode. A mode the creature

@@ -169,6 +169,13 @@ class Situation:
     reaction_available: bool
     #: Level to slots remaining. Empty for a creature with no spellcasting.
     spell_slots: Mapping[int, int]
+    #: What this creature is concentrating on, or `None` (p. 179). A typed value, not prose:
+    #: it is the effect's id as the caster's declaration named it, which is what an agent
+    #: needs to decide whether casting again is worth losing.
+    #:
+    #: Reported, never ended here. p. 179's damage save is an outcome and R1 leaves outcomes
+    #: to adjudication — the same line `saves_due` above draws, and for the same reason.
+    concentrating_on: str | None
     #: Elapsed campaign time in minutes (decision 0020). Ordinal `round_number` is not
     #: reported here and does not convert into it — p. 13 says a round represents *about*
     #: 6 seconds, which is the document declining an exact conversion.
@@ -354,6 +361,12 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
             if actor.slots is not None
             else {}
         ),
+        # Derived, not the stored value. p. 179 ends Concentration on Incapacitated, and a
+        # read that reported the field as last written would tell the agent a spell is up
+        # after the condition that broke it landed. `after_conditions` is pure and returns a
+        # new value, so this stays a read (R19). `core.state.with_damage` derives it the same
+        # way, or state and the read surface would disagree about who is concentrating.
+        concentrating_on=actor.concentration.after_conditions(conditions).spell,
         elapsed_minutes=state.clock.elapsed_minutes,
         minutes_until_recovery=(
             max(0, actor.death_saves.recovers_at_minute - state.clock.elapsed_minutes)

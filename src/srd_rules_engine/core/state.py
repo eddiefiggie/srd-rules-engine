@@ -73,7 +73,7 @@ from srd_rules_engine.core.sight import (
     obscurement_at,
 )
 from srd_rules_engine.core.skills import SKILL_ABILITY, PerceptionCheck, Skill
-from srd_rules_engine.core.spellcasting import SpellSlots
+from srd_rules_engine.core.spellcasting import Concentration, SpellSlots
 
 #: p. 17: "On your third success, you become Stable... On your third failure, you die."
 DEATH_SAVE_THRESHOLD: Final = 3
@@ -249,6 +249,16 @@ class Combatant:
     #: class data, and this engine ships none of it, for the reason `core.spellcasting`
     #: ships no slot table.
     prepared: frozenset[str] = frozenset()
+    #: What this creature is concentrating on, if anything (p. 179, 0036 clause 1).
+    #:
+    #: Per-creature state and **not** a condition, for 0027 clause 5's reason: "this creature
+    #: is concentrating" is a fact about the creature, not one of the fifteen the glossary
+    #: tags. It sits here beside `hazards` for the same reason `hazards` does.
+    #:
+    #: Held rather than derived. p. 179 names three factors that break Concentration and one
+    #: voluntary end, and none of them is recomputable from anything else the engine stores —
+    #: which effect is being concentrated on is a fact only the caster's declaration supplies.
+    concentration: Concentration = field(default_factory=Concentration)
     #: Only meaningful at 0 hit points. Reset rather than carried once healing lands.
     death_saves: DeathSaves = DeathSaves()
 
