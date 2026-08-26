@@ -66,6 +66,12 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # is "all levels of Exhaustion it gained from suffocating", which a count could not
         # answer (#183).
         "suffocation": "core.hazards.suffocation_resolver",
+        # Sight, and only the two shapes `can_see` answers in full (#166). Truesight pierces
+        # illusions, transformations and the Ethereal Plane besides; Tremorsense pinpoints a
+        # location and is not sight at all; Lightly Obscured's Disadvantage on Perception is
+        # produced by nothing. Those four stay unclaimed.
+        "blindsight": "core.state.EncounterState.can_see",
+        "darkvision": "core.sight.effective_light",
         # Death saving throws and what follows them (#15).
         "death-saving-throw": "core.death.death_save_resolver",
         "stable": "core.state.DeathSaves.stable",

@@ -19,8 +19,6 @@ standing warning about reading that number as progress.
 
 from __future__ import annotations
 
-import pytest
-
 from srd_rules_engine.core.inventory import load_inventory
 from srd_rules_engine.core.position import Position
 from srd_rules_engine.core.read_surface import situation
@@ -35,8 +33,6 @@ from srd_rules_engine.core.sight import (
     Obscurement,
     Sense,
     Senses,
-    SightUnverified,
-    can_see,
     effective_light,
     obscurement_at,
 )
@@ -140,16 +136,14 @@ def test_darkness_is_only_lightly_obscuring_to_darkvision_in_range() -> None:
     )
 
 
-def test_asking_whether_a_creature_can_see_still_refuses() -> None:
-    """Narrower than it was: the obscurement half is answerable now, and visibility is not.
+def test_visibility_is_asked_of_the_encounter_rather_than_of_this_module() -> None:
+    """#166 moved it. `EncounterState.can_see` needs the encounter's obstructions and its
+    light, and taking either as an argument is the dial 0026 removed — so it lives where
+    `creatures_in` does, for the same reason. Nothing here answers it."""
+    import srd_rules_engine.core.sight as sight_module
 
-    Blindsight's bound is Total Cover, which is geometry over `EncounterState.obstructions`
-    since 0026 — this signature cannot reach it, and taking the walls as an argument is the
-    dial 0026 removed. Answering for the unaided case alone would return a confident False
-    for a creature with Blindsight standing in the dark (#166).
-    """
-    with pytest.raises(SightUnverified, match="has not read off the document"):
-        can_see(DARKVISION_60, at_level=LightLevel.DIM, distance_feet=30)
+    assert not hasattr(sight_module, "can_see")
+    assert hasattr(EncounterState, "can_see")
 
 
 # --- Clause 1: Telepathy is not part of this ---------------------------------------
@@ -168,14 +162,35 @@ def test_the_inventory_still_reports_telepathy_as_unimplemented() -> None:
     assert not telepathy.implemented
 
 
-def test_no_sight_shape_is_marked_implemented_by_this_structure() -> None:
-    """Structure is not resolution. A shape counts when the engine can resolve it, and
-    nothing here can resolve anything until #150."""
-    unresolved = [s.id for s in load_inventory().shapes if s.kind in ("sense", "environment")]
-    assert len(unresolved) == 10
-    assert not any(
-        s.implemented for s in load_inventory().shapes if s.kind in ("sense", "environment")
-    )
+def test_only_the_two_sight_shapes_that_resolve_in_full_are_claimed() -> None:
+    """Structure is not resolution, and neither is a partial answer.
+
+    Two resolve: **Blindsight**, every clause of whose entry `EncounterState.can_see`
+    answers — range, the Total Cover bound, Darkness, the Blinded override and the Invisible
+    condition — and **Darkvision**, whose entry is the conversion `effective_light` performs.
+
+    The other eight are not claimed, and each for its own reason rather than for want of
+    effort:
+
+    * **Truesight** also pierces visual illusions, transformations and the Ethereal Plane
+      (p. 190). `can_see` answers two of its five clauses.
+    * **Tremorsense** pinpoints a location and "doesn't count as a form of sight" (p. 190).
+      Nothing here answers the question it does answer.
+    * **Lightly Obscured** costs Disadvantage on Perception checks (p. 184), and nothing
+      produces that penalty — `can_see` treats the space as visible, which it is.
+    * **Heavily Obscured**, **Bright Light**, **Dim Light** and **Darkness** feed the chain
+      and are read by it, but each is claimed by the shape that *applies* its consequence,
+      and for three of them that consequence is Lightly Obscured's unproduced penalty.
+    * **Telepathy** is not in this chain at all (0025 clause 1, #149).
+
+    The count is what makes "full SRD 5.2 coverage" falsifiable, so a shape half-answered is
+    a shape unclaimed.
+    """
+    sight_shapes = [s for s in load_inventory().shapes if s.kind in ("sense", "environment")]
+    assert len(sight_shapes) == 10
+
+    claimed = {s.id for s in sight_shapes if s.implemented}
+    assert claimed == {"blindsight", "darkvision"}
 
 
 # --- Clause 3: senses are per-creature state, shaped like Speeds --------------------

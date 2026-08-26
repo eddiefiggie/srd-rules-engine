@@ -62,7 +62,15 @@ from srd_rules_engine.core.position import (
     distance_feet,
     movement_cost,
 )
-from srd_rules_engine.core.sight import Lighting, Senses
+from srd_rules_engine.core.sight import (
+    Lighting,
+    Obscurement,
+    Sense,
+    Senses,
+    Sight,
+    Visibility,
+    obscurement_at,
+)
 from srd_rules_engine.core.spellcasting import SpellSlots
 
 #: p. 17: "On your third success, you become Stable... On your third failure, you die."
@@ -372,6 +380,148 @@ class EncounterState:
                 (c for c in due if (combatant_id, save_ends_rule_id(c)) not in self.discharged),
                 key=lambda c: c.value,
             )
+        )
+
+    def can_see(self, observer_id: str, target_id: str) -> Sight:
+        """Whether one creature sees another, and by what (0025 clause 4, #166).
+
+        Derived on demand and stored nowhere, which is 0025 clause 4. It lives here rather
+        than in `core.sight` for the reason `creatures_in` does: the answer needs the
+        encounter's obstructions and its light, and taking either as an argument is the dial
+        [0026](../../../docs/decisions/0026-terrain-enters-as-state.md) removed.
+
+        ## The document stops before this question does
+
+        `Visibility.UNSTATED` is a real answer here, not a stub. **The SRD never says that an
+        obstruction blocks sight**, and it never defines "line of sight" — the term appears
+        on pp. 130, 131, 173, 182, 183 and 310 and is defined on none of them. Total Cover is
+        defined by what it does to *targeting*: "can't be targeted directly" (p. 179).
+
+        The clearest evidence is p. 173, where a spell's wall has to state that it "blocks
+        line of sight". If an obstruction blocked sight by default, that clause would be
+        redundant.
+
+        So a target behind Total Cover is `UNSTATED` for ordinary sight and for Truesight,
+        and `CANNOT_SEE` for Blindsight alone — because Blindsight is the one sense whose
+        bound the document gives: "you can see anything that isn't behind Total Cover even
+        if you have the Blinded condition or are in Darkness" (p. 177).
+
+        Answering `CANNOT_SEE` for the rest would be inferring a rule the document does not
+        state (R31), and answering `CAN_SEE` would be worse.
+
+        ## Tremorsense is not consulted
+
+        p. 190: it "doesn't count as a form of sight". It pinpoints a location, which is a
+        different question from seeing, and the document says so outright rather than leaving
+        it to be inferred (#149's sibling argument for Telepathy).
+        """
+        observer = self.combatant(observer_id)
+        target = self.combatant(target_id)
+
+        if observer.position is None or target.position is None:
+            return Sight(
+                verdict=Visibility.UNSTATED,
+                because=(
+                    "an encounter that tracks no positions cannot answer a question about "
+                    "distance or what lies between"
+                ),
+            )
+
+        away = distance_feet(observer.position, target.position)
+        blocked = line_is_blocked(observer.position, target.position, self.obstructions)
+        senses = observer.senses
+
+        # Blindsight is the one sense whose bound the document gives, so it is asked first.
+        # When the target IS behind Total Cover this rules Blindsight out and says nothing
+        # about the other routes, which is why the answer can still fall through to UNSTATED.
+        blindsight = senses.range_of(Sense.BLINDSIGHT)
+        if blindsight is not None and away <= blindsight and not blocked:
+            return Sight(
+                verdict=Visibility.CAN_SEE,
+                because=(
+                    "p. 177: within Blindsight's range a creature sees anything that is "
+                    "not behind Total Cover, even while Blinded or in Darkness — and sees "
+                    "something with the Invisible condition"
+                ),
+                by=Sense.BLINDSIGHT,
+            )
+
+        if observer.conditions.has(Condition.BLINDED):
+            # p. 177: "You can't see." Absolute, and checked after Blindsight because that
+            # sense overrides it in terms — "even if you have the Blinded condition". No
+            # other sense says it does, and granting one that reach would be inventing it.
+            return Sight(
+                verdict=Visibility.CANNOT_SEE,
+                because=(
+                    'p. 177: the observer has the Blinded condition — "You can\'t see". '
+                    "Blindsight is the only sense the document gives that overrides it"
+                ),
+            )
+
+        truesight = senses.range_of(Sense.TRUESIGHT)
+        if truesight is not None and away <= truesight and not blocked:
+            return Sight(
+                verdict=Visibility.CAN_SEE,
+                because=(
+                    "p. 190: within Truesight's range a creature sees in normal and magical "
+                    "Darkness and sees what has the Invisible condition"
+                ),
+                by=Sense.TRUESIGHT,
+            )
+
+        if blocked:
+            return Sight(
+                verdict=Visibility.UNSTATED,
+                because=(
+                    "the target is behind Total Cover, and the SRD never says an "
+                    "obstruction blocks sight — it defines Total Cover by what it does to "
+                    "targeting (p. 179) and defines 'line of sight' nowhere. p. 173 has a "
+                    "spell's wall state that it blocks line of sight, which it would not "
+                    "need to if obstructions did so already (#166)"
+                ),
+            )
+
+        if target.conditions.has(Condition.INVISIBLE):
+            # p. 184 never says an Invisible creature cannot be seen. It says an effect
+            # needing sight misses it "unless the effect's creator can somehow see you",
+            # and leaves *somehow* to the table. Blindsight and Truesight are the two the
+            # document answers for, and both were asked above.
+            return Sight(
+                verdict=Visibility.UNSTATED,
+                because=(
+                    "the target has the Invisible condition, and p. 184 states what that "
+                    "conceals it from rather than whether it can be seen — effects needing "
+                    "sight miss it 'unless the effect's creator can somehow see you', and "
+                    "the SRD leaves 'somehow' open. Blindsight (p. 177) and Truesight "
+                    "(p. 190) are the two routes it does answer for (#166)"
+                ),
+            )
+
+        level = self.lighting.level_at(target.position)
+        if level is None:
+            return Sight(
+                verdict=Visibility.UNSTATED,
+                because=(
+                    "nobody has stated the light where the target is, and this engine does "
+                    "not assume daylight (0025 clause 2)"
+                ),
+            )
+
+        obscured = obscurement_at(level, senses=senses, distance_feet=away)
+        if obscured is Obscurement.HEAVILY_OBSCURED:
+            return Sight(
+                verdict=Visibility.CANNOT_SEE,
+                because=(
+                    "p. 182: a creature has the Blinded condition while trying to see "
+                    "something in a Heavily Obscured space"
+                ),
+            )
+        return Sight(
+            verdict=Visibility.CAN_SEE,
+            because=(
+                f"the target stands in {level.value} and nothing between blocks the view "
+                f"({obscured.value})"
+            ),
         )
 
     def creatures_in(self, area: Area) -> tuple[str, ...]:

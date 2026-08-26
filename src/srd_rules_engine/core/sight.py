@@ -258,6 +258,37 @@ SENSE_LIGHT_SHIFTS: Final[Mapping[Sense, Mapping[LightLevel, LightLevel]]] = Map
 )
 
 
+class Visibility(StrEnum):
+    """What this engine can say about whether one creature sees another.
+
+    Three values, and the third is the point. `UNSTATED` is not "we have not built it" — it
+    is **the document does not say**, which is a different claim and a permanent one until
+    the SRD says otherwise (#166, R32).
+    """
+
+    CAN_SEE = "can-see"
+    CANNOT_SEE = "cannot-see"
+    UNSTATED = "unstated"
+
+
+@dataclass(frozen=True)
+class Sight:
+    """Whether an observer sees a target, and by what.
+
+    `by` names the sense that decided it, or `None` for ordinary sight. `because` is the
+    sentence the answer rests on, so a refusal explains itself rather than merely refusing.
+    """
+
+    verdict: Visibility
+    because: str
+    by: Sense | None = None
+
+    @property
+    def can_see(self) -> bool:
+        """True only when the document says so. `UNSTATED` is not a yes."""
+        return self.verdict is Visibility.CAN_SEE
+
+
 def _refuse(question: str) -> SightUnverified:
     return SightUnverified(
         f"{question} is a rule value this engine has not read off the document. "
@@ -290,28 +321,3 @@ def obscurement_at(level: LightLevel, *, senses: Senses, distance_feet: int) -> 
     level, and the level *is* the obscurement.
     """
     return OBSCUREMENT_BY_LIGHT[effective_light(level, senses=senses, distance_feet=distance_feet)]
-
-
-def can_see(observer_senses: Senses, *, at_level: LightLevel | None, distance_feet: int) -> bool:
-    """Whether an observer can see a target at this distance in this light.
-
-    **Still refuses, and now for a narrower reason than "the table is empty".** The
-    obscurement half is answerable — `obscurement_at` answers it — but visibility is not the
-    same question, and two of the four senses resolve it by a route this signature cannot
-    express:
-
-    * **Blindsight** sees anything "that isn't behind Total Cover" (p. 177). Total Cover is
-      geometry over the encounter's obstructions, which 0026 put on `EncounterState`. A
-      function taking only senses and a distance cannot answer it, and taking the walls as an
-      argument is the dial 0026 removed.
-    * **Truesight** pierces Darkness (p. 190) rather than converting it, so it does not reach
-      the answer through `effective_light` either.
-
-    Answering for the unaided case alone would be the more dangerous kind of half-truth: it
-    would return a confident `False` for a creature with Blindsight standing in the dark,
-    which is precisely backwards. #166 carries the shape this needs.
-
-    It would refuse for `at_level=None` regardless — an unlit encounter is a question nobody
-    has answered rather than one this engine may answer for them.
-    """
-    raise _refuse("whether a creature can see another")
