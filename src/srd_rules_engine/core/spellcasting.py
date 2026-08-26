@@ -165,8 +165,10 @@ class SpellSlots:
     def restored(self) -> SpellSlots:
         """p. 104: "Finishing a Long Rest restores any expended spell slots."
 
-        The operation exists; nothing triggers it, because there is no rest and no clock
-        (#19). A caller performs it.
+        Called by `EncounterState.with_long_rest` since #19. It went a build without one
+        after the rest landed in #185 — the operation existed, the occasion existed, and
+        nothing joined them, which is the shape a disclosed gap takes when its reason expires
+        and the disclosure does not.
         """
         return SpellSlots(total=self.total)
 
@@ -248,3 +250,76 @@ def concentration_save(damage: int) -> D20Test:
             f"{damage} damage taken, whichever is higher, capped at 30 (p. 179)"
         ),
     )
+
+
+#: p. 187: "The Ritual version of a spell takes 10 minutes longer to cast than normal."
+#: Minutes, which is `core.clock`'s unit (0020) — a ritual is campaign-scale by construction.
+RITUAL_EXTRA_MINUTES: Final = 10
+
+#: R31. p. 187's entry, asserted whole in `scripts/verify_d20_rules.py` — including the
+#: consequence it draws for itself, which is the half that gets dropped.
+RITUAL_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference=(
+        "SRD v5.2.1, Rules Glossary, Ritual p. 187 — the prepared-and-tagged precondition, "
+        "the 10 extra minutes, the slot it does not expend, and the upcasting that "
+        "therefore cannot happen"
+    ),
+    date="2026-08-25",
+    method=VerificationMethod.ASSERTED,
+)
+
+
+@dataclass(frozen=True)
+class RitualCast:
+    """What casting a spell as a Ritual costs (p. 187).
+
+    Two facts and no dice: it takes longer and it spends nothing. The engine states them; a
+    caller advances the clock, because how long a thing took is campaign time and
+    `with_time_passed` is where that lands.
+    """
+
+    spell_id: str
+    extra_minutes: int = RITUAL_EXTRA_MINUTES
+    expends_slot: bool = False
+
+
+def ritual_cast(
+    *,
+    spell_id: str,
+    prepared: frozenset[str],
+    has_ritual_tag: bool,
+    at_level: int | None = None,
+) -> RitualCast:
+    """Cast a prepared, Ritual-tagged spell as a Ritual (p. 187).
+
+    Three refusals, and the third is the one an implementation drops.
+
+    **Prepared.** "If you have a spell prepared that has the Ritual tag" — a spell merely
+    known is not enough, and the sentence puts the precondition before the permission.
+
+    **Tagged.** The tag is the spell's, so it arrives from the ruleset: this engine ships no
+    spell list (#21) and cannot look it up.
+
+    **Not upcast.** "It also doesn't expend a spell slot, **which means the ritual version of
+    a spell can't be cast at a higher level.**" The document draws that consequence itself
+    rather than leaving it to be inferred, and an engine that accepted `at_level` here would
+    let a caster upcast for free — the one thing this clause exists to prevent.
+    """
+    if spell_id not in prepared:
+        raise ValueError(
+            f"{spell_id!r} is not prepared, and p. 187 casts a Ritual only from a spell you "
+            "have prepared. A spell that is merely known is not one you may ritual"
+        )
+    if not has_ritual_tag:
+        raise ValueError(
+            f"{spell_id!r} carries no Ritual tag. The tag is the spell's own and comes from "
+            "the ruleset; this engine ships no spell list to look it up in (#21)"
+        )
+    if at_level is not None:
+        raise ValueError(
+            f"a Ritual expends no spell slot, so {spell_id!r} cannot be cast at level "
+            f"{at_level} — p. 187 draws that consequence itself. Upcasting is paid for with "
+            "a higher slot, and there is no slot here to be higher"
+        )
+    return RitualCast(spell_id=spell_id)

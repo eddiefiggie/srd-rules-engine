@@ -72,6 +72,9 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # produced by nothing. Those four stay unclaimed.
         "blindsight": "core.state.EncounterState.can_see",
         "darkvision": "core.sight.effective_light",
+        # p. 187's Ritual, whole: the prepared-and-tagged precondition, the 10 minutes, the
+        # slot it does not expend, and the upcasting that therefore cannot happen (#19).
+        "ritual": "core.spellcasting.ritual_cast",
         # Death saving throws and what follows them (#15).
         "death-saving-throw": "core.death.death_save_resolver",
         "stable": "core.state.DeathSaves.stable",
