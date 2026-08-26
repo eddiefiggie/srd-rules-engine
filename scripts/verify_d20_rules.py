@@ -312,6 +312,37 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "and Total Cover is defined by what it does to TARGETING, not to seeing",
         r"Total Cover \(can.t be targeted directly\)",
     ),
+    # --- Jumping ------------------------------------------------------------------------
+    (
+        184,
+        "a Long Jump is the Strength SCORE in feet, and needs a 10-foot run-up",
+        r"When you make a Long Jump, you leap horizontally a number of feet up to your "
+        r"Strength score if you",
+    ),
+    (
+        185,
+        "standing halves it, every foot costs a foot of movement, and landing in Difficult "
+        "Terrain is a DC 10 Dexterity (Acrobatics) check or Prone",
+        r"When you make a standing Long Jump, you can leap only half that distance\.\s*"
+        r"Either way, each foot you jump costs a foot of movement\.\s*If you land in "
+        r"Difficult Terrain, you must succeed on a DC 10 Dexterity \(Acrobatics\) check or "
+        r"have the Prone condition",
+    ),
+    (
+        183,
+        "a High Jump is 3 plus the Strength MODIFIER, floored at 0 — a different number "
+        "from the Long Jump's, and the pair is easy to conflate",
+        r"you leap into the air a number of feet equal to 3 plus your Strength modifier "
+        r"\(minimum of 0 feet\) if you move at least 10 feet on foot immediately before the "
+        r"jump",
+    ),
+    (
+        183,
+        "and its reach adds one and a half times the creature's HEIGHT, which this engine "
+        "does not model — so the High Jump shape stays unclaimed",
+        r"you can reach a distance equal to the height of the jump plus 1.{0,3}. times your "
+        r"height",
+    ),
     # --- What may be targeted at all (#20) ----------------------------------------------
     (
         105,
