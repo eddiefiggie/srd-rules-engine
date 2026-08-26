@@ -166,7 +166,7 @@ deferral.
 
 ## Status of implementation
 
-**Clauses 1 and 2 are built. Clauses 3-5 are not, and clause 6 is why.**
+**Clauses 1-4 and 6 are built. Clause 5 is not, and clause 7 is not this repository's to build.**
 `Conditions.exhaustion_levels` landed 2026-08-25 with Suffocation, the first rule whose
 removal needed it.
 
@@ -174,14 +174,15 @@ removal needed it.
 |---|---|
 | 1 — a level carries its rule id | **Built.** `Conditions.exhaustion_levels` is a tuple of rule ids and `exhaustion_level` is a derived sum. `exhaustion_from(rule_id)` answers p. 189's question. A level with an empty id is refused |
 | 2 — removal is a rule, not a subtraction | **Built** for the one removal with a live consumer: `with_exhaustion_removed(caused_by=...)` takes the rule whose levels go, never a count. `with_breath_regained` is p. 189's caller |
-| 3 — a locked level is invisible to the general rule | Not built, and unreachable: the general rule is the Long Rest, which does not exist. [#185](https://github.com/eddiefiggie/srd-rules-engine/issues/185) |
-| 4 — most recently gained first, by engine convention | Not built, for the same reason. The order only matters to the general rule. #185 |
+| 3 — a locked level is invisible to the general rule | **Built.** `LOCKED_EXHAUSTION_RULES` names dehydration's and malnutrition's rule ids ahead of the hazards themselves, so a rest takes an unlocked level *or none*. A creature holding only locked levels loses nothing |
+| 4 — most recently gained first, by engine convention | **Built** in `with_long_rest`, and it is the *most recent removable* one — locked levels are not candidates at all, so the order runs over what clause 3 leaves |
 | 5 — a removal may be suppressed by state | Not built, and deliberately not exercised until the contagion exists ([#141](https://github.com/eddiefiggie/srd-rules-engine/issues/141)) |
-| 6 — the general rule lands with the Long Rest | Still true, and now the only thing between clauses 3 and 4 and being built. #185 |
+| 6 — the general rule lands with the Long Rest | **Built** as `EncounterState.with_long_rest`, which applies the two benefits this engine can express and refuses a creature at 0 hit points (p. 185). The rest's timing, its interruptions, Hit Point Dice, a reduced maximum, ability scores and feature recharge are all absent and disclosed |
 | 7 — the potion is not reconciled | Nothing to build. [#182](https://github.com/eddiefiggie/srd-rules-engine/issues/182) |
 
 **Suffocation resolves because of clauses 1 and 2**, and nothing else here does. Coverage is
 79 of 211.
 
-_Updated 2026-08-25 when [#183](https://github.com/eddiefiggie/srd-rules-engine/issues/183)
-landed. This record shipped saying "Decided, not built"._
+_Updated 2026-08-25 as [#183](https://github.com/eddiefiggie/srd-rules-engine/issues/183) and
+[#185](https://github.com/eddiefiggie/srd-rules-engine/issues/185) landed. This record shipped
+saying "Decided, not built"._

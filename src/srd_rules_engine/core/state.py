@@ -85,6 +85,23 @@ class ObligationOutstanding(Exception):
 BURNING_RULE_ID: Final = "burning"
 SUFFOCATION_RULE_ID: Final = "suffocation"
 
+#: The two hazards whose Exhaustion the document puts beyond the general rule's reach, named
+#: here ahead of the hazards themselves (#140) because 0028 clause 3 is about what a Long
+#: Rest may *not* take and that is testable now.
+#:
+#: p. 181: "Exhaustion caused by dehydration can't be removed until the creature drinks the
+#: full amount of water required for a day." p. 185 says the same for food. Neither hazard is
+#: built; when one is, its rule id must be this string or the lock silently stops applying —
+#: `tests/test_long_rest.py` is where that would be caught.
+DEHYDRATION_RULE_ID: Final = "dehydration"
+MALNUTRITION_RULE_ID: Final = "malnutrition"
+
+#: 0028 clause 3. A level from one of these is **invisible** to the general removal rule
+#: rather than subtracted from it: a creature holding only these finishes a Long Rest and
+#: loses nothing, which is what pp. 181 and 185 say. Removing one and re-applying the lock
+#: reports the same total by a route that is wrong for the next rule to read.
+LOCKED_EXHAUSTION_RULES: Final = frozenset({DEHYDRATION_RULE_ID, MALNUTRITION_RULE_ID})
+
 
 @dataclass(frozen=True)
 class Hazards:
@@ -788,6 +805,61 @@ class EncounterState:
                 )
             )
         )
+
+    def with_long_rest(self, combatant_id: str) -> EncounterState:
+        """Finish a Long Rest, and apply the benefits this engine can express (p. 185).
+
+        **Two of the four, and the other two are absent rather than skipped.**
+
+        * *Regain All HP* — every lost hit point comes back. The same sentence restores
+          spent Hit Point Dice and a reduced hit point maximum, and this engine models
+          neither, so two thirds of one benefit is missing and disclosed.
+        * *Exhaustion Reduced* — "its level decreases by 1". This is 0028's general removal
+          rule, and it is the reason this method exists: without a rest, Exhaustion was a
+          mechanic that only ever accumulated (#185).
+        * *Ability Scores Restored* is not modelled, because nothing reduces an ability
+          score.
+        * *Special Feature* recharge is not modelled, because no feature has a recharge.
+
+        **A creature at 0 hit points cannot start one.** p. 185: "To start a Long Rest, you
+        must have at least 1 Hit Point." Every other benefit reads as unconditional, which is
+        why this precondition is the one an implementation drops — and dropping it would let
+        a dying creature rest itself back to full.
+
+        **The level it removes is the most recently gained one that is not locked** (0028
+        clauses 3 and 4). p. 181 never says *which* level goes, so the order is this engine's
+        convention and is declared as one. Locked levels — dehydration's and malnutrition's —
+        are not candidates at all, so a creature holding only those loses nothing.
+
+        **Timing is not enforced.** The rest is "at least 8 hours" and another may not start
+        for 16 more (p. 185); neither is checked here, and no clock advances. The caller
+        advances campaign time with `with_time_passed`, which is where elapsing has its own
+        consequences. Interruptions (p. 185) are not modelled either.
+        """
+        target = self.combatant(combatant_id)
+        if target.is_down:
+            raise ValueError(
+                f"{target.name} has 0 hit points and cannot start a Long Rest — p. 185 "
+                "requires at least 1. A creature this far gone is stabilised or dies; it "
+                "does not rest"
+            )
+
+        restored = replace(target, hit_points=target.max_hit_points)
+        held = restored.conditions.exhaustion_levels
+        removable = [i for i, rule in enumerate(held) if rule not in LOCKED_EXHAUSTION_RULES]
+        if removable:
+            # 0028 clause 4: most recently gained first, and that is a convention rather
+            # than a rule the document supplies.
+            drop = removable[-1]
+            restored = replace(
+                restored,
+                conditions=replace(
+                    restored.conditions,
+                    exhaustion_levels=held[:drop] + held[drop + 1 :],
+                ),
+            )
+
+        return self._evolve(combatants=self._replacing(restored))
 
     def with_breath_regained(self, combatant_id: str) -> EncounterState:
         """p. 189: the creature can breathe again, and every level suffocation caused goes.

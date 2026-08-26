@@ -259,6 +259,26 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"Tremorsense can.t detect creatures or objects in the air, and it doesn.t count as "
         r"a form of sight",
     ),
+    # --- What finishing a Long Rest does (#185) ----------------------------------------
+    (
+        185,
+        "a creature at 0 hit points cannot START a Long Rest, which is the precondition an "
+        "implementation drops because every other benefit reads as unconditional",
+        r"To start a Long Rest, you must have at least 1 Hit Point",
+    ),
+    (
+        185,
+        "the Long Rest's own statement of the general removal rule: the LEVEL decreases by "
+        "one, not the condition ending",
+        r"Exhaustion Reduced\.\s*If you have the Exhaustion condition, its level decreases "
+        r"by 1",
+    ),
+    (
+        185,
+        "and it restores every lost hit point, alongside spent Hit Point Dice and a reduced "
+        "maximum — two of the three this engine cannot yet express",
+        r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
+    ),
     # --- Exhaustion levels, and who may remove them (#178) -----------------------------
     (
         181,
