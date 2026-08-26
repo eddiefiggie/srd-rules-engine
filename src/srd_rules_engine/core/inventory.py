@@ -216,8 +216,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "concentration": "core.spellcasting.Concentration",
         "spell-attack": "core.spellcasting.spell_attack_modifier",
         "ability-check": f"core.d20.TestKind.{TestKind.CHECK.name}",
+        # `save` was here too, resolving to this same symbol — one mechanic counted twice
+        # in both halves of the coverage figure. 0035 files it as vocabulary: p. 187 says it
+        # is another name for a saving throw, so there was never a second thing to claim.
         "saving-throw": f"core.d20.TestKind.{TestKind.SAVE.name}",
-        "save": f"core.d20.TestKind.{TestKind.SAVE.name}",
         "attack-roll": f"core.d20.TestKind.{TestKind.ATTACK.name}",
         "difficulty-class": "core.d20.D20Test.target",
         "advantage": f"core.d20.Advantage.{Advantage.ADVANTAGE.name}",

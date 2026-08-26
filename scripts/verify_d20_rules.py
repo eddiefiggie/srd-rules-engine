@@ -1165,6 +1165,24 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "reads as 3 rather than looking like an off-by-one (0034 Evidence)",
         r"After the hovering weapon attacks for the fourth time",
     ),
+    # --- One thing under two names (#230, 0035) ----------------------------------------
+    # 0035 files `save` as vocabulary because p. 187 states outright that it and `saving
+    # throw` name one thing. Unlike 0034, the evidence here is a PRESENCE — two printed
+    # sentences — so two ordinary clauses assert it and no document-wide count is added.
+    # A count would assert something the argument does not rest on (0035 clause 6).
+    (
+        187,
+        "Save's whole entry renames a saving throw and states no mechanic of its own — the "
+        "sentence 0035 declines to count as a second shape",
+        r"Save is another name for a saving throw",
+    ),
+    (
+        187,
+        "and the PARENT entry declares the alias itself, which is what makes the identity a "
+        "statement of the document rather than a comparison of two entries (0035 clause 1)",
+        r"A saving throw.also called a save.represents an attempt to avoid or resist a "
+        r"threat",
+    ),
 )
 
 #: Clauses about the document as a whole rather than about one page, as

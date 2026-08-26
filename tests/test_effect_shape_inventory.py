@@ -399,12 +399,23 @@ def test_the_glossary_claims_agree_with_the_generator_that_writes_them() -> None
 
 #: Entries whose *glossary body* states no mechanic, and which are claimed anyway because the
 #: document states the mechanic elsewhere. This is the set 0033 clause 1 governs.
+#:
+#: **It had a fifth member, and where it went is recorded rather than left to be noticed.**
+#: `save` was here — "the entry renames a saving throw rather than defining one" — and 0035
+#: moved it to `vocabulary`: p. 187 says outright it is another name for a saving throw, and
+#: both ids already resolved to `TestKind.SAVE`. It is not a shape any more, so it cannot be
+#: a shape claimed on outside text.
+#:
+#: 0033 is not weakened by the loss. Its finding was that contentlessness does not decide
+#: whether a shape is claimed, and the four below still carry it — each is as definitional in
+#: the glossary as Bright Light was, and each is claimed on text elsewhere. A guard member
+#: vanishing without a reason is how a guard comes to inspect less than it appears to, which
+#: is the failure 0033 was written about.
 CLAIMED_ON_TEXT_OUTSIDE_THE_ENTRY = {
     "bright-light": 'p. 11: "Bright Light lets most creatures see normally."',
     "damage": "p. 17, and the damage rules the glossary entry points at.",
     "damage-types": "p. 17: the entry says types have no rules of their own, and points on.",
     "healing": "p. 17, and the Hit Point rules the glossary entry points at.",
-    "save": "the D20 Test rules — the entry renames a saving throw rather than defining one.",
 }
 
 #: Asserted **unclaimed**, so this guard fails in both directions. Without it the test is
@@ -550,3 +561,62 @@ def test_a_renamed_mechanism_with_no_consumers_is_vocabulary_and_one_with_them_i
             f"entry is phrased: {mechanism}, so it differs from `attack-roll` in mechanism "
             "rather than in a parameter and stays a shape."
         )
+
+
+# --- 0035: two names for one thing are one shape (#230) ----------------------------------
+
+#: Named alongside `saving-throw` because the rule has to tell "a second name for the same
+#: thing" from "a specialised thing named similarly", and the names cannot do it — both
+#: contain "saving throw". The value is the symbol each resolves to, which can.
+A_SPECIALISED_NAMESAKE_IS_NOT_A_SYNONYM = "death-saving-throw"
+
+
+def test_two_ids_resolving_to_one_symbol_are_one_shape(inventory: Inventory) -> None:
+    """0035, pinned in three directions.
+
+    `save` is vocabulary because p. 187 states it is another name for a saving throw, and
+    because `ENGINE_SHAPES` already resolved both ids to `core.d20.TestKind.SAVE` — one
+    mechanic counted twice, in the numerator *and* the denominator.
+
+    **The numerator is why this guard matters more than its neighbours.** Restoring the
+    `save` key would raise published coverage by one for no work at all, and it would look
+    like a fix: the entry is in the glossary, so putting it back reads as correcting an
+    omission. It is not. There was never a second thing to claim.
+
+    **The third direction stops the rule over-firing.** `death-saving-throw` is named for a
+    saving throw and is a real, separate mechanism — three successes, three failures, a fixed
+    DC. A rule that unclaimed every entry whose name renames another would take it too, so
+    the discriminator is asserted as what 0035 clause 3 says it is: the resolver symbol, not
+    the name.
+    """
+    assert inventory.by_id("save") is None, (
+        "`save` is back in `shapes`. 0035 files it as vocabulary: p. 187 says it is another "
+        "name for a saving throw, and both ids resolved to one symbol. Restoring it raises "
+        "coverage by one and claims nothing new — read the record before moving it back."
+    )
+    assert "Save" in inventory.vocabulary, (
+        "`save` is in neither `shapes` nor `vocabulary`. An entry set aside stays visible "
+        "with its reason; silent omission is the failure R17 names."
+    )
+
+    parent = inventory.by_id("saving-throw")
+    assert parent is not None and parent.implemented, (
+        "`saving-throw` is not a claimed shape. 0035 moved `save` on the grounds that the "
+        "mechanic is claimed here instead — if this is gone, the claim went with it and the "
+        "engine now reports no saving throw at all."
+    )
+
+    namesake = inventory.by_id(A_SPECIALISED_NAMESAKE_IS_NOT_A_SYNONYM)
+    assert namesake is not None, (
+        f"`{A_SPECIALISED_NAMESAKE_IS_NOT_A_SYNONYM}` is no longer a shape. It is named for "
+        "a saving throw but is its own mechanism, and 0035 clause 3 keeps it a shape."
+    )
+    assert (
+        ENGINE_SHAPES[A_SPECIALISED_NAMESAKE_IS_NOT_A_SYNONYM] != ENGINE_SHAPES["saving-throw"]
+    ), (
+        f"`{A_SPECIALISED_NAMESAKE_IS_NOT_A_SYNONYM}` now resolves to the same symbol as "
+        "`saving-throw`. Either it has stopped being its own mechanism — in which case 0035 "
+        "clause 1 applies to it and it should be vocabulary — or the mapping is wrong. Two "
+        "ids sharing a symbol is exactly what this record says is one shape, so this cannot "
+        "be left as it is."
+    )

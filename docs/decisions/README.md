@@ -100,6 +100,7 @@ rejected options and the reason survive, not the exact headings.
 | [0032](0032-an-outcome-conditional-on-its-own-damage.md) | An effect may be conditional on a sibling's settled damage, asked where the damage is *taken* rather than rolled — and the seven rules that key off damage dealt are three shapes, not one | [#173](https://github.com/eddiefiggie/srd-rules-engine/issues/173) |
 | [0033](0033-a-glossary-entry-is-an-index-not-a-shapes-boundary.md) | A glossary entry is an index into the rules, not the boundary of one — a shape's content is what the document states about it anywhere, and #228's three options are all rejected | [#228](https://github.com/eddiefiggie/srd-rules-engine/issues/228) |
 | [0034](0034-a-term-the-document-defines-and-never-uses.md) | A term the document defines and never uses is vocabulary — `weapon-attack` has no consumers, so it is neither a second shape nor a double count, and the denominator falls to 210 | [#229](https://github.com/eddiefiggie/srd-rules-engine/issues/229) |
+| [0035](0035-two-names-for-one-thing-are-one-shape.md) | Two names for one thing are one shape — `save` and `saving-throw` already resolved to the same symbol, so the test is identity rather than usage, and both figures fall to 95 of 209 | [#230](https://github.com/eddiefiggie/srd-rules-engine/issues/230) |
 
 ## What belongs here, and what doesn't
 

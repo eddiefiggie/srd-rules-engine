@@ -168,7 +168,9 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Resistance": ("effect", True),
     "Ritual": ("spellcasting", True),
     "Round Down": ("vocabulary", False),
-    "Save": ("test", True),
+    # Not a `test`: p. 187 says outright it is another name for a saving throw, and both
+    # ids already resolved to `TestKind.SAVE` (0035, #230).
+    "Save": ("vocabulary", False),
     "Saving Throw": ("test", True),
     "Shape-Shifting": ("effect", False),
     "Short Rest": ("effect", False),
@@ -224,6 +226,16 @@ VOCABULARY_REASONS: dict[str, str] = {
         "it. `spell-attack` reads the same way and is a shape anyway, because p. 106 gives "
         "it a bonus formula of its own — which is why the test is consumers rather than "
         "phrasing. Decisions 0034 and 0013, Q1/Q3/Q5."
+    ),
+    "Save": (
+        "Not a separate shape: p. 187 states it is another name for `saving-throw`, and the "
+        "parent entry declares the alias itself ('A saving throw—also called a save—'). It "
+        "fixes no parameter and names the identical set, so the two are one shape. The "
+        "deciding evidence is that both ids already resolved to the same symbol, "
+        "`core.d20.TestKind.SAVE`, on adjacent lines of `core.inventory` — one mechanic "
+        "counted twice in the numerator and the denominator both. Heavy use is not evidence "
+        "either way: the document uses 'save' 1544 times and 'saving throw' 636, and use "
+        "of a synonym is use of the thing it names. Decision 0035."
     ),
 }
 
@@ -1934,6 +1946,17 @@ def build(pdf: Path) -> dict[str, object]:
                     "one shape."
                 ),
                 "decided_by": "0013, Q1, Q3 and Q5",
+            },
+            {
+                "id": "one-thing-under-two-names",
+                "rule": (
+                    "A term whose entry states it denotes the same thing as an inventoried "
+                    "term is one shape with it, however often the document uses the term. "
+                    "The test is identity, not usage. Two ids resolving to one symbol is "
+                    "the machine-checkable form of it; a similar name is not, which is why "
+                    "a specialised namesake with its own resolver stays a shape."
+                ),
+                "decided_by": "0035",
             },
         ],
         "kind_values": sorted(KIND_VALUES),
