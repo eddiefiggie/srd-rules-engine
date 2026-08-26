@@ -118,6 +118,14 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "resistance": "core.damage.Defences.resistances",
         "vulnerability": "core.damage.Defences.vulnerabilities",
         "damage-application-order": "core.damage.after_defences",
+        # p. 180's Damage Threshold, which is a DEFENCE and not a conditional effect (#214,
+        # and 0032's sweep is what separated them). The entry says "has Immunity to all
+        # damage unless...", so it is asked where Immunity is asked and against the instance
+        # arriving — "an amount of damage from a single attack or effect", repeated as "that
+        # entire instance". p. 17's Order of Application names three steps and not this one,
+        # so the position is derived from the classification rather than read off an
+        # ordering the document does not give.
+        "damage-threshold": "core.damage.Defences.damage_threshold",
         "damage-modifier-no-stacking": "core.damage.Defences",
         # Weapon properties and the one mastery property nothing else gates (#16).
         "weapon-finesse": "core.combat.Weapon.finesse",

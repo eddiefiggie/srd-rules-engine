@@ -118,7 +118,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "D20 Test": ("test", True),
     "Damage": ("effect", True),
     "Damage Roll": ("test", True),
-    "Damage Threshold": ("state", False),
+    "Damage Threshold": ("state", True),
     "Damage Types": ("effect", True),
     "Darkness": ("environment", True),
     "Darkvision": ("sense", True),

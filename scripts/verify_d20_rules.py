@@ -603,6 +603,30 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"takes that entire instance of damage",
     ),
     (
+        180,
+        "the same boundary from the other side — damage that fails to MEET OR EXCEED it is "
+        "superficial, so both operative sentences say >= and the equal case gets through",
+        r"Any damage that fails to meet or exceed the damage threshold is superficial and "
+        r"doesn.t reduce Hit Points",
+    ),
+    (
+        180,
+        "and the worked example, which names the amount DEALT rather than any later figure "
+        "— the evidence that the threshold gates the arriving instance (#214)",
+        r"if an object has a damage threshold of 10, the object takes no damage if 9 damage "
+        r"is dealt to it.{0,120}If the same object is dealt 11 damage, it takes all of that "
+        r"damage",
+    ),
+    (
+        17,
+        "and the Order of Application names THREE steps, none of them the threshold — which "
+        "is why its position is derived from p. 180 calling it Immunity rather than read off "
+        "an ordering the document does not give (#214)",
+        r"Modifiers to damage are applied in the following order: adjustments such as "
+        r"bonuses, penalties, or multipliers are applied first; Resistance is applied "
+        r"second; and Vulnerability is applied third",
+    ),
+    (
         213,
         "a weapon bonus applies to attack rolls AND damage rolls, not one of them",
         r"You gain a \+1 bonus to attack rolls and damage rolls made with this magic weapon",

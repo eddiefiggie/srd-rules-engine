@@ -205,6 +205,97 @@ def test_resistance_can_save_a_character_from_massive_damage() -> None:
     assert survived.hit_points == 0
 
 
+# --- The damage threshold (p. 180, #214) ----------------------------------------------
+#
+# A defence rather than a conditional effect, and 0032's document sweep is what separated
+# them: the entry says "has **Immunity** to all damage unless…", and what it modifies is the
+# damage itself rather than some other effect keyed off it.
+
+WALL = Defences(damage_threshold=10)
+
+
+def test_the_documents_own_worked_example_for_a_threshold() -> None:
+    """p. 180, both halves of it: "if an object has a damage threshold of 10, the object
+    takes no damage if 9 damage is dealt to it… If the same object is dealt 11 damage, it
+    takes all of that damage."
+
+    Note the second half. Below the threshold nothing lands; at or above it, the **whole**
+    instance lands — the threshold is a gate, never a reduction, so 11 does not become 1.
+    """
+    assert after_defences(9, FIRE, WALL).amount == 0
+    assert after_defences(11, FIRE, WALL).amount == 11
+
+
+def test_an_instance_exactly_equal_to_the_threshold_gets_through() -> None:
+    """The boundary the worked example cannot settle, because it uses 9 against 10 where
+    both readings agree. Two operative sentences settle it and they agree with each other:
+    "**equal to or greater than** its damage threshold", and damage "that fails to **meet or
+    exceed**" it is superficial. Only the example's gloss abbreviates to "fails to exceed".
+    """
+    assert after_defences(10, FIRE, WALL).amount == 10
+    assert after_defences(9, FIRE, WALL).amount == 0
+
+
+def test_the_threshold_is_asked_of_the_instance_and_resistance_acts_after_it() -> None:
+    """#214's whole question, and the case where the two readings disagree.
+
+    p. 17's Order of Application names three steps and the threshold is not one of them, so
+    its position is derived from p. 180 calling it Immunity rather than read off an ordering
+    the document does not give. Comparing the *halved* figure instead would make this
+    creature Immune and deal nothing.
+    """
+    resistant = Defences(damage_threshold=10, resistances=frozenset({FIRE}))
+    outcome = after_defences(12, FIRE, resistant)
+
+    assert outcome.amount == 6, "12 meets the threshold, then p. 17 halves it"
+    assert "damage threshold" not in outcome.derivation(), "the gate reduced nothing"
+
+
+def test_an_instance_below_the_threshold_is_immune_even_with_vulnerability() -> None:
+    """The mirror, and the reason 0030 clause 1 must not be reached here (0031 clause 2).
+
+    Resolving "away from invention" would compare after Resistance — less damage — but
+    before Vulnerability, also less damage. That is not one rule read two ways; it is a
+    thumb on the scale, picked per case to minimise a number. The rule is the same in both
+    directions: the gate is asked of the instance.
+    """
+    fragile = Defences(damage_threshold=10, vulnerabilities=frozenset({FIRE}))
+    assert after_defences(6, FIRE, fragile).amount == 0, "6 never meets 10"
+    assert after_defences(10, FIRE, fragile).amount == 20, "10 meets it, then doubles"
+
+
+def test_the_threshold_short_circuits_as_immunity_and_says_so() -> None:
+    """R5. The derivation names the rule that produced the zero, because a bare 0 cannot be
+    told from Immunity to the type, or from a roll of nothing."""
+    outcome = after_defences(9, FIRE, WALL)
+    assert outcome.amount == 0
+    assert "Immunity" in outcome.derivation()
+    assert "damage threshold of 10" in outcome.derivation()
+
+
+def test_a_creature_with_no_threshold_is_unaffected_by_the_gate() -> None:
+    """Almost everything. `None` is not a threshold of 0 — every instance meets 0, so a
+    zero would be a threshold that does nothing rather than the absence of one."""
+    assert Defences().damage_threshold is None
+    assert Defences().meets_threshold(0)
+    assert Defences(damage_threshold=0).meets_threshold(0)
+    assert after_defences(3, FIRE, Defences()).amount == 3
+
+
+def test_a_negative_threshold_is_refused() -> None:
+    """p. 180 compares an instance against it, and no instance is negative."""
+    with pytest.raises(ValueError, match="not a quantity of damage"):
+        Defences(damage_threshold=-1)
+
+
+def test_the_threshold_reaches_the_state_transition_too() -> None:
+    """The gate has to act where defences act, or the death save for "any damage" and
+    Massive Damage's remainder would both be computed from a number it had not zeroed."""
+    state = EncounterState.new([combatant(damage_threshold=10)])
+    assert state.with_damage("hero", 9, damage_type=FIRE).combatant("hero").hit_points == 40
+    assert state.with_damage("hero", 11, damage_type=FIRE).combatant("hero").hit_points == 29
+
+
 # --- Provenance and shape -------------------------------------------------------------
 
 

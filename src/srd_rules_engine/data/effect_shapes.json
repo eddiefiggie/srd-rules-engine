@@ -359,7 +359,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 180",
    "kind": "state",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "damage-types",
