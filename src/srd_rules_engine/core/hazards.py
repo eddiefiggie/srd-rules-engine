@@ -1,12 +1,21 @@
 """Hazards: the effects the world has on a creature without anyone attacking it.
 
-One of the five is here. The other four are #140, and 0027 explains why they are not: each
-fires on an **occasion** this engine does not have. Burning at the start of a turn (p. 178),
-Suffocation at the end of one (p. 189), Dehydration and Malnutrition at a day's end
-(pp. 181, 185). Falling is the one that fires on no occasion at all — it resolves when the
-creature lands — which is why it is the one that could be built (0027 clause 7, applying
+Two of the five are here.
+
+**Falling** fires on no occasion at all — it resolves when the creature lands — which is why
+it was the first that could be built (0027 clause 7, applying
 [0023](../../../docs/decisions/0023-the-turns-end-is-a-loop-owned-phase.md) clause 5
 unchanged: an event resolves where the event happens, not in a catch-all).
+
+**Burning** fires at the start of each of the creature's turns (p. 178), which is a phase this
+engine has held since 0027 clauses 1-4 — the same one the death save fires in.
+
+The other three are not blocked on an occasion any more. Suffocation has one (the turn's end,
+built by 0023); Dehydration and Malnutrition fire at a day's end on the campaign axis. All
+three are blocked on the same thing instead: **each inflicts an Exhaustion *level*, and
+nothing can raise one through a ruling** — no `EffectKind`, no state mutator, no method on
+`Conditions` ([#178](https://github.com/eddiefiggie/srd-rules-engine/issues/178)). Burning is
+the exception because it deals Fire *damage*, and damage has worked since #88.
 
 ## Falling asks nothing of the d20
 
@@ -74,6 +83,8 @@ from srd_rules_engine.core.conditions import Condition
 from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.rules import (
+    Rule,
+    RuleProvenance,
     Verification,
     VerificationMethod,
     VerificationState,
@@ -187,6 +198,91 @@ def falling_resolver(feet: int) -> Resolver:
                     if immune
                     else ()
                 ),
+            ),
+        )
+
+    return resolve
+
+
+#: p. 178: "A burning creature or object takes 1d4 Fire damage at the start of each of its
+#: turns."
+BURNING_DIE_SIDES: Final = 4
+
+#: The rule id the turn's start enumerates Burning under (0027 clause 2).
+BURNING_RULE_ID: Final = "burning"
+
+#: R31. The sentence is a clause in `scripts/verify_d20_rules.py` (#140), including the part
+#: that says *start* — which is what put it in the same phase as the death save rather than
+#: the one save-ends lives in.
+BURNING_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference=(
+        "SRD v5.2.1, Rules Glossary, Burning p. 178 — 1d4 Fire damage at the start of each "
+        "of the creature's turns"
+    ),
+    date="2026-08-25",
+    method=VerificationMethod.ASSERTED,
+)
+
+
+def burning_rule() -> Rule:
+    """The SRD rule the turn's start incurs for a burning creature (p. 178)."""
+    return Rule(
+        id=BURNING_RULE_ID,
+        summary=("A burning creature takes 1d4 Fire damage at the start of each of its turns."),
+        provenance=RuleProvenance.SRD,
+        verification=BURNING_VERIFICATION,
+    )
+
+
+def burning_resolver() -> Resolver:
+    """Build the resolver for Burning's damage at the start of a turn.
+
+    No d20, like Falling — p. 178 asks nothing of the dice but the damage, and inventing a
+    test to reach the outcome would invent a roll the rules do not call for (0027 clause 6).
+
+    **What ends it is not here.** p. 178 puts the fire out when it is "doused, submerged, or
+    suffocated", or by an action that gives the creature the Prone condition and rolls it on
+    the ground. The first three are narrative facts this engine cannot observe; the fourth
+    needs an action to spend and a ruling to apply Prone through. So a burning creature
+    burns until a caller clears `Hazards.burning` directly — a disclosed gap rather than a
+    silent one, and a consequential one: nothing here can stop it.
+    """
+
+    def resolve(
+        *,
+        state: EncounterState,
+        declaration: Declaration,
+        facts: Mapping[str, Resolution],
+    ) -> Proposal:
+        actor_id = declaration.actor_id
+        actor = state.combatant(actor_id)
+        if not actor.hazards.burning:
+            raise ValueError(
+                f"{actor.name} is not burning, so there is nothing for p. 178 to resolve. "
+                "Burning is read off state and never declared"
+            )
+
+        return Proposal(
+            outcome=(
+                DamageDice(
+                    target_id=actor_id,
+                    count=1,
+                    sides=BURNING_DIE_SIDES,
+                    source="burning",
+                    damage_type=DamageType.FIRE,
+                ),
+            ),
+            citations=("srd:rules-glossary/burning",),
+            may_claim=(
+                "that the fire is still burning at the start of this turn",
+                "that it dealt the damage recorded here, and no more",
+            ),
+            may_not_claim=(
+                "that anything was rolled for, tested, resisted or avoided — Burning is not "
+                "a test, and nothing about it can be passed",
+                "that the fire went out; this engine cannot observe dousing, submersion or "
+                "an action spent putting it out, and it has recorded none",
             ),
         )
 
