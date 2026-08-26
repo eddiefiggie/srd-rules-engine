@@ -145,7 +145,7 @@ def test_the_api_version_is_independent_of_the_build_stamp() -> None:
 
 def test_the_api_version_is_independent_of_the_schema_versions() -> None:
     """A schema bump need not be an API break, and an API break need not touch a schema.
-    `RULING_VERSION` is 6 while the API is at 2, which is the distinction in the data rather
+    `RULING_VERSION` is 7 while the API is at 2, which is the distinction in the data rather
     than only in the record.
     """
     from srd_rules_engine.core.adjudicate import RULING_VERSION
@@ -168,7 +168,7 @@ def test_the_api_version_is_independent_of_the_schema_versions() -> None:
     # grew `testless`, so a resolver written against the old shape still compiles and still
     # behaves — the field it stopped being required to pass, it passes anyway. The schema
     # moved to 5 and the API did not move.
-    assert RULING_VERSION == 6
+    assert RULING_VERSION == 7
     assert API_VERSION == 2
     assert RULING_VERSION != API_VERSION
 

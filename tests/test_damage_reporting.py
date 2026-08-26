@@ -78,7 +78,7 @@ def blow(amount: int, damage_type: DamageType | None = FIRE) -> Effect:
 
 
 def apply_one(state: EncounterState, effect: Effect) -> tuple[EncounterState, Effect]:
-    after, landed = _apply(state, (effect,), seed=1)
+    after, landed, _ = _apply(state, (effect,), seed=1)
     return after, landed[0]
 
 
@@ -259,7 +259,7 @@ def test_every_effect_comes_back_in_the_order_it_went_in() -> None:
     """The applier hands back a rewritten sequence, so losing or reordering one is the
     obvious way to break it while every individual assertion still passes."""
     effects = (blow(13), blow(4, damage_type=None), blow(9))
-    _, landed = _apply(target(RESISTANT), effects, seed=1)
+    _, landed, _withheld = _apply(target(RESISTANT), effects, seed=1)
 
     assert len(landed) == 3
     assert [e.rolled for e in landed] == [13, None, 9]

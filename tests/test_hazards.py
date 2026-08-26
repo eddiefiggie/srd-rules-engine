@@ -20,6 +20,7 @@ from __future__ import annotations
 import itertools
 from dataclasses import replace
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -29,6 +30,7 @@ from srd_rules_engine.core.adjudicate import (
     EffectKind,
     Intent,
     Status,
+    When,
 )
 from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.damage import DamageType, Defences
@@ -49,6 +51,7 @@ from srd_rules_engine.core.hazards import (
     suffocation_rule,
 )
 from srd_rules_engine.core.ledger import Ledger
+from srd_rules_engine.core.ledger_reader import read_ledger
 from srd_rules_engine.core.read_surface import read
 from srd_rules_engine.core.rules import (
     Rule,
@@ -83,6 +86,11 @@ def combatant(cid: str, *, defences: Defences | None = None) -> Combatant:
         proficiency_bonus=2,
         defences=defences or Defences(),
     )
+
+
+#: Resistance to Bludgeoning, which is the defence #173 turns on: it is the only one that
+#: can round a fall to zero *after* the dice, and so the only one no proposal can foresee.
+RESISTANT = Defences(resistances=frozenset({DamageType.BLUDGEONING}))
 
 
 def encounter(*, defences: Defences | None = None) -> EncounterState:
@@ -225,13 +233,146 @@ def test_a_creature_immune_to_bludgeoning_takes_no_damage_and_is_not_prone(
 
 def test_the_bounds_refuse_the_prone_claim_when_it_was_not_applied(tmp_path: Path) -> None:
     """R7. The narrator is told it may not say the creature is Prone, rather than merely
-    not being told that it is — an absence is not a bound."""
+    not being told that it is — an absence is not a bound.
+
+    The bound is now written by `_bounds` rather than by the resolver (0032 clause 5), and
+    the wording moved with it. What must not move is that a refusal exists.
+    """
     immune = Defences(immunities=frozenset({DamageType.BLUDGEONING}))
     state = encounter(defences=immune)
     ruling, _ = build(tmp_path, 30).adjudicate(state, declare(state))
 
-    assert any("is Prone" in line for line in ruling.bounds.may_not)
-    assert not any("now Prone" in line for line in ruling.bounds.may)
+    assert any("prone condition" in line and "withheld" in line for line in ruling.bounds.may_not)
+    assert not any("Prone" in line for line in ruling.bounds.may)
+
+
+def test_no_bound_asserts_prone_either_way_because_the_proposal_cannot_know(
+    tmp_path: Path,
+) -> None:
+    """0032 clause 5, and the reason the resolver stopped branching.
+
+    `may_claim` and `may_not_claim` are fixed when the proposal is built — before the dice
+    exist. A resolver that named Prone there would be asserting a branch it could not see,
+    which is #173's defect moved from the effect to the record of it. So neither list
+    mentions Prone in either case, and the positive claim rides on the standing bound
+    "that the effects recorded here happened".
+    """
+    for defences in (None, Defences(immunities=frozenset({DamageType.BLUDGEONING}))):
+        state = encounter(defences=defences)
+        ruling, _ = build(tmp_path / f"d{defences}", 30).adjudicate(state, declare(state))
+        assert not any("Prone" in line for line in ruling.bounds.may)
+
+
+# --- The case the qualifier could not reach until 0032 (#173) ---------------------------
+
+
+def resistance_rounds_to_zero(tmp_path: Path) -> int:
+    """The first seed whose single falling die comes up 1 against Resistance.
+
+    Found rather than written down, for the reason every seed in this suite is: the dice
+    derive from the seed, so a literal would go on passing while testing something else.
+
+    p. 17 halves and rounds down, so 1 becomes 0 — the only way a fall deals no damage that
+    is **not** decidable before the dice are thrown. It needs a fall of 10-19 feet, so only
+    one die is rolled: 20+ feet rolls at least 2d6, whose minimum of 2 halves to 1, which is
+    still damage and still Prone.
+    """
+    for candidate in range(500):
+        state = encounter(defences=RESISTANT)
+        ruling, _ = build(tmp_path / f"probe{candidate}", 10, seed=candidate).adjudicate(
+            state, declare(state)
+        )
+        damage = next(e for e in ruling.effects if e.kind is EffectKind.DAMAGE)
+        if damage.rolled == 1 and damage.amount == 0:
+            return candidate
+    raise AssertionError("no seed below 500 rolled a 1 on the single falling die")
+
+
+def test_resistance_rounding_the_fall_to_zero_withholds_prone(tmp_path: Path) -> None:
+    """#173, exactly: the third way to take no damage, and the one no proposal can foresee.
+
+    Before 0032 this creature was Prone. The branch was chosen in the resolver, where the
+    only number available is none — and by the time a number existed, the decision had been
+    made. Asking one function later would not have been enough either: `_roll_declared` has
+    the **rolled** figure, and the rolled figure here is 1.
+    """
+    seed = resistance_rounds_to_zero(tmp_path)
+    state = encounter(defences=RESISTANT)
+    ruling, after = build(tmp_path / "actual", 10, seed=seed).adjudicate(state, declare(state))
+
+    damage = next(e for e in ruling.effects if e.kind is EffectKind.DAMAGE)
+    assert damage.rolled == 1, "the die said 1"
+    assert damage.amount == 0, "p. 17 halves and rounds down, so nothing was taken"
+
+    assert not [e for e in ruling.effects if e.kind is EffectKind.CONDITION_APPLIED]
+    assert not after.combatant("pc").conditions.has(Condition.PRONE)
+
+
+def test_a_resistant_creature_that_takes_one_point_is_still_prone(tmp_path: Path) -> None:
+    """The other side of the same die, and the reason the predicate is `> 0` rather than a
+    threshold. p. 182 says "any damage", so one point is enough — and a 20-foot fall rolls
+    2d6, whose minimum of 2 halves to 1."""
+    state = encounter(defences=RESISTANT)
+    ruling, after = build(tmp_path, 20).adjudicate(state, declare(state))
+
+    damage = next(e for e in ruling.effects if e.kind is EffectKind.DAMAGE)
+    assert damage.amount >= 1, "2d6 halved cannot reach zero"
+    assert [e.condition for e in ruling.effects if e.kind is EffectKind.CONDITION_APPLIED] == [
+        Condition.PRONE
+    ]
+    assert after.combatant("pc").conditions.has(Condition.PRONE)
+
+
+def test_a_withheld_prone_is_recorded_rather_than_absent(tmp_path: Path) -> None:
+    """0032 clause 4. An effect the rules withheld must not read like one nobody considered,
+    which is the confusion #173's disclosure existed to prevent rather than relocate.
+
+    It is kept out of `effects` because the standing bound calls that list the things that
+    happened — so the record needs two lists, not one with a flag.
+    """
+    seed = resistance_rounds_to_zero(tmp_path)
+    state = encounter(defences=RESISTANT)
+    ruling, _ = build(tmp_path / "actual", 10, seed=seed).adjudicate(state, declare(state))
+
+    assert [(e.condition, e.when) for e in ruling.withheld] == [
+        (Condition.PRONE, When.DAMAGE_TAKEN)
+    ]
+    assert not any(e.condition is Condition.PRONE for e in ruling.effects)
+
+
+def test_the_ledger_records_the_predicate_and_the_withholding(tmp_path: Path) -> None:
+    """0032 clause 4 through to the record. A reader with only the ledger must be able to
+    tell "the rules withheld this" from "nobody thought of it", which needs the predicate as
+    well as the outcome — an effect that applied unconditionally and one whose condition
+    happened to hold are different facts."""
+    seed = resistance_rounds_to_zero(tmp_path)
+    state = encounter(defences=RESISTANT)
+    build(tmp_path / "actual", 10, seed=seed).adjudicate(state, declare(state))
+
+    entries = read_ledger(tmp_path / "actual" / "ledger.jsonl").entries
+    ruling = next(e for e in entries if e.type == "ruling")
+    withheld = cast(list[dict[str, object]], ruling.payload["withheld"])
+    assert len(withheld) == 1
+    assert withheld[0]["condition"] == str(Condition.PRONE)
+    assert withheld[0]["when"] == str(When.DAMAGE_TAKEN)
+
+
+def test_a_ruling_that_withheld_nothing_carries_no_withheld_key(tmp_path: Path) -> None:
+    """Absent rather than empty, so a reader never has to tell an empty list from a payload
+    version that could not carry one."""
+    state = encounter()
+    build(tmp_path, 30).adjudicate(state, declare(state))
+
+    entries = read_ledger(tmp_path / "ledger.jsonl").entries
+    ruling = next(e for e in entries if e.type == "ruling")
+    assert "withheld" not in ruling.payload
+
+    effects = cast(list[dict[str, object]], ruling.payload["effects"])
+    applied = next(e for e in effects if e["condition"])
+    assert applied["when"] == str(When.DAMAGE_TAKEN), (
+        "an effect that applied still records that it was conditional — otherwise a reader "
+        "cannot tell it from one that applied unconditionally"
+    )
 
 
 def test_a_fall_may_not_be_narrated_as_something_resisted(tmp_path: Path) -> None:

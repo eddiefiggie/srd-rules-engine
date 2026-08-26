@@ -43,30 +43,41 @@ The distance is a closure parameter, the way `attack_resolver` closes over a wea
 caller holds, like which weapon it swung; what the fall *costs* is this engine's, and it is
 not told.
 
-## Prone, and the qualifier this engine can only half-check
+## Prone, and the qualifier that is now checked in full
 
 p. 182 continues: "When the creature lands, it has the Prone condition **unless it avoids
 taking any damage from the fall**."
 
-That qualifier is about the damage actually taken, and the damage is rolled after the
-proposal is built. Two of the three ways to take none are decidable here and one is not:
+That qualifier is about the damage actually **taken**, and the damage is rolled after the
+proposal is built. This resolver used to decide the branch anyway, which left three ways to
+take no damage and covered two of them:
 
-* **A fall shorter than 10 feet** deals zero dice. Decidable — and this module refuses to
-  adjudicate it at all rather than proposing an outcome that resolves nothing.
+* **A fall shorter than 10 feet** deals zero dice. Decidable — and this module still refuses
+  to adjudicate it at all rather than proposing an outcome that resolves nothing.
 * **Immunity to Bludgeoning** zeroes any amount, whatever the dice say. Decidable from
-  `Defences.is_immune_to`, so the Prone is withheld and the damage is still recorded as the
-  zero it will be.
-* **Resistance rounding a low roll to zero** is not. p. 17 halves and rounds down, so a
-  resistant creature rolling a 1 on a single die takes 0 and by p. 182 should not be Prone —
-  and the branch was fixed before the die was thrown. **This engine applies Prone anyway**,
-  disclosed here and filed as
-  [#173](https://github.com/eddiefiggie/srd-rules-engine/issues/173).
+  `Defences.is_immune_to`.
+* **Resistance rounding a low roll to zero** was not. p. 17 halves and rounds down, so a
+  resistant creature rolling a 1 on a single die takes 0 and by p. 182 must not be Prone —
+  and the branch was fixed before the die was thrown, so it was Prone
+  ([#173](https://github.com/eddiefiggie/srd-rules-engine/issues/173)).
 
-The direction of that error is deliberate and is the one `core.conditions` already takes for
-Frightened: applying a penalty whose qualifier cannot be checked cannot invent a success. It
-is the opposite of `core.reactions`, which withholds an Opportunity Attack rather than fire
-one the rules may not grant — because a penalty wrongly applied costs the creature something,
-while damage wrongly dealt produces a number out of nothing.
+**The branch moved instead of growing a third case.** Prone is now declared with
+`When.DAMAGE_TAKEN` and the engine decides it in `_apply`, against the post-defences figure
+([0032](../../../docs/decisions/0032-an-outcome-conditional-on-its-own-damage.md) clauses
+1-3). All three ways to take no damage go down the same road, and the resolver no longer
+branches on Immunity at all — the case it *could* not reach is the one that mattered, and
+special-casing the two it could was what hid it.
+
+Asking one step earlier would not have been enough. `_roll_declared` has the **rolled**
+number, and the rolled number in that case is 1: p. 17's Resistance is the entire difference
+between rolled and taken, which is why 0032 clause 2 names the moment rather than the
+mechanism.
+
+**Neither `may_claim` nor `may_not_claim` mentions Prone** (0032 clause 5). They are fixed
+when the proposal is built, so a claim about a conditional effect there would assert a branch
+this resolver cannot see — the same defect, moved from the effect to the record of it. The
+standing bound "that the effects recorded here happened" covers the applied case, and
+`_bounds` adds the refusal when the predicate failed.
 
 ## What is not modelled
 
@@ -89,6 +100,7 @@ from srd_rules_engine.core.adjudicate import (
     EffectKind,
     Proposal,
     Resolver,
+    When,
     condition_applied,
 )
 from srd_rules_engine.core.conditions import Condition
@@ -165,8 +177,6 @@ def falling_resolver(feet: int) -> Resolver:
         facts: Mapping[str, Resolution],
     ) -> Proposal:
         actor_id = declaration.actor_id
-        actor = state.combatant(actor_id)
-        immune = actor.defences.is_immune_to(DamageType.BLUDGEONING)
 
         damage = DamageDice(
             target_id=actor_id,
@@ -176,46 +186,37 @@ def falling_resolver(feet: int) -> Resolver:
             damage_type=DamageType.BLUDGEONING,
         )
 
-        # p. 182's Prone is conditional on damage being taken. Immunity is the one way to
-        # take none that is decidable before the dice are thrown, so it is decided here
-        # rather than applied and disclosed.
-        prone = (
-            ()
-            if immune
-            else (
-                condition_applied(
-                    actor_id,
-                    Condition.PRONE,
-                    description=(
-                        f"landing after a {feet}-foot fall (p. 182). Prone follows the "
-                        "fall unless no damage was taken"
-                    ),
-                ),
-            )
+        # p. 182's Prone is conditional on damage being *taken*, so it is declared
+        # conditional and the engine decides it where the number exists (0032 clauses 1-3).
+        # This resolver no longer branches on Immunity: `When.DAMAGE_TAKEN` covers all three
+        # ways to take none, and the one it could not reach before is the one that mattered.
+        prone = condition_applied(
+            actor_id,
+            Condition.PRONE,
+            description=(
+                f"landing after a {feet}-foot fall (p. 182). Prone follows the fall "
+                "unless no damage was taken"
+            ),
+            when=When.DAMAGE_TAKEN,
         )
 
         return Proposal(
-            outcome=(damage, *prone),
+            outcome=(damage, prone),
             citations=("srd:rules-glossary/falling",),
+            # 0032 clause 5. Neither list mentions Prone, and that is the fix rather than an
+            # omission: these are fixed before the dice are thrown, so a claim about a
+            # conditional effect here would assert a branch this resolver cannot see. The
+            # standing bound "that the effects recorded here happened" covers it when it
+            # applies, and `_bounds` adds the refusal when it does not.
             may_claim=(
                 f"that the creature fell {feet} feet and landed",
                 "that the landing dealt the damage recorded here, and no more",
-                *(
-                    ("that the fall left it unhurt, being immune to Bludgeoning damage",)
-                    if immune
-                    else ("that it is now Prone",)
-                ),
             ),
             may_not_claim=(
                 "that anything was rolled for, tested, resisted or avoided — a fall is not "
                 "a test, and nothing about it can be passed",
                 "that the creature broke, died, or was otherwise harmed beyond the damage "
                 "recorded; those need their own declarations",
-                *(
-                    ("that it is Prone; immunity to Bludgeoning left it undamaged",)
-                    if immune
-                    else ()
-                ),
             ),
         )
 
