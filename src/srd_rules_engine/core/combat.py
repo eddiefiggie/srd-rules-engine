@@ -194,7 +194,11 @@ def attack_resolver(weapon: Weapon) -> Resolver:
         ability = actor.modifier(weapon.ability)
 
         beyond_normal = _out_of_range(weapon, actor, target)
-        attacker_state = actor.conditions.own_attack_rolls(target_id=target_id)
+        attacker_state = actor.conditions.own_attack_rolls(
+            target_id=target_id,
+            # p. 182's qualifier, askable since #192 stored the source of fear.
+            fear_in_sight=state.fear_in_sight(declaration.actor_id),
+        )
         defender_state = target.conditions.attack_rolls_against(
             attacker=actor.position, target=target.position
         )

@@ -538,6 +538,30 @@ class EncounterState:
             ),
         )
 
+    def fear_in_sight(self, combatant_id: str) -> bool:
+        """Whether any source of this creature's fear is within line of sight (p. 182, #192).
+
+        `True` unless **every** source is definitively out of sight. That asymmetry is 0030
+        clause 1: applying a Disadvantage the rules may not require can only omit a hit,
+        while dropping one they do require produces damage that should not exist. So an
+        `UNSTATED` source keeps the penalty, and so does a creature nobody recorded a source
+        for — which is every Frightened creature until a caller starts naming them.
+
+        Any source in sight is enough. p. 182 says "the source of fear", singular, because
+        it describes one application; a creature frightened by two things holds one condition
+        with two sources (p. 179), and this engine will not decide which of them the sentence
+        meant.
+        """
+        held = self.combatant(combatant_id).conditions
+        sources = held.sources_of(Condition.FRIGHTENED)
+        if not held.has(Condition.FRIGHTENED) or not sources:
+            return True
+        return any(
+            self.can_see(combatant_id, source).verdict is not Visibility.CANNOT_SEE
+            for source in sorted(sources)
+            if self.has(source)
+        ) or not any(self.has(source) for source in sources)
+
     def creatures_in(self, area: Area) -> tuple[str, ...]:
         """Which creatures the area reaches, in combatant order (R16, p. 177).
 
@@ -869,7 +893,7 @@ class EncounterState:
         condition: Condition,
         *,
         duration: Duration | None = None,
-        grappler_id: str | None = None,
+        source_id: str | None = None,
     ) -> EncounterState:
         """Apply a condition, with the duration the effect that imposed it stated.
 
@@ -884,10 +908,15 @@ class EncounterState:
             durations[condition] = duration
         else:
             durations.pop(condition, None)
+        # A condition does not stack (p. 179), so a second application adds its source to
+        # the one condition rather than making a second — #192.
+        sources = dict(held.sources)
+        if source_id is not None:
+            sources[condition] = sources.get(condition, frozenset()) | {source_id}
         updated = Conditions(
             held=held.applied | {condition},
             exhaustion_levels=held.exhaustion_levels,
-            grappler_id=grappler_id if grappler_id is not None else held.grappler_id,
+            sources=sources,
             durations=durations,
         )
         return self._evolve(combatants=self._replacing(replace(target, conditions=updated)))

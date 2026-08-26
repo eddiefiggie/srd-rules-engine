@@ -434,7 +434,7 @@ def test_unenforced_clauses_reach_the_agent() -> None:
     frightened = Conditions(held=frozenset({Condition.FRIGHTENED}))
     result = read(_rich(conditions=frightened), "pc")
     assert result.situation is not None
-    assert "line-of-sight-qualifier" in result.situation.unenforced_clauses
+    assert "cannot-willingly-approach-the-source" in result.situation.unenforced_clauses
 
 
 # --- What the economy now puts on the menu -------------------------------------------

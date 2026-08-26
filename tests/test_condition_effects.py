@@ -150,7 +150,7 @@ def test_a_condition_effect_carries_no_number() -> None:
 def test_a_condition_ending_acquires_no_span() -> None:
     """The duration belongs to the application that imposed the condition. A condition on
     its way out does not pick one up."""
-    with pytest.raises(ValueError, match="states no duration and no grappler"):
+    with pytest.raises(ValueError, match="states no duration and no source"):
         Effect(
             kind=EffectKind.CONDITION_ENDED,
             target_id="troll",
@@ -161,22 +161,22 @@ def test_a_condition_ending_acquires_no_span() -> None:
         )
 
 
-def test_only_an_application_names_a_grappler() -> None:
-    with pytest.raises(ValueError, match="states no duration and no grappler"):
+def test_only_an_application_names_a_source() -> None:
+    with pytest.raises(ValueError, match="states no duration and no source"):
         Effect(
             kind=EffectKind.CONDITION_ENDED,
             target_id="troll",
             amount=0,
             description="the grapple ends",
             condition=Condition.GRAPPLED,
-            grappler_id="pc",
+            source_id="pc",
         )
 
 
 def test_damage_may_not_carry_a_duration_either() -> None:
     """The guard is stated over every kind that is not an application, not over conditions
     alone — so a span cannot ride on a blow."""
-    with pytest.raises(ValueError, match="states no duration and no grappler"):
+    with pytest.raises(ValueError, match="states no duration and no source"):
         Effect(
             kind=EffectKind.DAMAGE,
             target_id="troll",
@@ -189,19 +189,19 @@ def test_damage_may_not_carry_a_duration_either() -> None:
 # --- The constructors, and the zero written once ---------------------------------------
 
 
-def test_condition_applied_carries_the_span_and_the_grappler() -> None:
+def test_condition_applied_carries_the_span_and_the_source() -> None:
     effect = condition_applied(
         "troll",
         Condition.GRAPPLED,
         description="seized in both arms",
         duration=THREE_ROUNDS,
-        grappler_id="pc",
+        source_id="pc",
     )
 
     assert effect.kind is EffectKind.CONDITION_APPLIED
     assert effect.condition is Condition.GRAPPLED
     assert effect.duration is THREE_ROUNDS
-    assert effect.grappler_id == "pc"
+    assert effect.source_id == "pc"
     assert effect.amount == 0, "written once here, not at every call site"
 
 
@@ -211,7 +211,7 @@ def test_condition_ended_carries_neither() -> None:
     assert effect.kind is EffectKind.CONDITION_ENDED
     assert effect.condition is Condition.POISONED
     assert effect.duration is None
-    assert effect.grappler_id is None
+    assert effect.source_id is None
     assert effect.amount == 0
 
 
@@ -260,7 +260,7 @@ def test_an_applied_grappler_reaches_the_combatant_too() -> None:
     the grappling is mechanical rather than colour."""
     after = apply_one(
         encounter(),
-        condition_applied("troll", Condition.GRAPPLED, description="seized", grappler_id="pc"),
+        condition_applied("troll", Condition.GRAPPLED, description="seized", source_id="pc"),
     )
     assert after.combatant("troll").conditions.grappler_id == "pc"
 
@@ -375,7 +375,7 @@ def seize_resolver(
                 Condition.GRAPPLED,
                 description="seized in both arms",
                 duration=THREE_ROUNDS,
-                grappler_id="pc",
+                source_id="pc",
             ),
         ),
         citations=("p. 182: Grappled",),
@@ -435,7 +435,7 @@ def test_the_ledger_records_which_condition_changed(tmp_path: Path) -> None:
 
     assert recorded["kind"] == "condition-applied"
     assert recorded["condition"] == "grappled"
-    assert recorded["grappler"] == "pc"
+    assert recorded["source"] == "pc"
     assert recorded["amount"] == 0
 
 

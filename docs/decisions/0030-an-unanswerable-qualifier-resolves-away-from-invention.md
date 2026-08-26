@@ -150,6 +150,11 @@ answerable in 0029 without any clause becoming enforced.
 | 4 — the read surface still reports `UNSTATED` | Already true. `Sight.verdict` has three values and `Situation` reports them |
 | 5 — a clause leaves `unenforced_clauses` when enforced | Already true, and now stated so that a future PR does not empty the list to look finished |
 
-The three sight-blocked entries stay in `unenforced_clauses`:
-[#192](https://github.com/eddiefiggie/srd-rules-engine/issues/192) and
-[#193](https://github.com/eddiefiggie/srd-rules-engine/issues/193) are what would move them.
+**One of the three sight-blocked entries has left.**
+[#192](https://github.com/eddiefiggie/srd-rules-engine/issues/192) stored the source of fear
+and enforced Frightened's `line-of-sight-qualifier`, which is clause 5 working as intended:
+the entry moved when the behaviour changed, not when `can_see` grew sharper in 0029. The two
+`invisible` clauses stay, and
+[#193](https://github.com/eddiefiggie/srd-rules-engine/issues/193) is what would move them.
+
+_Updated 2026-08-25 when #192 landed._

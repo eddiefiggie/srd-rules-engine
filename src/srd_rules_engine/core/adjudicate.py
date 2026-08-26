@@ -93,12 +93,19 @@ DECLARATION_VERSION = 1
 #: the version and **not** `RULING_COMPAT`, which is 0022's rule — compat is what a reader
 #: must be to read the payload *correctly*, not a record of the payload having changed.
 #:
+#: 6 renames an effect's `grappler` to `source` (#192). Grappled was the only condition
+#: whose text turned on who imposed it until Frightened's line-of-sight qualifier became
+#: enforceable, and a field named for one of two users is a field that misleads about the
+#: other. Not additive — a v5 reader looking for `grappler` finds nothing — but not a
+#: `RULING_COMPAT` move either, for #119's reason: such a reader misreads nothing, it simply
+#: cannot see the condition's source.
+#:
 #: 5 adds `testless` (#170, 0027 clause 6). Also additive, and also not a `RULING_COMPAT`
 #: move. It is recorded rather than inferred from `roll` being absent, because inferring is
 #: how the advantage gap got in: `REPLAYABLE_FROM = 2` exists because a ruling made with
 #: advantage replayed as though it had none. A v4 reader sees no `testless` key and reports
 #: such an entry unreplayable, which is the old behaviour rather than a new wrong answer.
-RULING_VERSION = 5
+RULING_VERSION = 6
 NARRATION_VERSION = 1
 TERMINATION_VERSION = 1
 
@@ -197,10 +204,14 @@ class Effect:
     #: so the ruling that imposes one is the only place that knows the span. `None` is
     #: `UNTIL_REMOVED` — reported as unretirable, never silently permanent.
     duration: Duration | None = None
-    #: `CONDITION_APPLIED` only, and only for Grappled: p. 182's Disadvantage applies "on
-    #: attack rolls against any target other than the grappler", so the grappler is part of
-    #: the condition's mechanical effect rather than colour.
-    grappler_id: str | None = None
+    #: `CONDITION_APPLIED` only. Who imposed it, where the condition's own text turns on
+    #: that (#192): p. 182 gives Grappled's Disadvantage "on attack rolls against any target
+    #: other than the grappler", and Frightened's "while the source of fear is within line of
+    #: sight". Both make the source part of the mechanical effect rather than colour.
+    #:
+    #: Named `grappler` in the ledger until `RULING_VERSION` 6, when Grappled stopped being
+    #: the only condition that needed one.
+    source_id: str | None = None
 
     def __post_init__(self) -> None:
         carries_condition = self.kind in CONDITION_KINDS
@@ -222,10 +233,10 @@ class Effect:
                 "nothing in the document says what"
             )
         if self.kind is not EffectKind.CONDITION_APPLIED and (
-            self.duration is not None or self.grappler_id is not None
+            self.duration is not None or self.source_id is not None
         ):
             raise ValueError(
-                f"a {self.kind} effect states no duration and no grappler. Both belong to "
+                f"a {self.kind} effect states no duration and no source. Both belong to "
                 "the application that imposed the condition, and a condition ending does "
                 "not acquire a span on its way out"
             )
@@ -237,7 +248,7 @@ def condition_applied(
     *,
     description: str,
     duration: Duration | None = None,
-    grappler_id: str | None = None,
+    source_id: str | None = None,
 ) -> Effect:
     """A condition imposed by the ruling that caused it (#119).
 
@@ -256,7 +267,7 @@ def condition_applied(
         description=description,
         condition=condition,
         duration=duration,
-        grappler_id=grappler_id,
+        source_id=source_id,
     )
 
 
@@ -962,7 +973,7 @@ def _apply(
                 effect.target_id,
                 effect.condition,
                 duration=effect.duration,
-                grappler_id=effect.grappler_id,
+                source_id=effect.source_id,
             )
         elif effect.kind is EffectKind.CONDITION_ENDED:
             assert effect.condition is not None
@@ -1077,7 +1088,7 @@ def _ruling_payload(ruling: Ruling) -> Mapping[str, object]:
                 # would call two different conditions identical.
                 "condition": str(e.condition) if e.condition else None,
                 "duration": e.duration.derivation() if e.duration else None,
-                "grappler": e.grappler_id,
+                "source": e.source_id,
                 "description": e.description,
             }
             for e in ruling.effects

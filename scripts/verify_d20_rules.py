@@ -284,6 +284,14 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "and so does Truesight — the two senses the document gives an answer for",
         r"Invisibility\.\s*You see creatures and objects that have the Invisible condition",
     ),
+    (
+        179,
+        "a condition is binary and Exhaustion is the stated exception — which is why a "
+        "creature frightened by two things has ONE Frightened condition with two sources, "
+        "and why 0028 gave Exhaustion levels rather than a flag (#192)",
+        r"A condition doesn.t stack with itself; a recipient either has a condition or "
+        r"doesn.t\.\s*The Exhaustion condition is an exception to that rule",
+    ),
     # --- What the document does NOT say about sight (#166) ------------------------------
     (
         172,
