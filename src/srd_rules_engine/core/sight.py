@@ -27,21 +27,21 @@ when to ask", and the warning does not reach here: both inputs are stored, neith
 caller-supplied at query time, and the derivation is a pure function of one generation of
 `EncounterState`.
 
-## The table is empty on purpose, and every query against it refuses
+## The tables were empty on purpose, and are not any more
 
 Which light level a sense converts into which other, and what obscurement means for a roll,
-are **rule values** — nine of them, at nine printed pages, and not one of those pages is
-asserted anywhere in this repository (#150). `core.conditions` cites the glossary span
-pp. 177-191 for the fifteen conditions, which is a range-expansion artifact rather than a
-claim about each page inside it.
+are **rule values** — nine of them, at nine printed pages. While none of those pages was
+asserted anywhere in this repository, `SIGHT_VERIFICATION` said `unverified`, the two tables
+carried no rows, and every query raised `SightUnverified` rather than defaulting to an answer.
+`core.spellcasting` was the precedent: it ships **no** slot table, because compiling one from
+memory of a game is exactly the inferred rule value R31 forbids.
 
-So `SIGHT_VERIFICATION` is `unverified`, the two tables carry no rows, and `obscurement_at`
-and `can_see` raise `SightUnverified` rather than defaulting to an answer. `core.spellcasting`
-is the precedent: it ships **no** slot table, because compiling one from memory of a game is
-exactly the inferred rule value R31 forbids. A right value and a wrong value are
-indistinguishable once inside a finished ruling.
+**#150 read all nine and asserted them**, so the state is `VERIFIED`, both tables carry rows,
+and `obscurement_at`, `effective_light` and `can_see` answer. `SightUnverified` remains
+reachable and is not vestigial: it is what a future row would raise before its sentence was
+asserted.
 
-`tests/test_sight.py` holds that line — the tables must stay empty while the verification
+`tests/test_sight.py` still holds the line — a table row may not exist while the verification
 says unverified, so a row cannot be added without the state moving with it.
 
 ## What is *not* a rule value here

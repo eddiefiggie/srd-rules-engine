@@ -66,12 +66,37 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # is "all levels of Exhaustion it gained from suffocating", which a count could not
         # answer (#183).
         "suffocation": "core.hazards.suffocation_resolver",
-        # Sight, and only the two shapes `can_see` answers in full (#166). Truesight pierces
-        # illusions, transformations and the Ethereal Plane besides; Tremorsense pinpoints a
-        # location and is not sight at all; Lightly Obscured's Disadvantage on Perception is
-        # produced by nothing. Those four stay unclaimed.
+        # Sight. Four shapes stay unclaimed and each for a stated reason, so that the next
+        # sweep does not have to re-derive them: Truesight pierces illusions, transformations
+        # and the Ethereal Plane besides the two piercings `can_see` enforces, and the entry's
+        # substance is that list; Tremorsense pinpoints a location and p. 190 says outright it
+        # "doesn't count as a form of sight", so nothing consumes its range; Lightly Obscured's
+        # Disadvantage on Wisdom (Perception) checks (p. 184) is produced by nothing, because
+        # no check path reads obscurement; Telepathy needs languages, which this engine does
+        # not model at all (#149).
         "blindsight": "core.state.EncounterState.can_see",
         "darkvision": "core.sight.effective_light",
+        # Two `environment` shapes, added by #138 under the standard the sight sweep already
+        # used — **a shape is claimed when the engine produces the consequence its entry
+        # states** — applied to the four the sweep grouped together and did not separate.
+        #
+        # * p. 182, Heavily Obscured: "You have the Blinded condition **while trying to see
+        #   something** in a Heavily Obscured space." Scoped to the attempt, so it is a
+        #   relation between an observer and a target rather than a condition on a creature —
+        #   which the verifier's own clause note settled before the code did. `can_see`
+        #   answers exactly that relation and cites exactly that sentence. There is no
+        #   wholesale Blinded to apply, so withholding one is not a gap.
+        # * p. 180, Darkness: "An area of Darkness is Heavily Obscured." The whole entry, and
+        #   the consequence flows: the mapping produces it and `can_see` acts on it.
+        #
+        # **Bright Light and Dim Light stay unclaimed, and the same test is why.** p. 181's
+        # Dim Light *is* Lightly Obscured, which the mapping produces — but Lightly Obscured's
+        # own consequence is a Disadvantage nothing applies, so the value is computed and then
+        # read by nothing. p. 178's Bright Light states no consequence at all ("normal
+        # illumination"), so there is nothing for the engine to be judged as producing;
+        # claiming it would count a definition.
+        "darkness": "core.sight.OBSCUREMENT_BY_LIGHT",
+        "heavily-obscured": "core.state.EncounterState.can_see",
         # p. 187's Ritual, whole: the prepared-and-tagged precondition, the 10 minutes, the
         # slot it does not expend, and the upcasting that therefore cannot happen (#19).
         "ritual": "core.spellcasting.ritual_cast",

@@ -375,7 +375,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 180",
    "kind": "environment",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "darkvision",
@@ -575,7 +575,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 182",
    "kind": "environment",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "help",
