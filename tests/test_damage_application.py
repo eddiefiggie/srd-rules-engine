@@ -17,7 +17,8 @@ from srd_rules_engine.core.damage import (
     after_defences,
 )
 from srd_rules_engine.core.rules import VerificationState
-from srd_rules_engine.core.state import Combatant, EncounterState
+from srd_rules_engine.core.spellcasting import Concentration
+from srd_rules_engine.core.state import Combatant, ConcentrationDebt, EncounterState
 
 FIRE = DamageType.FIRE
 NECROTIC = DamageType.NECROTIC
@@ -317,3 +318,124 @@ def test_the_damage_rules_carry_a_verified_citation() -> None:
     assert DAMAGE_VERIFICATION.reference is not None
     for cited in ("p. 17", "p. 180", "p. 183", "p. 187", "p. 191"):
         assert cited in DAMAGE_VERIFICATION.reference
+
+
+# --- p. 179: damage compels a Concentration save, recorded but never rolled here --------
+
+
+def caster(
+    *, hp: int = 40, spell: str | None = "hold-person", **defence_kwargs: object
+) -> Combatant:
+    held = Concentration() if spell is None else Concentration().begin(spell)
+    return Combatant(
+        id="mage",
+        name="Mage",
+        hit_points=hp,
+        max_hit_points=40,
+        armour_class=12,
+        abilities={"con": 14},
+        proficiency_bonus=2,
+        is_player_character=True,
+        concentration=held,
+        defences=Defences(**defence_kwargs),  # type: ignore[arg-type]
+    )
+
+
+def test_damage_to_a_concentrating_creature_records_a_save_owed() -> None:
+    state = EncounterState.new([caster()]).with_damage("mage", 12)
+    assert state.concentration_saves_owed == (ConcentrationDebt(combatant_id="mage", amount=12),)
+
+
+def test_nothing_is_owed_by_a_creature_that_is_not_concentrating() -> None:
+    state = EncounterState.new([caster(spell=None)]).with_damage("mage", 12)
+    assert state.concentration_saves_owed == ()
+
+
+def test_two_instances_in_one_turn_owe_two_saves() -> None:
+    """0036 clause 3, and the reason the debt is not `discharged`.
+
+    p. 179 compels a save on *every* instance of damage. A Multiattack landing twice owes
+    two. `discharged` is keyed `(actor_id, rule_id)` and cleared per turn, so reusing it
+    would record the first and silently swallow the second — a compelled save that never
+    happens, which leaves no trace in play because the spell simply stays up.
+
+    The amounts are kept apart rather than summed: each DC derives from its own instance,
+    and 8 then 8 is two DC 10 saves while 16 at once is one DC 10 save. Summing would also
+    invent a DC of 18 that no single blow justified.
+    """
+    state = EncounterState.new([caster()]).with_damage("mage", 8).with_damage("mage", 30)
+
+    assert state.concentration_saves_owed == (
+        ConcentrationDebt(combatant_id="mage", amount=8),
+        ConcentrationDebt(combatant_id="mage", amount=30),
+    )
+
+
+def test_damage_fully_absorbed_by_immunity_owes_nothing() -> None:
+    """0036 clause 5. p. 179 says "the damage taken", and an Immune creature takes none.
+
+    Recording before defences would compel a save — one that can *fail* — for a blow that
+    never landed.
+    """
+    state = EncounterState.new([caster(immunities=frozenset({FIRE}))]).with_damage(
+        "mage", 20, damage_type=FIRE
+    )
+
+    assert state.combatant("mage").hit_points == 40, "the immunity applied"
+    assert state.concentration_saves_owed == ()
+
+
+def test_resistance_halves_the_dc_the_save_will_use() -> None:
+    """The debt carries damage *taken*, so Resistance moves the DC as well as the wound."""
+    state = EncounterState.new([caster(resistances=frozenset({FIRE}))]).with_damage(
+        "mage", 30, damage_type=FIRE
+    )
+
+    assert state.concentration_saves_owed == (ConcentrationDebt(combatant_id="mage", amount=15),)
+
+
+def test_a_debt_survives_the_turn_advancing() -> None:
+    """**Not** cleared by `advanced_turn`, unlike `discharged` one field above it.
+
+    This is the case reflex gets wrong, because every neighbouring structure resets there
+    and the comment beside `discharged` says obligations are "owed once per turn". A
+    Concentration debt is incurred by whoever took the damage — usually not the creature
+    whose turn is ending — so clearing it on advance would discard the caster's save
+    because the *attacker's* turn finished.
+    """
+    state = (
+        EncounterState.new([caster(), combatant()])
+        .with_initiative({"mage": 20, "hero": 5})
+        .with_damage("mage", 12)
+    )
+    assert state.concentration_saves_owed, "precondition: a debt exists"
+
+    advanced = state.advanced_turn()
+
+    assert advanced.discharged == frozenset(), "the once-per-turn set does clear"
+    assert advanced.concentration_saves_owed == (
+        ConcentrationDebt(combatant_id="mage", amount=12),
+    ), "the per-instance debt does not"
+
+
+def test_recording_a_debt_produces_no_result_of_its_own() -> None:
+    """0036 clause 2: detection here, production in the loop.
+
+    `with_damage` appends a debt and nothing else — no roll, no Ruling, no ledger entry.
+    Asserted because the tempting shortcut is to resolve the save where the damage lands,
+    which is 0023 clause 5's literal shape and would put a produced outcome in `core.state`
+    (R1).
+    """
+    state = EncounterState.new([caster()]).with_damage("mage", 12)
+    debt = state.concentration_saves_owed[0]
+
+    assert isinstance(debt, ConcentrationDebt)
+    assert not hasattr(debt, "rolled"), "a debt is what is owed, never what came of it"
+    assert state.combatant("mage").concentration.active, (
+        "the Concentration is untouched — whether it survives is the save's to decide"
+    )
+
+
+def test_a_debt_of_zero_is_refused_rather_than_stored() -> None:
+    with pytest.raises(ValueError, match="damage actually taken"):
+        ConcentrationDebt(combatant_id="mage", amount=0)
