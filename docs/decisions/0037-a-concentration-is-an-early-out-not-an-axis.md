@@ -216,22 +216,37 @@ In the tree, and these are the findings the decision rests on:
 
 ## Status of implementation
 
-**Clause 4 is built in the change that carries this record. Clauses 1, 2, 3, 5 and 6 are
-decided and not built**, and are tracked by
-[#240](https://github.com/eddiefiggie/srd-rules-engine/issues/240) — filed as this record
-landed, because the gate issue closes here and an unbuilt clause tracked by a *closed* issue
-reads as finished work rather than as absent work.
+**All six clauses are now built.** Clause 4 shipped with this record (#238); clauses 1, 2, 3,
+5 and 6 shipped under [#240](https://github.com/eddiefiggie/srd-rules-engine/issues/240),
+which was filed as this record landed — because the gate issue closed here, and an unbuilt
+clause tracked by a *closed* issue reads as finished work rather than as absent work.
+
+**Clause 3 named the wrong place, and the correction is the useful part of this section.**
+It said retirement happens in `EncounterState.with_concentration_ended`, which was the only
+place that existed when this was written. Clause 4 then landed in `Combatant.__post_init__`,
+so `with_condition` and `with_death` end a Concentration through `replace` without
+`EncounterState` hearing about it — and the two clauses, written together, disagreed. The
+decision clause 3 encodes is unchanged and correct: retirement is deterministic bookkeeping
+that happens when Concentration ends, and needs no roll. **Where** it lives moved to a
+whole-state invariant.
+
+That was demonstrated rather than argued. The clause-3 hook was built by hand and run against
+the suite for #240: it passes fifteen of nineteen tests and misses exactly the Incapacitated
+route, the death route, the absent-sustainer edge and the one-pass case. Death is the one with
+no caller to make the omission obvious, which is the same shape as 0036 clause 6's argument
+against three call sites.
 
 | Clause | State |
 |---|---|
-| 1 — a second early-out on `Duration`, not a fifth kind | **Decided, not built.** [#240](https://github.com/eddiefiggie/srd-rules-engine/issues/240) |
-| 2 — it names the concentrating creature; the link points from the effect | **Decided, not built.** [#240](https://github.com/eddiefiggie/srd-rules-engine/issues/240) |
-| 3 — retirement in `with_concentration_ended`, no roll | **Decided, not built.** [#240](https://github.com/eddiefiggie/srd-rules-engine/issues/240). The transition exists (0036); what it does not yet do is retire anything |
+| 1 — a second early-out on `Duration`, not a fifth kind | **Built.** `Duration.concentration_of`, beside `save`. A plain id rather than a `SaveEnds`-style type: p. 63 states two values per effect that travel together, p. 179 states one, and a box around one string is a box |
+| 2 — it names the concentrating creature; the link points from the effect | **Built.** `Conditions.sustained_by` is the read half, the third sibling of `expired_after` and `expired_by`. No list is maintained anywhere, so nothing can forget to |
+| 3 — retirement when Concentration ends, no roll | **Built, and this clause named the wrong place** — see above. It is `EncounterState.__post_init__`, a whole-state invariant, because `with_concentration_ended` is two of the four routes. No roll and no Ruling, as decided |
 | 4 — the end is materialised, never derived | **Built.** `with_condition` and `with_death` write the field, `after_conditions` is removed, and the read surface reports what is stored. Guarded by the #238 reproduction asserted the other way |
-| 5 — which effects require Concentration is per-effect data | **Decided, and holds by construction today**, since no spell list ships. Re-checkable only once an effect can state it: [#240](https://github.com/eddiefiggie/srd-rules-engine/issues/240) |
-| 6 — "the effect ends" reaches as far as the engine holds the effect | **Decided, not built.** [#240](https://github.com/eddiefiggie/srd-rules-engine/issues/240) carries the R32 disclosure with it |
+| 5 — which effects require Concentration is per-effect data | **Built, and still holds by construction.** The imposing effect sets `concentration_of`; nothing in the engine infers it, and no spell list ships (R31) |
+| 6 — "the effect ends" reaches as far as the engine holds the effect | **Built** as a disclosure rather than an enumeration — a condition carrying a duration, and nothing else, since a spell's area or summoned creature is not modelled at all. Guarded, because prose disclosures are the kind that decay quietly |
 
-**#239 is closed by this record.** #235 items 1 and 2 — starting to concentrate, and the
-replacement rule — are unblocked by it and remain open there.
+**#239 is closed by this record**, and #240 by the change that built the rest. #235 items 1
+and 2 — starting to concentrate, and the replacement rule — are unblocked and remain open
+there; this record's clause 1 is what gives the first of them somewhere to hang an effect.
 
 _Written 2026-08-28 against SRD v5.2.1._

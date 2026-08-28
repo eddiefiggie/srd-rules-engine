@@ -582,6 +582,37 @@ class Conditions:
             if duration.expires_by(elapsed_minutes)
         )
 
+    def sustained_by(self, creator_id: str) -> frozenset[Condition]:
+        """Which applied conditions this creature's Concentration is holding up (p. 179).
+
+        The third sibling of `expired_after` and `expired_by`, and a read in the same way:
+        it answers the question and changes nothing, so asking twice gives one answer and
+        the removal is a separate, deliberate step.
+
+        **Applied, never implied.** `durations` is keyed by what was applied, so a condition
+        held only because another implies it is not named here — it lifts when its source
+        does rather than carrying an ending of its own, which is the same reason it carries
+        no duration.
+        """
+        return frozenset(
+            condition
+            for condition, duration in self.durations.items()
+            if duration.concentration_of == creator_id
+        )
+
+    def concentrations_relied_on(self) -> frozenset[str]:
+        """Every creature whose Concentration is holding one of these conditions up.
+
+        Named so the whole-state invariant can ask "is there anything to do here at all"
+        without walking the durations twice, and so the common answer — an empty set,
+        because no effect in the encounter states a concentration early-out — is one call.
+        """
+        return frozenset(
+            duration.concentration_of
+            for duration in self.durations.values()
+            if duration.concentration_of is not None
+        )
+
     def saves_due_after(self, actor_id: str) -> Mapping[Condition, SaveEnds]:
         """Conditions on this creature that repeat a save at the end of its turns (p. 63).
 

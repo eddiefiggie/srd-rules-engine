@@ -537,6 +537,62 @@ class EncounterState:
     #: monster's turn is owed by the caster, who is not the creature whose turn is ending.
     concentration_saves_owed: tuple[ConcentrationDebt, ...] = ()
 
+    def __post_init__(self) -> None:
+        """Retire every effect whose sustaining Concentration is gone (p. 179, 0037 clause 3).
+
+        > If the effect's creator loses Concentration, the effect ends.
+
+        **Here rather than in `with_concentration_ended`, which is what 0037 clause 3 named.**
+        That method is one of *four* routes to the end and covers two of them: the failed
+        damage save reaches it through an effect, and the voluntary end through a driver.
+        Incapacitated and death do not — they end Concentration in `Combatant.__post_init__`
+        (clause 4, #238), which `with_condition` and `with_death` reach through `replace`
+        without this class hearing about it. Retiring only in that method would silently miss
+        both, and death is the one with no caller to make the omission obvious.
+
+        So it is a whole-state invariant, which is #238's own lesson one level up: the rule
+        that survives is the one every writer passes through rather than the one every writer
+        must remember. `_evolve` is the only way to produce a successor and construction is
+        the other way in, so both land here. 0036 clause 6 made the same argument against
+        three call sites for the loop's drain.
+
+        **Deterministic bookkeeping, not an outcome.** Nothing is rolled and no Ruling is
+        produced — the same standing as `advanced_turn` retiring a round count (0021 clause
+        2). The decision was made when the effect stated its early-out.
+
+        **One pass reaches a fixed point.** Retiring a condition cannot end another
+        Concentration: `Combatant.__post_init__` ends one only when a breaking condition is
+        *present*, and this only ever removes conditions. Worth checking rather than
+        assuming — a self-triggering invariant in a constructor is an infinite recursion.
+
+        **A sustainer that is absent is not concentrating**, and its effects go too. A
+        duration naming a creature this encounter does not contain is holding an effect up on
+        nothing that can be observed, and leaving it standing would be sustaining it on a
+        creature the engine cannot see.
+        """
+        relied_on: set[str] = set()
+        for combatant in self.combatants:
+            relied_on |= combatant.conditions.concentrations_relied_on()
+        if not relied_on:
+            # The common case, and every state in this engine until a consumer ships an
+            # effect that states a concentration early-out. Nothing is walked twice.
+            return
+
+        concentrating = {c.id for c in self.combatants if c.concentration.active}
+        lapsed = relied_on - concentrating
+        if not lapsed:
+            return
+
+        updated = list(self.combatants)
+        for index, combatant in enumerate(updated):
+            ending: frozenset[Condition] = frozenset()
+            for creator_id in sorted(lapsed):
+                ending |= combatant.conditions.sustained_by(creator_id)
+            if not ending:
+                continue
+            updated[index] = replace(combatant, conditions=combatant.conditions.without(ending))
+        object.__setattr__(self, "combatants", tuple(updated))
+
     # --- Reading ------------------------------------------------------------------
 
     @classmethod
