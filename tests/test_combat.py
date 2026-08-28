@@ -18,6 +18,8 @@ import pytest
 
 from srd_rules_engine.core import (
     Adjudicator,
+    Carriage,
+    Carried,
     Combatant,
     DamageDice,
     Declaration,
@@ -61,7 +63,7 @@ STRIKE = Rule(
 
 #: Invented, and labelled as such. A longsword compiled from memory would read exactly
 #: like a verified one once it was inside a finished Ruling.
-BLADE = Weapon(name="fixture blade", damage_dice=2, damage_sides=6, ability="str")
+BLADE = Weapon(id="fixture blade", damage_dice=2, damage_sides=6, ability="str")
 
 RULESET = load_fixture_ruleset("combat", [STRIKE])
 
@@ -90,7 +92,26 @@ def d20(proposal: Proposal) -> D20Test:
     return proposal.test
 
 
-def encounter(*, pc_ac: int = 13, boar_ac: int = 13) -> EncounterState:
+def strike_with(state: EncounterState, weapon: Weapon, target: str = "boar") -> Declaration:
+    offered = read(state, "pc")
+    return Declaration(
+        actor_id="pc",
+        intent=Intent(action_key=attack_key(weapon.id, target)),
+        rule_id=STRIKE.id,
+        alternatives=offered.actions,
+        read_token=offered.token,
+    )
+
+
+def encounter(
+    *, pc_ac: int = 13, boar_ac: int = 13, weapon: Weapon = BLADE, proficient: bool = True
+) -> EncounterState:
+    """The pc **holds** its weapon since #258 — a weapon is an `Item` a creature carries
+    (0040 clause 1), so an attack is offered for what is in hand rather than for whatever
+    weapon a resolver happened to close over.
+
+    `proficient` is the wielder's now (p. 89), so it is a fact about the combatant here
+    rather than a field on the weapon."""
     return EncounterState.new(
         [
             Combatant(
@@ -101,6 +122,9 @@ def encounter(*, pc_ac: int = 13, boar_ac: int = 13) -> EncounterState:
                 armour_class=pc_ac,
                 abilities={"str": 16, "dex": 14},
                 proficiency_bonus=2,
+                hands=2,
+                equipment=(Carried(weapon, Carriage.HELD),),
+                weapon_proficiencies=frozenset({weapon.id}) if proficient else frozenset(),
             ),
             Combatant(
                 id="boar",
@@ -115,10 +139,10 @@ def encounter(*, pc_ac: int = 13, boar_ac: int = 13) -> EncounterState:
     )
 
 
-def build(path: Path, *, seed: int, weapon: Weapon = BLADE) -> Adjudicator:
+def build(path: Path, *, seed: int) -> Adjudicator:
     return Adjudicator(
         ruleset=RULESET,
-        resolvers={STRIKE.id: attack_resolver(weapon)},
+        resolvers={STRIKE.id: attack_resolver()},
         fact_types={},
         port=JsonMemoryStore(path / "memory.json"),
         ledger=Ledger.open(
@@ -132,7 +156,7 @@ def strike(state: EncounterState, actor: str = "pc", target: str = "boar") -> De
     offered = read(state, actor)
     return Declaration(
         actor_id=actor,
-        intent=Intent(action_key=attack_key(target)),
+        intent=Intent(action_key=attack_key(BLADE.id, target)),
         rule_id=STRIKE.id,
         alternatives=offered.actions,
         read_token=offered.token,
@@ -264,7 +288,7 @@ def test_the_resolver_declares_dice_and_never_a_total(tmp_path: Path) -> None:
     unable to hand back a number it chose. It returns `DamageDice`; the engine rolls it.
     """
     state = encounter()
-    proposal = attack_resolver(BLADE)(state=state, declaration=strike(state), facts={})
+    proposal = attack_resolver()(state=state, declaration=strike(state), facts={})
 
     assert len(proposal.on_success) == 1
     declared = proposal.on_success[0]
@@ -290,11 +314,11 @@ def test_the_effect_names_the_weapon_that_dealt_the_damage(tmp_path: Path) -> No
     generic "damage: 4 + 3" leaves two weapons indistinguishable in the ledger, which is
     the point at which a replay stops settling arguments."""
     state = encounter()
-    ruling, _ = build(
-        tmp_path / "n", seed=seed_that(True, state, tmp_path), weapon=BLADE
-    ).adjudicate(state, strike(state))
+    ruling, _ = build(tmp_path / "n", seed=seed_that(True, state, tmp_path)).adjudicate(
+        state, strike(state)
+    )
 
-    assert damage_effect(ruling).description.startswith(f"{BLADE.name}:")
+    assert damage_effect(ruling).description.startswith(f"{BLADE.id}:")
     assert "2d6" in damage_effect(ruling).description, "and the dice it was rolled from"
 
 
@@ -358,10 +382,10 @@ def test_a_downed_combatant_stops_being_offered_as_a_target() -> None:
     """The menu is the agent's only source of what is legal (R18). Leaving a corpse on it
     invites a declaration the engine then has to refuse."""
     state = encounter().with_initiative({"pc": 18, "boar": 4})
-    assert attack_key("boar") in read(state, "pc").keys
+    assert attack_key(BLADE.id, "boar") in read(state, "pc").keys
 
     downed = state.with_damage("boar", 999)
-    assert attack_key("boar") not in read(downed, "pc").keys
+    assert attack_key(BLADE.id, "boar") not in read(downed, "pc").keys
 
 
 def test_the_offered_attack_states_the_armour_value_it_will_be_resolved_against() -> None:
@@ -369,7 +393,7 @@ def test_the_offered_attack_states_the_armour_value_it_will_be_resolved_against(
     than recalling them. An option carrying only a key would send it back to its training
     for the target's armour class — and the token would commit to nothing but the name."""
     state = encounter(boar_ac=17).with_initiative({"pc": 18, "boar": 4})
-    option = next(a for a in read(state, "pc").actions if a.key == attack_key("boar"))
+    option = next(a for a in read(state, "pc").actions if a.key == attack_key(BLADE.id, "boar"))
 
     assert option.detail["target"] == "boar"
     assert option.detail["armour_class"] == 17
@@ -499,7 +523,7 @@ def test_the_target_is_read_from_the_action_key_never_from_the_label(tmp_path: P
     offered = read(state, "pc")
     mislabelled = Declaration(
         actor_id="pc",
-        intent=Intent(action_key=attack_key("boar"), label="I strike at myself"),
+        intent=Intent(action_key=attack_key(BLADE.id, "boar"), label="I strike at myself"),
         rule_id=STRIKE.id,
         alternatives=offered.actions,
         read_token=offered.token,
@@ -514,7 +538,7 @@ def test_the_target_is_read_from_the_action_key_never_from_the_label(tmp_path: P
 
 
 def test_attack_target_reads_only_attack_keys() -> None:
-    assert attack_target(attack_key("boar")) == "boar"
+    assert attack_target(attack_key(BLADE.id, "boar")) == "boar"
     assert attack_target("end-turn") is None
     assert attack_target("attack:") is None
     assert attack_target(None) is None
@@ -524,7 +548,7 @@ def test_a_resolver_handed_a_non_attack_says_so() -> None:
     """It cannot silently pick a target — an attack with an invented victim is worse than
     a crash, because it resolves."""
     state = encounter()
-    resolver = attack_resolver(BLADE)
+    resolver = attack_resolver()
     not_an_attack = Declaration(
         actor_id="pc", intent=Intent(improvised=True, label="I glare"), rule_id=STRIKE.id
     )
@@ -533,6 +557,13 @@ def test_a_resolver_handed_a_non_attack_says_so() -> None:
 
 
 # --- The weapon is data ------------------------------------------------------------------
+
+
+def _source_of(module: object) -> str:
+    """A module's source, with the `__file__` narrowing mypy wants."""
+    path = getattr(module, "__file__", None)
+    assert path is not None, f"{module} has no file to read"
+    return Path(path).read_text()
 
 
 def test_no_weapon_list_ships_in_this_module() -> None:
@@ -546,14 +577,22 @@ def test_no_weapon_list_ships_in_this_module() -> None:
     import ast
 
     import srd_rules_engine.core.combat as combat
+    import srd_rules_engine.core.equipment as equipment
 
-    tree = ast.parse(Path(combat.__file__).read_text())
-    built = [
-        node.func.id
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-    ]
-    assert "Weapon" not in built, "a weapon constructed here is a rule value, not machinery"
+    # **Both modules**, since #258. `Weapon` moved to `core.equipment` when it became an
+    # `Item` subtype, and a guard that watched only its old home would have stopped watching
+    # the file the type now lives in — which is the quiet way a guard becomes decorative.
+    for module in (combat, equipment):
+        built = [
+            node.func.id
+            for node in ast.walk(ast.parse(_source_of(module)))
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        ]
+        assert "Weapon" not in built, (
+            f"a weapon constructed in {module.__name__} is a rule value, not machinery"
+        )
+
+    tree = ast.parse(_source_of(combat))
 
     constants = {
         target.id
@@ -569,7 +608,9 @@ def test_no_weapon_list_ships_in_this_module() -> None:
     # A rule value may live here, but only carrying what it was checked against. The
     # threshold Heavy names is exactly such a value, and a bare 13 would be
     # indistinguishable from an invented one — which is the failure this guard names.
-    allowed = {"INITIATIVE_DIE", "HEAVY_SCORE_THRESHOLD", "WEAPON_PROPERTY_VERIFICATION"}
+    # `HEAVY_SCORE_THRESHOLD` left this module with `Weapon` in #258 and is now guarded in
+    # `core.equipment` — where the same reasoning applies to it unchanged.
+    allowed = {"INITIATIVE_DIE", "WEAPON_PROPERTY_VERIFICATION"}
     assert constants == allowed, (
         f"{constants - allowed} are module constants; a rule value hiding in one "
         "reads exactly like a verified one"
@@ -586,24 +627,21 @@ def test_no_weapon_list_ships_in_this_module() -> None:
 
 
 def test_the_weapon_supplies_the_modifiers_and_proficiency_is_conditional() -> None:
-    state = encounter()
-    declaration = strike(state)
-
-    def sources(weapon: Weapon) -> set[str]:
-        proposal = attack_resolver(weapon)(state=state, declaration=declaration, facts={})
-        return {m.source for m in d20(proposal).modifiers}
+    def sources(weapon: Weapon, *, proficient: bool = True) -> set[str]:
+        return {m.source for m in d20(_propose_with(weapon, proficient=proficient)).modifiers}
 
     assert sources(BLADE) == {"ability:str", "proficiency"}
 
-    untrained = Weapon(name="fixture club", damage_dice=1, damage_sides=4, proficient=False)
-    assert sources(untrained) == {"ability:str"}
+    # p. 89: "Anyone can wield a weapon, but **you** must have proficiency with it." The same
+    # weapon, in the hands of someone who lacks the proficiency — which was unexpressible
+    # while `proficient` was a field on the weapon (0040 clause 2).
+    assert sources(BLADE, proficient=False) == {"ability:str"}
 
 
 def test_the_weapons_ability_reaches_both_the_roll_and_the_damage(tmp_path: Path) -> None:
     """A weapon using one ability to hit and another to hurt is a defect the totals hide."""
-    state = encounter()
-    finesse = Weapon(name="fixture needle", damage_dice=1, damage_sides=4, ability="dex")
-    proposal = attack_resolver(finesse)(state=state, declaration=strike(state), facts={})
+    finesse = Weapon(id="fixture needle", damage_dice=1, damage_sides=4, ability="dex")
+    proposal = _propose_with(finesse)
 
     declared = proposal.on_success[0]
     assert isinstance(declared, DamageDice)
@@ -634,15 +672,8 @@ def test_a_weapon_bonus_reaches_the_attack_roll_and_the_damage_roll() -> None:
     invisible in every hit that lands — the damage would simply be one lower than the
     rules say, in a number nobody has anything to compare against.
     """
-    plain = attack_resolver(Weapon(name="axe", damage_dice=1, damage_sides=12))
-    magic = attack_resolver(Weapon(name="axe +1", damage_dice=1, damage_sides=12, bonus=1))
-
-    state = encounter()
-    declaration = Declaration(
-        actor_id="pc", intent=Intent(action_key="attack:boar"), rule_id="attack"
-    )
-    without = plain(state=state, declaration=declaration, facts={})
-    with_bonus = magic(state=state, declaration=declaration, facts={})
+    without = _propose_with(Weapon(id="axe", damage_dice=1, damage_sides=12))
+    with_bonus = _propose_with(Weapon(id="axe +1", damage_dice=1, damage_sides=12, bonus=1))
 
     def modifier_total(test: D20Test) -> int:
         return sum(m.value for m in test.modifiers)
@@ -655,14 +686,7 @@ def test_a_weapon_bonus_reaches_the_attack_roll_and_the_damage_roll() -> None:
 
 def test_a_weapon_without_a_bonus_adds_no_modifier_at_all() -> None:
     """A zero bonus is absent rather than recorded as +0, so the derivation stays readable."""
-    plain = attack_resolver(Weapon(name="axe", damage_dice=1, damage_sides=12))
-    proposal = plain(
-        state=encounter(),
-        declaration=Declaration(
-            actor_id="pc", intent=Intent(action_key="attack:boar"), rule_id="attack"
-        ),
-        facts={},
-    )
+    proposal = _propose_with(Weapon(id="axe", damage_dice=1, damage_sides=12))
     assert not any("bonus" in m.source for m in d20(proposal).modifiers)
 
 
@@ -698,11 +722,36 @@ def _propose_with(
     actor: str = "pc",
     target: str = "boar",
     state: EncounterState | None = None,
+    proficient: bool = True,
 ) -> Proposal:
-    return attack_resolver(weapon)(
-        state=state if state is not None else encounter(),
+    """The proposal for attacking with that weapon, **held**.
+
+    Since #258 a weapon is an `Item` the creature carries, so exercising one means putting it
+    in a hand rather than handing it to `attack_resolver` — which takes no weapon at all now
+    and reads what was swung off the key the read surface offered (0040 clauses 1 and 4).
+    """
+    if state is None:
+        state = encounter(weapon=weapon, proficient=proficient)
+    else:
+        # A caller that built its own state — for cover, light, conditions — still has to put
+        # the weapon in the actor's hand, because that is where the resolver reads it from.
+        # Doing it here rather than at thirty call sites is the whole point of the helper.
+        armed = dataclasses.replace(
+            state.combatant(actor),
+            hands=2,
+            equipment=(Carried(weapon, Carriage.HELD),),
+            weapon_proficiencies=frozenset({weapon.id}) if proficient else frozenset(),
+        )
+        state = dataclasses.replace(
+            state,
+            combatants=tuple(armed if c.id == actor else c for c in state.combatants),
+        )
+    return attack_resolver()(
+        state=state,
         declaration=Declaration(
-            actor_id=actor, intent=Intent(action_key=f"attack:{target}"), rule_id="attack"
+            actor_id=actor,
+            intent=Intent(action_key=attack_key(weapon.id, target)),
+            rule_id="attack",
         ),
         facts={},
     )
@@ -716,7 +765,7 @@ def test_a_finesse_weapon_may_use_dexterity_and_the_same_modifier_reaches_both_r
     constraint, and the half worth testing is that one modifier reaches both rolls — a
     weapon attacking on Dexterity and damaging on Strength is the mistake this forbids.
     """
-    rapier = Weapon(name="rapier", damage_dice=1, damage_sides=8, ability="dex", finesse=True)
+    rapier = Weapon(id="rapier", damage_dice=1, damage_sides=8, ability="dex", finesse=True)
     proposal = _propose_with(rapier)
 
     dex = next(m.value for m in d20(proposal).modifiers if m.source == "ability:dex")
@@ -726,7 +775,7 @@ def test_a_finesse_weapon_may_use_dexterity_and_the_same_modifier_reaches_both_r
 def test_a_finesse_weapon_may_not_use_a_third_ability() -> None:
     """The document offers Strength or Dexterity and no others."""
     with pytest.raises(ValueError, match="Strength or Dexterity"):
-        Weapon(name="odd", damage_dice=1, damage_sides=8, ability="cha", finesse=True)
+        Weapon(id="odd", damage_dice=1, damage_sides=8, ability="cha", finesse=True)
 
 
 def test_heavy_gives_disadvantage_below_a_strength_of_13() -> None:
@@ -734,7 +783,7 @@ def test_heavy_gives_disadvantage_below_a_strength_of_13() -> None:
     13". The **score**, not the modifier — a modifier comparison puts the boundary in a
     different place, and 13 is where the document puts it.
     """
-    greataxe = Weapon(name="greataxe", damage_dice=1, damage_sides=12, heavy=True)
+    greataxe = Weapon(id="greataxe", damage_dice=1, damage_sides=12, heavy=True)
 
     weak = encounter_with_scores({"str": 12, "dex": 14})
     strong = encounter_with_scores({"str": 13, "dex": 14})
@@ -747,7 +796,7 @@ def test_heavy_reads_dexterity_for_a_ranged_weapon() -> None:
     """The same sentence's other half: "or if it's a Ranged weapon and your Dexterity score
     isn't at least 13". Reading Strength for a longbow would be the wrong ability."""
     longbow = Weapon(
-        name="longbow", damage_dice=1, damage_sides=8, heavy=True, melee=False, ability="dex"
+        id="longbow", damage_dice=1, damage_sides=8, heavy=True, melee=False, ability="dex"
     )
     assert d20(
         _propose_with(longbow, state=encounter_with_scores({"str": 18, "dex": 12}))
@@ -758,16 +807,16 @@ def test_heavy_reads_dexterity_for_a_ranged_weapon() -> None:
 
 
 def test_a_weapon_without_heavy_never_takes_the_penalty() -> None:
-    plain = Weapon(name="club", damage_dice=1, damage_sides=4)
+    plain = Weapon(id="club", damage_dice=1, damage_sides=4)
     assert not d20(_propose_with(plain, state=encounter_with_scores({"str": 3}))).has_disadvantage
 
 
 def test_versatile_uses_the_larger_die_only_in_two_hands() -> None:
     """p. 90: a Versatile weapon "deals that damage when used with two hands to make a
     melee attack". Both halves are conditions."""
-    one = Weapon(name="longsword", damage_dice=1, damage_sides=8, versatile_sides=10)
+    one = Weapon(id="longsword", damage_dice=1, damage_sides=8, versatile_sides=10)
     two = Weapon(
-        name="longsword", damage_dice=1, damage_sides=8, versatile_sides=10, wielded_two_handed=True
+        id="longsword", damage_dice=1, damage_sides=8, versatile_sides=10, wielded_two_handed=True
     )
 
     assert _dice(_propose_with(one)).sides == 8
@@ -776,7 +825,7 @@ def test_versatile_uses_the_larger_die_only_in_two_hands() -> None:
 
 def test_versatile_is_a_melee_property() -> None:
     with pytest.raises(ValueError, match="melee property"):
-        Weapon(name="odd", damage_dice=1, damage_sides=8, versatile_sides=10, melee=False)
+        Weapon(id="odd", damage_dice=1, damage_sides=8, versatile_sides=10, melee=False)
 
 
 def test_graze_deals_the_ability_modifier_on_a_miss() -> None:
@@ -786,7 +835,7 @@ def test_graze_deals_the_ability_modifier_on_a_miss() -> None:
     The miss branch is normally empty, so this is the first thing that puts damage in it.
     """
     greataxe = Weapon(
-        name="greataxe", damage_dice=1, damage_sides=12, graze=True, damage_type=DamageType.SLASHING
+        id="greataxe", damage_dice=1, damage_sides=12, graze=True, damage_type=DamageType.SLASHING
     )
     proposal = _propose_with(greataxe)
 
@@ -798,7 +847,7 @@ def test_graze_deals_the_ability_modifier_on_a_miss() -> None:
 
 
 def test_a_weapon_without_graze_misses_for_nothing() -> None:
-    plain = Weapon(name="club", damage_dice=1, damage_sides=4)
+    plain = Weapon(id="club", damage_dice=1, damage_sides=4)
     assert _propose_with(plain).on_failure == ()
 
 
@@ -808,7 +857,7 @@ def test_graze_never_heals() -> None:
     modifier", so nothing else may be folded in either.
     """
     feeble = encounter_with_scores({"str": 4})
-    greataxe = Weapon(name="greataxe", damage_dice=1, damage_sides=12, graze=True)
+    greataxe = Weapon(id="greataxe", damage_dice=1, damage_sides=12, graze=True)
     assert _propose_with(greataxe, state=feeble).on_failure == ()
 
 
@@ -829,7 +878,7 @@ def _placed(actor_at: Position, target_at: Position, *, reach: int = 5) -> Encou
 def test_a_melee_attack_beyond_reach_is_refused() -> None:
     """p. 186: a creature reaches 5 feet unless a rule says otherwise. An attack on
     something further away is not a harder attack — it is one that cannot be made."""
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     _propose_with(club, state=_placed(Position(0, 0, 0), Position(5, 0, 0)))
 
     with pytest.raises(ValueError, match="reach of 5 feet"):
@@ -838,13 +887,13 @@ def test_a_melee_attack_beyond_reach_is_refused() -> None:
 
 def test_reach_counts_elevation() -> None:
     """A creature 10 feet overhead is out of reach, which a flat model could not say."""
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     with pytest.raises(ValueError, match="reach of 5 feet"):
         _propose_with(club, state=_placed(Position(0, 0, 0), Position(0, 0, 10)))
 
 
 def test_a_longer_reach_is_honoured() -> None:
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     _propose_with(club, state=_placed(Position(0, 0, 0), Position(10, 0, 0), reach=10))
 
 
@@ -852,7 +901,7 @@ def test_beyond_normal_range_is_disadvantage_not_a_refusal() -> None:
     """p. 90: "When attacking a target beyond normal range, you have Disadvantage on the
     attack roll." """
     bow = Weapon(
-        name="shortbow",
+        id="shortbow",
         damage_dice=1,
         damage_sides=6,
         melee=False,
@@ -873,7 +922,7 @@ def test_beyond_long_range_no_attack_may_be_made() -> None:
     an outcome for something that never happened.
     """
     bow = Weapon(
-        name="shortbow",
+        id="shortbow",
         damage_dice=1,
         damage_sides=6,
         melee=False,
@@ -889,7 +938,7 @@ def test_range_and_heavy_do_not_stack_into_two_disadvantages() -> None:
     """The d20 takes a single flag, so the cancellation rule holds by construction — two
     sources of Disadvantage are still one Disadvantage (p. 8)."""
     heavy_bow = Weapon(
-        name="longbow",
+        id="longbow",
         damage_dice=1,
         damage_sides=8,
         melee=False,
@@ -906,19 +955,17 @@ def test_range_and_heavy_do_not_stack_into_two_disadvantages() -> None:
 def test_a_weapon_range_lists_two_numbers() -> None:
     """p. 90: "The range lists two numbers." One without the other is not a range."""
     with pytest.raises(ValueError, match="two numbers"):
-        Weapon(name="odd", damage_dice=1, damage_sides=6, melee=False, normal_range=80)
+        Weapon(id="odd", damage_dice=1, damage_sides=6, melee=False, normal_range=80)
     with pytest.raises(ValueError, match="not shorter"):
-        Weapon(
-            name="odd", damage_dice=1, damage_sides=6, melee=False, normal_range=80, long_range=40
-        )
+        Weapon(id="odd", damage_dice=1, damage_sides=6, melee=False, normal_range=80, long_range=40)
     with pytest.raises(ValueError, match="ranged-weapon property"):
-        Weapon(name="odd", damage_dice=1, damage_sides=6, normal_range=80, long_range=320)
+        Weapon(id="odd", damage_dice=1, damage_sides=6, normal_range=80, long_range=320)
 
 
 def test_an_encounter_without_positions_asks_no_range_question() -> None:
     """Position is optional. An encounter that tracks none cannot answer a range question,
     and the honest result is to not ask it rather than to assume everyone is adjacent."""
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     assert d20(_propose_with(club, state=encounter())).has_disadvantage is False
 
 
@@ -946,13 +993,13 @@ def _conditioned(
 
 
 def test_a_poisoned_attacker_swings_at_disadvantage() -> None:
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     poisoned = Conditions(held=frozenset({Condition.POISONED}))
     assert d20(_propose_with(club, state=_conditioned(attacker=poisoned))).has_disadvantage
 
 
 def test_a_restrained_defender_is_attacked_at_advantage() -> None:
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     restrained = Conditions(held=frozenset({Condition.RESTRAINED}))
     assert d20(_propose_with(club, state=_conditioned(defender=restrained))).has_advantage
 
@@ -962,7 +1009,7 @@ def test_conditions_on_both_sides_cancel_by_the_d20s_own_rule() -> None:
     one plain d20 — p. 8, resolved by the same flags every other circumstance uses rather
     than by a second mechanism.
     """
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     proposal = _propose_with(
         club,
         state=_conditioned(
@@ -979,7 +1026,7 @@ def test_prone_reaches_the_attack_roll_in_both_directions() -> None:
     """The rule this whole slice exists to get right: Advantage within 5 feet,
     Disadvantage beyond, decided by the position the engine already holds."""
     bow = Weapon(
-        name="shortbow",
+        id="shortbow",
         damage_dice=1,
         damage_sides=6,
         melee=False,
@@ -1001,7 +1048,7 @@ def test_prone_reaches_the_attack_roll_in_both_directions() -> None:
 
 def test_a_dodging_defender_is_attacked_at_disadvantage() -> None:
     """p. 181, through the resolver rather than only in the budget."""
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     base = encounter()
     pc, boar = base.combatant("pc"), base.combatant("boar")
     state = EncounterState.new(
@@ -1020,7 +1067,7 @@ def test_a_dodging_defender_is_attacked_at_disadvantage() -> None:
 def test_a_dodge_that_no_longer_stands_does_not_reach_the_roll() -> None:
     """Grappled sets Speed to 0, and p. 181 ends the Dodge with it. The flag is still set;
     the benefit is gone, and the resolver reads the benefit rather than the flag."""
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     base = encounter()
     pc, boar = base.combatant("pc"), base.combatant("boar")
     state = EncounterState.new(
@@ -1075,7 +1122,7 @@ def test_an_unstated_view_keeps_the_invisible_targets_disadvantage() -> None:
     exception needs *certainty* to fire. Dropping the Disadvantage on `UNSTATED` would make
     every attacker hit an invisible creature more often on a guess (0030 clause 1).
     """
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     proposal = _propose_with(club, state=_invisible_target_state())
     assert d20(proposal).has_disadvantage
     assert not d20(proposal).has_advantage
@@ -1083,7 +1130,7 @@ def test_an_unstated_view_keeps_the_invisible_targets_disadvantage() -> None:
 
 def test_truesight_drops_it_through_the_resolver() -> None:
     """The control: with certainty the exception fires, so the same attack is unmodified."""
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     proposal = _propose_with(club, state=_invisible_target_state(seer=True))
     assert not d20(proposal).has_disadvantage
 
@@ -1101,7 +1148,7 @@ def test_an_invisible_attacker_gains_advantage_only_against_a_blind_target() -> 
     from srd_rules_engine.core.position import Position
     from srd_rules_engine.core.sight import Lighting, LightLevel
 
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     state = encounter()
     unseen = _replace(
         state.combatant("pc"),
@@ -1165,7 +1212,7 @@ def test_an_attack_through_total_cover_is_refused() -> None:
     wall. The geometry was ready from #91 and the walls have been state since 0026; what was
     missing was anyone asking.
     """
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     with pytest.raises(ValueError, match="Total Cover"):
         _propose_with(club, state=_walled_state(blocking_wall=True))
 
@@ -1173,12 +1220,12 @@ def test_an_attack_through_total_cover_is_refused() -> None:
 def test_a_wall_beside_them_is_not_cover() -> None:
     """Blocking is per-line (#91). The control that says the refusal is the wall's position
     doing work rather than the wall's presence."""
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     proposal = _propose_with(club, state=_walled_state(blocking_wall=False))
     assert d20(proposal).kind is TestKind.ATTACK
 
 
 def test_an_encounter_without_walls_is_unaffected() -> None:
     """The common case, and the one that must not acquire a wall by implication."""
-    club = Weapon(name="club", damage_dice=1, damage_sides=4)
+    club = Weapon(id="club", damage_dice=1, damage_sides=4)
     assert d20(_propose_with(club)).kind is TestKind.ATTACK

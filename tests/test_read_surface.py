@@ -18,9 +18,11 @@ from collections.abc import Callable
 
 import pytest
 
+from fixtures.ruleset import FIXTURE_BLADE
 from srd_rules_engine.core.actions import ActionBudget, ActionKind
 from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.d20 import Advantage
+from srd_rules_engine.core.equipment import Carriage, Carried
 from srd_rules_engine.core.position import MovementMode, Position, Speeds
 from srd_rules_engine.core.read_surface import (
     DISENGAGE,
@@ -43,6 +45,9 @@ ABILITIES = {"str": 16, "dex": 12, "con": 14}
 
 
 def fighter(cid: str = "pc", hp: int = 20) -> Combatant:
+    """Armed since #258: an attack is offered for a weapon in hand (0040 clause 1), and these
+    fighters have no positions, so reach cannot be measured and the offer stands (0030
+    clause 1 — refusing on an unmeasurable distance would invent one)."""
     return Combatant(
         id=cid,
         name=cid.title(),
@@ -51,6 +56,9 @@ def fighter(cid: str = "pc", hp: int = 20) -> Combatant:
         armour_class=15,
         abilities=ABILITIES,
         proficiency_bonus=2,
+        hands=2,
+        equipment=(Carried(FIXTURE_BLADE, Carriage.HELD),),
+        weapon_proficiencies=frozenset({FIXTURE_BLADE.id}),
     )
 
 
@@ -142,7 +150,7 @@ def test_the_active_combatant_is_offered_actions() -> None:
     state = encounter()
     assert read(state, "pc").keys == (
         END_TURN,
-        attack_key("boar"),
+        attack_key(FIXTURE_BLADE.id, "boar"),
         dash_key(MovementMode.WALK),
         DODGE,
         DISENGAGE,
@@ -356,8 +364,23 @@ def test_the_ability_modifier_rounds_down_for_negatives() -> None:
 # --- The situation the agent decides from (R18) --------------------------------------
 
 
-def _rich(**kw: object) -> EncounterState:
-    """An encounter whose player character has conditions, slots and a spent economy."""
+PC_START = Position(0, 0, 0)
+#: Out of a 5-foot reach on purpose: since #258 reach decides whether an attack is offered.
+BOAR_START = Position(25, 0, 0)
+
+
+def _rich(
+    *,
+    pc_at: Position = PC_START,
+    boar_at: Position = BOAR_START,
+    **kw: object,
+) -> EncounterState:
+    """An encounter whose player character has conditions, slots and a spent economy.
+
+    It **holds** a blade since #258, because an attack is offered for a weapon in hand
+    (0040 clause 1) — and the positions are parameters because reach now decides whether the
+    offer appears at all.
+    """
     pc = Combatant(
         id="pc",
         name="Wizard",
@@ -367,8 +390,11 @@ def _rich(**kw: object) -> EncounterState:
         abilities={"str": 8, "dex": 14},
         proficiency_bonus=2,
         is_player_character=True,
-        position=Position(0, 0, 0),
+        position=pc_at,
         speeds=Speeds(walk=30),
+        hands=2,
+        equipment=(Carried(FIXTURE_BLADE, Carriage.HELD),),
+        weapon_proficiencies=frozenset({FIXTURE_BLADE.id}),
         **kw,  # type: ignore[arg-type]
     )
     boar = Combatant(
@@ -379,7 +405,7 @@ def _rich(**kw: object) -> EncounterState:
         armour_class=12,
         abilities={"str": 12},
         proficiency_bonus=2,
-        position=Position(25, 0, 0),
+        position=boar_at,
     )
     return EncounterState.new([pc, boar]).with_initiative({"pc": 18, "boar": 6})
 
@@ -473,14 +499,33 @@ def test_an_incapacitated_creature_is_offered_only_the_end_of_its_turn() -> None
     assert read(_rich(conditions=stunned), "pc").keys == (END_TURN,)
 
 
-def test_an_attack_reports_the_distance_without_gating_on_it() -> None:
-    """Whether a target is in range depends on the *weapon*, which the read surface does not
-    know. So it supplies the distance and leaves the judgement — and adjudication still
-    refuses an attack beyond reach or long range.
+def test_an_attack_out_of_reach_is_not_offered_at_all() -> None:
+    """**This test asserted the opposite until #258**, and the reason it gave was true:
+
+        Whether a target is in range depends on the *weapon*, which the read surface does not
+        know. So it supplies the distance and leaves the judgement.
+
+    A weapon is an `Item` the creature holds now (0040 clause 1), so the surface knows exactly
+    which weapon each offer is for — and R18 asks for legality to be computable rather than
+    checkable afterwards. A menu that knows an attack is impossible and offers it anyway is a
+    menu that lies.
+
+    The blade has a 5-foot reach and the boar is 25 feet away, so there is no offer to find.
     """
-    attack = next(a for a in read(_rich(), "pc").actions if a.key == attack_key("boar"))
-    assert attack.detail["distance"] == 25
+    offered = {a.key for a in read(_rich(), "pc").actions}
+    assert attack_key(FIXTURE_BLADE.id, "boar") not in offered
+
+
+def test_an_attack_in_reach_still_reports_the_distance() -> None:
+    """Gating is not a reason to stop reporting: the agent weighs the shot it is offered, and
+    R18 wants values it can act on rather than a bare yes."""
+    close = _rich(pc_at=Position(0, 0, 0), boar_at=Position(5, 0, 0))
+    attack = next(
+        a for a in read(close, "pc").actions if a.key == attack_key(FIXTURE_BLADE.id, "boar")
+    )
+    assert attack.detail["distance"] == 5
     assert attack.detail["reach"] == 5
+    assert attack.detail["weapon"] == FIXTURE_BLADE.id
 
 
 def test_the_token_still_commits_only_to_the_offered_set() -> None:

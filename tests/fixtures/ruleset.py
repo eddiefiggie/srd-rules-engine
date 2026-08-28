@@ -37,11 +37,24 @@ CREATURE_NAME = "scree-hound"
 
 #: Invented armour value, invented damage die, invented ability score. Named `fixture-*`
 #: so a grep for a plausible weapon name finds nothing to copy.
+#: Held, since #258 — a weapon is an `Item` the creature carries (0040 clause 1), so a
+#: fixture creature is given one to hold rather than a resolver being bound to it. Proficiency
+#: moved to the wielder in the same change (p. 89), so it is no longer a field here.
 FIXTURE_BLADE = Weapon(
-    name="fixture-blade", damage_dice=2, damage_sides=6, ability="str", proficient=True
+    id="fixture-blade",
+    damage_dice=2,
+    damage_sides=6,
+    ability="str",
+    weight=3.0,
+    hands_when_held=1,
 )
 FIXTURE_FANGS = Weapon(
-    name="fixture-fangs", damage_dice=1, damage_sides=8, ability="str", proficient=True
+    id="fixture-fangs",
+    damage_dice=1,
+    damage_sides=8,
+    ability="str",
+    weight=0.0,
+    hands_when_held=1,
 )
 
 # --- Fact types -------------------------------------------------------------------------

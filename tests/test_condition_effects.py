@@ -35,6 +35,8 @@ import pytest
 
 from srd_rules_engine.core import (
     Adjudicator,
+    Carriage,
+    Carried,
     Combatant,
     Condition,
     Declaration,
@@ -46,6 +48,7 @@ from srd_rules_engine.core import (
     Proposal,
     Rule,
     RuleProvenance,
+    Weapon,
     attack_key,
     condition_applied,
     condition_ended,
@@ -69,6 +72,10 @@ from srd_rules_engine.memory.store import JsonMemoryStore
 THREE_ROUNDS = Duration(kind=DurationKind.ROUNDS, ends_after_round=3, ends_after_actor_id="pc")
 
 
+#: Invented, and held: since #258 an attack is offered for a weapon in hand (0040 clause 1).
+GRIP = Weapon(id="fixture-grip", damage_dice=1, damage_sides=4, hands_when_held=1)
+
+
 def encounter() -> EncounterState:
     return EncounterState.new(
         [
@@ -80,6 +87,9 @@ def encounter() -> EncounterState:
                 armour_class=13,
                 abilities={"str": 16, "dex": 14},
                 proficiency_bonus=2,
+                hands=2,
+                equipment=(Carried(GRIP, Carriage.HELD),),
+                weapon_proficiencies=frozenset({GRIP.id}),
             ),
             Combatant(
                 id="troll",
@@ -403,7 +413,7 @@ def seize(path: Path, state: EncounterState) -> tuple[object, EncounterState]:
         state,
         Declaration(
             actor_id="pc",
-            intent=Intent(action_key=attack_key("troll")),
+            intent=Intent(action_key=attack_key(GRIP.id, "troll")),
             rule_id=SEIZE.id,
             alternatives=offered.actions,
             read_token=offered.token,

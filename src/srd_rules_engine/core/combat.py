@@ -39,7 +39,6 @@ landed, which is what an unguarded prose claim beside working code does.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
 
 from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.adjudicate import (
@@ -59,11 +58,12 @@ from srd_rules_engine.core.d20 import (
     TestKind,
     roll,
 )
-from srd_rules_engine.core.damage import DamageType
+from srd_rules_engine.core.equipment import HEAVY_SCORE_THRESHOLD as HEAVY_SCORE_THRESHOLD
+from srd_rules_engine.core.equipment import Weapon as Weapon
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.obstructions import Cover, total_cover
 from srd_rules_engine.core.position import distance_feet, within
-from srd_rules_engine.core.read_surface import attack_target
+from srd_rules_engine.core.read_surface import attack_declared, attack_target
 from srd_rules_engine.core.rules import (
     Verification,
     VerificationMethod,
@@ -86,89 +86,6 @@ WEAPON_PROPERTY_VERIFICATION = Verification(
     date="2026-08-23",
     method=VerificationMethod.ASSERTED,
 )
-
-#: p. 89: Heavy names a *score* of 13, not a modifier. Comparing modifiers would put the
-#: boundary in a different place.
-HEAVY_SCORE_THRESHOLD = 13
-
-
-@dataclass(frozen=True)
-class Weapon:
-    """What an attack needs. A ruleset supplies it; this module ships no weapon list."""
-
-    name: str
-    damage_dice: int
-    damage_sides: int
-    ability: str = "str"
-    proficient: bool = True
-    #: Melee or Ranged (p. 89). Heavy reads a different ability score for each.
-    melee: bool = True
-    damage_type: DamageType | None = None
-    #: Finesse (p. 89): "use your choice of your Strength or Dexterity modifier for the
-    #: attack **and** damage rolls. You must use the same modifier for both rolls." The
-    #: choice is the wielder's and arrives as `ability`; what the engine holds is the
-    #: constraint — a Finesse weapon may use either, anything else may not, and whichever
-    #: is chosen reaches both rolls.
-    finesse: bool = False
-    #: Heavy (p. 89): Disadvantage unless the relevant score is at least 13.
-    heavy: bool = False
-    #: Versatile (p. 90): the damage die when "used with two hands to make a melee attack".
-    versatile_sides: int | None = None
-    wielded_two_handed: bool = False
-    #: Graze (p. 90), a mastery property: damage on a miss equal to the ability modifier.
-    graze: bool = False
-    #: Range (p. 90): "The first is the weapon's normal range in feet, and the second is
-    #: the weapon's long range." Ranged weapons only; a melee weapon uses the wielder's
-    #: reach instead.
-    normal_range: int | None = None
-    long_range: int | None = None
-    #: A flat bonus that reaches **both** rolls. Berserker Axe (Magic Items, p. 213) is
-    #: the inventory's exemplar: "a +1 bonus to attack rolls and damage rolls made with
-    #: this magic weapon". Applying it to only one of the two is the mistake worth
-    #: guarding, because an attack-only bonus is invisible in every hit that lands.
-    bonus: int = 0
-
-    def __post_init__(self) -> None:
-        if self.finesse and self.ability not in ("str", "dex"):
-            raise ValueError(
-                f"a Finesse weapon uses Strength or Dexterity, not {self.ability!r} — "
-                "p. 89 offers the choice between those two and no others"
-            )
-        if self.versatile_sides is not None and not self.melee:
-            raise ValueError(
-                "Versatile is a melee property: it applies to two-handed melee attacks"
-            )
-        if (self.normal_range is None) != (self.long_range is None):
-            raise ValueError("Range lists two numbers (p. 90): a normal range and a long range")
-        if self.normal_range is not None and self.long_range is not None:
-            if self.long_range < self.normal_range:
-                raise ValueError("a weapon's long range is not shorter than its normal range")
-            if self.melee:
-                raise ValueError("Range is a ranged-weapon property; a melee weapon uses reach")
-
-    @property
-    def sides_in_use(self) -> int:
-        """The damage die this attack rolls.
-
-        p. 90: a Versatile weapon "deals that damage when used with two hands to make a
-        melee attack". Both halves are conditions — a versatile weapon wielded in one hand
-        rolls its ordinary die.
-        """
-        if self.versatile_sides is not None and self.wielded_two_handed and self.melee:
-            return self.versatile_sides
-        return self.damage_sides
-
-    def heavy_disadvantage(self, scores: Mapping[str, int]) -> bool:
-        """p. 89: Disadvantage "if it's a Melee weapon and your Strength score isn't at
-        least 13 or if it's a Ranged weapon and your Dexterity score isn't at least 13".
-
-        The *score*, not the modifier — 13 is the threshold the document names, and a
-        modifier comparison would put the boundary in a different place.
-        """
-        if not self.heavy:
-            return False
-        required = "str" if self.melee else "dex"
-        return scores.get(required, 10) < HEAVY_SCORE_THRESHOLD
 
 
 def initiative_order(
@@ -195,11 +112,21 @@ def initiative_order(
     }
 
 
-def attack_resolver(weapon: Weapon) -> Resolver:
-    """Build the resolver for attacks made with this weapon.
+def attack_resolver() -> Resolver:
+    """The resolver for an attack, whichever weapon the creature swung (0040 clause 4).
 
-    A closure rather than a registry entry: a weapon is ruleset data, and binding a table
-    of them here would make the engine carry rule values it cannot verify.
+    **It closed over a `Weapon` until #258**, and a ruleset registered one rule per weapon.
+    That was right while a weapon was ruleset data with nowhere else to live: binding a table
+    of them here would make the engine carry rule values it cannot verify. Since 0040 a weapon
+    is an `Item` the creature **holds**, so the weapon comes off the state and one attack rule
+    replaces one rule per weapon.
+
+    **No wrapper, and the difference from a spell is the reason.** 0038 clause 3 wraps a
+    ruleset's spell resolver because a spell's *effect* comes from outside the engine and a
+    ruleset that expended no slot would cast for free. An attack's effect is stated by the
+    document and shipped here — this function is engine code, and the only ruleset data is the
+    weapon's numbers, which now ride on the creature. There is nothing outside the engine to
+    wrap, and wrapping anyway would be indirection protecting against nothing.
     """
 
     def resolve(
@@ -208,9 +135,9 @@ def attack_resolver(weapon: Weapon) -> Resolver:
         declaration: Declaration,
         facts: Mapping[str, Resolution],
     ) -> Proposal:
-        target_id = _target_of(declaration)
-        target = state.combatant(target_id)
         actor = state.combatant(declaration.actor_id)
+        weapon, target_id = _weapon_and_target(actor, declaration)
+        target = state.combatant(target_id)
         ability = actor.modifier(weapon.ability)
 
         _refuse_if_behind_total_cover(state, actor, target)
@@ -242,10 +169,15 @@ def attack_resolver(weapon: Weapon) -> Resolver:
         dodging = target.is_dodging
 
         modifiers = [Modifier(source=f"ability:{weapon.ability}", value=ability)]
-        if weapon.proficient:
+        # p. 89: "Anyone can wield a weapon, but **you** must have proficiency with it to add
+        # your Proficiency Bonus to an attack roll you make with it." The wielder's fact, and
+        # it was the weapon's field until 0040 clause 2 — which worked only while a weapon
+        # belonged to one creature, and failed toward granting a bonus once one could be
+        # picked up.
+        if weapon.id in actor.weapon_proficiencies:
             modifiers.append(Modifier(source="proficiency", value=actor.proficiency_bonus))
         if weapon.bonus:
-            modifiers.append(Modifier(source=f"{weapon.name} bonus", value=weapon.bonus))
+            modifiers.append(Modifier(source=f"{weapon.id} bonus", value=weapon.bonus))
 
         return Proposal(
             # p. 176: "On your turn, you can take one action." p. 177 makes an attack one:
@@ -301,14 +233,14 @@ def attack_resolver(weapon: Weapon) -> Resolver:
                     # damage rolls", so a weapon bonus reaching only the attack would be
                     # half a rule — and the half nobody notices.
                     modifier=ability + weapon.bonus,
-                    source=weapon.name,
+                    source=weapon.id,
                 ),
             ),
             # Graze (p. 90): "If your attack roll with this weapon misses a creature, you
             # can deal damage to that creature equal to the ability modifier you used to
             # make the attack roll." The same modifier, and the weapon's own damage type.
             on_failure=_graze(weapon, target_id, ability),
-            citations=(f"weapon:{weapon.name}",),
+            citations=(f"weapon:{weapon.id}",),
             may_claim=(f"that the attack on {target.name} resolved as the roll says",),
             may_not_claim=(
                 f"that {target.name} is dead, unless its hit points reached 0",
@@ -317,6 +249,31 @@ def attack_resolver(weapon: Weapon) -> Resolver:
         )
 
     return resolve
+
+
+def _weapon_and_target(actor: Combatant, declaration: Declaration) -> tuple[Weapon, str]:
+    """Which weapon this attack swung, and at whom, read off the key the surface offered.
+
+    The key names both since #258, and the weapon is looked up in what the creature is
+    **holding** rather than trusted from the declaration — an agent naming a weapon it has
+    stowed, or does not have at all, is refused rather than obliged.
+    """
+    declared = attack_declared(declaration.intent.action_key)
+    if declared is None:
+        raise ValueError(
+            "this declaration is not an attack: an attack names the weapon and the target "
+            "in its action key, and one carrying neither has no weapon to swing. Reading "
+            "either off the label would be the engine taking a mechanic from prose (R6)"
+        )
+    weapon_id, target_id = declared
+    for held in actor.weapons_held:
+        if held.id == weapon_id:
+            return held, target_id
+    raise ValueError(
+        f"{actor.name} is not holding {weapon_id!r}. p. 177 attacks "
+        '"with a weapon or an Unarmed Strike", and the read surface offers only weapons in '
+        "hand — so one that reaches here is a weapon the engine never offered"
+    )
 
 
 def _refuse_if_behind_total_cover(
@@ -372,7 +329,7 @@ def _out_of_range(weapon: Weapon, actor: Combatant, target: Combatant) -> bool:
     assert weapon.long_range is not None
     if not within(actor.position, target.position, weapon.long_range):
         raise ValueError(
-            f"{target.name} is beyond the long range of {weapon.name} "
+            f"{target.name} is beyond the long range of {weapon.id} "
             f"({weapon.long_range} feet), and no attack may be made at all (p. 90)"
         )
     return not within(actor.position, target.position, weapon.normal_range)
@@ -393,7 +350,7 @@ def _graze(weapon: Weapon, target_id: str, ability: int) -> tuple[Effect, ...]:
             target_id=target_id,
             amount=ability,
             description=(
-                f"{weapon.name} (Graze): a miss still deals {ability}, "
+                f"{weapon.id} (Graze): a miss still deals {ability}, "
                 "the ability modifier used for the attack roll"
             ),
             damage_type=weapon.damage_type,

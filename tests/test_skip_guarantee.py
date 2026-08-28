@@ -36,6 +36,8 @@ from pathlib import Path
 
 from srd_rules_engine.core import (
     Adjudicator,
+    Carriage,
+    Carried,
     Catalogue,
     Combatant,
     EncounterState,
@@ -53,7 +55,7 @@ from srd_rules_engine.core.rules import Rule, RuleProvenance
 from srd_rules_engine.loop import HumanCliDriver, TurnLoop, drive
 from srd_rules_engine.memory.store import JsonMemoryStore
 
-CLUB = Weapon(name="club", damage_dice=1, damage_sides=4)
+CLUB = Weapon(id="club", damage_dice=1, damage_sides=4)
 
 STRIKE = Rule(
     id="attack",
@@ -88,6 +90,11 @@ def combatant(cid: str, *, ac: int, where: Position) -> Combatant:
         abilities={"str": 10, "dex": 10},
         proficiency_bonus=2,
         position=where,
+        # Held since #258: a weapon is an `Item` a creature carries, so an attack is offered
+        # for what is in hand rather than for whatever a resolver closed over (0040 clause 1).
+        hands=2,
+        equipment=(Carried(CLUB, Carriage.HELD),),
+        weapon_proficiencies=frozenset({CLUB.id}),
     )
 
 
@@ -107,7 +114,7 @@ def loop_for(path: Path, *, seed: int) -> TurnLoop:
     return TurnLoop(
         adjudicator=Adjudicator(
             ruleset=load_fixture_ruleset("skip-guarantee", [STRIKE]),
-            resolvers={STRIKE.id: attack_resolver(CLUB)},
+            resolvers={STRIKE.id: attack_resolver()},
             fact_types={},
             port=JsonMemoryStore(path / "memory.json"),
             ledger=Ledger.open(
@@ -125,7 +132,7 @@ def _seed_that_misses(tmp_path: Path) -> int:
     changed, and the test would keep passing while testing something else."""
     for seed in range(500):
         probe = tmp_path / f"probe-{seed}"
-        terminal = Terminal([attack_key("boar"), STRIKE.id, "."])
+        terminal = Terminal([attack_key(CLUB.id, "boar"), STRIKE.id, "."])
         outcome = drive(
             loop_for(probe, seed=seed).run(encounter(), "pc"),
             HumanCliDriver(ask=terminal.ask, show=terminal.show),
@@ -175,7 +182,9 @@ def test_a_narration_that_exceeds_its_ruling_is_not_flagged(tmp_path: Path) -> N
     seed = _seed_that_misses(tmp_path)
     path = tmp_path / "evasion"
 
-    terminal = Terminal([attack_key("boar"), STRIKE.id, "The club caves its skull in. It dies."])
+    terminal = Terminal(
+        [attack_key(CLUB.id, "boar"), STRIKE.id, "The club caves its skull in. It dies."]
+    )
     outcome = drive(
         loop_for(path, seed=seed).run(encounter(), "pc"),
         HumanCliDriver(ask=terminal.ask, show=terminal.show),
@@ -200,7 +209,7 @@ def test_the_engine_still_said_what_may_not_be_claimed(tmp_path: Path) -> None:
     seed = _seed_that_misses(tmp_path)
     path = tmp_path / "bounds"
 
-    terminal = Terminal([attack_key("boar"), STRIKE.id, "It dies."])
+    terminal = Terminal([attack_key(CLUB.id, "boar"), STRIKE.id, "It dies."])
     outcome = drive(
         loop_for(path, seed=seed).run(encounter(), "pc"),
         HumanCliDriver(ask=terminal.ask, show=terminal.show),
@@ -241,7 +250,7 @@ def test_the_limits_are_printed_even_on_a_clean_report(tmp_path: Path) -> None:
     from srd_rules_engine.core.report import render
 
     path = tmp_path / "clean"
-    terminal = Terminal([attack_key("boar"), STRIKE.id, "The club swings."])
+    terminal = Terminal([attack_key(CLUB.id, "boar"), STRIKE.id, "The club swings."])
     drive(
         loop_for(path, seed=3).run(encounter(), "pc"),
         HumanCliDriver(ask=terminal.ask, show=terminal.show),

@@ -34,6 +34,8 @@ from fixtures.ruleset import (
 )
 from srd_rules_engine.core import (
     Adjudicator,
+    Carriage,
+    Carried,
     Combatant,
     D20Test,
     Declaration,
@@ -44,11 +46,9 @@ from srd_rules_engine.core import (
     Modifier,
     Proposal,
     Resolution,
-    Resolver,
     Ruling,
     Status,
     TestKind,
-    Weapon,
     attack_key,
     attack_resolver,
     initiative_order,
@@ -92,6 +92,9 @@ def character() -> Combatant:
         armour_class=14,
         abilities={"str": 16, "dex": 14, "con": 14},
         proficiency_bonus=2,
+        hands=2,
+        equipment=(Carried(FIXTURE_BLADE, Carriage.HELD),),
+        weapon_proficiencies=frozenset({FIXTURE_BLADE.id}),
     )
 
 
@@ -105,6 +108,10 @@ def creature() -> Combatant:
         armour_class=12,
         abilities={"str": 13, "dex": 12, "con": 12},
         proficiency_bonus=2,
+        hands=2,
+        equipment=(Carried(FIXTURE_FANGS, Carriage.HELD),),
+        # p. 89: "A monster is proficient with any weapon in its stat block."
+        weapon_proficiencies=frozenset({FIXTURE_FANGS.id}),
     )
 
 
@@ -206,7 +213,7 @@ def build_adjudicator(path: Path, *, seed: int, engine: str = ENGINE_VERSION) ->
     return Adjudicator(
         ruleset=fixture_ruleset(),
         resolvers={
-            ATTACK.id: _by_actor(FIXTURE_BLADE, FIXTURE_FANGS),
+            ATTACK.id: attack_resolver(),
             CROSSING.id: _crossing,
             STEADYING.id: _steadying,
         },
@@ -223,18 +230,10 @@ def build_adjudicator(path: Path, *, seed: int, engine: str = ENGINE_VERSION) ->
     )
 
 
-def _by_actor(for_character: Weapon, for_creature: Weapon) -> Resolver:
-    """Each combatant swings its own invented weapon, through the same resolver."""
-    blade = attack_resolver(for_character)
-    fangs = attack_resolver(for_creature)
-
-    def resolve(
-        *, state: EncounterState, declaration: Declaration, facts: Mapping[str, Resolution]
-    ) -> Proposal:
-        chosen = blade if declaration.actor_id == "pc" else fangs
-        return chosen(state=state, declaration=declaration, facts=facts)
-
-    return resolve
+# `_by_actor` lived here until #258, dispatching to one of two closures by actor id so each
+# combatant swung its own invented weapon. It is gone: a weapon is now something a creature
+# **holds**, so `attack_resolver()` reads it off the state and one resolver serves both.
+# 0040 clause 4 is why there is no wrapper around it either.
 
 
 # --- The driver ---------------------------------------------------------------------------

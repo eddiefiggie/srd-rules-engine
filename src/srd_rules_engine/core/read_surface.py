@@ -46,6 +46,7 @@ from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.canonical import CanonicalizationError, digest
 from srd_rules_engine.core.conditions import Condition
 from srd_rules_engine.core.d20 import Advantage
+from srd_rules_engine.core.equipment import Weapon
 from srd_rules_engine.core.position import MovementMode, distance_feet
 from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.sight import LightLevel, Senses
@@ -75,8 +76,38 @@ DODGE: Final = "dodge"
 DISENGAGE: Final = "disengage"
 
 
-def attack_key(target_id: str) -> str:
-    return f"{ATTACK}:{target_id}"
+def attack_key(weapon_id: str, target_id: str) -> str:
+    """The key one attack option is offered under (0040 clause 3).
+
+    **One per (held weapon, reachable target)**, because which weapon an attack uses is a
+    choice the creature makes from what it holds — enumerated the way 0038 clause 4 enumerates
+    a spell's payable slot levels, so it is picked from a menu the engine computed rather than
+    named in a declaration the engine checks afterwards.
+
+    It named only the target until #258, when a weapon stopped being data bound to a resolver
+    and became something the creature holds.
+    """
+    return f"{ATTACK}:{weapon_id}:{target_id}"
+
+
+def attack_declared(action_key: str | None) -> tuple[str, str] | None:
+    """The weapon and the target an attack key names, or `None` if it is not an attack.
+
+    Parsed from the right, because a weapon's id may itself contain colons — `fixture:blade`
+    is an ordinary id — while a combatant id is one segment.
+    """
+    if action_key is None or not action_key.startswith(f"{ATTACK}:"):
+        return None
+    weapon_id, _, target_id = action_key[len(ATTACK) + 1 :].rpartition(":")
+    if not weapon_id or not target_id:
+        return None
+    return weapon_id, target_id
+
+
+def attack_weapon(action_key: str | None) -> str | None:
+    """The weapon an attack key names, or `None` if the key is not an attack."""
+    declared = attack_declared(action_key)
+    return declared[0] if declared else None
 
 
 #: Which action each casting time spends (p. 105, p. 185). Stated here rather than imported
@@ -157,10 +188,9 @@ def cast_declared(action_key: str | None) -> tuple[str, int] | None:
 
 
 def attack_target(action_key: str | None) -> str | None:
-    """The target an attack key names, or None if the key is not an attack."""
-    if action_key is None or not action_key.startswith(f"{ATTACK}:"):
-        return None
-    return action_key.split(":", 1)[1] or None
+    """The target an attack key names, or `None` if the key is not an attack."""
+    declared = attack_declared(action_key)
+    return declared[1] if declared else None
 
 
 class Verdict(StrEnum):
@@ -347,15 +377,7 @@ def legal_actions(state: EncounterState, actor_id: str) -> tuple[LegalAction, ..
     # attack leaves the menu once the Action is gone. It did not until #252, because nothing
     # charged the Action for an attack and the offer had nothing to be conditional on.
     if has_action:
-        actions.extend(
-            LegalAction(
-                key=attack_key(other.id),
-                label=f"Attack {other.name}",
-                detail=_attack_detail(actor, other),
-            )
-            for other in state.combatants
-            if other.id != actor_id and not other.is_down
-        )
+        actions.extend(_attackable(state, actor))
 
     actions.extend(_castable(state, actor))
 
@@ -428,19 +450,84 @@ def _castable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...
     return tuple(offered)
 
 
-def _attack_detail(actor: Combatant, target: Combatant) -> dict[str, object]:
-    """What the agent needs to judge an attack, including the distance to the target.
+def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...]:
+    """Every attack this creature may make right now, one per held weapon and target.
 
-    The distance is reported rather than used to gate the offer. Whether a target is in
-    range depends on the *weapon* — reach for a melee one, normal and long range for a
-    ranged one — and the read surface does not know which weapon an attack will use. So it
-    supplies the fact and leaves the judgement, rather than filtering on an assumption.
-    Adjudication still refuses an attack beyond reach or long range.
+    **This used to report the distance and decline to judge**, and said so:
+
+        Whether a target is in range depends on the *weapon* … and the read surface does not
+        know which weapon an attack will use. So it supplies the fact and leaves the
+        judgement, rather than filtering on an assumption.
+
+    That was honest and it is no longer true. Since #258 a weapon is an `Item` the creature
+    holds (0040 clause 1), so the surface knows exactly which weapon each offer is for and
+    R18's "computable rather than checkable afterwards" applies to range as it does to
+    everything else. A menu that knows an attack is impossible and offers it anyway is a menu
+    that lies.
+
+    **A shot beyond normal range stays on the menu.** p. 90 imposes Disadvantage past the
+    first range and forbids the attack only past the second, so filtering at normal range
+    would remove a shot the document allows. The Disadvantage is the resolver's to apply.
+
+    **Unknown positions offer the attack.** A creature with no position cannot be measured
+    against, and refusing on that basis would invent a distance — the direction 0030 clause 1
+    keeps away from.
+
+    **A creature holding no weapon is offered no attack, and that is a disclosed gap** (R32).
+    p. 177 allows "one attack roll with a weapon **or an Unarmed Strike**", and the Unarmed
+    Strike (p. 190) is an unimplemented shape — so this offers the weapon half of the sentence
+    and none of the other. Before #258 the single `attack:<target>` offer covered an unarmed
+    creature by accident, because the surface could not consult a weapon; now the narrowing is
+    visible in play, and it is filed as
+    [#267](https://github.com/eddiefiggie/srd-rules-engine/issues/267) rather than left for a
+    reader to infer from an empty menu that a creature can do nothing.
     """
-    detail: dict[str, object] = {"target": target.id, "armour_class": target.armour_class}
+    offered: list[LegalAction] = []
+    for weapon in actor.weapons_held:
+        for target in state.combatants:
+            if target.id == actor.id or target.is_down:
+                continue
+            if not _within_weapon_range(actor, weapon, target):
+                continue
+            offered.append(
+                LegalAction(
+                    key=attack_key(weapon.id, target.id),
+                    label=f"Attack {target.name} with {weapon.id}",
+                    detail=_attack_detail(actor, weapon, target),
+                )
+            )
+    return tuple(offered)
+
+
+def _within_weapon_range(actor: Combatant, weapon: Weapon, target: Combatant) -> bool:
+    """Whether this weapon can reach that target at all (p. 90, p. 186).
+
+    "Can reach at all" rather than "reaches without penalty": long range is the bound, and the
+    Disadvantage inside it is a modifier rather than a refusal.
+    """
+    if actor.position is None or target.position is None:
+        return True
+    distance = distance_feet(actor.position, target.position)
+    if weapon.long_range is not None:
+        return bool(distance <= weapon.long_range)
+    return bool(distance <= actor.reach)
+
+
+def _attack_detail(actor: Combatant, weapon: Weapon, target: Combatant) -> dict[str, object]:
+    """What the agent needs to judge an attack it has already been told is possible."""
+    detail: dict[str, object] = {
+        "target": target.id,
+        "weapon": weapon.id,
+        "armour_class": target.armour_class,
+    }
     if actor.position is not None and target.position is not None:
-        detail["distance"] = distance_feet(actor.position, target.position)
+        distance = distance_feet(actor.position, target.position)
+        detail["distance"] = distance
         detail["reach"] = actor.reach
+        # p. 90: "When attacking a target beyond normal range, you have Disadvantage on the
+        # attack roll." Reported so the agent can weigh the shot it is being offered.
+        if weapon.normal_range is not None:
+            detail["beyond_normal_range"] = distance > weapon.normal_range
     return detail
 
 

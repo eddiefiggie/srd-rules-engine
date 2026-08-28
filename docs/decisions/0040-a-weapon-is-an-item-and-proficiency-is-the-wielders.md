@@ -146,14 +146,25 @@ In the tree:
 
 ## Status of implementation
 
-**Decided, and none of it built.** The gate closes with this record, so each clause is tracked:
+**Clauses 1-4 are built** by [#258](https://github.com/eddiefiggie/srd-rules-engine/issues/258);
+clause 5 is decided and tracked by
+[#264](https://github.com/eddiefiggie/srd-rules-engine/issues/264).
+
+**What the build found that this record did not.** Clause 3 said the surface should gate on
+reach and range and did not notice what gating *removes*: p. 177 allows "one attack roll with
+a weapon **or an Unarmed Strike**", and offering per held weapon offers only the first half.
+Before this change a single `attack:<target>` covered an unarmed creature by accident, because
+the surface could not consult a weapon. The narrowing is correct for weapons and wrong for
+fists, and it is filed as [#267](https://github.com/eddiefiggie/srd-rules-engine/issues/267)
+with a disclosure in `core.read_surface` rather than left for a reader to infer from an empty
+menu.
 
 | Clause | State |
 |---|---|
-| 1 — `Weapon` is a keyword-only subtype of `Item` | **Decided, not built.** [#258](https://github.com/eddiefiggie/srd-rules-engine/issues/258) |
-| 2 — proficiency is the wielder's, keyed by weapon id | **Decided, not built.** [#258](https://github.com/eddiefiggie/srd-rules-engine/issues/258) |
-| 3 — the read surface gates on reach and range, long range included | **Decided, not built.** [#258](https://github.com/eddiefiggie/srd-rules-engine/issues/258) |
-| 4 — no wrapper, because an attack's effect is the engine's | **Decided, not built.** [#258](https://github.com/eddiefiggie/srd-rules-engine/issues/258) |
+| 1 — `Weapon` is a keyword-only subtype of `Item` | **Built**, and it moved to `core.equipment`: `core.combat` imports state, so a type state must hold could not live there. Re-exported from `core.combat`, and the no-weapon-list guard now watches both files |
+| 2 — proficiency is the wielder's, keyed by weapon id | **Built** as `Combatant.weapon_proficiencies`. The test that exercised it could not be written before: the same weapon in the hands of someone who lacks the proficiency was unexpressible |
+| 3 — the read surface gates on reach and range, long range included | **Built**, and it narrowed something the clause did not foresee: a creature holding no weapon is now offered no attack, while p. 177 always allows an Unarmed Strike. Disclosed and filed as [#267](https://github.com/eddiefiggie/srd-rules-engine/issues/267) |
+| 4 — no wrapper, because an attack's effect is the engine's | **Built.** `attack_resolver()` takes no weapon and one attack rule replaces one rule per weapon — the fixture's two-closure dispatcher was deleted rather than rewritten |
 | 5 — improvised is a use, not an object | **Decided, not built.** [#264](https://github.com/eddiefiggie/srd-rules-engine/issues/264) |
 
 **#262 is closed by this record.** #258 builds clauses 1-4; the weapon properties it unblocks

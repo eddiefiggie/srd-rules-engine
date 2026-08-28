@@ -63,8 +63,11 @@ boundary:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+
+from srd_rules_engine.core.damage import DamageType
 
 
 class Carriage(StrEnum):
@@ -184,3 +187,104 @@ def carried_weight(equipment: tuple[Carried, ...]) -> float:
 def items_in(equipment: tuple[Carried, ...], carriage: Carriage) -> tuple[Item, ...]:
     """Everything in that carriage, in the order the ruleset gave it."""
     return tuple(carried.item for carried in equipment if carried.carriage is carriage)
+
+
+#: p. 89: Heavy names a *score* of 13, not a modifier. Comparing modifiers would put the
+#: boundary in a different place.
+HEAVY_SCORE_THRESHOLD = 13
+
+
+@dataclass(frozen=True, kw_only=True)
+class Weapon(Item):
+    """What an attack needs. A ruleset supplies it; this module ships no weapon list.
+
+    **A subtype of `Item` since 0040 clause 1**, because a weapon *is* equipment: it has
+    weight and it occupies hands, and a creature holds it. Composition — a `Weapon` wrapping
+    an `Item` — would have put the weapon outside `Carried`, so state would hold the item and
+    not the weapon and `legal_actions` would need it passed in. That is the repair 0026, 0038
+    and 0039 each refused.
+
+    Declared `kw_only` so the fields below need no defaults: `Item.id` has none and dataclass
+    inheritance would otherwise refuse a non-defaulted field after a defaulted one.
+
+    `id` is the identity `Item` gives it, and there is no `name` — 0039 clause 2 keeps names
+    with the ruleset, and the id is what a declaration names and the ledger records.
+
+    **`proficient` is gone, and that is a rules fix rather than a move** (0040 clause 2).
+    p. 89: "Anyone can wield a weapon, but **you** must have proficiency with it to add your
+    Proficiency Bonus." It is a fact about the wielder, and it lived here only because a
+    weapon used to belong to one resolver and therefore to one creature. See
+    `Combatant.weapon_proficiencies`.
+    """
+
+    damage_dice: int
+    damage_sides: int
+    ability: str = "str"
+    #: Melee or Ranged (p. 89). Heavy reads a different ability score for each.
+    melee: bool = True
+    damage_type: DamageType | None = None
+    #: Finesse (p. 89): "use your choice of your Strength or Dexterity modifier for the
+    #: attack **and** damage rolls. You must use the same modifier for both rolls." The
+    #: choice is the wielder's and arrives as `ability`; what the engine holds is the
+    #: constraint — a Finesse weapon may use either, anything else may not, and whichever
+    #: is chosen reaches both rolls.
+    finesse: bool = False
+    #: Heavy (p. 89): Disadvantage unless the relevant score is at least 13.
+    heavy: bool = False
+    #: Versatile (p. 90): the damage die when "used with two hands to make a melee attack".
+    versatile_sides: int | None = None
+    wielded_two_handed: bool = False
+    #: Graze (p. 90), a mastery property: damage on a miss equal to the ability modifier.
+    graze: bool = False
+    #: Range (p. 90): "The first is the weapon's normal range in feet, and the second is
+    #: the weapon's long range." Ranged weapons only; a melee weapon uses the wielder's
+    #: reach instead.
+    normal_range: int | None = None
+    long_range: int | None = None
+    #: A flat bonus that reaches **both** rolls. Berserker Axe (Magic Items, p. 213) is
+    #: the inventory's exemplar: "a +1 bonus to attack rolls and damage rolls made with
+    #: this magic weapon". Applying it to only one of the two is the mistake worth
+    #: guarding, because an attack-only bonus is invisible in every hit that lands.
+    bonus: int = 0
+
+    def __post_init__(self) -> None:
+        if self.finesse and self.ability not in ("str", "dex"):
+            raise ValueError(
+                f"a Finesse weapon uses Strength or Dexterity, not {self.ability!r} — "
+                "p. 89 offers the choice between those two and no others"
+            )
+        if self.versatile_sides is not None and not self.melee:
+            raise ValueError(
+                "Versatile is a melee property: it applies to two-handed melee attacks"
+            )
+        if (self.normal_range is None) != (self.long_range is None):
+            raise ValueError("Range lists two numbers (p. 90): a normal range and a long range")
+        if self.normal_range is not None and self.long_range is not None:
+            if self.long_range < self.normal_range:
+                raise ValueError("a weapon's long range is not shorter than its normal range")
+            if self.melee:
+                raise ValueError("Range is a ranged-weapon property; a melee weapon uses reach")
+
+    @property
+    def sides_in_use(self) -> int:
+        """The damage die this attack rolls.
+
+        p. 90: a Versatile weapon "deals that damage when used with two hands to make a
+        melee attack". Both halves are conditions — a versatile weapon wielded in one hand
+        rolls its ordinary die.
+        """
+        if self.versatile_sides is not None and self.wielded_two_handed and self.melee:
+            return self.versatile_sides
+        return self.damage_sides
+
+    def heavy_disadvantage(self, scores: Mapping[str, int]) -> bool:
+        """p. 89: Disadvantage "if it's a Melee weapon and your Strength score isn't at
+        least 13 or if it's a Ranged weapon and your Dexterity score isn't at least 13".
+
+        The *score*, not the modifier — 13 is the threshold the document names, and a
+        modifier comparison would put the boundary in a different place.
+        """
+        if not self.heavy:
+            return False
+        required = "str" if self.melee else "dex"
+        return scores.get(required, 10) < HEAVY_SCORE_THRESHOLD

@@ -346,7 +346,9 @@ def test_a_terminal_outcome_carries_the_refusals_and_what_was_offered(
     assert outcome.terminal is TerminalReason.REJECTION_CHURN
     assert [a.key for a in outcome.offered] == [
         END_TURN,
-        "attack:boar",
+        # No attack: these fixture combatants hold no weapon, and since #258 an attack is
+        # offered per held weapon. p. 177 would still allow an Unarmed Strike, which is the
+        # unimplemented shape #267 tracks.
         dash_key(MovementMode.WALK),
         "dodge",
         "disengage",
@@ -557,7 +559,6 @@ def test_the_loop_yields_typed_requests_and_never_calls_the_driver(tmp_path: Pat
     assert first.actor_id == "pc"
     assert [a.key for a in first.offered.actions] == [
         END_TURN,
-        "attack:boar",
         dash_key(MovementMode.WALK),
         "dodge",
         "disengage",
