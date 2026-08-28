@@ -54,6 +54,14 @@ from srd_rules_engine.core.duration import (
     StatedSpan,
     rounds_in_minutes,
 )
+from srd_rules_engine.core.equipment import (
+    Carriage,
+    Carried,
+    Item,
+    carried_weight,
+    free_hands,
+    items_in,
+)
 from srd_rules_engine.core.obstructions import Obstruction, blocking, line_is_blocked
 from srd_rules_engine.core.position import (
     DEFAULT_REACH_FEET,
@@ -264,6 +272,21 @@ class Combatant:
     #: Spell slots, for a creature that has any. `None` for one that does not, which is a
     #: different thing from having none left.
     slots: SpellSlots | None = None
+    #: What this creature has, and where (0039 clauses 1 and 3). Ruleset data, carried by the
+    #: creature, for the reason `spells` is below: legality is a fact about the creature and
+    #: `legal_actions(state, actor_id)` may not take a second argument (0026 clause 1).
+    equipment: tuple[Carried, ...] = ()
+    #: How many hands this creature has, or `None` because **no SRD rule says**.
+    #:
+    #: Every printed rule about hands is relational — "a free hand" (pp. 89, 105, 182, 190),
+    #: "requires two hands" (p. 90) — and not one of them states a creature's count. Two is
+    #: what everybody remembers and what nothing in the document supports, so it is exactly
+    #: the inferred rule value R31 forbids: plausible, universal, and stated nowhere.
+    #:
+    #: `None` therefore means the ruleset did not say, and every rule turning on a free hand
+    #: declines rather than guessing — the same distinction `slots` draws between a creature
+    #: with no spell slots and one with none left.
+    hands: int | None = None
     #: What this creature can cast — **ruleset data, carried by the caster** (0038 clause 1).
     #:
     #: It rides here rather than being handed to `legal_actions`, and that is 0026 clause 1
@@ -328,6 +351,20 @@ class Combatant:
             or any(effects.concentration_broken for effects in self.conditions.effects)
         ):
             object.__setattr__(self, "concentration", self.concentration.ended())
+
+    @property
+    def free_hands(self) -> int | None:
+        """How many hands are free right now, or `None` if nobody said how many there are."""
+        return free_hands(self.equipment, self.hands)
+
+    @property
+    def carried_weight(self) -> float:
+        """Everything worn, held and stowed, in pounds (p. 178)."""
+        return carried_weight(self.equipment)
+
+    def items_carried(self, carriage: Carriage) -> tuple[Item, ...]:
+        """What this creature has in that carriage, in the order the ruleset gave it."""
+        return items_in(self.equipment, carriage)
 
     @property
     def is_down(self) -> bool:

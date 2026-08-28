@@ -183,6 +183,11 @@ def situation_payload(situation: object) -> dict[str, Any] | None:
         # caster's declaration named it, or absent. An agent that cannot see this cannot
         # weigh casting again against losing what is up.
         "concentrating_on",
+        # p. 105, p. 178. Both JSON-safe as they stand. `free_hands` is `int | None`, and the
+        # `None` is load-bearing: no SRD rule says how many hands a creature has, so a
+        # ruleset that did not say leaves the question unanswerable rather than answered zero.
+        "free_hands",
+        "carried_weight",
     )
     out: dict[str, Any] = {name: getattr(situation, name) for name in fields}
     # p. 188, #206: one shared spend, a different allowance per mode. A mode the creature

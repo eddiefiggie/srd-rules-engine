@@ -183,18 +183,27 @@ In the tree:
 
 ## Status of implementation
 
-**Decided, and none of it built.** The gate closes with this record, so each clause is tracked
-by an issue filed as it landed:
+**Clauses 1-4 and 7 are built** by
+[#257](https://github.com/eddiefiggie/srd-rules-engine/issues/257); clauses 5 and 6 are
+decided and tracked by [#258](https://github.com/eddiefiggie/srd-rules-engine/issues/258) and
+[#259](https://github.com/eddiefiggie/srd-rules-engine/issues/259).
+
+**What the build found that this record did not.** Clause 4 said hands are counted and did not
+say where the count comes from — and **no rule in SRD v5.2.1 states how many hands a creature
+has**. Every printed rule is relational, so the number is ruleset data with no engine default:
+`Combatant.hands` is `int | None`, and a creature whose ruleset did not say has an unanswerable
+count rather than two. Assuming two would have been the inferred rule value R31 forbids, and it
+would have looked like common sense.
 
 | Clause | State |
 |---|---|
-| 1 — equipment is ruleset data on the creature | **Decided, not built.** [#257](https://github.com/eddiefiggie/srd-rules-engine/issues/257) |
-| 2 — the engine holds weight, hands, and the two component flags | **Decided, not built.** [#257](https://github.com/eddiefiggie/srd-rules-engine/issues/257) |
-| 3 — worn, held or stowed, as one closed field | **Decided, not built.** [#257](https://github.com/eddiefiggie/srd-rules-engine/issues/257) |
-| 4 — hands are counted, and one free hand serves both S and M | **Decided, not built.** The counting is [#257](https://github.com/eddiefiggie/srd-rules-engine/issues/257); the component check that reads it is [#245](https://github.com/eddiefiggie/srd-rules-engine/issues/245) |
+| 1 — equipment is ruleset data on the creature | **Built.** `Combatant.equipment`, and `legal_actions` still takes state and `actor_id` only |
+| 2 — the engine holds weight, hands, and the two component flags | **Built.** `Item` has exactly those five fields, and a test pins the set so a sixth cannot arrive quietly |
+| 3 — worn, held or stowed, as one closed field | **Built** as `Carriage`, defaulting to stowed — the direction that cannot invent a free hand or armour nobody put on |
+| 4 — hands are counted, and one free hand serves both S and M | **Built, and the clause gained a finding.** The count is `int \| None` because **no SRD rule states how many hands a creature has** — the record assumed one could be held and did not say where the number comes from. p. 105's shared-hand sentence is now an asserted verifier clause. The check that reads it is still [#245](https://github.com/eddiefiggie/srd-rules-engine/issues/245) |
 | 5 — a weapon is equipment | **Decided, not built.** [#258](https://github.com/eddiefiggie/srd-rules-engine/issues/258) |
 | 6 — Size is the creature's, not the equipment's | **Decided, not built.** [#259](https://github.com/eddiefiggie/srd-rules-engine/issues/259), which is what `carrying-capacity` is actually blocked on |
-| 7 — what is still unchecked, disclosed | **Decided, not built.** Ships with [#257](https://github.com/eddiefiggie/srd-rules-engine/issues/257) as an R32 disclosure |
+| 7 — what is still unchecked, disclosed | **Built.** `core.equipment`'s docstring names attunement, item charges, carrying capacity, weapons and armour training, each pointing at its issue; guarded |
 
 **#256 is closed by this record.** #245 keeps its spell-side half, #247 keeps armour training,
 and #19 stays open as the umbrella.
