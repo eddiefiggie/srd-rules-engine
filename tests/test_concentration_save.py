@@ -611,3 +611,30 @@ def test_ending_concentration_twice_is_not_an_error() -> None:
     """Idempotent, because three routes can reach it and none of them can see the others."""
     state = concentrating().with_concentration_ended("mage")
     assert not state.with_concentration_ended("mage").combatant("mage").concentration.active
+
+
+def test_a_creature_killed_by_the_blow_does_not_roll_the_save_it_owed(tmp_path: Path) -> None:
+    """The debt is recorded before the death, and dropped rather than rolled.
+
+    `with_damage` reads who is concentrating from the combatant as it was *before* the blow,
+    which is correct — p. 179's DC derives from the damage taken, and the creature was
+    concentrating when it was taken. The death then ends the Concentration (0037 clause 4),
+    so by the time the loop drains the queue there is nothing left to maintain and the debt
+    is dropped.
+
+    Worth pinning because the alternative reads as reasonable and is not: a dead creature
+    making a Constitution save to keep a spell up is an outcome for a creature p. 17 has
+    already removed from the fight.
+    """
+    from dataclasses import replace as _replace
+
+    monster = _replace(caster(), id="ogre", name="Ogre", is_player_character=False)
+    state = EncounterState.new([monster, boar()]).with_initiative({"ogre": 12, "boar": 5})
+
+    killed = state.with_damage("ogre", 40)
+    assert killed.combatant("ogre").death_saves.dead
+    assert killed.concentration_saves_owed, "precondition: the debt was recorded by the blow"
+
+    rulings = narrated(build_loop(tmp_path), killed, "boar")
+    assert rulings == (), "the dead do not roll to maintain Concentration"
+    assert killed.with_damage("ogre", 5).concentration_saves_owed == killed.concentration_saves_owed

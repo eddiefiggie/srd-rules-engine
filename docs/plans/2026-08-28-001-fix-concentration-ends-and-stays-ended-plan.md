@@ -238,6 +238,16 @@ inventing.
 - **Execution note:** the lifted-condition case is the whole bug. Write it first, watch it
   fail against `main`, then fix.
 - **Verification:** `pytest`, `mypy` green; no caller of `after_conditions` remains.
+- **As built, where it differs from the above** (amended after the work landed, so the plan
+  and the tree agree). The end is materialised in **`Combatant.__post_init__`**, not by writes
+  in `with_condition` and `with_death`. Both reach state through `replace`, so both re-run it
+  — and so does any writer added later, and so does a `Combatant` a caller builds by hand,
+  which is the case the derivation covered and two scattered writes would not. That is the
+  difference between an invariant and a convention, and it also **removes the first stated
+  risk below**: there is no extra `_evolve`, so no `generation` bump on every condition
+  applied. `Concentration.after_conditions` is deleted; the two tests that covered it are
+  rewritten against the new mechanism rather than removed, since the rules they assert are
+  unchanged.
 
 ### U3. The voluntary end reaches a driver
 
@@ -268,6 +278,12 @@ inventing.
 - **Execution note:** the verifier is hand-run and `prove_guard_red.sh` cannot drive it —
   corrupt a copy and delete the copy, as #231, #233 and #215 did.
 - **Verification:** verifier green against the document; corruption red.
+- **As built.** The death clause was indeed already a `CLAUSES` row, so U4 added the CI
+  presence anchor and no duplicate. It also added a row the plan had not asked for: p. 179's
+  "The creator can end Concentration at any time **(no action required)**". U3 turned that
+  sentence into the licence for the voluntary end being a transition rather than a
+  `LegalAction`, which makes the cost a rule value the engine rests on — so it is asserted
+  rather than paraphrased. 179 clauses green.
 
 ### U5. Figures, build stamp, and the issues
 
@@ -313,10 +329,12 @@ inventing.
 
 ## Risks
 
-- **Materialising in `with_condition` fires on every application**, including one that lands
-  while the creature holds no Concentration. Harmless — writing `Concentration()` over
-  `Concentration()` changes nothing — but it does bump `generation` through `_evolve`, which
-  is what read tokens are compared on. Mitigated by writing only when the field is active.
+- ~~**Materialising in `with_condition` fires on every application**, including one that
+  lands while the creature holds no Concentration … it does bump `generation` through
+  `_evolve`, which is what read tokens are compared on.~~ **Did not arise.** The
+  `Combatant.__post_init__` shape normalises during a construction that was happening anyway,
+  so there is no extra transition and no `generation` movement. Kept struck through rather
+  than deleted, because the risk was real for the shape the plan had in mind.
 - **A creature Incapacitated *before* this change ships** carries a stored Concentration that
   the old derivation hid. After it, the stored value is what is reported — so a persisted
   encounter could read as concentrating when the old build said otherwise. There is no
