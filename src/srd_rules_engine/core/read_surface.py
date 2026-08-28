@@ -90,6 +90,30 @@ def attack_key(weapon_id: str, target_id: str) -> str:
     return f"{ATTACK}:{weapon_id}:{target_id}"
 
 
+BONUS_ATTACK: Final = "bonus-attack"
+
+
+def bonus_attack_key(weapon_id: str, target_id: str) -> str:
+    """The key p. 89's extra Light-weapon attack is offered under.
+
+    Its own prefix rather than an ordinary attack key, because the two differ in what they
+    cost and in what they deal: this one spends the **Bonus Action**, and drops a positive
+    ability modifier from its damage. A resolver deriving which it was from the action economy
+    would be reading a consequence to recover a choice the engine already made.
+    """
+    return f"{BONUS_ATTACK}:{weapon_id}:{target_id}"
+
+
+def bonus_attack_declared(action_key: str | None) -> tuple[str, str] | None:
+    """The weapon and target a bonus-attack key names, or `None` if it is not one."""
+    if action_key is None or not action_key.startswith(f"{BONUS_ATTACK}:"):
+        return None
+    weapon_id, _, target_id = action_key[len(BONUS_ATTACK) + 1 :].rpartition(":")
+    if not weapon_id or not target_id:
+        return None
+    return weapon_id, target_id
+
+
 def attack_declared(action_key: str | None) -> tuple[str, str] | None:
     """The weapon and the target an attack key names, or `None` if it is not an attack.
 
@@ -389,6 +413,12 @@ def legal_actions(state: EncounterState, actor_id: str) -> tuple[LegalAction, ..
     if has_action:
         actions.extend(_attackable(state, actor))
 
+    # p. 89's extra Light attack is made **as a Bonus Action**, so it is offered outside the
+    # `has_action` branch — by the time it is available the Action has already been spent
+    # buying it, which is the whole condition. Nesting it inside cost nothing to write and
+    # made it unreachable.
+    actions.extend(_light_bonus_attacks(state, actor))
+
     actions.extend(_castable(state, actor))
 
     if has_action:
@@ -527,6 +557,52 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
                     key=attack_key(weapon.id, target.id),
                     label=f"Attack {target.name} with {weapon.id}",
                     detail=_attack_detail(actor, weapon, target),
+                )
+            )
+
+    return tuple(offered)
+
+
+def _light_bonus_attacks(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...]:
+    """p. 89's extra attack, offered only when all of its conditions hold.
+
+    > When you take the Attack action on your turn **and attack with a Light weapon**, you can
+    > make one extra attack as a Bonus Action later on the same turn. That extra attack must
+    > be made with a **different** Light weapon.
+
+    Four conditions, and each is asked here rather than left to fail at adjudication (R18):
+    the Attack action was taken this turn with a Light weapon, a Bonus Action is available,
+    the creature is holding a *different* Light weapon, and the target is in its range.
+
+    **"Different" means a different weapon, not a different kind.** p. 89's own example is a
+    Shortsword in one hand and a Dagger in the other — two things held at once — so the test
+    is the item's identity, which is what `Carried` already distinguishes.
+    """
+    used = {weapon for who, weapon in state.light_attacks_this_turn if who == actor.id}
+    if not used:
+        return ()
+    if not actor.actions.available(ActionKind.BONUS_ACTION, actor.conditions):
+        return ()
+
+    offered: list[LegalAction] = []
+    for weapon in actor.weapons_held:
+        if not weapon.light or weapon.id in used:
+            continue
+        for target in state.combatants:
+            if target.id == actor.id or target.is_down:
+                continue
+            if not _within_weapon_range(actor, weapon, target):
+                continue
+            offered.append(
+                LegalAction(
+                    key=bonus_attack_key(weapon.id, target.id),
+                    label=f"Bonus attack on {target.name} with {weapon.id}",
+                    detail={
+                        **_attack_detail(actor, weapon, target),
+                        # p. 89 drops the ability modifier from this attack's damage unless it
+                        # is negative, which an agent weighing the extra attack needs to know.
+                        "ability_modifier_on_damage": min(0, actor.modifier(weapon.ability)),
+                    },
                 )
             )
     return tuple(offered)

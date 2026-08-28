@@ -165,6 +165,12 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # weapon cannot be wielded by a creature that cannot spare two hands. The path is the
         # invariant rather than a field, because the field alone enforced nothing.
         "weapon-two-handed": "core.state.Combatant.__post_init__",
+        # p. 89: "When you take the Attack action on your turn and attack with a Light weapon,
+        # you can make one extra attack as a Bonus Action later on the same turn." Claimed
+        # since #270 — the offer, the different-weapon condition, and the damage rule whose
+        # exception is the whole of it are all enforced, and `light_attacks_this_turn` is what
+        # remembers the condition across the turn.
+        "weapon-light": "core.read_surface._light_bonus_attacks",
         "mastery-graze": "core.combat.Weapon.graze",
         # Position, movement and range in feet (#17, #20).
         "speed": "core.position.Speeds.walk",

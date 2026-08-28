@@ -642,6 +642,18 @@ class EncounterState:
     #: A cantrip never appears here: p. 104 puts a level 0 spell outside the slot economy, so
     #: it spends nothing and this rule has nothing to say about it.
     slots_expended_this_turn: frozenset[str] = frozenset()
+    #: Who took the Attack action with a **Light** weapon this turn, and with which (p. 89).
+    #:
+    #: p. 89 buys the extra attack on two conditions and this records both: "When you take
+    #: the Attack action on your turn **and attack with a Light weapon**… That extra attack
+    #: must be made with a **different** Light weapon." So the weapon has to be remembered,
+    #: not merely the fact — a set of actors could not answer "different from which".
+    #:
+    #: **A third per-turn structure, and a third meaning.** `discharged` records an obligation
+    #: met; `slots_expended_this_turn` records a resource spent; this records **what was done
+    #: and with what**. They clear together and mean different things, which is 0036 clause 3
+    #: applied a third time: two mechanisms that agree about *when* are still two mechanisms.
+    light_attacks_this_turn: frozenset[tuple[str, str]] = frozenset()
 
     def __post_init__(self) -> None:
         """Retire every effect whose sustaining Concentration is gone (p. 179, 0037 clause 3).
@@ -1117,7 +1129,9 @@ class EncounterState:
         remaining.remove(debt)
         return self._evolve(concentration_saves_owed=tuple(remaining))
 
-    def with_action_spent(self, combatant_id: str, action: ActionKind) -> EncounterState:
+    def with_action_spent(
+        self, combatant_id: str, action: ActionKind, *, weapon_id: str | None = None
+    ) -> EncounterState:
         """Charge the action economy for something a ruling did (p. 176-177, p. 185).
 
         `ActionBudget.spend` refuses one that is not available and asks the conditions itself,
@@ -1129,7 +1143,20 @@ class EncounterState:
         """
         target = self.combatant(combatant_id)
         spent = replace(target, actions=target.actions.spend(action, target.conditions))
-        return self._evolve(combatants=self._replacing(spent))
+
+        # p. 89: "When you take the **Attack action** on your turn and attack with a Light
+        # weapon…" Both halves are conditions, so both are checked here: the Action rather
+        # than a Bonus Action or a Reaction, and a weapon the creature is holding that is
+        # actually Light. Whether it is Light is read off the weapon rather than trusted from
+        # the caller, which is what keeps a ruleset from buying the extra attack by asserting
+        # a property its weapon does not have.
+        light = self.light_attacks_this_turn
+        if weapon_id is not None and action is ActionKind.ACTION:
+            wielded = next((w for w in target.weapons_held if w.id == weapon_id), None)
+            if wielded is not None and wielded.light:
+                light = light | {(combatant_id, weapon_id)}
+
+        return self._evolve(combatants=self._replacing(spent), light_attacks_this_turn=light)
 
     def with_dash(self, combatant_id: str, feet: int) -> EncounterState:
         """p. 180: "When you take the Dash action, you gain extra movement for the current
@@ -1922,6 +1949,7 @@ class EncounterState:
                 combatants=ended._refreshed(following),
                 discharged=frozenset(),
                 slots_expended_this_turn=frozenset(),
+                light_attacks_this_turn=frozenset(),
             )
         return ended._evolve(
             turn_index=0,
@@ -1929,6 +1957,7 @@ class EncounterState:
             combatants=ended._refreshed(0),
             discharged=frozenset(),
             slots_expended_this_turn=frozenset(),
+            light_attacks_this_turn=frozenset(),
         )
 
     def _retired(self, actor_id: str) -> EncounterState:
