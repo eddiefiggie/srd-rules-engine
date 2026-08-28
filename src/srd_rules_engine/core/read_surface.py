@@ -93,6 +93,43 @@ ACTION_FOR_CASTING: Final[Mapping[CastingTime, ActionKind]] = MappingProxyType(
 CAST: Final = "cast"
 
 
+#: The modes Dash offers a choice between (p. 180): "If you have a **special speed**, such as
+#: a Fly Speed or Swim Speed, you can use that speed instead of your Speed."
+#:
+#: **Crawling is excluded, and it is the one that would slip in.** `Speeds.for_mode` answers
+#: Speed for it, because p. 179 makes crawling an ordinary move that costs more rather than a
+#: speed of its own — so iterating `MovementMode` offers a "Dash (crawl)" the document does
+#: not describe, at a number that is just Speed again.
+DASHABLE_MODES: Final = (
+    MovementMode.WALK,
+    MovementMode.CLIMB,
+    MovementMode.SWIM,
+    MovementMode.FLY,
+    MovementMode.BURROW,
+)
+
+
+def dash_key(mode: MovementMode) -> str:
+    """The key one Dash option is offered under (p. 180).
+
+    One per speed the creature actually has, because p. 180 gives it the choice: "If you have
+    a special speed, such as a Fly Speed or Swim Speed, you can use that speed instead of your
+    Speed… **You choose which speed to use each time you take it**." A single Walk-only offer
+    would make that choice for the creature.
+    """
+    return f"{DASH}:{mode.value}"
+
+
+def dash_mode(action_key: str | None) -> MovementMode | None:
+    """The speed a Dash key names, or `None` if the key is not a Dash."""
+    if action_key is None or not action_key.startswith(f"{DASH}:"):
+        return None
+    try:
+        return MovementMode(action_key[len(DASH) + 1 :])
+    except ValueError:
+        return None
+
+
 def cast_key(rule_id: str, slot_level: int) -> str:
     """The key one castable option is offered under (0038 clause 4).
 
@@ -293,26 +330,35 @@ def legal_actions(state: EncounterState, actor_id: str) -> tuple[LegalAction, ..
 
     has_action = actor.actions.available(ActionKind.ACTION, actor.conditions)
 
-    actions.extend(
-        LegalAction(
-            key=attack_key(other.id),
-            label=f"Attack {other.name}",
-            detail=_attack_detail(actor, other),
+    # p. 176: "On your turn, you can take one action", and p. 177 makes an attack one — so an
+    # attack leaves the menu once the Action is gone. It did not until #252, because nothing
+    # charged the Action for an attack and the offer had nothing to be conditional on.
+    if has_action:
+        actions.extend(
+            LegalAction(
+                key=attack_key(other.id),
+                label=f"Attack {other.name}",
+                detail=_attack_detail(actor, other),
+            )
+            for other in state.combatants
+            if other.id != actor_id and not other.is_down
         )
-        for other in state.combatants
-        if other.id != actor_id and not other.is_down
-    )
 
     actions.extend(_castable(state, actor))
 
     if has_action:
         speed = actor.conditions.speed_after(actor.speeds.walk)
-        actions.append(
+        # p. 180's choice of speed, enumerated rather than assumed — one entry per speed the
+        # creature has, so the choice is the creature's and the number is the engine's.
+        speeds = actor.conditions.speeds_after(actor.speeds)
+        actions.extend(
             LegalAction(
-                key=DASH,
-                label="Dash",
-                detail={"extra_movement": speed},
+                key=dash_key(mode),
+                label=f"Dash ({mode.value})" if mode is not MovementMode.WALK else "Dash",
+                detail={"extra_movement": feet, "mode": mode.value},
             )
+            for mode in DASHABLE_MODES
+            if (feet := speeds.for_mode(mode)) is not None
         )
         actions.append(LegalAction(key=DODGE, label="Dodge", detail={"holds": speed > 0}))
         actions.append(LegalAction(key=DISENGAGE, label="Disengage", detail={}))

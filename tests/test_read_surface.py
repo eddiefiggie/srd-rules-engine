@@ -21,9 +21,8 @@ import pytest
 from srd_rules_engine.core.actions import ActionBudget, ActionKind
 from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.d20 import Advantage
-from srd_rules_engine.core.position import Position, Speeds
+from srd_rules_engine.core.position import MovementMode, Position, Speeds
 from srd_rules_engine.core.read_surface import (
-    DASH,
     DISENGAGE,
     DODGE,
     END_TURN,
@@ -31,6 +30,7 @@ from srd_rules_engine.core.read_surface import (
     LegalAction,
     Verdict,
     attack_key,
+    dash_key,
     issue_token,
     legal_actions,
     read,
@@ -140,7 +140,13 @@ def test_the_active_combatant_is_offered_actions() -> None:
     """Ending the turn, an attack per opponent still standing, and the three actions the
     economy can now offer while an Action remains (p. 180, p. 181)."""
     state = encounter()
-    assert read(state, "pc").keys == (END_TURN, attack_key("boar"), DASH, DODGE, DISENGAGE)
+    assert read(state, "pc").keys == (
+        END_TURN,
+        attack_key("boar"),
+        dash_key(MovementMode.WALK),
+        DODGE,
+        DISENGAGE,
+    )
 
 
 def test_a_combatant_whose_turn_it_is_not_is_offered_nothing() -> None:
@@ -442,21 +448,21 @@ def test_unenforced_clauses_reach_the_agent() -> None:
 
 def test_dash_dodge_and_disengage_are_offered_while_an_action_remains() -> None:
     state = _rich()
-    assert {DASH, DODGE, DISENGAGE} <= set(read(state, "pc").keys)
+    assert {dash_key(MovementMode.WALK), DODGE, DISENGAGE} <= set(read(state, "pc").keys)
 
 
 def test_they_are_withdrawn_once_the_action_is_spent() -> None:
     """The menu is what is legal, so an action already spent is not on it."""
     spent = ActionBudget().spend(ActionKind.ACTION)
     keys = set(read(_rich(actions=spent), "pc").keys)
-    assert not {DASH, DODGE, DISENGAGE} & keys
+    assert not {dash_key(MovementMode.WALK), DODGE, DISENGAGE} & keys
     assert END_TURN in keys, "ending the turn survives"
 
 
 def test_dash_offers_the_speed_the_creature_actually_has() -> None:
     """p. 180: "The increase equals your Speed **after applying any modifiers**.\""""
     state = _rich(conditions=Conditions(exhaustion_levels=("a-tiring-march",) * 1))
-    dash = next(a for a in read(state, "pc").actions if a.key == DASH)
+    dash = next(a for a in read(state, "pc").actions if a.key == dash_key(MovementMode.WALK))
     assert dash.detail["extra_movement"] == 25
 
 

@@ -469,3 +469,28 @@ def test_the_unchecked_requirements_are_disclosed() -> None:
     assert "What this does not check, and cannot" in module
     for issue in ("#245", "#246", "#247", "#250"):
         assert issue in module, f"the disclosure no longer points at {issue}"
+
+
+def test_a_failed_cast_still_replaces_the_concentration_it_started(tmp_path: Path) -> None:
+    """p. 179: "You lose Concentration on an effect the moment you **start casting** a spell
+    that requires Concentration." The moment you start — so the old effect is gone whether or
+    not the new spell's own roll succeeds.
+
+    This is what `Proposal.always` buys, and #248 shipped it **correct and untested**: every
+    seed-sweeping test here used a spell requiring no Concentration, so a refactor moving
+    `concentration_begun` into `on_success` would have been green. Found while building #252.
+    """
+    for seed in range(60):
+        state = encounter()
+        state = state.with_concentration_begun("mage", "spell:older")
+        ruling, after = build(tmp_path / f"s{seed}", seed=seed).adjudicate(
+            state, cast(state, HOLD, 2)
+        )
+        assert ruling.result is not None
+        if not ruling.result.succeeded:
+            assert after.combatant("mage").concentration.rule_id == HOLD.rule_id, (
+                "p. 179 spends the old Concentration at the moment casting starts, so a "
+                "failed roll does not hand it back"
+            )
+            return
+    raise AssertionError("no seed below 60 failed the test; the sweep proved nothing")

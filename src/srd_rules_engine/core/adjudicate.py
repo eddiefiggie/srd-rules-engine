@@ -172,6 +172,16 @@ class EffectKind(StrEnum):
     #: SRD rule that grants Exhaustion grants exactly one, so the field is generality rather
     #: than a case anything exercises today.
     EXHAUSTION_GAINED = "exhaustion-gained"
+    #: The Dash action's extra movement (p. 180). `amount` is the feet gained, which is the
+    #: creature's speed **after modifiers** and in the mode it chose — p. 180 offers the
+    #: choice ("you can use that speed instead of your Speed… You choose which speed to use
+    #: each time you take it"), so the number is settled where the choice is offered.
+    DASHED = "dashed"
+    #: The Dodge action taken (p. 181). Carries no number: the benefits are stated, and
+    #: whether they hold is re-asked whenever they are read rather than frozen here.
+    DODGING = "dodging"
+    #: The Disengage action taken (p. 181): movement does not provoke for the rest of the turn.
+    DISENGAGED = "disengaged"
     #: A spell slot spent to cast a spell (p. 104, 0038 clause 6). `amount` is the **slot**
     #: level, which is not always the spell's — p. 104 lets a spell be cast "at a slot's
     #: level or higher", and what the extra level does is the spell's description's business.
@@ -383,6 +393,21 @@ def condition_ended(target_id: str, condition: Condition, *, description: str) -
         description=description,
         condition=condition,
     )
+
+
+def dashed(actor_id: str, feet: int, *, description: str) -> Effect:
+    """The Dash action's extra movement (p. 180)."""
+    return Effect(kind=EffectKind.DASHED, target_id=actor_id, amount=feet, description=description)
+
+
+def dodging_taken(actor_id: str, *, description: str) -> Effect:
+    """The Dodge action, taken (p. 181)."""
+    return Effect(kind=EffectKind.DODGING, target_id=actor_id, amount=0, description=description)
+
+
+def disengaged(actor_id: str, *, description: str) -> Effect:
+    """The Disengage action, taken (p. 181)."""
+    return Effect(kind=EffectKind.DISENGAGED, target_id=actor_id, amount=0, description=description)
 
 
 def action_spent(actor_id: str, action: ActionKind, *, description: str) -> Effect:
@@ -1300,6 +1325,12 @@ def _apply(
         elif effect.kind is EffectKind.ACTION_SPENT:
             assert effect.action is not None  # __post_init__ refuses one without
             state = state.with_action_spent(effect.target_id, effect.action)
+        elif effect.kind is EffectKind.DASHED:
+            state = state.with_dash(effect.target_id, effect.amount)
+        elif effect.kind is EffectKind.DODGING:
+            state = state.with_dodge(effect.target_id)
+        elif effect.kind is EffectKind.DISENGAGED:
+            state = state.with_disengage(effect.target_id)
         elif effect.kind is EffectKind.SPELL_SLOT_EXPENDED:
             state = state.with_spell_slot_expended(effect.target_id, effect.amount)
         elif effect.kind is EffectKind.CONCENTRATION_BEGUN:

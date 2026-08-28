@@ -230,11 +230,11 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "healing": f"core.adjudicate.EffectKind.{EffectKind.HEALING.name}",
         "damage-roll": "core.adjudicate.DamageDice",
         # Combat (U12).
-        "initiative": "core.combat.initiative",
+        "initiative": "core.combat.initiative_order",
         "armor-class": "core.combat.Weapon",
-        "hit-points": "core.combat.hit_points",
-        "action": "core.state.action",
-        "attack": "core.combat.attack",
+        "hit-points": "core.state.Combatant.hit_points",
+        "action": "core.adjudicate.EffectKind.ACTION_SPENT",
+        "attack": "core.combat.attack_resolver",
     }
 )
 
