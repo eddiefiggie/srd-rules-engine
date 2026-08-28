@@ -20,6 +20,8 @@ import pytest
 
 from srd_rules_engine.core import (
     Adjudicator,
+    Carriage,
+    Carried,
     Catalogue,
     Combatant,
     D20Test,
@@ -84,7 +86,7 @@ NEEDY = Rule(
     rationale="Drives the blocked and fact-unavailable paths.",
 )
 RULESET = load_fixture_ruleset("replay", [STRIKE, NEEDY])
-BLADE = Weapon(name="fixture blade", damage_dice=2, damage_sides=6, ability="str")
+BLADE = Weapon(id="fixture blade", damage_dice=2, damage_sides=6, ability="str")
 OMEN = FactType(name="omen", kind=ValueKind.BOOLEAN)
 NOTED = Provenance(writer=Writer.OUT_OF_BAND, reference="notes")
 
@@ -108,6 +110,9 @@ def encounter() -> EncounterState:
                 armour_class=13,
                 abilities={"str": 16, "dex": 14},
                 proficiency_bonus=2,
+                hands=2,
+                equipment=(Carried(BLADE, Carriage.HELD),),
+                weapon_proficiencies=frozenset({BLADE.id}),
             ),
             Combatant(
                 id="boar",
@@ -140,7 +145,7 @@ def build(
 ) -> Adjudicator:
     return Adjudicator(
         ruleset=RULESET,
-        resolvers={STRIKE.id: attack_resolver(BLADE), NEEDY.id: _needy},
+        resolvers={STRIKE.id: attack_resolver(), NEEDY.id: _needy},
         fact_types={"omen": OMEN},
         port=port or JsonMemoryStore(path / "memory.json"),
         ledger=Ledger.open(
@@ -155,7 +160,7 @@ def strike(state: EncounterState) -> Declaration:
     offered = read(state, "pc")
     return Declaration(
         actor_id="pc",
-        intent=Intent(action_key=attack_key("boar")),
+        intent=Intent(action_key=attack_key(BLADE.id, "boar")),
         rule_id=STRIKE.id,
         alternatives=offered.actions,
         read_token=offered.token,
@@ -219,7 +224,7 @@ def _flat_ruling(
 
     adjudicator = Adjudicator(
         ruleset=RULESET,
-        resolvers={STRIKE.id: attack_resolver(BLADE), NEEDY.id: resolver},
+        resolvers={STRIKE.id: attack_resolver(), NEEDY.id: resolver},
         fact_types={"omen": OMEN},
         port=JsonMemoryStore(path / "memory.json"),
         ledger=Ledger.open(
@@ -556,7 +561,7 @@ def test_the_report_lists_the_declaration_the_alternatives_the_ruling_and_the_na
     tmp_path: Path,
 ) -> None:
     path = tmp_path / "m"
-    terminal = Terminal([attack_key("boar"), STRIKE.id, "The blade lands."])
+    terminal = Terminal([attack_key(BLADE.id, "boar"), STRIKE.id, "The blade lands."])
     drive(
         loop_for(path).run(encounter(), "pc"),
         HumanCliDriver(ask=terminal.ask, show=terminal.show),
@@ -568,7 +573,7 @@ def test_the_report_lists_the_declaration_the_alternatives_the_ruling_and_the_na
 
     turn = report.turns[0]
     assert turn.actor == "pc"
-    assert turn.action_key == attack_key("boar")
+    assert turn.action_key == attack_key(BLADE.id, "boar")
     assert turn.rule_id == STRIKE.id
     assert turn.alternatives, "what was offered is on the record, not only what was chosen"
     assert turn.status == "ruled"
@@ -580,7 +585,7 @@ def test_the_report_lists_the_declaration_the_alternatives_the_ruling_and_the_na
 def test_a_ruling_with_no_narration_is_flagged(tmp_path: Path) -> None:
     """R29 gates the next declaration on it, so an unnarrated Ruling is a stalled turn."""
     path = tmp_path / "n"
-    terminal = Terminal([attack_key("boar"), STRIKE.id, "   "])
+    terminal = Terminal([attack_key(BLADE.id, "boar"), STRIKE.id, "   "])
     outcome = drive(
         loop_for(path).run(encounter(), "pc"),
         HumanCliDriver(ask=terminal.ask, show=terminal.show),
@@ -705,7 +710,7 @@ def test_an_alternatives_verdict_other_than_fresh_is_flagged(tmp_path: Path) -> 
     state = encounter()
     declaration = Declaration(
         actor_id="pc",
-        intent=Intent(action_key=attack_key("boar")),
+        intent=Intent(action_key=attack_key(BLADE.id, "boar")),
         rule_id=STRIKE.id,
         alternatives=read(state, "pc").actions,
         read_token="rt1.0.notarealdigestnotarealdigest00",
@@ -720,7 +725,7 @@ def test_an_alternatives_verdict_other_than_fresh_is_flagged(tmp_path: Path) -> 
 def test_a_clean_session_carries_no_flags_at_all(tmp_path: Path) -> None:
     """The instrument has to be able to read clean, or a flag means nothing."""
     path = tmp_path / "u"
-    terminal = Terminal([attack_key("boar"), STRIKE.id, "The blade lands."])
+    terminal = Terminal([attack_key(BLADE.id, "boar"), STRIKE.id, "The blade lands."])
     drive(
         loop_for(path).run(encounter(), "pc"),
         HumanCliDriver(ask=terminal.ask, show=terminal.show),
@@ -732,7 +737,7 @@ def test_a_clean_session_carries_no_flags_at_all(tmp_path: Path) -> None:
 
 def test_the_rendered_report_shows_the_turns_and_their_flags(tmp_path: Path) -> None:
     path = tmp_path / "v"
-    terminal = Terminal([attack_key("boar"), STRIKE.id, "   "])
+    terminal = Terminal([attack_key(BLADE.id, "boar"), STRIKE.id, "   "])
     drive(
         loop_for(path).run(encounter(), "pc"),
         HumanCliDriver(ask=terminal.ask, show=terminal.show),
@@ -740,7 +745,7 @@ def test_the_rendered_report_shows_the_turns_and_their_flags(tmp_path: Path) -> 
     text = render(session_report(path / "ledger.jsonl"))
 
     assert "SESSION REVIEW" in text
-    assert attack_key("boar") in text
+    assert attack_key(BLADE.id, "boar") in text
     assert str(Flag.RULING_WITHOUT_NARRATION) in text
 
 
@@ -889,6 +894,9 @@ def _feared_from_behind_a_wall(*, walled: bool) -> EncounterState:
         abilities={"str": 16, "dex": 14},
         proficiency_bonus=2,
         position=Position(0, 0, 0),
+        hands=2,
+        equipment=(Carried(BLADE, Carriage.HELD),),
+        weapon_proficiencies=frozenset({BLADE.id}),
         conditions=Conditions(
             held=frozenset({Condition.FRIGHTENED}),
             sources={Condition.FRIGHTENED: frozenset({"ghoul"})},

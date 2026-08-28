@@ -58,6 +58,7 @@ from srd_rules_engine.core.equipment import (
     Carriage,
     Carried,
     Item,
+    Weapon,
     carried_weight,
     free_hands,
     items_in,
@@ -276,6 +277,19 @@ class Combatant:
     #: creature, for the reason `spells` is below: legality is a fact about the creature and
     #: `legal_actions(state, actor_id)` may not take a second argument (0026 clause 1).
     equipment: tuple[Carried, ...] = ()
+    #: Which weapons this creature is proficient with, by item id (p. 89, 0040 clause 2).
+    #:
+    #: "Anyone can wield a weapon, but **you** must have proficiency with it to add your
+    #: Proficiency Bonus to an attack roll you make with it." A fact about the wielder, and it
+    #: was a field on `Weapon` until #258 — which worked exactly while a weapon belonged to
+    #: one resolver and therefore to one creature. Two creatures holding the same kind of
+    #: weapon, or one picking up another's, broke it toward *granting* a bonus.
+    #:
+    #: **By id, because the categories are content.** p. 89 grants proficiency by category —
+    #: Simple, Martial — and the categories live in the weapons table this repository does not
+    #: ship (R31). So the engine holds the resolved relation and a ruleset that knows the
+    #: categories expands them into ids, the same split under which no spell list ships.
+    weapon_proficiencies: frozenset[str] = frozenset()
     #: How many hands this creature has, or `None` because **no SRD rule says**.
     #:
     #: Every printed rule about hands is relational — "a free hand" (pp. 89, 105, 182, 190),
@@ -361,6 +375,16 @@ class Combatant:
     def carried_weight(self) -> float:
         """Everything worn, held and stowed, in pounds (p. 178)."""
         return carried_weight(self.equipment)
+
+    @property
+    def weapons_held(self) -> tuple[Weapon, ...]:
+        """Every weapon this creature has in hand (0040 clause 1).
+
+        `isinstance` rather than a flag, because a weapon genuinely **is** an item with more
+        rules attached — a subtype test rather than the `kind` field 0019 refuses, and the
+        two are told apart by whether a consumer branches on data or on type.
+        """
+        return tuple(item for item in self.items_carried(Carriage.HELD) if isinstance(item, Weapon))
 
     def items_carried(self, carriage: Carriage) -> tuple[Item, ...]:
         """What this creature has in that carriage, in the order the ruleset gave it."""

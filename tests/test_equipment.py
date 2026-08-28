@@ -270,3 +270,48 @@ def test_a_carried_item_reports_what_it_costs_in_hands() -> None:
     assert Carried(GREATAXE, Carriage.HELD).hands_used == 2
     assert Carried(GREATAXE, Carriage.STOWED).hands_used == 0
     assert replace(Carried(GREATAXE, Carriage.HELD), carriage=Carriage.WORN).hands_used == 0
+
+
+# --- 0040: a weapon is one of these ---------------------------------------------------------
+
+
+def test_a_weapon_is_an_item() -> None:
+    """0040 clause 1. Composition would have put the weapon *outside* `Carried`, so state
+    would hold the item and not the weapon and `legal_actions` would need it passed in —
+    the repair 0026, 0038 and 0039 each refused."""
+    from srd_rules_engine.core.equipment import Weapon
+
+    blade = Weapon(id="fixture:blade", damage_dice=2, damage_sides=6, weight=3.0, hands_when_held=1)
+    assert isinstance(blade, Item)
+    assert blade.weight == pytest.approx(3.0)
+    assert Carried(blade, Carriage.HELD).hands_used == 1
+
+
+def test_a_weapon_carries_no_proficiency_of_its_own() -> None:
+    """0040 clause 2, and the rules fix inside the refactor. p. 89: "Anyone can wield a
+    weapon, but **you** must have proficiency with it." A `proficient` field on the weapon
+    worked exactly while a weapon belonged to one wielder, and failed toward *granting* a
+    bonus once one could be picked up."""
+    from srd_rules_engine.core.equipment import Weapon
+
+    assert "proficient" not in Weapon.__dataclass_fields__
+    assert "weapon_proficiencies" in Combatant.__dataclass_fields__
+
+
+def test_only_weapons_in_hand_count_as_wielded() -> None:
+    """A sword in a pack is not a sword you can swing. `weapons_held` is what the read
+    surface offers attacks for, so a stowed weapon must not appear in it."""
+    from srd_rules_engine.core.equipment import Weapon
+
+    blade = Weapon(id="fixture:blade", damage_dice=2, damage_sides=6, hands_when_held=1)
+    armed = creature(hands=2, equipment=(Carried(blade, Carriage.HELD),))
+    packed = creature(hands=2, equipment=(Carried(blade, Carriage.STOWED),))
+
+    assert armed.weapons_held == (blade,)
+    assert packed.weapons_held == ()
+
+
+def test_an_ordinary_item_is_not_a_weapon() -> None:
+    """The discriminator is the subtype, not a flag — so a rope in hand offers no attack."""
+    roped = creature(hands=2, equipment=(Carried(Item(id="fixture:rope"), Carriage.HELD),))
+    assert roped.weapons_held == ()

@@ -24,6 +24,8 @@ from pathlib import Path
 
 from srd_rules_engine.core import (
     Adjudicator,
+    Carriage,
+    Carried,
     Combatant,
     Declaration,
     EncounterState,
@@ -94,7 +96,7 @@ STRIKE = Rule(
     ),
 )
 #: Fire, so the target's Immunity has something to match. The dice are fixture values.
-FIRE_BLADE = Weapon(name="fixture fire blade", damage_dice=2, damage_sides=6, damage_type=FIRE)
+FIRE_BLADE = Weapon(id="fixture fire blade", damage_dice=2, damage_sides=6, damage_type=FIRE)
 RULESET = load_fixture_ruleset("damage-reporting", [STRIKE])
 
 
@@ -109,6 +111,9 @@ def attacking_encounter(defences: Defences) -> EncounterState:
                 armour_class=13,
                 abilities={"str": 16, "dex": 14},
                 proficiency_bonus=2,
+                hands=2,
+                equipment=(Carried(FIRE_BLADE, Carriage.HELD),),
+                weapon_proficiencies=frozenset({FIRE_BLADE.id}),
             ),
             Combatant(
                 id="troll",
@@ -127,7 +132,7 @@ def attacking_encounter(defences: Defences) -> EncounterState:
 def build_adjudicator(path: Path, *, seed: int) -> Adjudicator:
     return Adjudicator(
         ruleset=RULESET,
-        resolvers={STRIKE.id: attack_resolver(FIRE_BLADE)},
+        resolvers={STRIKE.id: attack_resolver()},
         fact_types={},
         port=JsonMemoryStore(path / "memory.json"),
         ledger=Ledger.open(
@@ -141,7 +146,7 @@ def strike_declaration(state: EncounterState) -> Declaration:
     offered = read(state, "pc")
     return Declaration(
         actor_id="pc",
-        intent=Intent(action_key=attack_key("troll")),
+        intent=Intent(action_key=attack_key(FIRE_BLADE.id, "troll")),
         rule_id=STRIKE.id,
         alternatives=offered.actions,
         read_token=offered.token,
