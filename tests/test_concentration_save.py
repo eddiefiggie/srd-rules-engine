@@ -50,6 +50,7 @@ from srd_rules_engine.core import (
     read_ledger,
 )
 from srd_rules_engine.core.hazards import FALLING_VERIFICATION
+from srd_rules_engine.core.inventory import ENGINE_SHAPES, load_inventory
 from srd_rules_engine.core.spellcasting import Concentration, concentration_save_dc
 from srd_rules_engine.loop import Narrated, NarrationRequest, TurnLoop
 from srd_rules_engine.loop.drivers import ScriptedDriver, drive
@@ -480,3 +481,38 @@ def test_the_agents_declaration_is_answered_once(tmp_path: Path) -> None:
 def test_the_status_of_a_compelled_save_is_an_outcome(tmp_path: Path) -> None:
     outcome = take_turn(build_loop(tmp_path), encounter())
     assert outcome.consequential[0].status is Status.RULED
+
+
+# --- KTD7: the claim, made honest and kept that way ---------------------------------------
+
+
+def test_the_claimed_concentration_shape_is_reachable_in_play(tmp_path: Path) -> None:
+    """R17, and the guard 0036 clause 8 exists to install.
+
+    `ENGINE_SHAPES` has claimed `concentration` and `effect_shapes.json` has marked it
+    implemented since #19, while `Concentration` was referenced nowhere in `src/` outside its
+    own module — no `Combatant` field held one, so nothing in an encounter could be
+    concentrating and the shape's stated consequence could not occur. The claim was true only
+    by assertion, and it survived because nothing checked.
+
+    **The assertion here is behavioural on purpose.** A guard asserting that something
+    *calls* `Concentration` is satisfied by a call that does nothing, which is the state this
+    replaces. So it drives the real loop and asserts that the shape's own entry's stated
+    consequence — p. 179's save, and the Concentration it ends — actually happens.
+    """
+    assert "concentration" in ENGINE_SHAPES, "precondition: the shape is claimed"
+    shape = load_inventory().by_id("concentration")
+    assert shape is not None and shape.implemented, "precondition: the inventory agrees"
+
+    seed = seed_where_save(fails=True, tmp_path=tmp_path)
+    end = drive(
+        build_loop(tmp_path / "reach", seed=seed).end_turn(hurt(encounter(), 12), "mage"),
+        ScriptedDriver(narrations=["it happened"] * 8),
+    )
+
+    assert [r.rule_id for r in end.rulings] == [CONCENTRATION_RULE_ID], (
+        "the claimed `concentration` shape is unreachable in play again. p. 179's damage "
+        "save is the consequence its own entry states, and a claim nothing can exercise is "
+        "the decay 0036 clause 8 recorded"
+    )
+    assert not end.state.combatant("mage").concentration.active

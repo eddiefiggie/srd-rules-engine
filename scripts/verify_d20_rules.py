@@ -1047,6 +1047,12 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         179,
+        "damage is the occasion, and the save it compels is a Constitution save",
+        r"If you take damage, you must succeed on a Constitution saving throw to maintain "
+        r"Concentration",
+    ),
+    (
+        179,
         "the Concentration save DC has BOTH a floor of 10 and a cap of 30",
         r"The DC equals 10 or half the damage taken \(round down\), whichever number is "
         r"higher, up to a maximum DC of 30",
