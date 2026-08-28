@@ -1064,6 +1064,24 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         105,
+        "ONE free hand serves Somatic and Material together — the clause a summary drops",
+        r"must have a hand free to access them, but it can be the same hand used to perform "
+        r"Somatic components",
+    ),
+    (
+        178,
+        "carrying capacity is keyed on Size as well as Strength, which is why #259 blocks it",
+        r"Your size and Strength score determine the maximum weight in pounds that you can "
+        r"carry",
+    ),
+    (
+        188,
+        "a Spellcasting Focus substitutes only for materials neither consumed nor priced",
+        r"use in place of a spell.s Material components if those materials aren.t consumed by "
+        r"the spell and don.t have a cost specified",
+    ),
+    (
+        105,
         "only one spell slot may be expended on a turn, whichever actions are used",
         r"On a turn, you can expend only one spell slot to cast a spell",
     ),

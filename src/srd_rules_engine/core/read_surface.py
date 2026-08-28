@@ -254,6 +254,19 @@ class Situation:
     #: Reported, never ended here. p. 179's damage save is an outcome and R1 leaves outcomes
     #: to adjudication — the same line `saves_due` above draws, and for the same reason.
     concentrating_on: str | None
+    #: How many hands are free (p. 105, p. 90), or `None` because **no SRD rule says how many
+    #: a creature has** — see `Combatant.hands`. An agent deciding whether it can cast a spell
+    #: with Somatic or Material components needs this, and `None` means the question cannot be
+    #: answered rather than that the answer is zero.
+    #:
+    #: **One free hand serves Somatic and Material together** (p. 105), so an agent reading 1
+    #: here is not short of a hand for an S,M spell. The count is reported; the rule that
+    #: consumes it is #245.
+    free_hands: int | None
+    #: What the creature is carrying, in pounds (p. 178). Reported without a verdict, because
+    #: whether it is too much needs the creature `Size` p. 178's table is keyed on and this
+    #: engine has none (#259).
+    carried_weight: float
     #: Elapsed campaign time in minutes (decision 0020). Ordinal `round_number` is not
     #: reported here and does not convert into it — p. 13 says a round represents *about*
     #: 6 seconds, which is the document declining an exact conversion.
@@ -507,6 +520,8 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
         # condition lifts. `Combatant.__post_init__` now spends it where the event happens
         # (0037 clause 4), which leaves this a plain read and still no mutation (R19).
         concentrating_on=actor.concentration.rule_id,
+        free_hands=actor.free_hands,
+        carried_weight=actor.carried_weight,
         elapsed_minutes=state.clock.elapsed_minutes,
         minutes_until_recovery=(
             max(0, actor.death_saves.recovers_at_minute - state.clock.elapsed_minutes)
