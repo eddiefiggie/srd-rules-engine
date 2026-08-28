@@ -170,6 +170,13 @@ class EffectKind(StrEnum):
     #: SRD rule that grants Exhaustion grants exactly one, so the field is generality rather
     #: than a case anything exercises today.
     EXHAUSTION_GAINED = "exhaustion-gained"
+    #: Concentration broken by a failed save (0036 clause 1). Its own kind rather than a
+    #: `CONDITION_ENDED`, because Concentration is not one of the fifteen conditions the
+    #: glossary tags — it is per-creature state, which is 0027 clause 5's reasoning applied
+    #: to the effect that ends it as well as to the field that holds it.
+    #:
+    #: Carries no number: p. 179 gives the save one consequence and it is not a quantity.
+    CONCENTRATION_ENDED = "concentration-ended"
 
 
 #: The kinds that carry a condition rather than a number. Named because three places have
@@ -342,6 +349,21 @@ def condition_ended(target_id: str, condition: Condition, *, description: str) -
         amount=0,
         description=description,
         condition=condition,
+    )
+
+
+def concentration_ended(target_id: str, *, description: str) -> Effect:
+    """The effect a failed Concentration save applies (p. 179, 0036 clause 1).
+
+    A constructor rather than a raw `Effect` for `condition_ended`'s reason: the kind and
+    the empty amount are the same at every call site, and a helper is one place for them to
+    be right rather than one place per resolver for them to drift.
+    """
+    return Effect(
+        kind=EffectKind.CONCENTRATION_ENDED,
+        target_id=target_id,
+        amount=0,
+        description=description,
     )
 
 
@@ -1167,6 +1189,8 @@ def _apply(
         elif effect.kind is EffectKind.CONDITION_ENDED:
             assert effect.condition is not None
             state = state.with_condition_ended(effect.target_id, effect.condition)
+        elif effect.kind is EffectKind.CONCENTRATION_ENDED:
+            state = state.with_concentration_ended(effect.target_id)
         elif effect.kind is EffectKind.EXHAUSTION_GAINED:
             # 0028 clause 1: the level carries the rule that caused it, and the ruling's
             # own rule is that rule. Taking it from here rather than from the effect keeps

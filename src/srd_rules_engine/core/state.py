@@ -898,6 +898,57 @@ class EncounterState:
         """
         return self._evolve(discharged=self.discharged | {(combatant_id, rule_id)})
 
+    def concentration_debt_for(self, combatant_id: str) -> ConcentrationDebt | None:
+        """The oldest Concentration save this creature owes, or `None` (0036 clause 3).
+
+        Oldest first, because the debts are one per damage instance and the document gives
+        no other order. A read, so it mutates nothing (R19) — the resolver asks it for the
+        amount p. 179's DC derives from, and the loop asks it whether anything is owed.
+        """
+        for debt in self.concentration_saves_owed:
+            if debt.combatant_id == combatant_id:
+                return debt
+        return None
+
+    def with_concentration_save_discharged(self, combatant_id: str) -> EncounterState:
+        """Drop the oldest Concentration save this creature owed, having rolled it.
+
+        **Not `discharged`, and that is 0036 clause 3 rather than an oversight.** An entry
+        in `discharged` means "owed once this turn, and met"; this queue means "owed once
+        per damage instance". A creature hit twice by a Multiattack owes two saves, so the
+        record of having met one has to remove *one* debt rather than mark the rule met.
+
+        Dropped whether the save succeeded, failed or was refused, exactly as
+        `with_obligation_discharged` records regardless of outcome — a debt that outlived
+        its adjudication would spin the loop that drains it forever.
+        """
+        debt = self.concentration_debt_for(combatant_id)
+        if debt is None:
+            raise ValueError(
+                f"{combatant_id!r} owes no Concentration save, so there is none to "
+                "discharge. The debt is recorded when the damage lands and dropped when "
+                "it is rolled, and a discharge with nothing to drop means the two have "
+                "come apart"
+            )
+        remaining = list(self.concentration_saves_owed)
+        remaining.remove(debt)
+        return self._evolve(concentration_saves_owed=tuple(remaining))
+
+    def with_concentration_ended(self, combatant_id: str) -> EncounterState:
+        """End what this creature was concentrating on (p. 179).
+
+        The state half of `EffectKind.CONCENTRATION_ENDED`. Reached only through a ruling,
+        which is what keeps a failed save the *only* way damage breaks Concentration — a
+        caller able to end it directly would be a caller able to decide the outcome the
+        save exists to decide (R1).
+
+        `Concentration.ended` is p. 179's own sentence and is what does the work here, so
+        this method holds the state transition and no rule of its own.
+        """
+        target = self.combatant(combatant_id)
+        ended = replace(target, concentration=target.concentration.ended())
+        return self._evolve(combatants=self._replacing(ended))
+
     # --- Evolving -----------------------------------------------------------------
 
     def _evolve(self, **changes: Any) -> EncounterState:

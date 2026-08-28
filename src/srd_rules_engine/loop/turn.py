@@ -50,6 +50,7 @@ from typing import Final, TypeVar
 
 from srd_rules_engine.core import (
     BURNING_RULE_ID,
+    CONCENTRATION_RULE_ID,
     DEATH_SAVE_RULE_ID,
     SUFFOCATION_RULE_ID,
     Adjudicator,
@@ -146,6 +147,26 @@ class TurnOutcome:
     narration: str | None = None
     missing_narration: bool = False
     unresolved: tuple[str, ...] = ()
+    #: Rulings this turn *incurred* rather than declared: today, the Concentration save
+    #: damage compels (p. 179, 0036 clause 7). Additive and defaulted, because `TurnOutcome`
+    #: is COMMITTED — nothing is removed or renamed and `API_VERSION` does not move.
+    #:
+    #: Its own field rather than a second value in `ruling`, because they are answers to
+    #: different questions: `ruling` is what the agent's declaration came to, and this is
+    #: what followed from it whether anyone declared anything or not. A driver reporting
+    #: the turn needs both, and a driver checking what the agent achieved needs only one.
+    consequential: tuple[Ruling, ...] = ()
+    #: One per entry in `consequential`, in the same order. `None` is R29's unfilled debt,
+    #: named the way `TurnStart.narrations` names it rather than dropped.
+    consequential_narrations: tuple[str | None, ...] = ()
+    #: Consequential obligations no rule in the ruleset could resolve — the same field, the
+    #: same meaning and the same type as on `TurnStart` and `TurnEnd`. A ruleset without the
+    #: Concentration rule is a deployment fact, and a save that silently did not happen is
+    #: the failure this engine exists to prevent.
+    #:
+    #: Not to be read as `unresolved` above, which is a different question with a different
+    #: type: that one is the **fact types** a blocked declaration could not obtain.
+    unresolvable: tuple[Obligation, ...] = ()
 
     @property
     def produced_outcome(self) -> bool:
@@ -306,13 +327,28 @@ class TurnLoop:
                 continue
 
             narration = yield from self._narrate(actor_id, ruling)
+
+            # 0036 clause 6. The declared action is what dealt the damage, so its ruling
+            # and its narration come first and the saves it compelled follow. Only on this
+            # path: a refusal and a termination both produce no effects, so neither can
+            # have put a debt on the queue.
+            (
+                state,
+                consequential,
+                consequential_narrations,
+                unresolvable,
+            ) = yield from self._concentration_saves(state)
             return TurnOutcome(
                 state=state,
                 ruling=ruling,
                 refusals=tuple(refusals),
                 offered=offered.actions,
                 narration=narration,
-                missing_narration=narration is None,
+                missing_narration=narration is None
+                or any(text is None for text in consequential_narrations),
+                consequential=consequential,
+                consequential_narrations=consequential_narrations,
+                unresolvable=unresolvable,
             )
 
     # --- The turn's end: a phase the loop owns (0023) ---------------------------------
@@ -434,6 +470,21 @@ class TurnLoop:
         # outstanding, and a list snapshotted up front would keep rolling for one that has
         # already gone.
         while True:
+            # 0036 clause 6, and this is the phase that proves the clause: Burning deals
+            # its damage here (p. 178), so a concentrating creature that starts its turn on
+            # fire owes a save before the turn goes any further. At the top of each pass
+            # rather than after the last obligation, so the final pass — the one that finds
+            # nothing pending and breaks — still discharges what the previous one incurred.
+            (
+                state,
+                compelled,
+                compelled_narrations,
+                compelled_unresolvable,
+            ) = yield from self._concentration_saves(state)
+            rulings.extend(compelled)
+            narrations.extend(compelled_narrations)
+            unresolvable.extend(compelled_unresolvable)
+
             pending = self.start_turn_obligations(state, actor_id)
             if not pending:
                 break
@@ -487,6 +538,22 @@ class TurnLoop:
         # an obligation list snapshotted up front would keep rolling for a condition that
         # has already gone.
         while True:
+            # 0036 clause 6. Nothing at the turn's end deals damage today — p. 63 states no
+            # penalty for a failed save and Suffocation deals Exhaustion — so this phase
+            # discharges what an earlier one left rather than what it creates. The clause is
+            # that all three adjudicating phases drain through one helper: three call sites
+            # is how one gets missed, and the rule that eventually deals damage here should
+            # be correct on arrival rather than by review.
+            (
+                state,
+                compelled,
+                compelled_narrations,
+                compelled_unresolvable,
+            ) = yield from self._concentration_saves(state)
+            rulings.extend(compelled)
+            narrations.extend(compelled_narrations)
+            unresolvable.extend(compelled_unresolvable)
+
             pending = self.end_turn_obligations(state, actor_id)
             if not pending:
                 break
@@ -511,6 +578,89 @@ class TurnLoop:
             narrations=tuple(narrations),
             unresolvable=tuple(unresolvable),
         )
+
+    # --- The fourth occasion: saves damage compelled (0036) ---------------------------
+
+    def _concentration_saves(
+        self, state: EncounterState
+    ) -> Generator[
+        Request,
+        Response,
+        tuple[EncounterState, tuple[Ruling, ...], tuple[str | None, ...], tuple[Obligation, ...]],
+    ]:
+        """Roll every Concentration save owed, oldest first (0036 clause 1).
+
+        The **fourth occasion**. `start_turn`'s docstring states the principle: nothing here
+        creates a second path to an outcome, it creates another occasion on which the
+        existing path is taken. Each owed save is turned into an engine-authored
+        `Declaration` by `_obligation_declaration`, exactly as a turn obligation is, and
+        `Adjudicator.adjudicate` produces the result (R1). The engine rolls it (R4).
+
+        **One helper, called from all three adjudicating phases** (0036 clause 6). Burning
+        deals its damage at the start of a turn (p. 178) and an attack deals it in the
+        middle, so a discharge point after `run` alone would serve attacks and silently miss
+        the hazard — and the hazard is the case with no attacker to make the omission
+        obvious.
+
+        **Drained, not iterated** — and more sharply than in `start_turn`, because a save
+        that fails ends the Concentration the *remaining* debts were owed for. Re-reading
+        each pass is what lets that be noticed.
+
+        **Not keyed by `discharged`** (0036 clause 3). A debt is owed once per damage
+        instance; `discharged` means owed once per turn. A creature struck twice by a
+        Multiattack owes two saves, and keying them the existing way would suppress the
+        second — a compelled save that silently does not happen.
+        """
+        rulings: list[Ruling] = []
+        narrations: list[str | None] = []
+        unresolvable: list[Obligation] = []
+
+        while True:
+            owed = state.concentration_saves_owed
+            if not owed:
+                break
+            debt = owed[0]
+
+            # Whether the save is still owed is read off state, the way
+            # `start_turn_obligations` reads whether Burning is (0027 clause 2). A debt for
+            # a creature that has left the encounter, or has already lost the Concentration
+            # an earlier failed save ended, is dropped rather than rolled: p. 179 compels
+            # the save *to maintain* Concentration, and there is nothing left to maintain.
+            # This is not a skip — the outcome it would decide is already settled.
+            target = state.combatant(debt.combatant_id) if state.has(debt.combatant_id) else None
+            if (
+                target is None
+                or not target.concentration.after_conditions(target.conditions).active
+            ):
+                state = state.with_concentration_save_discharged(debt.combatant_id)
+                continue
+
+            obligation = Obligation(
+                actor_id=debt.combatant_id,
+                rule_id=CONCENTRATION_RULE_ID,
+                label=(
+                    f"makes a Constitution save to maintain Concentration, having taken "
+                    f"{debt.amount} damage (p. 179)"
+                ),
+            )
+            ruling, state = self.adjudicator.adjudicate(state, _obligation_declaration(obligation))
+            # Dropped whether it succeeded, failed or was refused, for the reason the two
+            # obligation loops discharge regardless of outcome: p. 179 gives one save per
+            # instance of damage either way, and a debt that outlived its adjudication
+            # would spin this loop forever.
+            state = state.with_concentration_save_discharged(debt.combatant_id)
+
+            if ruling.status is Status.REJECTED:
+                unresolvable.append(obligation)
+                continue
+
+            rulings.append(ruling)
+            # Narrated **for the creature that took the damage**, who is usually not the
+            # creature whose turn it is: an attack on the monster's turn breaks the
+            # player's Concentration, and R29's debt belongs to whoever the ruling is about.
+            narrations.append((yield from self._narrate(debt.combatant_id, ruling)))
+
+        return state, tuple(rulings), tuple(narrations), tuple(unresolvable)
 
     def _terminated(
         self,

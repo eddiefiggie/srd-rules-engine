@@ -31,6 +31,7 @@ from srd_rules_engine.core.adjudicate import (
     Resolver,
     Ruling,
     Status,
+    concentration_ended,
     condition_applied,
     condition_ended,
 )
@@ -57,6 +58,13 @@ from srd_rules_engine.core.combat import Weapon, attack_resolver, initiative_ord
 
 # #112: `Condition` here is the SRD condition enum — the fifteen the Rules Glossary tags
 # `[Condition]`. The trigger predicate that used to hold this name is `MatchCondition`.
+from srd_rules_engine.core.concentration import (
+    CONCENTRATION_RULE_ID,
+    CONCENTRATION_SAVE_ABILITY,
+    CONCENTRATION_SAVE_VERIFICATION,
+    concentration_resolver,
+    concentration_rule,
+)
 from srd_rules_engine.core.conditions import (
     CONDITION_VERIFICATION,
     Condition,
@@ -211,6 +219,7 @@ from srd_rules_engine.core.skills import (
 )
 from srd_rules_engine.core.state import (
     Combatant,
+    ConcentrationDebt,
     DeathSaves,
     EncounterState,
     ObligationOutstanding,
@@ -229,6 +238,9 @@ __all__ = [
     "ATTACK",
     "BURNING_RULE_ID",
     "BURNING_VERIFICATION",
+    "CONCENTRATION_RULE_ID",
+    "CONCENTRATION_SAVE_ABILITY",
+    "CONCENTRATION_SAVE_VERIFICATION",
     "CONDITION_KINDS",
     "CONDITION_VERIFICATION",
     "DAMAGE_OFFSET",
@@ -269,6 +281,7 @@ __all__ = [
     "Catalogue",
     "Clock",
     "Combatant",
+    "ConcentrationDebt",
     "Condition",
     "ConditionEffects",
     "Conditions",
@@ -350,6 +363,9 @@ __all__ = [
     "burning_rule",
     "canonicalize",
     "check_storable",
+    "concentration_ended",
+    "concentration_resolver",
+    "concentration_rule",
     "condition_applied",
     "condition_ended",
     "coverage_report",
