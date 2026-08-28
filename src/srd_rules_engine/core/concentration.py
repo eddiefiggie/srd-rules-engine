@@ -143,7 +143,7 @@ def concentration_resolver() -> Resolver:
                 ),
             ),
         )
-        spell = actor.concentration.spell
+        held = actor.concentration.rule_id
 
         return Proposal(
             test=test,
@@ -156,17 +156,17 @@ def concentration_resolver() -> Resolver:
                     actor_id,
                     description=(
                         f"the DC {test.target} Constitution save failed, ending "
-                        f"Concentration on {spell} (p. 179)"
+                        f"Concentration on {held} (p. 179)"
                     ),
                 ),
             ),
             citations=("srd:rules-glossary/concentration",),
             may_claim=(
-                f"that {actor.name} held its focus on {spell}, or lost it, as the roll says",
+                f"that {actor.name} held its focus on {held}, or lost it, as the roll says",
                 f"that the {debt.amount} damage is what forced the save",
             ),
             may_not_claim=(
-                f"that Concentration on {spell} ended for any reason other than this save",
+                f"that Concentration on {held} ended for any reason other than this save",
                 "that succeeding cost or gained anything further — p. 179 states no other "
                 "consequence either way",
             ),

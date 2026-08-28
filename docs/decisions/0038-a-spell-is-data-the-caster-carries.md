@@ -246,21 +246,31 @@ In the tree:
 
 ## Status of implementation
 
-**Decided, and none of it built.** The gate closes with this record, so the work is tracked by
-[#248](https://github.com/eddiefiggie/srd-rules-engine/issues/248) — the casting keystone —
-which was filed when #19 was scoped and before this record landed.
+**All eight clauses are built**, by
+[#248](https://github.com/eddiefiggie/srd-rules-engine/issues/248) — the casting keystone,
+filed when #19 was scoped and before this record landed.
+
+**What the build found that this record did not anticipate.** Clause 6 said `Proposal.always`
+was for "a cost", and the slot turned out not to be the only one: p. 185 charges the Magic
+action for an action-timed spell, so casting spends an action too — and that made it the
+**first thing an adjudication has ever charged**. The Consequences section above called this
+out as a follow-on; what it did not see is that the asymmetry ships. **An attack still does
+not cost the Action**, because charging it is a behavioural change to a mechanic that has
+shipped since the vertical slice and does not belong inside a spellcasting change. Filed as
+[#252](https://github.com/eddiefiggie/srd-rules-engine/issues/252) and disclosed in
+`core.casting` rather than left for a reader to notice.
 
 | Clause | State |
 |---|---|
-| 1 — a spell is ruleset data carried by the caster | **Decided, not built.** [#248](https://github.com/eddiefiggie/srd-rules-engine/issues/248) |
-| 2 — the engine holds only fields it has rules about; school excluded, components deferred | **Decided, not built.** [#248](https://github.com/eddiefiggie/srd-rules-engine/issues/248). The components half is disclosed there and built with [#245](https://github.com/eddiefiggie/srd-rules-engine/issues/245) / [#246](https://github.com/eddiefiggie/srd-rules-engine/issues/246) |
-| 3 — the effect is a ruleset resolver the engine wraps | **Decided, not built.** [#248](https://github.com/eddiefiggie/srd-rules-engine/issues/248), including the guard that refuses an unwrapped resolver |
-| 4 — upcasting is enumerated, not parameterised | **Decided, not built.** [#248](https://github.com/eddiefiggie/srd-rules-engine/issues/248) |
-| 5 — casting and spending a slot are separate facts | **Decided, not built.** [#248](https://github.com/eddiefiggie/srd-rules-engine/issues/248) |
-| 6 — `Proposal` gains an `always` branch | **Decided, not built.** [#248](https://github.com/eddiefiggie/srd-rules-engine/issues/248) |
-| 7 — a Concentration names a rule id | **Decided, not built.** [#241](https://github.com/eddiefiggie/srd-rules-engine/issues/241), which closes with the keystone |
-| 8 — one spell list, not two | **Decided**, and holds by construction until preparation exists. [#249](https://github.com/eddiefiggie/srd-rules-engine/issues/249) is where it is next at risk |
+| 1 — a spell is ruleset data carried by the caster | **Built.** `Combatant.spells`, and `legal_actions` still takes state and `actor_id` only |
+| 2 — the engine holds only fields it has rules about; school excluded, components deferred | **Built.** `Spell` holds level, casting time, range and requires-Concentration. No school, no components; both disclosed in `core.casting` (R32) |
+| 3 — the effect is a ruleset resolver the engine wraps | **Built.** `spell_resolver` wraps; `spell_resolvers` is the only documented registration path, so an unwrapped resolver is not expressible through it. A test asserts what an unwrapped one costs: nothing |
+| 4 — upcasting is enumerated, not parameterised | **Built.** One `LegalAction` per level `payable_by` returns, with the level in the action key and a parser reading it back |
+| 5 — casting and spending a slot are separate facts | **Built** for Cantrips, which is the one of p. 104's four slotless routes this engine has. Rituals, Special Abilities and Magic Items remain unbuilt |
+| 6 — `Proposal` gains an `always` branch | **Built**, and it carries two costs rather than the one this clause imagined: the slot, and the action p. 185 charges |
+| 7 — a Concentration names a rule id | **Built.** `Concentration.rule_id`, closing [#241](https://github.com/eddiefiggie/srd-rules-engine/issues/241) |
+| 8 — one spell list, not two | **Built** as one list, and still at risk only where [#249](https://github.com/eddiefiggie/srd-rules-engine/issues/249) refines it |
 
-**#244 is closed by this record.** #19 stays open as the umbrella until its slices do.
+**#244 is closed by this record**, and #248 by the change that built it. #19 stays open as the umbrella until its slices do — #249, #250, #245, #246, #247, #252 and #253.
 
 _Written 2026-08-28 against SRD v5.2.1._

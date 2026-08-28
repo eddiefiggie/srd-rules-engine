@@ -49,6 +49,7 @@ from srd_rules_engine.core.d20 import Advantage
 from srd_rules_engine.core.position import MovementMode, distance_feet
 from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.sight import LightLevel, Senses
+from srd_rules_engine.core.spellcasting import CastingTime
 from srd_rules_engine.core.state import Combatant, EncounterState
 
 #: Marks the token's encoding. An unrecognised prefix yields `unread` rather than an
@@ -76,6 +77,46 @@ DISENGAGE: Final = "disengage"
 
 def attack_key(target_id: str) -> str:
     return f"{ATTACK}:{target_id}"
+
+
+#: Which action each casting time spends (p. 105, p. 185). Stated here rather than imported
+#: from `core.casting`, which imports state and so cannot be imported back — and `core.casting`
+#: reads it from here, so the two cannot disagree about what a Bonus Action spell costs.
+ACTION_FOR_CASTING: Final[Mapping[CastingTime, ActionKind]] = MappingProxyType(
+    {
+        CastingTime.ACTION: ActionKind.ACTION,
+        CastingTime.BONUS_ACTION: ActionKind.BONUS_ACTION,
+        CastingTime.REACTION: ActionKind.REACTION,
+    }
+)
+
+CAST: Final = "cast"
+
+
+def cast_key(rule_id: str, slot_level: int) -> str:
+    """The key one castable option is offered under (0038 clause 4).
+
+    One per **payable slot level**, not one per spell: `SpellSlots.payable_by` already
+    computes which levels can pay, so the level is chosen from a menu the engine derived
+    rather than supplied as a number the engine has to trust. Level 0 means no slot, which is
+    p. 104's cantrip and not a slot of no size.
+    """
+    return f"{CAST}:{rule_id}:{slot_level}"
+
+
+def cast_declared(action_key: str | None) -> tuple[str, int] | None:
+    """The spell and the slot level a cast key names, or `None` if it is not a cast.
+
+    Parsed from the right, because a rule id may itself contain colons — `spell:bless` is a
+    perfectly ordinary id and splitting from the left would take `spell` as the whole of it.
+    """
+    if action_key is None or not action_key.startswith(f"{CAST}:"):
+        return None
+    body = action_key[len(CAST) + 1 :]
+    rule_id, _, level = body.rpartition(":")
+    if not rule_id or not level.isdigit():
+        return None
+    return rule_id, int(level)
 
 
 def attack_target(action_key: str | None) -> str | None:
@@ -262,6 +303,8 @@ def legal_actions(state: EncounterState, actor_id: str) -> tuple[LegalAction, ..
         if other.id != actor_id and not other.is_down
     )
 
+    actions.extend(_castable(state, actor))
+
     if has_action:
         speed = actor.conditions.speed_after(actor.speeds.walk)
         actions.append(
@@ -275,6 +318,55 @@ def legal_actions(state: EncounterState, actor_id: str) -> tuple[LegalAction, ..
         actions.append(LegalAction(key=DISENGAGE, label="Disengage", detail={}))
 
     return tuple(actions)
+
+
+def _castable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...]:
+    """Every spell this creature may cast right now, one entry per payable slot level.
+
+    R18 asks for the legality question to be **computable**, not checkable after the fact, so
+    three rules are asked here rather than left to fail at adjudication:
+
+    * **The action the casting time costs is still available** (p. 105, p. 185). A spell that
+      needs the Magic action is not castable once the Action is spent.
+    * **A slot can pay** (p. 104). `SpellSlots.payable_by` computes which levels can, and each
+      one is its own entry — so the level is picked from a menu rather than supplied.
+    * **p. 105's one slot per turn.** "On a turn, you can expend only one spell slot to cast a
+      spell." Once one has gone, levelled spells drop off the menu and **cantrips do not**,
+      because p. 104 puts a level 0 spell outside the slot economy entirely.
+
+    What is **not** asked is components and armour training, which this engine cannot check.
+    `core.casting` discloses that in full: an offer here means castable as far as this engine
+    can tell, which is not the same as castable.
+    """
+    offered: list[LegalAction] = []
+    spent_a_slot = actor.id in state.slots_expended_this_turn
+
+    for spell in actor.spells:
+        kind = ACTION_FOR_CASTING.get(spell.casting_time)
+        if kind is None or not actor.actions.available(kind, actor.conditions):
+            continue
+
+        if spell.is_cantrip:
+            levels: tuple[int, ...] = (0,)
+        elif spent_a_slot or actor.slots is None:
+            continue
+        else:
+            levels = actor.slots.payable_by(spell.level)
+
+        offered.extend(
+            LegalAction(
+                key=cast_key(spell.rule_id, level),
+                label=f"Cast {spell.rule_id}" + (f" at level {level}" if level else ""),
+                detail={
+                    "spell_level": spell.level,
+                    "slot_level": level,
+                    "casting_time": str(spell.casting_time),
+                    "concentration": spell.requires_concentration,
+                },
+            )
+            for level in levels
+        )
+    return tuple(offered)
 
 
 def _attack_detail(actor: Combatant, target: Combatant) -> dict[str, object]:
@@ -368,7 +460,7 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
         # the other: p. 179 *ends* Concentration, so the spell must not return when the
         # condition lifts. `Combatant.__post_init__` now spends it where the event happens
         # (0037 clause 4), which leaves this a plain read and still no mutation (R19).
-        concentrating_on=actor.concentration.spell,
+        concentrating_on=actor.concentration.rule_id,
         elapsed_minutes=state.clock.elapsed_minutes,
         minutes_until_recovery=(
             max(0, actor.death_saves.recovers_at_minute - state.clock.elapsed_minutes)

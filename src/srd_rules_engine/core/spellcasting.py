@@ -196,25 +196,34 @@ def spell_attack_modifier(ability_modifier: int, proficiency_bonus: int) -> int:
 
 @dataclass(frozen=True)
 class Concentration:
-    """What a creature is concentrating on, if anything (p. 179)."""
+    """What a creature is concentrating on, if anything (p. 179).
 
-    spell: str | None = None
+    **A rule id, not a spell name** (0038 clause 7). The field was `spell` until #241, which
+    is the half of p. 179's clause the tree had quoted: the rule is "the moment you start
+    casting a spell that requires Concentration **or activate another effect that requires
+    Concentration**". A magic item's effect has no spell name to put in a field called
+    `spell`, and a rule id is what this engine uses everywhere else to say which mechanic
+    something is.
+    """
+
+    rule_id: str | None = None
 
     @property
     def active(self) -> bool:
-        return self.spell is not None
+        return self.rule_id is not None
 
-    def begin(self, spell: str) -> Concentration:
+    def begin(self, rule_id: str) -> Concentration:
         """Start concentrating, ending whatever came before.
 
         p. 179: "You lose Concentration on an effect the moment you **start casting** a
-        spell that requires Concentration." Replacement rather than refusal, and at the
-        moment casting starts rather than when it resolves — so a caster cannot hold two by
-        having the second one fail.
+        spell that requires Concentration or activate another effect that requires
+        Concentration." Replacement rather than refusal, and at the moment casting starts
+        rather than when it resolves — so a caster cannot hold two by having the second one
+        fail.
         """
-        if not spell:
+        if not rule_id:
             raise ValueError("a concentration effect is named, or it cannot be ended later")
-        return Concentration(spell=spell)
+        return Concentration(rule_id=rule_id)
 
     def ended(self) -> Concentration:
         """p. 179: "The creator can end Concentration at any time (no action required)."
@@ -232,6 +241,72 @@ class Concentration:
         it.
         """
         return Concentration()
+
+
+class CastingTime(StrEnum):
+    """How long a spell takes to cast (p. 105).
+
+    "Most spells require the Magic action to cast, but some spells require a Bonus Action, a
+    Reaction, or 1 minute or more."
+
+    Four values are printed and three are modelled. The fourth is
+    [#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250) and is **absent rather
+    than approximated**: a 10-minute cast treated as an action is an engine casting instantly
+    something the document takes ten minutes over, which is wrong in the direction nobody
+    notices. A `Spell` that needs one cannot be built rather than being built wrongly.
+    """
+
+    ACTION = "action"
+    BONUS_ACTION = "bonus-action"
+    REACTION = "reaction"
+
+
+@dataclass(frozen=True)
+class Spell:
+    """A spell, as much of one as this engine holds (0038 clauses 1 and 2).
+
+    **The fields the engine has rules about, and no others.** It picks the slot from the
+    level, spends the action the casting time names, asks `spell_reaches` about the range,
+    and starts Concentration when the spell requires it. Everything else about a spell —
+    above all what it *does* — is the resolver the ruleset supplies.
+
+    **No school.** p. 105: "Each spell belongs to a school of magic […] These categories help
+    describe spells but **have no rules of their own**." A field for it would be a field
+    nothing reads, and this repository has found that decay twice (#228, #215). It is not a
+    gap and should not be filed as one.
+
+    **No components, yet.** p. 105 states the rule — "If the spellcaster can't provide one or
+    more of a spell's components, the spellcaster can't cast the spell" — and this engine can
+    check none of the three: Verbal needs gagged-or-magically-silenced, and Somatic and
+    Material need an equipment model that does not exist. Holding V/S/M while enforcing
+    nothing would be the same decay in a slower form, so the field arrives with the subsystem
+    that can read it (#245, #246). The gap is disclosed in this module's docstring (R32).
+
+    **No name.** `rule_id` is the identity, because that is what a `Declaration` names and
+    what the ledger records. A display name is the ruleset's to hold.
+    """
+
+    rule_id: str
+    level: int
+    casting_time: CastingTime = CastingTime.ACTION
+    requires_concentration: bool = False
+    #: Where the spell may originate (p. 105). `None` when the ruleset states none, which is
+    #: the honest value for a spell whose range this engine was not told.
+    spell_range: SpellRange | None = None
+
+    def __post_init__(self) -> None:
+        if not self.rule_id:
+            raise ValueError("a spell is identified by the rule that resolves it")
+        if not CANTRIP_LEVEL <= self.level <= MAX_SPELL_LEVEL:
+            raise ValueError(
+                f"p. 104: every spell has a level from {CANTRIP_LEVEL} to {MAX_SPELL_LEVEL}, "
+                f"not {self.level}"
+            )
+
+    @property
+    def is_cantrip(self) -> bool:
+        """p. 178: "A cantrip is a level 0 spell, which is cast without a spell slot.\""""
+        return self.level == CANTRIP_LEVEL
 
 
 def concentration_save_dc(damage: int) -> int:

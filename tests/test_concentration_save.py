@@ -84,7 +84,7 @@ def caster(*, spell: str | None = "bless", burning: bool = False) -> Combatant:
         abilities={"str": 8, "dex": 12, "con": 14},
         proficiency_bonus=2,
         is_player_character=True,
-        concentration=Concentration(spell=spell),
+        concentration=Concentration(rule_id=spell),
     )
     return mage if not burning else _burning(mage)
 
@@ -348,7 +348,7 @@ def test_a_successful_save_leaves_the_spell_up_and_costs_nothing(tmp_path: Path)
     )
 
     assert end.rulings[0].effects == ()
-    assert end.state.combatant("mage").concentration == Concentration(spell="bless")
+    assert end.state.combatant("mage").concentration == Concentration(rule_id="bless")
 
 
 def test_a_creature_whose_concentration_already_broke_owes_no_further_save(
