@@ -628,10 +628,7 @@ class TurnLoop:
             # the save *to maintain* Concentration, and there is nothing left to maintain.
             # This is not a skip — the outcome it would decide is already settled.
             target = state.combatant(debt.combatant_id) if state.has(debt.combatant_id) else None
-            if (
-                target is None
-                or not target.concentration.after_conditions(target.conditions).active
-            ):
+            if target is None or not target.concentration.active:
                 state = state.with_concentration_save_discharged(debt.combatant_id)
                 continue
 

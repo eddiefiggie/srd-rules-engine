@@ -8,6 +8,8 @@ written against that failure instead.
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 
 from srd_rules_engine.core.conditions import Condition, Conditions
@@ -35,6 +37,7 @@ from srd_rules_engine.core.spellcasting import (
     spell_reaches,
     spell_save_dc,
 )
+from srd_rules_engine.core.state import Combatant
 
 WIZARD = SpellSlots(total={1: 4, 2: 3, 3: 2})
 
@@ -147,13 +150,34 @@ def test_concentration_can_be_ended_at_will() -> None:
 def test_incapacitation_ends_concentration_without_a_save() -> None:
     """p. 179: "Your Concentration ends if you have the Incapacitated condition." No roll.
 
-    Read from `core.conditions`' own `concentration_broken` rather than re-deciding which
-    conditions qualify, so the two cannot disagree.
+    **The rule moved out of `Concentration` in #238 and the rule did not change.** It was a
+    pure `after_conditions(conditions)` derivation here; it is now materialised by
+    `Combatant.__post_init__`, because p. 179 says *ends* and a derivation cannot record an
+    event — the spell came back when the condition lifted (0037 clause 4).
+
+    Which conditions qualify is still `core.conditions`' own `concentration_broken` and is
+    still asked in one place, so Stunned qualifies by implying Incapacitated (R14) rather
+    than by being listed anywhere.
     """
-    holding = Concentration().begin("Bless")
-    stunned = Conditions(held=frozenset({Condition.STUNNED}))
-    assert not holding.after_conditions(stunned).active
-    assert holding.after_conditions(Conditions()).active
+    holding = Combatant(
+        id="pc",
+        name="Pc",
+        hit_points=10,
+        max_hit_points=10,
+        armour_class=12,
+        abilities={"con": 12},
+        proficiency_bonus=2,
+        concentration=Concentration().begin("Bless"),
+    )
+    assert holding.concentration.active, "precondition: it is up while nothing has broken it"
+
+    stunned = dataclasses.replace(
+        holding, conditions=Conditions(held=frozenset({Condition.STUNNED}))
+    )
+    assert not stunned.concentration.active
+
+    # And it stays ended, which is the half the derivation could not express.
+    assert not dataclasses.replace(stunned, conditions=Conditions()).concentration.active
 
 
 def test_the_concentration_dc_is_ten_or_half_the_damage() -> None:

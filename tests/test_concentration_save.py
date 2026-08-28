@@ -369,9 +369,11 @@ def test_a_creature_whose_concentration_already_broke_owes_no_further_save(
 
 
 def test_incapacitated_ends_it_before_the_save_is_ever_rolled(tmp_path: Path) -> None:
-    """p. 179: "Your Concentration ends if you have the Incapacitated condition." Read
-    through `after_conditions` rather than off the stored field, so state, the read surface
-    and this drain all agree about who is concentrating."""
+    """p. 179: "Your Concentration ends if you have the Incapacitated condition."
+
+    The drain reads the stored field, which since #238 is where the end is written — so
+    state, the read surface and this all give one answer because there is one answer, rather
+    than because three callers remembered to derive it the same way."""
     from srd_rules_engine.core import Condition
 
     state = hurt(encounter(), 12).with_condition("mage", Condition.INCAPACITATED)
@@ -516,3 +518,96 @@ def test_the_claimed_concentration_shape_is_reachable_in_play(tmp_path: Path) ->
         "the decay 0036 clause 8 recorded"
     )
     assert not end.state.combatant("mage").concentration.active
+
+
+# --- #238: p. 179 says ends, and the engine said suspends ---------------------------------
+
+
+def concentrating(**kwargs: object) -> EncounterState:
+    """An encounter whose mage is concentrating, for the routes that end it."""
+    return encounter(**kwargs)
+
+
+def test_concentration_does_not_come_back_when_incapacitated_lifts() -> None:
+    """#238. p. 179: "Your Concentration **ends** if you have the Incapacitated condition."
+
+    Ends, not suspends. `after_conditions` recomputed the answer from the conditions held at
+    the moment somebody asked, and nothing wrote the field — so the condition lifting handed
+    the spell back. A derivation cannot record an event, which is why 0037 clause 4
+    materialises the end rather than repairing the derivation.
+    """
+    from srd_rules_engine.core import Condition
+
+    state = concentrating().with_condition("mage", Condition.INCAPACITATED)
+    assert not state.combatant("mage").concentration.active, "the end is written, not derived"
+
+    lifted = state.with_condition_ended("mage", Condition.INCAPACITATED)
+    assert not lifted.combatant("mage").concentration.active, (
+        "p. 179 spends Concentration on the condition arriving. A spell that returns when "
+        "the condition lifts is a spell the document already ended (#238)"
+    )
+
+
+def test_no_save_is_owed_for_a_spell_that_already_ended() -> None:
+    """#238's consequence, and the half that reaches an outcome.
+
+    `with_damage` asked the same derivation deliberately, so that state and the read surface
+    would agree about who is concentrating. They agreed and were wrong together: after the
+    condition lifted, damage compelled a Constitution save to maintain a spell p. 179 had
+    already ended — a save that can **fail**, arriving through the one adjudication entry
+    point with a Ruling, a seed and a ledger entry behind it.
+    """
+    from srd_rules_engine.core import Condition
+
+    state = concentrating().with_condition("mage", Condition.INCAPACITATED)
+    lifted = state.with_condition_ended("mage", Condition.INCAPACITATED)
+
+    assert lifted.with_damage("mage", 12).concentration_saves_owed == ()
+
+
+def test_a_creature_killed_outright_is_not_concentrating() -> None:
+    """p. 179: "Incapacitated **or Dead**." Death is not one of the fifteen conditions, so a
+    conditions-only derivation could not see it at all (0037 clause 4).
+
+    p. 17 kills a monster the instant it drops to 0, so it never acquires Unconscious on the
+    way — the route where the gap is reachable rather than merely present.
+    """
+    state = concentrating().with_death("mage")
+    assert not state.combatant("mage").concentration.active
+
+
+def test_a_monster_dropped_to_zero_stops_concentrating_by_the_same_route() -> None:
+    """`with_damage` kills a monster outright (p. 17) and reaches `with_death` to do it, so
+    the end travels with the death rather than needing a second call."""
+    from dataclasses import replace
+
+    monster = replace(caster(), id="ogre", name="Ogre", is_player_character=False)
+    state = EncounterState.new([monster, boar()]).with_initiative({"ogre": 12, "boar": 5})
+
+    dead = state.with_damage("ogre", 40)
+    assert dead.combatant("ogre").death_saves.dead, "precondition: p. 17 killed it outright"
+    assert not dead.combatant("ogre").concentration.active
+
+
+def test_the_voluntary_end_costs_nothing_and_is_not_offered_as_an_action() -> None:
+    """p. 179: "The creator can end Concentration at any time **(no action required)**."
+
+    Not a declaration and not a `LegalAction`: the read surface enumerates what a creature may
+    do **on its turn**, and this is neither turn-bound nor an action. A slot in which it were
+    expressible would price something the document gives outright.
+    """
+    from srd_rules_engine.core import read
+
+    state = concentrating()
+    offered = read(state, "mage")
+    assert not any("concentrat" in action.key for action in offered.actions)
+
+    ended = state.with_concentration_ended("mage")
+    assert not ended.combatant("mage").concentration.active
+    assert ended.combatant("mage").actions == state.combatant("mage").actions
+
+
+def test_ending_concentration_twice_is_not_an_error() -> None:
+    """Idempotent, because three routes can reach it and none of them can see the others."""
+    state = concentrating().with_concentration_ended("mage")
+    assert not state.with_concentration_ended("mage").combatant("mage").concentration.active

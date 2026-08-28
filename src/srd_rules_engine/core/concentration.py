@@ -34,8 +34,8 @@ that does not exist (R31). Disclosed by `core.save_ends` already, for every save
 engine rather than for this one.
 
 **The other three breakers.** p. 179 also ends Concentration on another Concentration effect,
-on Incapacitated, and on death. `Concentration.begin` and `.after_conditions` hold the first
-two and nothing declares them; death is not a condition in this engine. Filed as
+on Incapacitated, and on death. The last two are materialised by `Combatant.__post_init__`
+since #238 (0037 clause 4). `Concentration.begin` holds the first and nothing declares it —
 [#235](https://github.com/eddiefiggie/srd-rules-engine/issues/235), not modelled here.
 """
 
@@ -125,7 +125,7 @@ def concentration_resolver() -> Resolver:
                 "to resolve. The save is read off the debt the engine recorded when the "
                 "damage landed, and it is never declared"
             )
-        if not actor.concentration.after_conditions(actor.conditions).active:
+        if not actor.concentration.active:
             raise ValueError(
                 f"{actor.name} is not concentrating on anything, so there is nothing for "
                 "the save to maintain. p. 179 breaks Concentration; it does not compel a "

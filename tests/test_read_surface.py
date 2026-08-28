@@ -516,13 +516,18 @@ def test_what_a_caster_is_concentrating_on_reaches_the_agent() -> None:
     assert result.situation.concentrating_on == "hold-person"
 
 
-def test_the_surface_reports_concentration_after_conditions_not_as_stored() -> None:
+def test_the_surface_reports_no_concentration_once_a_condition_has_broken_it() -> None:
     """p. 179: "Your Concentration ends if you have the Incapacitated condition."
 
-    The stored field is only as fresh as whoever last wrote it, and nothing writes it when
-    a condition lands. A surface reporting it raw would tell the agent a spell is still up
-    after the condition that broke it — so the read derives it, the way it already derives
-    every other aggregate here.
+    **This test used to assert the opposite mechanism.** It required the surface to *derive*
+    the answer, because nothing wrote the field when a condition landed and a raw read would
+    have said a spell was still up after the condition that broke it. The derivation covered
+    that direction and could not cover the other — p. 179 *ends* Concentration, and the spell
+    came back when the condition lifted (#238).
+
+    So the field is written where the event happens and the surface reports it plainly. The
+    observable behaviour asserted here is unchanged; what changed is which layer is
+    responsible, and that the answer now survives the condition going away.
     """
     state = _concentrating()
     stunned = dataclasses.replace(
@@ -535,9 +540,8 @@ def test_the_surface_reports_concentration_after_conditions_not_as_stored() -> N
         round_number=state.round_number,
     )
 
-    assert state.combatant("pc").concentration.spell == "hold-person", (
-        "the stored value is unchanged — this test is only meaningful while the surface "
-        "and the field can disagree"
+    assert state.combatant("pc").concentration.spell is None, (
+        "the end is materialised now, so the field itself is the answer the surface reports"
     )
     result = read(state, "pc")
     assert result.situation is not None
