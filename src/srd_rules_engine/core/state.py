@@ -958,13 +958,27 @@ class EncounterState:
     def with_concentration_ended(self, combatant_id: str) -> EncounterState:
         """End what this creature was concentrating on (p. 179).
 
-        The state half of `EffectKind.CONCENTRATION_ENDED`. Reached only through a ruling,
-        which is what keeps a failed save the *only* way damage breaks Concentration — a
-        caller able to end it directly would be a caller able to decide the outcome the
-        save exists to decide (R1).
+        Two callers, and the distinction matters.
 
-        `Concentration.ended` is p. 179's own sentence and is what does the work here, so
-        this method holds the state transition and no rule of its own.
+        **The state half of `EffectKind.CONCENTRATION_ENDED`.** Damage breaks Concentration
+        only through a failed save, so that route reaches here through a ruling and through
+        nothing else — a caller able to end it directly on the damage path would be a caller
+        able to decide the outcome the save exists to decide (R1).
+
+        **The voluntary end**, which is the caller's outright: "The creator can end
+        Concentration at any time *(no action required)*." Nothing is rolled, nothing is
+        spent, and no rule can refuse it — so it is a transition a driver calls, not a
+        declaration and not a `LegalAction`. The read surface enumerates what a creature may
+        do **on its turn**; this is neither turn-bound nor an action, and a slot in which it
+        were expressible would price something the document gives away.
+
+        The two are one method because they are one state change. What separates them is who
+        may call it, and R1 constrains only the first — an agent that ends its own
+        Concentration has decided nothing the dice were owed.
+
+        `Concentration.ended` is p. 179's own sentence and does the work; this holds the
+        state transition and no rule of its own. Idempotent, because three routes reach the
+        end and none of them can see the others.
         """
         target = self.combatant(combatant_id)
         ended = replace(target, concentration=target.concentration.ended())

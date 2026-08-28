@@ -213,6 +213,36 @@ def test_the_cap_keeps_a_huge_hit_makeable() -> None:
     assert concentration_save_dc(58) == 29, "just under the cap, still arithmetic"
 
 
+def test_the_clauses_that_end_concentration_are_asserted_against_the_document() -> None:
+    """Presence, not truth — the verifier needs the PDF and CI has no copy.
+
+    Two sentences, and the engine now rests on both. p. 179's "Incapacitated **or you die**"
+    is what `Combatant.__post_init__` materialises, and the death half is the part a
+    conditions-only reading drops — it was unreachable until #238 and is easy to lose again,
+    because death is not one of the fifteen conditions.
+
+    "(no action required)" is a **rule value**, not colour: it is why the voluntary end is a
+    transition a driver calls rather than a `LegalAction` the surface prices. An engine that
+    charged an action for it would be inventing a cost the document declines to state.
+
+    Proved to catch the plausible-wrong value: "at any time (no action required)" was
+    corrupted to "as an action" on a copy of the verifier and the clause reported unmatched.
+    """
+    from pathlib import Path as _Path
+
+    verifier = (
+        _Path(__file__).resolve().parents[1] / "scripts" / "verify_d20_rules.py"
+    ).read_text()
+    assert "Incapacitated condition or you die" in verifier, (
+        "the death half of p. 179's clause is gone from verify_d20_rules.py, so the "
+        "sentence Combatant.__post_init__ rests on is no longer re-checkable (#238)"
+    )
+    assert "no action required" in verifier, (
+        "the voluntary end's cost is no longer asserted, so nothing goes red if the engine "
+        "starts charging an action for something p. 179 gives away"
+    )
+
+
 def test_the_floor_and_the_cap_are_the_documents_own_numbers() -> None:
     """The literals, pinned as literals — and this was missing until #215 proved it.
 
