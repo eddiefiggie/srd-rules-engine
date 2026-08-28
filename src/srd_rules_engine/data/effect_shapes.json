@@ -1348,7 +1348,7 @@
    "tag": null,
    "reference": "Equipment, p. 89 (Light)",
    "kind": "weapon-property",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "weapon-loading",

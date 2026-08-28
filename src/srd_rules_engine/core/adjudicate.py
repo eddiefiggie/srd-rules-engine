@@ -298,6 +298,14 @@ class Effect:
     source_id: str | None = None
     #: `ACTION_SPENT` only: which of the three the act cost (p. 176-177).
     action: ActionKind | None = None
+    #: `ACTION_SPENT` only, and only for an attack: which weapon the action was spent
+    #: attacking with (p. 89). p. 89's Light property triggers on "when you take the **Attack
+    #: action** … and attack with a Light weapon", so the weapon rides on the action that was
+    #: taken rather than on an effect of its own — the trigger *is* the Attack action.
+    #:
+    #: `None` for every other action, and for an attack whose weapon does not matter to any
+    #: rule the engine holds.
+    weapon_id: str | None = None
     #: 0032 clauses 1-3. When set, this effect applies only if the predicate holds against
     #: what a **sibling** effect in the same branch settled to — and `_apply` is the only
     #: place that can ask, because it is the only place the settled number exists.
@@ -330,6 +338,12 @@ class Effect:
                 "what siblings settled to, and a damage effect both contributes to that "
                 "and would depend on it — so whether it applied would turn on where it sat "
                 "in the branch. No rule the sweep behind 0032 found asks for this"
+            )
+        if self.weapon_id is not None and self.kind is not EffectKind.ACTION_SPENT:
+            raise ValueError(
+                f"a {self.kind} effect names no weapon. p. 89's Light property reads which "
+                "weapon the Attack *action* was spent on, so the weapon travels with the "
+                "action and nowhere else"
             )
         if (self.kind is EffectKind.ACTION_SPENT) != (self.action is not None):
             raise ValueError(
@@ -410,7 +424,9 @@ def disengaged(actor_id: str, *, description: str) -> Effect:
     return Effect(kind=EffectKind.DISENGAGED, target_id=actor_id, amount=0, description=description)
 
 
-def action_spent(actor_id: str, action: ActionKind, *, description: str) -> Effect:
+def action_spent(
+    actor_id: str, action: ActionKind, *, description: str, weapon_id: str | None = None
+) -> Effect:
     """The action an act cost (p. 176-177, p. 185).
 
     A cost rather than a consequence, so it belongs in `Proposal.always` like every other
@@ -422,6 +438,7 @@ def action_spent(actor_id: str, action: ActionKind, *, description: str) -> Effe
         amount=0,
         description=description,
         action=action,
+        weapon_id=weapon_id,
     )
 
 
@@ -1324,7 +1341,9 @@ def _apply(
             state = state.with_condition_ended(effect.target_id, effect.condition)
         elif effect.kind is EffectKind.ACTION_SPENT:
             assert effect.action is not None  # __post_init__ refuses one without
-            state = state.with_action_spent(effect.target_id, effect.action)
+            state = state.with_action_spent(
+                effect.target_id, effect.action, weapon_id=effect.weapon_id
+            )
         elif effect.kind is EffectKind.DASHED:
             state = state.with_dash(effect.target_id, effect.amount)
         elif effect.kind is EffectKind.DODGING:
@@ -1460,6 +1479,9 @@ def _effect_payload(e: Effect) -> Mapping[str, object]:
         # was answered — an effect that applied unconditionally and one whose condition
         # happened to hold are different facts.
         "action": str(e.action) if e.action else None,
+        # p. 89. In the record because p. 89's Light property turns on *which* weapon the
+        # Attack action was spent on, and a replay that could not see it could not check it.
+        "weapon": e.weapon_id,
         "when": str(e.when) if e.when else None,
         "description": e.description,
     }

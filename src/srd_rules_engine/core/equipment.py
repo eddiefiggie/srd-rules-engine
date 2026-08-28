@@ -258,6 +258,11 @@ class Weapon(Item):
     finesse: bool = False
     #: Heavy (p. 89): Disadvantage unless the relevant score is at least 13.
     heavy: bool = False
+    #: Light (p. 89): attacking with one as the Attack action buys an extra attack as a Bonus
+    #: Action, with a **different** Light weapon. A property of the weapon and not of the
+    #: wielder — unlike `proficient` and the grip, both of which were fields here and were
+    #: facts about the creature (0040 clause 2, #263).
+    light: bool = False
     #: Versatile (p. 90): the damage die when "used with two hands to make a melee attack".
     versatile_sides: int | None = None
     #: Graze (p. 90), a mastery property: damage on a miss equal to the ability modifier.

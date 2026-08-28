@@ -1046,6 +1046,18 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"requires Concentration",
     ),
     (
+        89,
+        "Light buys ONE extra attack, as a Bonus Action, with a DIFFERENT Light weapon",
+        r"you can make one extra attack as a Bonus Action later on the same turn\. That "
+        r"extra attack must be made with a different Light weapon",
+    ),
+    (
+        89,
+        "and the damage exception is the whole of the damage rule: unless it is negative",
+        r"you don.t add your ability modi-?\s*fier to the extra attack.s damage unless that "
+        r"modi-?\s*fier is negative",
+    ),
+    (
         90,
         "Two-Handed requires two hands, which is a claim about the wielder's hands",
         r"A Two-Handed weapon requires two hands when you attack with it",

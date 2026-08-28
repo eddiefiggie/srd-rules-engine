@@ -68,7 +68,10 @@ from srd_rules_engine.core.obstructions import Cover, total_cover
 from srd_rules_engine.core.position import distance_feet, within
 from srd_rules_engine.core.read_surface import UNARMED_REACH_FEET as UNARMED_REACH_FEET
 from srd_rules_engine.core.read_surface import UNARMED_STRIKE_ID as UNARMED_STRIKE_ID
-from srd_rules_engine.core.read_surface import attack_declared, attack_target
+from srd_rules_engine.core.read_surface import (
+    attack_declared,
+    bonus_attack_declared,
+)
 from srd_rules_engine.core.rules import (
     Rule,
     RuleProvenance,
@@ -143,7 +146,7 @@ def attack_resolver() -> Resolver:
         facts: Mapping[str, Resolution],
     ) -> Proposal:
         actor = state.combatant(declaration.actor_id)
-        wielded, target_id = _weapon_and_target(actor, declaration)
+        wielded, target_id, is_bonus = _weapon_and_target(actor, declaration)
         assert isinstance(wielded.item, Weapon)
         weapon = wielded.item
         target = state.combatant(target_id)
@@ -202,8 +205,16 @@ def attack_resolver() -> Resolver:
             always=(
                 action_spent(
                     declaration.actor_id,
-                    ActionKind.ACTION,
-                    description="the Action spent on the Attack (p. 176, p. 177)",
+                    ActionKind.BONUS_ACTION if is_bonus else ActionKind.ACTION,
+                    description=(
+                        f"the Bonus Action spent on p. 89's extra Light attack with {weapon.id}"
+                        if is_bonus
+                        else "the Action spent on the Attack (p. 176, p. 177)"
+                    ),
+                    # p. 89 reads which weapon the Attack action was spent on, so the ordinary
+                    # attack carries it and the bonus one does not — the bonus attack is what
+                    # the record *buys*, not what it records.
+                    weapon_id=None if is_bonus else weapon.id,
                 ),
             ),
             test=D20Test(
@@ -241,7 +252,13 @@ def attack_resolver() -> Resolver:
                     # The same bonus, on the other roll. p. 213 says "attack rolls **and**
                     # damage rolls", so a weapon bonus reaching only the attack would be
                     # half a rule — and the half nobody notices.
-                    modifier=ability + weapon.bonus,
+                    # p. 89, and the exception is the whole of it: on the Light property's
+                    # extra attack "you don't add your ability modifier to the extra attack's
+                    # damage **unless that modifier is negative**". So a positive modifier is
+                    # dropped and a negative one is kept — an implementation that simply
+                    # dropped it would be wrong for every creature with a penalty, and wrong
+                    # in the direction that helps them. The *attack roll* keeps it either way.
+                    modifier=(min(0, ability) if is_bonus else ability) + weapon.bonus,
                     source=weapon.id,
                 ),
             ),
@@ -375,14 +392,16 @@ def unarmed_strike_resolver() -> Resolver:
     return resolve
 
 
-def _weapon_and_target(actor: Combatant, declaration: Declaration) -> tuple[Carried, str]:
+def _weapon_and_target(actor: Combatant, declaration: Declaration) -> tuple[Carried, str, bool]:
     """Which weapon this attack swung, and at whom, read off the key the surface offered.
 
     The key names both since #258, and the weapon is looked up in what the creature is
     **holding** rather than trusted from the declaration — an agent naming a weapon it has
     stowed, or does not have at all, is refused rather than obliged.
     """
-    declared = attack_declared(declaration.intent.action_key)
+    key = declaration.intent.action_key
+    bonus = bonus_attack_declared(key)
+    declared = bonus or attack_declared(key)
     if declared is None:
         raise ValueError(
             "this declaration is not an attack: an attack names the weapon and the target "
@@ -393,7 +412,13 @@ def _weapon_and_target(actor: Combatant, declaration: Declaration) -> tuple[Carr
     for carried in actor.equipment:
         if carried.carriage is Carriage.HELD and carried.item.id == weapon_id:
             assert isinstance(carried.item, Weapon)
-            return carried, target_id
+            if bonus and not carried.item.light:
+                raise ValueError(
+                    f"{weapon_id!r} is not a Light weapon, and p. 89's extra attack is bought "
+                    "by one and made with another. A bonus attack with anything else is an "
+                    "attack the read surface never offered"
+                )
+            return carried, target_id, bonus is not None
     raise ValueError(
         f"{actor.name} is not holding {weapon_id!r}. p. 177 attacks "
         '"with a weapon or an Unarmed Strike", and the read surface offers only weapons in '
@@ -481,14 +506,3 @@ def _graze(weapon: Weapon, target_id: str, ability: int) -> tuple[Effect, ...]:
             damage_type=weapon.damage_type,
         ),
     )
-
-
-def _target_of(declaration: Declaration) -> str:
-    """Read the target from the structured intent — never from the free-text label."""
-    target_id = attack_target(declaration.intent.action_key)
-    if target_id is None:
-        raise ValueError(
-            f"{declaration.intent.action_key!r} is not an attack. The target is read from "
-            "the action key the read surface issued, which is what the token commits to"
-        )
-    return target_id
