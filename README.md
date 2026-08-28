@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08282026.12` — **the same mistake, one field down: a weapon was recording how its wielder gripped it.** #263 asked for five weapon properties and turned out to be five issues with four different blockers, so it is split — and the one that was buildable is the one that mattered. `Weapon.wielded_two_handed` was a field on the **weapon** describing how the **creature** was holding it, so two creatures could not hold the same Versatile longsword differently and none could change grip. That is `Weapon.proficient`'s error exactly, one field further down, and it survived 0040 clause 2 because that record was looking at proficiency. The grip lives on `Carried` now, where the creature-item relationship already lives. **Two-Handed stops being representable and starts being enforced**: p. 90 requires two hands, and until now a one-handed creature could grip a greataxe and simply report nothing free — the state that violates the rule was buildable, so the rule was not real. Refused at construction, where every writer passes, and **not** refused when the hand count is unstated, because no SRD rule says how many hands a creature has (R31). **95 of 209 -> 96 of 209**, and this one is earned: the shape is claimed because the requirement is now unbreakable, not because a field exists. The other four properties are re-filed with their real blockers — Light needs a per-turn record, Loading's consequence is unreachable without Extra Attack, Thrown needs somewhere for a thrown weapon to go, Ammunition needs consumables nothing spends. 192 clauses. 1489 tests.
+**Current build:** `08282026.13` — **a one-flag change arrived as a 1892-line diff.** #263 set `weapon-two-handed` to implemented in `effect_shapes.json` and I re-emitted the file with `indent=2`; the generator writes it with `indent=1`, so every line changed and the one that mattered was buried. The content was **correct**, which is exactly why nothing caught it — the two guards on that file check what it says and neither checks how it is written. This restores the generator's formatting, leaving the net change across both builds at one line, and adds the guard that would have caught it: the file must round-trip through `json.dumps(..., indent=1)`. **That is how a data change hides — not by being wrong, but by being unreviewable.** No mechanic moved: **96 of 209**, 192 clauses, 1490 tests.
 
 ---
 
@@ -282,4 +282,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-28 — build `08282026.12`._
+_Last updated: 2026-08-28 — build `08282026.13`._

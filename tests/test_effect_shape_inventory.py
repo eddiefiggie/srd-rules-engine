@@ -664,3 +664,30 @@ def test_every_claimed_symbol_resolves(inventory: Inventory) -> None:
         "these shapes are claimed against symbols that do not exist, so the claim rests on "
         f"nothing a reader can check: {dangling}"
     )
+
+
+def test_the_inventory_file_is_written_the_way_its_generator_writes_it() -> None:
+    """The data file's formatting is `scripts/derive_effect_shapes.py`'s, and nothing checked
+    it until a hand edit rewrote all 1892 lines.
+
+    `derive_effect_shapes.py` writes this file with `indent=1`. Editing it with `indent=2` —
+    the obvious thing to type — reformats every line, so a diff that changes **one flag**
+    arrives as 1892 insertions and 1892 deletions and is unreviewable. That is how a data
+    change hides: not by being wrong, but by being unreadable.
+
+    It happened in #263, where `weapon-two-handed` becoming implemented was buried in the
+    churn. The content was correct, which is exactly why nothing caught it.
+
+    This asserts the formatting rather than the content, because the content has two guards
+    already and the formatting had none.
+    """
+    raw = (REPO_ROOT / "src" / "srd_rules_engine" / "data" / "effect_shapes.json").read_text(
+        encoding="utf-8"
+    )
+    canonical = json.dumps(json.loads(raw), indent=1, ensure_ascii=False) + "\n"
+
+    assert raw == canonical, (
+        "effect_shapes.json is not formatted the way derive_effect_shapes.py writes it. "
+        "Re-emit it with `json.dumps(data, indent=1, ensure_ascii=False)` so a one-line "
+        "change reads as a one-line diff"
+    )
