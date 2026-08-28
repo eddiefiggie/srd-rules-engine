@@ -49,7 +49,12 @@ from srd_rules_engine.core import (
 )
 from srd_rules_engine.core import Catalogue as Cat
 from srd_rules_engine.core.position import MovementMode
-from srd_rules_engine.core.read_surface import END_TURN, dash_key
+from srd_rules_engine.core.read_surface import (
+    END_TURN,
+    UNARMED_STRIKE_ID,
+    attack_key,
+    dash_key,
+)
 from srd_rules_engine.loop.drivers import DriverExhausted, ScriptedDriver, drive
 from srd_rules_engine.loop.turn import (
     BlockedFactRequest,
@@ -346,9 +351,9 @@ def test_a_terminal_outcome_carries_the_refusals_and_what_was_offered(
     assert outcome.terminal is TerminalReason.REJECTION_CHURN
     assert [a.key for a in outcome.offered] == [
         END_TURN,
-        # No attack: these fixture combatants hold no weapon, and since #258 an attack is
-        # offered per held weapon. p. 177 would still allow an Unarmed Strike, which is the
-        # unimplemented shape #267 tracks.
+        # These fixture combatants hold no weapon, so no weapon attack is offered — but
+        # p. 177's other half is, since #267: an Unarmed Strike needs nothing in hand.
+        attack_key(UNARMED_STRIKE_ID, "boar"),
         dash_key(MovementMode.WALK),
         "dodge",
         "disengage",
@@ -559,6 +564,9 @@ def test_the_loop_yields_typed_requests_and_never_calls_the_driver(tmp_path: Pat
     assert first.actor_id == "pc"
     assert [a.key for a in first.offered.actions] == [
         END_TURN,
+        # p. 177's other half, since #267: an Unarmed Strike needs nothing in hand, so these
+        # weaponless fixture combatants are still offered an attack.
+        attack_key(UNARMED_STRIKE_ID, "boar"),
         dash_key(MovementMode.WALK),
         "dodge",
         "disengage",

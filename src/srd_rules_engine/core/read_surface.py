@@ -121,6 +121,16 @@ ACTION_FOR_CASTING: Final[Mapping[CastingTime, ActionKind]] = MappingProxyType(
     }
 )
 
+#: p. 190's Unarmed Strike, as both the rule id and the "weapon" segment of the action key —
+#: because p. 177 makes it one of the Attack action's two options rather than a separate act:
+#: "you can make one attack roll **with a weapon or an Unarmed Strike**".
+UNARMED_STRIKE_ID: Final = "unarmed-strike"
+
+#: p. 190: "a target **within 5 feet of you**". Stated by the entry rather than taken from the
+#: creature's reach, and p. 186 defers to it — "A creature has a reach of 5 feet **unless a
+#: rule says otherwise**", and this rule says otherwise by naming its own distance.
+UNARMED_REACH_FEET: Final = 5
+
 CAST: Final = "cast"
 
 
@@ -483,6 +493,29 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
     reader to infer from an empty menu that a creature can do nothing.
     """
     offered: list[LegalAction] = []
+
+    # p. 177: "one attack roll **with a weapon or an Unarmed Strike**". The second half was
+    # missing until #267 — offering per held weapon offered only the first, so a creature that
+    # dropped its sword was offered nothing at all. p. 190 puts the strike at 5 feet, stated
+    # by its own entry rather than taken from the creature's reach (p. 186 defers: "unless a
+    # rule says otherwise").
+    for target in state.combatants:
+        if target.id == actor.id or target.is_down:
+            continue
+        if not _within(actor, target, UNARMED_REACH_FEET):
+            continue
+        offered.append(
+            LegalAction(
+                key=attack_key(UNARMED_STRIKE_ID, target.id),
+                label=f"Unarmed Strike against {target.name}",
+                detail={
+                    "target": target.id,
+                    "weapon": UNARMED_STRIKE_ID,
+                    "armour_class": target.armour_class,
+                },
+            )
+        )
+
     for weapon in actor.weapons_held:
         for target in state.combatants:
             if target.id == actor.id or target.is_down:
@@ -497,6 +530,14 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
                 )
             )
     return tuple(offered)
+
+
+def _within(actor: Combatant, target: Combatant, feet: int) -> bool:
+    """Whether the target is within that many feet, offering the attack when it cannot be
+    measured — refusing on an unmeasurable distance would invent one (0030 clause 1)."""
+    if actor.position is None or target.position is None:
+        return True
+    return bool(distance_feet(actor.position, target.position) <= feet)
 
 
 def _within_weapon_range(actor: Combatant, weapon: Weapon, target: Combatant) -> bool:

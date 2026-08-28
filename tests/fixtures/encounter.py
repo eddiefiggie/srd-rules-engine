@@ -33,6 +33,7 @@ from fixtures.ruleset import (
     fixture_ruleset,
 )
 from srd_rules_engine.core import (
+    UNARMED_STRIKE_ID,
     Adjudicator,
     Carriage,
     Carried,
@@ -51,6 +52,7 @@ from srd_rules_engine.core import (
     TestKind,
     attack_key,
     attack_resolver,
+    attack_weapon,
     initiative_order,
 )
 from srd_rules_engine.core.adjudicate import SEED_BITS
@@ -289,9 +291,28 @@ class SliceDriver:
 
 
 def policy_declaration(request: DeclarationRequest) -> Declaration:
-    """Attack the first opponent still on the menu; otherwise end the turn."""
+    """Attack the first opponent still on the menu with a **weapon**; otherwise end the turn.
+
+    The weapon qualifier arrived with #267. p. 177 offers "one attack roll with a weapon **or
+    an Unarmed Strike**", and the read surface now offers both — but this fixture's ruleset is
+    a fixture one, so it cannot register p. 190's SRD Unarmed Strike rule beside its invented
+    weapon rule (`load_fixture_ruleset` and `load_ruleset` refuse each other's provenance).
+
+    A driver that took the first attack offered would take the strike and be rejected for a
+    rule its own ruleset does not have. That rejection is *correct* — an offer the ruleset
+    cannot resolve is a deployment fact the engine reports rather than hides — so the policy
+    picks what this deployment can resolve rather than the engine pretending the offer is not
+    there.
+    """
     offered = request.offered
-    target = next((a.key for a in offered.actions if attack_target(a.key)), None)
+    target = next(
+        (
+            a.key
+            for a in offered.actions
+            if attack_target(a.key) and attack_weapon(a.key) != UNARMED_STRIKE_ID
+        ),
+        None,
+    )
     key = target or (END_TURN if END_TURN in offered.keys else None)
 
     return Declaration(

@@ -61,7 +61,15 @@ from srd_rules_engine.core.clock import (
     hours,
     stable_recovery_minute,
 )
-from srd_rules_engine.core.combat import Weapon, attack_resolver, initiative_order
+from srd_rules_engine.core.combat import (
+    UNARMED_STRIKE_ID,
+    UNARMED_STRIKE_VERIFICATION,
+    Weapon,
+    attack_resolver,
+    initiative_order,
+    unarmed_strike_resolver,
+    unarmed_strike_rule,
+)
 
 # #112: `Condition` here is the SRD condition enum — the fifteen the Rules Glossary tags
 # `[Condition]`. The trigger predicate that used to hold this name is `MatchCondition`.
@@ -300,6 +308,8 @@ __all__ = [
     "SUFFOCATION_VERIFICATION",
     "TIME_VERIFICATION",
     "TURN_ACTION_VERIFICATION",
+    "UNARMED_STRIKE_ID",
+    "UNARMED_STRIKE_VERIFICATION",
     "Adjudicator",
     "Adjustment",
     "Advantage",
@@ -453,5 +463,7 @@ __all__ = [
     "summarize",
     "turn_action_resolvers",
     "turn_action_rules",
+    "unarmed_strike_resolver",
+    "unarmed_strike_rule",
     "verify",
 ]
