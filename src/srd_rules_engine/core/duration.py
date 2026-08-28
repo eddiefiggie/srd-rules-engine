@@ -53,6 +53,27 @@ There is **no general save-ends rule** in the document. Every instance states it
 is why `SaveEnds` carries the ability and DC from the effect that imposed it rather than
 reading them from a table that does not exist.
 
+The second early-out is p. 179's Concentration, and it is an **event** rather than a test:
+"If the effect's creator loses Concentration, the effect ends." `concentration_of` names who,
+and 0037 explains why that is a field beside `kind` rather than a fifth `DurationKind` — a
+Concentration spell states a maximum duration *as well*, and one `kind` cannot hold both.
+
+Which effects require Concentration is not decided here and is not decided anywhere in this
+engine. p. 179 puts it "in their descriptions", so the imposing effect states it, exactly as
+p. 63 states a repeated save's ability and DC per effect (R31).
+
+## What "the effect ends" reaches, and what it does not
+
+R32, and it is a real boundary rather than a formality. What this engine can retire is **a
+condition carrying a duration**. A Concentration spell that also creates an area, an
+obstruction, a summoned creature, or an ongoing effect of some other shape has parts this
+engine does not model at all — so when its creator's Concentration drops, the condition goes
+and those parts were never there to go.
+
+`Conditions.unretirable` cannot report this, because it can only speak about conditions that
+exist. The gap is disclosed here instead of being enumerated somewhere, which is the honest
+form for an absence: there is no list of the things that are not modelled.
+
 ## Each axis reduces to one expiry point
 
 On the encounter axis a span ends **at the end of a named creature's turn, in a named
@@ -228,6 +249,20 @@ class Duration:
     ends_at_minute: int | None = None
     #: An early-out that runs alongside the span, not instead of it (p. 63).
     save: SaveEnds | None = None
+    #: The second early-out, and the event kind (p. 179, 0037 clause 1): whose Concentration
+    #: holds this effect up. "If the effect's creator loses Concentration, the effect ends."
+    #:
+    #: **Beside `kind` rather than in it.** A fifth `DurationKind` is the move that suggests
+    #: itself and it discards p. 179's own third sentence — "If the effect has a maximum
+    #: duration, the effect's description specifies how long the creator can concentrate on
+    #: it" — because exactly one expiry point is set. "Concentration, up to 1 minute" is a
+    #: one-minute span **and** an early-out, and a model holding only one of them keeps a
+    #: spell up for an hour because nobody was hit.
+    #:
+    #: **A plain id, not a type.** `SaveEnds` is a dataclass because p. 63 states two values
+    #: per effect that travel together; p. 179 states one. A dataclass around a single string
+    #: is a box, and its one invariant lives below with every other field's.
+    concentration_of: str | None = None
     #: 0021 clause 4: the span as the effect stated it, before this engine converted it.
     stated: StatedSpan | None = None
 
@@ -261,11 +296,29 @@ class Duration:
             )
         if self.ends_at_minute is not None and self.ends_at_minute < 0:
             raise ValueError("the clock counts forward only, so an expiry minute is not negative")
+        if self.concentration_of is not None and not self.concentration_of:
+            raise ValueError(
+                "a concentration early-out names whose Concentration sustains the effect. "
+                "p. 179 ends it when *the creator* loses Concentration, so an unnamed one "
+                "could never be retired and would read as a span rather than as an early-out"
+            )
 
     @property
     def retirable(self) -> bool:
-        """Whether this engine can end it on its own. `False` is reported, not hidden."""
-        return self.kind is not DurationKind.UNTIL_REMOVED
+        """Whether this engine can end it on its own. `False` is reported, not hidden.
+
+        **Two ways to be retirable, since 0037.** A span an axis can count, or an early-out
+        the engine can observe. p. 179 says "**If** the effect has a maximum duration", so a
+        Concentration spell that states none is `UNTIL_REMOVED` *and* ends the moment its
+        creator's Concentration does. Reading only the kind would make `unretirable()`
+        disclose that this engine cannot end an effect it ends by itself — and a wrong
+        disclosure is worse than a missing feature, which is why 0037 rejected leaving it.
+
+        The repeated save is **not** a second way in. p. 63's save is an outcome the turn
+        loop rolls, and it may simply keep failing; the engine cannot end the condition on
+        its own account, which is exactly what this property is asked.
+        """
+        return self.kind is not DurationKind.UNTIL_REMOVED or self.concentration_of is not None
 
     def expires_at(self, round_number: int, actor_id: str) -> bool:
         """Whether the turn that just ended is the one this duration was waiting for.
@@ -291,12 +344,25 @@ class Duration:
         )
 
     def derivation(self) -> str:
-        """How this expiry point was arrived at (R5), including any conversion."""
-        if not self.retirable:
-            return "until removed: no span either axis can count"
+        """How this expiry point was arrived at (R5), including any conversion.
+
+        The span and each early-out are named separately, because they are separate reasons
+        an effect might end and a reader checking a ruling needs to know which one it was
+        waiting for.
+        """
+        concentration = (
+            f"; or when {self.concentration_of}'s Concentration ends (p. 179)"
+            if self.concentration_of
+            else ""
+        )
+        if self.kind is DurationKind.UNTIL_REMOVED:
+            # Retirable or not, the span half is the same sentence. What differs is whether
+            # anything follows it, and `concentration` is that.
+            return f"until removed: no span either axis can count{concentration}"
         save = (
             f"; or a DC {self.save.dc} {self.save.ability} save at end of turn" if self.save else ""
         )
+        save = f"{save}{concentration}"
         if self.kind is DurationKind.CAMPAIGN_TIME:
             stated = f"{self.stated} = {self.stated.in_minutes} minutes; " if self.stated else ""
             return f"{stated}ends once the clock reaches minute {self.ends_at_minute}{save}"
