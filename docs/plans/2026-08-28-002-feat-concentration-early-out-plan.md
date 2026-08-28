@@ -243,7 +243,11 @@ anything that would let the engine retire a part of an effect it does not model.
   new clause: p. 179's sustaining sentence is already asserted, and this builds it rather than
   reading it again.
 - `scripts/prove_guard_red.sh` for U1's, U3's and U4's guards.
-- `scripts/prove_against_base.sh main tests/test_condition_duration.py tests/test_concentration_save.py`.
+- `scripts/prove_against_base.sh main tests/test_concentration_sustains.py`. **As run**, and
+  narrower than this contract first said: every new assertion landed in one new file, so
+  proving `test_condition_duration.py` and `test_concentration_save.py` against the base
+  measures nothing — they are unchanged, and they passed, which is the script reporting
+  exactly that.
 - `python scripts/check_build_stamp_advanced.py main`.
 
 ## Definition of Done
