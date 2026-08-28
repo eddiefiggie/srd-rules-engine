@@ -105,6 +105,7 @@ rejected options and the reason survive, not the exact headings.
 | [0037](0037-a-concentration-is-an-early-out-not-an-axis.md) | A Concentration sustains an effect through a second **early-out** on its duration, not a fifth `DurationKind` — the span p. 179 states survives, and the end is materialised rather than derived | [#239](https://github.com/eddiefiggie/srd-rules-engine/issues/239), [#238](https://github.com/eddiefiggie/srd-rules-engine/issues/238) |
 | [0038](0038-a-spell-is-data-the-caster-carries.md) | A spell is ruleset data the **caster** carries — because legality is a question about the creature — and the engine wraps the ruleset's resolver so casting cannot be made free | [#244](https://github.com/eddiefiggie/srd-rules-engine/issues/244) |
 | [0039](0039-equipment-is-what-a-creature-holds-wears-and-carries.md) | Equipment is ruleset data the **creature** carries — worn, held or stowed as one closed field — and p. 105's free hand serves Somatic and Material **both** | [#256](https://github.com/eddiefiggie/srd-rules-engine/issues/256) |
+| [0040](0040-a-weapon-is-an-item-and-proficiency-is-the-wielders.md) | A weapon is a subtype of `Item` the creature holds, **proficiency is the wielder's** rather than the weapon's, and no wrapper — an attack's effect is the engine's | [#262](https://github.com/eddiefiggie/srd-rules-engine/issues/262) |
 
 ## What belongs here, and what doesn't
 
