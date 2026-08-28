@@ -108,7 +108,7 @@ def test_the_guard_proof_restores_unconditionally() -> None:
 
 
 def test_the_guard_proof_invalidates_bytecode_when_it_restores() -> None:
-    """Restoring the source is not enough, and the shortfall is invisible.
+    """#237. Restoring the source is not enough, and the shortfall is invisible.
 
     CPython treats a cached `.pyc` as current when the source mtime it recorded — whole
     seconds — and the source size both still match. A corruption that changes neither, of
@@ -126,7 +126,7 @@ def test_the_guard_proof_invalidates_bytecode_when_it_restores() -> None:
     assert "__pycache__" in source, (
         "prove_guard_red.sh no longer deletes the restored module's bytecode. A same-size "
         "corruption restored within the same second leaves a stale .pyc that CPython "
-        "considers current, so the engine keeps running the corrupt value"
+        "considers current, so the engine keeps running the corrupt value (#237)"
     )
 
 

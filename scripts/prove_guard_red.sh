@@ -95,8 +95,8 @@ WATCHDOG_PID=""
 # below is backgrounded and waited on for the same reason: `wait` is interruptible by a
 # signal where a foreground command is not.
 #
-# **Restoring the source is not enough for a Python target**, and the gap is invisible.
-# CPython decides a cached `.pyc` is current by comparing the recorded source
+# **Restoring the source is not enough for a Python target**, and the gap is invisible
+# (#237). CPython decides a cached `.pyc` is current by comparing the recorded source
 # mtime — whole seconds — and size against the file. A corruption that changes neither, of
 # which `30` -> `31` is the ordinary case, restored inside the same second the corrupt run
 # compiled in, leaves a `.pyc` that still satisfies both checks. The tree then reads clean,

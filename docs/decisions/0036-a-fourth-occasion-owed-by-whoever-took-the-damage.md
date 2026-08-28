@@ -266,7 +266,10 @@ green — the plan asked for that corruption to be proved red and it was not. Se
 `scripts/prove_guard_red.sh` restored the source and not its bytecode, so a same-size
 corruption (`30` -> `31`) restored inside the same second the corrupt run compiled in left a
 `.pyc` CPython still considered current: `git diff` read clean while the **engine** went on
-running the corrupt constant.
+running the corrupt constant. Filed as
+[#237](https://github.com/eddiefiggie/srd-rules-engine/issues/237) and fixed in the same
+change, because a defect in the verification procedure itself should be findable by someone
+who was not there.
 
 **The unbuilt breakers are filed rather than left in prose**:
 [#235](https://github.com/eddiefiggie/srd-rules-engine/issues/235) holds starting Concentration
