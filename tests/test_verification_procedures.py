@@ -107,6 +107,29 @@ def test_the_guard_proof_restores_unconditionally() -> None:
     )
 
 
+def test_the_guard_proof_invalidates_bytecode_when_it_restores() -> None:
+    """#237. Restoring the source is not enough, and the shortfall is invisible.
+
+    CPython treats a cached `.pyc` as current when the source mtime it recorded — whole
+    seconds — and the source size both still match. A corruption that changes neither, of
+    which `30` -> `31` is the ordinary case, restored inside the same second the corrupt run
+    compiled in, satisfies both checks. `git diff` is then empty, the script reports the
+    tree restored, and **the engine goes on running the corrupted constant**.
+
+    That is this script's own failure mode reappearing one layer down, and it is worse than
+    the version #155 fixed: there, the corruption was at least visible in the tree.
+
+    Found by proving the Concentration DC cap red for #215 and watching the full suite fail
+    afterwards on a file `git` reported as clean.
+    """
+    source = PROVE_GUARD_RED.read_text()
+    assert "__pycache__" in source, (
+        "prove_guard_red.sh no longer deletes the restored module's bytecode. A same-size "
+        "corruption restored within the same second leaves a stale .pyc that CPython "
+        "considers current, so the engine keeps running the corrupt value (#237)"
+    )
+
+
 def test_the_guard_proof_refuses_to_corrupt_itself() -> None:
     """Found by running the proof on the proof, which is how it should be found.
 

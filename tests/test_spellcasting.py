@@ -189,6 +189,24 @@ def test_the_cap_keeps_a_huge_hit_makeable() -> None:
     assert concentration_save_dc(58) == 29, "just under the cap, still arithmetic"
 
 
+def test_the_floor_and_the_cap_are_the_documents_own_numbers() -> None:
+    """The literals, pinned as literals — and this was missing until #215 proved it.
+
+    Every assertion above compares against `CONCENTRATION_DC_FLOOR` and
+    `CONCENTRATION_DC_CAP` rather than against 10 and 30, so **all of them stay green
+    against a wrong floor**: with the floor at 11, `concentration_save_dc(2)` returns 11 and
+    equals the constant, `(22)` returns 11 and matches its literal, and so on down the file.
+    The corruption proof for the floor found this by staying green.
+
+    A wrong DC here is the shape R31 is about: indistinguishable from a right one once it is
+    inside a finished ruling, and the sentence it comes from is asserted against the document
+    in `scripts/verify_d20_rules.py` — which is what makes these two numbers checkable rather
+    than merely agreed with themselves.
+    """
+    assert CONCENTRATION_DC_FLOOR == 10
+    assert CONCENTRATION_DC_CAP == 30
+
+
 def test_the_save_is_a_constitution_save_the_engine_can_roll() -> None:
     """The kind and the target are the rule; the modifiers are the caster's and arrive from
     the caller, so nothing here invents a bonus."""
@@ -258,6 +276,28 @@ def test_the_spell_level_clause_is_asserted_against_the_document() -> None:
     ).read_text()
     assert "Every spell has a level from 0 to 9" in verifier, (
         "the spell-level bound is no longer re-checkable against the document (#130)"
+    )
+
+
+def test_the_concentration_damage_clause_is_asserted_against_the_document() -> None:
+    """Presence, not truth — the same half a machine here can hold.
+
+    The DC's floor and cap have been asserted since #19. What #215 added is the sentence
+    that says *when* the save happens at all, and it is the half that had no clause: p. 179
+    names damage as the occasion and names the ability as Constitution. Both are rule values
+    and both are the kind of thing recall gets almost right.
+
+    Proven to catch the plausible-wrong value: the ability was corrupted to Wisdom on a copy
+    of the verifier and the clause reported unmatched.
+    """
+    from pathlib import Path as _Path
+
+    verifier = (
+        _Path(__file__).resolve().parents[1] / "scripts" / "verify_d20_rules.py"
+    ).read_text()
+    assert "must succeed on a Constitution saving throw to maintain" in verifier, (
+        "the Concentration damage-trigger clause is gone from verify_d20_rules.py, so the "
+        "sentence core.concentration rests on is no longer re-checkable (#215)"
     )
 
 

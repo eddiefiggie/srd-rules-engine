@@ -73,7 +73,7 @@ from srd_rules_engine.core.sight import (
     obscurement_at,
 )
 from srd_rules_engine.core.skills import SKILL_ABILITY, PerceptionCheck, Skill
-from srd_rules_engine.core.spellcasting import SpellSlots
+from srd_rules_engine.core.spellcasting import Concentration, SpellSlots
 
 #: p. 17: "On your third success, you become Stable... On your third failure, you die."
 DEATH_SAVE_THRESHOLD: Final = 3
@@ -192,6 +192,34 @@ _SPEED_ONLY_MODES: Final = (MovementMode.FLY, MovementMode.BURROW)
 
 
 @dataclass(frozen=True)
+class ConcentrationDebt:
+    """One Concentration save a creature owes but has not rolled (p. 179, 0036 clause 3).
+
+    **The amount is carried rather than looked up**, and that is clause 4 rather than
+    convenience. p. 179's DC is "10 or half the damage taken (round down), whichever number
+    is higher, up to a maximum DC of 30" — a function of *this* instance's damage. By the
+    time the loop discharges the save the creature's hit points have moved, often more than
+    once, so the number cannot be recovered from state afterwards.
+
+    It is also what keeps R4 intact: the resolver closes over a number the **engine**
+    recorded when the damage landed, never one a caller supplied.
+
+    The amount is damage **taken**, after defences (clause 5). A creature Immune to the type
+    takes none and owes nothing, so no debt of 0 is ever recorded.
+    """
+
+    combatant_id: str
+    amount: int
+
+    def __post_init__(self) -> None:
+        if self.amount <= 0:
+            raise ValueError(
+                "a Concentration debt records damage actually taken; 0 damage breaks no "
+                "Concentration and a debt for it would compel a save that can fail"
+            )
+
+
+@dataclass(frozen=True)
 class Combatant:
     """One participant's mechanical state. Narrative facts live behind the memory port."""
 
@@ -249,6 +277,16 @@ class Combatant:
     #: class data, and this engine ships none of it, for the reason `core.spellcasting`
     #: ships no slot table.
     prepared: frozenset[str] = frozenset()
+    #: What this creature is concentrating on, if anything (p. 179, 0036 clause 1).
+    #:
+    #: Per-creature state and **not** a condition, for 0027 clause 5's reason: "this creature
+    #: is concentrating" is a fact about the creature, not one of the fifteen the glossary
+    #: tags. It sits here beside `hazards` for the same reason `hazards` does.
+    #:
+    #: Held rather than derived. p. 179 names three factors that break Concentration and one
+    #: voluntary end, and none of them is recomputable from anything else the engine stores —
+    #: which effect is being concentrated on is a fact only the caster's declaration supplies.
+    concentration: Concentration = field(default_factory=Concentration)
     #: Only meaningful at 0 hit points. Reset rather than carried once healing lands.
     death_saves: DeathSaves = DeathSaves()
 
@@ -460,6 +498,23 @@ class EncounterState:
     #: advance the turn forever — the obligation was met, and p. 63 states no penalty and
     #: no second attempt.
     discharged: frozenset[tuple[str, str]] = frozenset()
+    #: Concentration saves owed but not yet rolled, oldest first (p. 179, 0036 clause 3).
+    #:
+    #: **A separate structure from `discharged`, and the cardinality is the whole reason.**
+    #: An obligation above is owed *once per turn* — that is what the field means and why
+    #: `advanced_turn` clears it. p. 179 compels a Constitution save on *every* instance of
+    #: damage, so a creature struck twice by a Multiattack owes two. Keyed the way
+    #: `discharged` is keyed, the second would be suppressed and never rolled: a compelled
+    #: save that silently does not happen, which is the skip this engine exists to make
+    #: impossible and which leaves no trace in play — the spell simply stays up.
+    #:
+    #: Widening `discharged` to carry a count was the alternative, and it would make every
+    #: obligation's once-per-turn semantics depend on a field one rule uses. Two mechanisms
+    #: with different cardinalities are two structures (0019, 0036 clause 3).
+    #:
+    #: **Not cleared by `advanced_turn`**, for the same reason: a debt incurred on the
+    #: monster's turn is owed by the caster, who is not the creature whose turn is ending.
+    concentration_saves_owed: tuple[ConcentrationDebt, ...] = ()
 
     # --- Reading ------------------------------------------------------------------
 
@@ -843,6 +898,57 @@ class EncounterState:
         """
         return self._evolve(discharged=self.discharged | {(combatant_id, rule_id)})
 
+    def concentration_debt_for(self, combatant_id: str) -> ConcentrationDebt | None:
+        """The oldest Concentration save this creature owes, or `None` (0036 clause 3).
+
+        Oldest first, because the debts are one per damage instance and the document gives
+        no other order. A read, so it mutates nothing (R19) — the resolver asks it for the
+        amount p. 179's DC derives from, and the loop asks it whether anything is owed.
+        """
+        for debt in self.concentration_saves_owed:
+            if debt.combatant_id == combatant_id:
+                return debt
+        return None
+
+    def with_concentration_save_discharged(self, combatant_id: str) -> EncounterState:
+        """Drop the oldest Concentration save this creature owed, having rolled it.
+
+        **Not `discharged`, and that is 0036 clause 3 rather than an oversight.** An entry
+        in `discharged` means "owed once this turn, and met"; this queue means "owed once
+        per damage instance". A creature hit twice by a Multiattack owes two saves, so the
+        record of having met one has to remove *one* debt rather than mark the rule met.
+
+        Dropped whether the save succeeded, failed or was refused, exactly as
+        `with_obligation_discharged` records regardless of outcome — a debt that outlived
+        its adjudication would spin the loop that drains it forever.
+        """
+        debt = self.concentration_debt_for(combatant_id)
+        if debt is None:
+            raise ValueError(
+                f"{combatant_id!r} owes no Concentration save, so there is none to "
+                "discharge. The debt is recorded when the damage lands and dropped when "
+                "it is rolled, and a discharge with nothing to drop means the two have "
+                "come apart"
+            )
+        remaining = list(self.concentration_saves_owed)
+        remaining.remove(debt)
+        return self._evolve(concentration_saves_owed=tuple(remaining))
+
+    def with_concentration_ended(self, combatant_id: str) -> EncounterState:
+        """End what this creature was concentrating on (p. 179).
+
+        The state half of `EffectKind.CONCENTRATION_ENDED`. Reached only through a ruling,
+        which is what keeps a failed save the *only* way damage breaks Concentration — a
+        caller able to end it directly would be a caller able to decide the outcome the
+        save exists to decide (R1).
+
+        `Concentration.ended` is p. 179's own sentence and is what does the work here, so
+        this method holds the state transition and no rule of its own.
+        """
+        target = self.combatant(combatant_id)
+        ended = replace(target, concentration=target.concentration.ended())
+        return self._evolve(combatants=self._replacing(ended))
+
     # --- Evolving -----------------------------------------------------------------
 
     def _evolve(self, **changes: Any) -> EncounterState:
@@ -907,7 +1013,27 @@ class EncounterState:
         before = target.hit_points
 
         reduced = replace(target, hit_points=max(0, before - amount))
-        state = self._evolve(combatants=self._replacing(reduced))
+
+        # p. 179, "Damage": damage taken by a concentrating creature compels a Constitution
+        # save. **Recorded here, rolled nowhere near here** (0036 clause 2). Detection
+        # belongs where the triggering thing happens — 0023 clause 5's principle — but that
+        # clause put its whole mechanic in this method *because it is not a save*. This one
+        # is, and rolling it here would make `core.state` produce a result, which is the one
+        # thing R1 forbids however convenient the call site. So this appends a debt and the
+        # turn loop discharges it through the one adjudication entry point.
+        #
+        # After defences, deliberately, and for the reason stated above for the death save:
+        # p. 179 says "the damage taken", so a creature Immune to the type takes none and
+        # owes none. `ConcentrationDebt` refuses an amount of 0 rather than trusting this.
+        #
+        # `after_conditions` rather than the stored field, so this agrees with the read
+        # surface about who is concentrating — p. 179 ends Concentration on Incapacitated
+        # and nothing writes the field when a condition lands.
+        owed = self.concentration_saves_owed
+        if amount > 0 and target.concentration.after_conditions(target.conditions).active:
+            owed = (*owed, ConcentrationDebt(combatant_id=combatant_id, amount=amount))
+
+        state = self._evolve(combatants=self._replacing(reduced), concentration_saves_owed=owed)
         if amount == 0 or reduced.hit_points > 0 or target.death_saves.dead:
             return state
 

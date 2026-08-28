@@ -32,6 +32,7 @@ from srd_rules_engine.loop.turn import (
     Response,
     TurnEnd,
     TurnOutcome,
+    TurnStart,
 )
 
 _T = TypeVar("_T")
@@ -41,7 +42,7 @@ class DriverExhausted(Exception):
     """A scripted driver ran out of answers before the loop ran out of questions."""
 
 
-_R = TypeVar("_R", TurnOutcome, TurnEnd)
+_R = TypeVar("_R", TurnOutcome, TurnStart, TurnEnd)
 
 
 def drive(
@@ -50,9 +51,13 @@ def drive(
 ) -> _R:
     """Pump a loop phase with a driver. The loop asks; the driver answers; nothing else.
 
-    Generic over what the phase returns, because `TurnLoop.end_turn` is pumped exactly as
-    `run` is (0023 clause 1) and a second pump differing only in its return annotation is
-    a second place for the seam to drift.
+    Generic over what the phase returns, because all three phases are pumped exactly the
+    same way (0023 clause 1) and a second pump differing only in its return annotation is a
+    second place for the seam to drift.
+
+    `TurnStart` joined the constraint late, which is the drift this docstring warned about
+    happening: 0027 added the phase and not the type here, so `tests/test_turn_start.py`
+    hand-rolled a pump of its own. One pump, three phases.
     """
     try:
         request = next(loop)

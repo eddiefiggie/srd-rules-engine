@@ -36,7 +36,7 @@ from srd_rules_engine.core.read_surface import (
     read,
     verify,
 )
-from srd_rules_engine.core.spellcasting import SpellSlots
+from srd_rules_engine.core.spellcasting import Concentration, SpellSlots
 from srd_rules_engine.core.state import Combatant, EncounterState
 
 ABILITIES = {"str": 16, "dex": 12, "con": 14}
@@ -486,3 +486,61 @@ def test_the_token_still_commits_only_to_the_offered_set() -> None:
     first, second = read(state, "pc"), read(state, "pc")
     assert first.token == second.token
     assert verify(first.token, first.actions, state.generation) is Verdict.FRESH
+
+
+# --- Concentration reaches the surface derived, not as stored (p. 179, 0036) -------------
+
+
+def _concentrating(cid: str = "pc", spell: str = "hold-person") -> EncounterState:
+    state = encounter()
+    caster = dataclasses.replace(state.combatant(cid), concentration=Concentration().begin(spell))
+    return EncounterState(
+        generation=state.generation,
+        combatants=tuple(c if c.id != cid else caster for c in state.combatants),
+        turn_index=state.turn_index,
+        round_number=state.round_number,
+    ).with_initiative({"pc": 18, "boar": 9})
+
+
+def test_a_creature_not_concentrating_reports_nothing_rather_than_a_blank() -> None:
+    """`None`, not `""`. "Not concentrating" and "concentrating on something unnamed" are
+    different facts, and `Concentration.begin` refuses the second outright."""
+    result = read(encounter(), "pc")
+    assert result.situation is not None
+    assert result.situation.concentrating_on is None
+
+
+def test_what_a_caster_is_concentrating_on_reaches_the_agent() -> None:
+    result = read(_concentrating(), "pc")
+    assert result.situation is not None
+    assert result.situation.concentrating_on == "hold-person"
+
+
+def test_the_surface_reports_concentration_after_conditions_not_as_stored() -> None:
+    """p. 179: "Your Concentration ends if you have the Incapacitated condition."
+
+    The stored field is only as fresh as whoever last wrote it, and nothing writes it when
+    a condition lands. A surface reporting it raw would tell the agent a spell is still up
+    after the condition that broke it — so the read derives it, the way it already derives
+    every other aggregate here.
+    """
+    state = _concentrating()
+    stunned = dataclasses.replace(
+        state.combatant("pc"), conditions=Conditions(held=frozenset({Condition.STUNNED}))
+    )
+    state = EncounterState(
+        generation=state.generation,
+        combatants=tuple(c if c.id != "pc" else stunned for c in state.combatants),
+        turn_index=state.turn_index,
+        round_number=state.round_number,
+    )
+
+    assert state.combatant("pc").concentration.spell == "hold-person", (
+        "the stored value is unchanged — this test is only meaningful while the surface "
+        "and the field can disagree"
+    )
+    result = read(state, "pc")
+    assert result.situation is not None
+    assert result.situation.concentrating_on is None, (
+        "Stunned implies Incapacitated (R14), which p. 179 says ends Concentration"
+    )

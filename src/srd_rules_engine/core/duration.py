@@ -15,8 +15,16 @@ p. 106 gives three forms: **Concentration**, **Instantaneous**, and a **Time Spa
 "how long the spell lasts in rounds, minutes, hours, or the like".
 
 This module covers **both axes** of the time span, plus the early-out that appears alongside
-it. Concentration is `core.spellcasting` and already ends its own effects; Instantaneous
-never produces a lasting condition.
+it. Concentration is `core.spellcasting` — held on `Combatant`, broken by the save
+`core.concentration` rolls when damage lands (p. 179, 0036); Instantaneous never produces a
+lasting condition.
+
+That sentence read "and already ends its own effects" until #215, which is worth recording
+rather than quietly rewriting. It was describing a capability with **no consumer**: nothing
+in `src/` outside `core.spellcasting` referenced `Concentration` at all, no `Combatant` held
+one, and so nothing in an encounter could be concentrating for the effects to be ended for.
+The claim was true of the type and false of the engine, and it went on sounding right for as
+long as nobody read it — the same decay #228 found in `core.inventory`, in a second place.
 
 ## Which axis a span lands on, and why it is not a formatting detail
 

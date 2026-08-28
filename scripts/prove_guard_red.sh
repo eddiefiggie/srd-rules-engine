@@ -94,11 +94,26 @@ WATCHDOG_PID=""
 # the corruption in the tree, which is the failure this script exists to prevent. The run
 # below is backgrounded and waited on for the same reason: `wait` is interruptible by a
 # signal where a foreground command is not.
+#
+# **Restoring the source is not enough for a Python target**, and the gap is invisible
+# (#237). CPython decides a cached `.pyc` is current by comparing the recorded source
+# mtime — whole seconds — and size against the file. A corruption that changes neither, of
+# which `30` -> `31` is the ordinary case, restored inside the same second the corrupt run
+# compiled in, leaves a `.pyc` that still satisfies both checks. The tree then reads clean,
+# `git diff` is empty, and the *engine* keeps running the corrupted constant until
+# something else invalidates the cache. That is the exact failure mode this script exists
+# to prevent, one layer down. Deleting the target's bytecode is decisive where touching
+# the file is not.
 restore() {
     for pid in "$PYTEST_PID" "$WATCHDOG_PID"; do
         [ -n "$pid" ] && kill -TERM "$pid" 2>/dev/null
     done
     cp "$SNAPSHOT" "$TARGET"
+    case "$TARGET" in
+        *.py)
+            rm -f "$(dirname "$TARGET")/__pycache__/$(basename "$TARGET" .py)."*.pyc
+            ;;
+    esac
     rm -f "$SNAPSHOT" "$TIMED_OUT"
 }
 trap restore EXIT INT TERM
