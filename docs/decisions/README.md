@@ -104,6 +104,7 @@ rejected options and the reason survive, not the exact headings.
 | [0036](0036-a-fourth-occasion-owed-by-whoever-took-the-damage.md) | Concentration's damage save gets a fourth occasion — detection in `with_damage`, production in the loop, and the debt is per damage instance because `discharged` is once per turn | [#215](https://github.com/eddiefiggie/srd-rules-engine/issues/215) |
 | [0037](0037-a-concentration-is-an-early-out-not-an-axis.md) | A Concentration sustains an effect through a second **early-out** on its duration, not a fifth `DurationKind` — the span p. 179 states survives, and the end is materialised rather than derived | [#239](https://github.com/eddiefiggie/srd-rules-engine/issues/239), [#238](https://github.com/eddiefiggie/srd-rules-engine/issues/238) |
 | [0038](0038-a-spell-is-data-the-caster-carries.md) | A spell is ruleset data the **caster** carries — because legality is a question about the creature — and the engine wraps the ruleset's resolver so casting cannot be made free | [#244](https://github.com/eddiefiggie/srd-rules-engine/issues/244) |
+| [0039](0039-equipment-is-what-a-creature-holds-wears-and-carries.md) | Equipment is ruleset data the **creature** carries — worn, held or stowed as one closed field — and p. 105's free hand serves Somatic and Material **both** | [#256](https://github.com/eddiefiggie/srd-rules-engine/issues/256) |
 
 ## What belongs here, and what doesn't
 
