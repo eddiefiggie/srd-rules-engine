@@ -1046,6 +1046,21 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"requires Concentration",
     ),
     (
+        190,
+        "the Unarmed Strike's bonus is Strength PLUS Proficiency, with no proficiency to have",
+        r"Your bonus to the roll equals your Strength modifier plus your Proficiency Bonus",
+    ),
+    (
+        190,
+        "and its damage is flat rather than rolled — 1 plus the Strength modifier",
+        r"the target takes Bludgeoning damage equal to 1 plus your Strength modifier",
+    ),
+    (
+        190,
+        "Grapple and Shove turn on a size comparison, which is why #259 blocks both",
+        r"possible only if the target is no more than one size larger than you",
+    ),
+    (
         177,
         "the Attack action buys ONE attack roll, absent a feature that grants more",
         r"When you take the Attack action, you can make one attack roll with a weapon or an "

@@ -610,7 +610,7 @@ def test_no_weapon_list_ships_in_this_module() -> None:
     # indistinguishable from an invented one — which is the failure this guard names.
     # `HEAVY_SCORE_THRESHOLD` left this module with `Weapon` in #258 and is now guarded in
     # `core.equipment` — where the same reasoning applies to it unchanged.
-    allowed = {"INITIATIVE_DIE", "WEAPON_PROPERTY_VERIFICATION"}
+    allowed = {"INITIATIVE_DIE", "WEAPON_PROPERTY_VERIFICATION", "UNARMED_STRIKE_VERIFICATION"}
     assert constants == allowed, (
         f"{constants - allowed} are module constants; a rule value hiding in one "
         "reads exactly like a verified one"

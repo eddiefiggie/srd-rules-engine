@@ -29,6 +29,7 @@ from srd_rules_engine.core.read_surface import (
     DODGE,
     END_TURN,
     TOKEN_SCHEME,
+    UNARMED_STRIKE_ID,
     LegalAction,
     Verdict,
     attack_key,
@@ -150,6 +151,10 @@ def test_the_active_combatant_is_offered_actions() -> None:
     state = encounter()
     assert read(state, "pc").keys == (
         END_TURN,
+        # p. 177 offers "one attack roll with a weapon **or an Unarmed Strike**", and #267
+        # added the second half — so a creature with a blade in hand is offered both, and one
+        # with empty hands is still offered the strike.
+        attack_key(UNARMED_STRIKE_ID, "boar"),
         attack_key(FIXTURE_BLADE.id, "boar"),
         dash_key(MovementMode.WALK),
         DODGE,

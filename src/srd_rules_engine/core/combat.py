@@ -39,6 +39,7 @@ landed, which is what an unguarded prose claim beside working code does.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import Final
 
 from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.adjudicate import (
@@ -58,13 +59,18 @@ from srd_rules_engine.core.d20 import (
     TestKind,
     roll,
 )
+from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.equipment import HEAVY_SCORE_THRESHOLD as HEAVY_SCORE_THRESHOLD
 from srd_rules_engine.core.equipment import Weapon as Weapon
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.obstructions import Cover, total_cover
 from srd_rules_engine.core.position import distance_feet, within
+from srd_rules_engine.core.read_surface import UNARMED_REACH_FEET as UNARMED_REACH_FEET
+from srd_rules_engine.core.read_surface import UNARMED_STRIKE_ID as UNARMED_STRIKE_ID
 from srd_rules_engine.core.read_surface import attack_declared, attack_target
 from srd_rules_engine.core.rules import (
+    Rule,
+    RuleProvenance,
     Verification,
     VerificationMethod,
     VerificationState,
@@ -245,6 +251,121 @@ def attack_resolver() -> Resolver:
             may_not_claim=(
                 f"that {target.name} is dead, unless its hit points reached 0",
                 "any damage number other than the one the Ruling carries",
+            ),
+        )
+
+    return resolve
+
+
+#: R31. Asserted in `scripts/verify_d20_rules.py`.
+UNARMED_STRIKE_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference=(
+        "SRD v5.2.1, Rules Glossary, Unarmed Strike, p. 190 (the Damage option: an attack "
+        "roll at Strength modifier plus Proficiency Bonus, and Bludgeoning damage equal to 1 "
+        'plus the Strength modifier); "Attack [Action]", p. 177'
+    ),
+    date="2026-08-28",
+    method=VerificationMethod.ASSERTED,
+)
+
+
+def unarmed_strike_rule() -> Rule:
+    """p. 190's Unarmed Strike, Damage option."""
+    return Rule(
+        id=UNARMED_STRIKE_ID,
+        summary=(
+            "A melee attack made with the body against a target within 5 feet, at Strength "
+            "modifier plus Proficiency Bonus, dealing Bludgeoning damage equal to 1 plus the "
+            "Strength modifier."
+        ),
+        provenance=RuleProvenance.SRD,
+        verification=UNARMED_STRIKE_VERIFICATION,
+    )
+
+
+def unarmed_strike_resolver() -> Resolver:
+    """p. 190's Damage option, and only that one.
+
+    **The other two are not here and are not forgotten.** p. 190 offers three effects, and
+    Grapple and Shove both turn on "the target is no more than one size larger than you" —
+    a comparison this engine cannot make, because nothing has a `Size`
+    ([#259](https://github.com/eddiefiggie/srd-rules-engine/issues/259)). Offering them
+    without that check would decide a rule the document conditions, so they are disclosed in
+    the bounds below and filed rather than approximated.
+
+    **The Proficiency Bonus is unconditional here, and that is the difference from a weapon.**
+    p. 89 adds it only "if you have proficiency with" the weapon; p. 190 states the bonus flat
+    — "Your bonus to the roll equals your Strength modifier **plus your Proficiency Bonus**" —
+    with no proficiency to have. So this is a second bonus rule beside the weapon path rather
+    than a case of it, which is why it has its own resolver instead of a flag on that one.
+    """
+
+    def resolve(
+        *,
+        state: EncounterState,
+        declaration: Declaration,
+        facts: Mapping[str, Resolution],
+    ) -> Proposal:
+        actor = state.combatant(declaration.actor_id)
+        declared = attack_declared(declaration.intent.action_key)
+        if declared is None or declared[0] != UNARMED_STRIKE_ID:
+            raise ValueError(
+                "this declaration is not an Unarmed Strike: p. 190's strike is offered under "
+                f"its own action key, and one naming {declared[0] if declared else None!r} "
+                "names something else"
+            )
+        target = state.combatant(declared[1])
+        _refuse_if_behind_total_cover(state, actor, target)
+
+        strength = actor.modifier("str")
+        # p. 190: "Bludgeoning damage equal to 1 plus your Strength modifier." Floored at 0,
+        # because a creature with a Strength modifier below -1 would otherwise deal negative
+        # damage — which is healing, and which the document neither states nor contemplates.
+        # 0030 clause 1's direction: the reading that cannot manufacture an outcome.
+        dealt = max(0, 1 + strength)
+
+        return Proposal(
+            always=(
+                action_spent(
+                    actor.id,
+                    ActionKind.ACTION,
+                    description="the Action spent on the Attack (p. 176, p. 177)",
+                ),
+            ),
+            test=D20Test(
+                kind=TestKind.ATTACK,
+                target=target.armour_class,
+                target_basis=f"armour class {target.armour_class}, worn by {target.name}",
+                modifiers=(
+                    Modifier(source="ability:str", value=strength),
+                    # Unconditional (p. 190), unlike a weapon's.
+                    Modifier(source="proficiency", value=actor.proficiency_bonus),
+                ),
+            ),
+            on_success=(
+                Effect(
+                    kind=EffectKind.DAMAGE,
+                    target_id=target.id,
+                    amount=dealt,
+                    damage_type=DamageType.BLUDGEONING,
+                    description=(
+                        f"unarmed strike: 1 + {strength} Strength modifier "
+                        f"= {dealt} Bludgeoning (p. 190)"
+                    ),
+                ),
+            ),
+            citations=("srd:rules-glossary/unarmed-strike",),
+            may_claim=(
+                f"that {actor.name} struck {target.name} with a punch, kick, headbutt or "
+                "similar forceful blow",
+            ),
+            may_not_claim=(
+                "that the target was grappled or shoved — p. 190 offers those as two other "
+                "effects of an Unarmed Strike, and this engine offers neither, because both "
+                "turn on a size comparison it cannot make",
+                "that the damage was anything but Bludgeoning, or any amount other than the "
+                "one recorded",
             ),
         )
 
