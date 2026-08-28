@@ -248,14 +248,25 @@ In the tree, and these are the findings the decision rests on:
 
 | Clause | State |
 |---|---|
-| 1 — a fourth occasion through the one entry point | **Built.** `TurnLoop` discharges owed saves via `_obligation_declaration` and `Adjudicator.adjudicate`; no new path to an outcome |
+| 1 — a fourth occasion through the one entry point | **Built.** `TurnLoop._concentration_saves` drains the queue via `_obligation_declaration` and `Adjudicator.adjudicate`; no new path to an outcome. The rule and resolver are **`core.concentration`**, not `core.spellcasting` as the plan said: a resolver takes an `EncounterState`, and `core.state` already imports *from* `core.spellcasting`, so putting it there inverts that edge into a cycle. `core.save_ends` is the same shape for the same reason |
 | 2 — detection in state, production in the loop | **Built.** `EncounterState.with_damage` records; it rolls nothing and returns no result of its own |
 | 3 — per damage instance, not `discharged` | **Built.** A separate ordered structure keyed by the damaged creature; `discharged` is unchanged. Guarded by a test asserting two instances in one turn owe two saves |
-| 4 — each debt carries its amount | **Built.** Recorded at damage time; the resolver closes over it |
+| 4 — each debt carries its amount | **Built.** Recorded at damage time. The resolver **reads it back off the debt** rather than closing over it, which the clause's wording anticipated poorly: resolvers are registered per rule id, so a closure would need one rule per damage total, with a number inside an identifier. Reading it back also leaves one number in one place, so the roll and the record cannot disagree — and it is still a number the *engine* recorded, which is the half R4 turns on |
 | 5 — recorded after defences | **Built.** Immunity to the damage type owes no save; guarded |
-| 6 — all three phases discharge | **Built** through one shared helper. Guarded by the Burning-at-turn-start case |
-| 7 — `TurnOutcome` gains a field additively | **Built.** Defaulted; no name removed or renamed; `API_VERSION` unchanged |
+| 6 — all three phases discharge | **Built** through one shared helper, called at the **top of each pass** of the two obligation loops rather than after them — so the pass that finds nothing pending still discharges what the previous one incurred, and a phase with no obligations of its own drains a queue an earlier one left. Guarded by the Burning-at-turn-start case |
+| 7 — `TurnOutcome` gains a field additively | **Built**, as three: `consequential`, `consequential_narrations` and `unresolvable`. The clause said one because it was counting the rulings and had not counted their narrations (R29 owes one per ruling) or the ruleset gap `TurnStart` and `TurnEnd` already name. All defaulted; no name removed or renamed; `API_VERSION` unchanged |
 | 8 — the claim becomes honest, the figure does not move | **Built.** Coverage 95 of 209 before and after; a behavioural reachability guard replaces the assertion, and `core.duration`'s stale sentence is corrected |
+
+**Two defects the corruption proofs found, both fixed in this change and neither visible to
+review.** They are recorded here because each is an argument for the procedure rather than a
+detail of this rule. First, p. 179's DC floor and cap were **pinned to nothing**: every
+assertion in `tests/test_spellcasting.py` compared against `CONCENTRATION_DC_FLOOR` and
+`CONCENTRATION_DC_CAP` rather than against 10 and 30, so a floor of 11 left the entire file
+green — the plan asked for that corruption to be proved red and it was not. Second,
+`scripts/prove_guard_red.sh` restored the source and not its bytecode, so a same-size
+corruption (`30` -> `31`) restored inside the same second the corrupt run compiled in left a
+`.pyc` CPython still considered current: `git diff` read clean while the **engine** went on
+running the corrupt constant.
 
 **The unbuilt breakers are filed rather than left in prose**:
 [#235](https://github.com/eddiefiggie/srd-rules-engine/issues/235) holds starting Concentration

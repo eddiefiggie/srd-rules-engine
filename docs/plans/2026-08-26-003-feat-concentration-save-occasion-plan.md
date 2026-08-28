@@ -296,6 +296,17 @@ shape ([#216](https://github.com/eddiefiggie/srd-rules-engine/issues/216)); any 
 - **Execution note:** the two-instance and the Burning cases are the ones a design that looked
   right would fail. Write them first.
 - **Verification:** `pytest` green; the ledger shows two entries for one declaration.
+- **As built, where it differs from the above** (amended after the work landed, so the plan
+  and the tree agree). The rule and resolver are **`core.concentration`**, a module of their
+  own: a resolver takes an `EncounterState`, and `core.state` already imports *from*
+  `core.spellcasting`, so putting them there inverts that edge into a cycle. `core.save_ends`
+  is the same shape for the same reason. The resolver **reads the amount off the debt in
+  state** rather than closing over it, because resolvers are registered per rule id and a
+  closure would need one rule per damage total. The drain is called at the **top of each
+  pass** of the two obligation loops rather than after them, so a phase with no obligations
+  of its own still discharges a queue an earlier phase left. `TurnOutcome` gained **three**
+  fields, not one: the rulings, their narrations (R29 owes one each), and the `unresolvable`
+  obligations `TurnStart` and `TurnEnd` already name.
 
 ### U5. Assert p. 179, and guard what was proved
 
@@ -315,6 +326,14 @@ shape ([#216](https://github.com/eddiefiggie/srd-rules-engine/issues/216)); any 
   prove that corruption on a copy and delete the copy, as #231 and #233 did. The pytest guards
   go through the script.
 - **Verification:** verifier reports the new clause; both corruptions red.
+- **As built.** The DC clause p. 179's arithmetic rests on was already asserted (#19); what
+  had no clause was the **trigger** sentence, so that is the row added. The floor corruption
+  did **not** go red as this unit assumed — every assertion in `tests/test_spellcasting.py`
+  compares against `CONCENTRATION_DC_FLOOR` and `CONCENTRATION_DC_CAP` rather than against 10
+  and 30, so the whole file stays green against a wrong floor. The literals are now pinned as
+  literals and both corruptions go red. Proving the cap red then exposed a second defect, in
+  `scripts/prove_guard_red.sh`: it restored the source and not its bytecode, so a same-size
+  corruption survived the restore in the running engine while `git diff` read clean.
 
 ### U6. Figures, build stamp, and the issue's answer
 
