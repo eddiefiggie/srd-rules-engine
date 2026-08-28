@@ -1046,6 +1046,11 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"requires Concentration",
     ),
     (
+        90,
+        "Two-Handed requires two hands, which is a claim about the wielder's hands",
+        r"A Two-Handed weapon requires two hands when you attack with it",
+    ),
+    (
         190,
         "the Unarmed Strike's bonus is Strength PLUS Proficiency, with no proficiency to have",
         r"Your bonus to the roll equals your Strength modifier plus your Proficiency Bonus",

@@ -147,15 +147,42 @@ class Item:
 
 @dataclass(frozen=True)
 class Carried:
-    """One item, and where the creature has it."""
+    """One item, and where — and how — the creature has it."""
 
     item: Item
     carriage: Carriage = Carriage.STOWED
+    #: How many hands this creature has committed to it, when that differs from the item's
+    #: own requirement (p. 90). `None` means the item decides.
+    #:
+    #: **The grip belongs here rather than on the weapon**, and that is #263's correction.
+    #: `Weapon.wielded_two_handed` was a field on the *weapon* describing how the *creature*
+    #: was holding it, so two creatures could not hold the same Versatile weapon differently
+    #: and one could not change its grip. It is the same mistake `Weapon.proficient` was —
+    #: a fact about the wielder stored on the wielded thing — one field further down, and it
+    #: survived 0040 clause 2 because that record was looking at proficiency.
+    #:
+    #: p. 90: "A Versatile weapon can be used with one or two hands", which is a choice the
+    #: creature makes each time it picks the thing up.
+    hands: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.hands is None:
+            return
+        if self.carriage is not Carriage.HELD:
+            raise ValueError(
+                f"an item that is {self.carriage.value} commits no hands, so stating a grip "
+                "for it describes nothing. p. 90's choice of one hand or two is about a "
+                "weapon being *used*"
+            )
+        if self.hands < 0:
+            raise ValueError(f"a grip commits zero or more hands, not {self.hands}")
 
     @property
     def hands_used(self) -> int:
         """What this costs in hands right now — nothing unless it is being held (p. 105)."""
-        return self.item.hands_when_held if self.carriage is Carriage.HELD else 0
+        if self.carriage is not Carriage.HELD:
+            return 0
+        return self.item.hands_when_held if self.hands is None else self.hands
 
 
 def free_hands(equipment: tuple[Carried, ...], hands: int | None) -> int | None:
@@ -233,7 +260,6 @@ class Weapon(Item):
     heavy: bool = False
     #: Versatile (p. 90): the damage die when "used with two hands to make a melee attack".
     versatile_sides: int | None = None
-    wielded_two_handed: bool = False
     #: Graze (p. 90), a mastery property: damage on a miss equal to the ability modifier.
     graze: bool = False
     #: Range (p. 90): "The first is the weapon's normal range in feet, and the second is
@@ -265,15 +291,18 @@ class Weapon(Item):
             if self.melee:
                 raise ValueError("Range is a ranged-weapon property; a melee weapon uses reach")
 
-    @property
-    def sides_in_use(self) -> int:
-        """The damage die this attack rolls.
+    def sides_in_use(self, hands: int) -> int:
+        """The damage die this attack rolls, for a weapon held in that many hands.
 
-        p. 90: a Versatile weapon "deals that damage when used with two hands to make a
+        p. 90: a Versatile weapon "deals that damage **when used with two hands** to make a
         melee attack". Both halves are conditions — a versatile weapon wielded in one hand
         rolls its ordinary die.
+
+        **The grip arrives as an argument since #263**, because it is the creature's and not
+        the weapon's: `wielded_two_handed` was a field here, so two creatures could not hold
+        the same Versatile weapon differently. `Carried.hands` records it now.
         """
-        if self.versatile_sides is not None and self.wielded_two_handed and self.melee:
+        if self.versatile_sides is not None and hands >= 2 and self.melee:
             return self.versatile_sides
         return self.damage_sides
 
