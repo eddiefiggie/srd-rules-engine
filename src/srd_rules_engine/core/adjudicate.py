@@ -37,6 +37,7 @@ from enum import StrEnum
 from types import MappingProxyType
 from typing import Final, Protocol
 
+from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.canonical import MAX_SAFE_INTEGER
 from srd_rules_engine.core.conditions import Condition
 from srd_rules_engine.core.d20 import (
@@ -62,6 +63,7 @@ from srd_rules_engine.core.memory_port import (
 )
 from srd_rules_engine.core.read_surface import LegalAction, Verdict, legal_actions, verify
 from srd_rules_engine.core.rules import Ruleset
+from srd_rules_engine.core.spellcasting import MAX_SPELL_LEVEL
 from srd_rules_engine.core.state import EncounterState
 from srd_rules_engine.core.triggers import Catalogue, MatchContext, Trigger, challenge_text
 
@@ -170,6 +172,29 @@ class EffectKind(StrEnum):
     #: SRD rule that grants Exhaustion grants exactly one, so the field is generality rather
     #: than a case anything exercises today.
     EXHAUSTION_GAINED = "exhaustion-gained"
+    #: A spell slot spent to cast a spell (p. 104, 0038 clause 6). `amount` is the **slot**
+    #: level, which is not always the spell's — p. 104 lets a spell be cast "at a slot's
+    #: level or higher", and what the extra level does is the spell's description's business.
+    #:
+    #: The first effect kind that is a **cost** rather than a consequence. It applies because
+    #: the casting happened, not because a branch was selected, which is what `Proposal.always`
+    #: is for.
+    SPELL_SLOT_EXPENDED = "spell-slot-expended"
+    #: An action spent by the thing that was declared (p. 185, p. 176-177). `amount` is
+    #: unused and 0; which action it was is `ActionKind`, carried in `action`.
+    #:
+    #: **The first time the action economy is charged by an adjudication.** `ActionBudget`
+    #: has been complete and tested since the economy landed, and `spend` had no caller
+    #: outside `dodging()` — so an attack does not cost the Action to this day. Casting is
+    #: charged because p. 185 states the cost as part of the act; the rest of the economy is
+    #: a separate gap, filed rather than quietly half-fixed here.
+    ACTION_SPENT = "action-spent"
+    #: Concentration begun (p. 179, 0038 clause 7). What it is **on** is the ruling's own rule
+    #: id, taken the way `EXHAUSTION_GAINED` takes it (0028 clause 1) — from `_apply`'s
+    #: `rule_id` rather than from a field here, so no effect can claim a source its ruling did
+    #: not have. That is also why p. 179's "or activate another effect" is expressible: a rule
+    #: id says which mechanic, and says nothing about it being a spell.
+    CONCENTRATION_BEGUN = "concentration-begun"
     #: Concentration broken by a failed save (0036 clause 1). Its own kind rather than a
     #: `CONDITION_ENDED`, because Concentration is not one of the fifteen conditions the
     #: glossary tags — it is per-creature state, which is 0027 clause 5's reasoning applied
@@ -261,6 +286,8 @@ class Effect:
     #: Named `grappler` in the ledger until `RULING_VERSION` 6, when Grappled stopped being
     #: the only condition that needed one.
     source_id: str | None = None
+    #: `ACTION_SPENT` only: which of the three the act cost (p. 176-177).
+    action: ActionKind | None = None
     #: 0032 clauses 1-3. When set, this effect applies only if the predicate holds against
     #: what a **sibling** effect in the same branch settled to — and `_apply` is the only
     #: place that can ask, because it is the only place the settled number exists.
@@ -293,6 +320,12 @@ class Effect:
                 "what siblings settled to, and a damage effect both contributes to that "
                 "and would depend on it — so whether it applied would turn on where it sat "
                 "in the branch. No rule the sweep behind 0032 found asks for this"
+            )
+        if (self.kind is EffectKind.ACTION_SPENT) != (self.action is not None):
+            raise ValueError(
+                "an action-spent effect names which action it spent, and no other kind "
+                "carries one. p. 176-177 gives three and they are not interchangeable — a "
+                "Reaction is free of the other two"
             )
         if self.kind is not EffectKind.CONDITION_APPLIED and (
             self.duration is not None or self.source_id is not None
@@ -349,6 +382,56 @@ def condition_ended(target_id: str, condition: Condition, *, description: str) -
         amount=0,
         description=description,
         condition=condition,
+    )
+
+
+def action_spent(actor_id: str, action: ActionKind, *, description: str) -> Effect:
+    """The action an act cost (p. 176-177, p. 185).
+
+    A cost rather than a consequence, so it belongs in `Proposal.always` like every other
+    cost — the act happened, whatever the roll said about it.
+    """
+    return Effect(
+        kind=EffectKind.ACTION_SPENT,
+        target_id=actor_id,
+        amount=0,
+        description=description,
+        action=action,
+    )
+
+
+def spell_slot_expended(caster_id: str, slot_level: int, *, description: str) -> Effect:
+    """The cost of casting with a slot (p. 104, 0038 clauses 5 and 6).
+
+    The **slot** level, which p. 104 allows to exceed the spell's: "you expend a slot of that
+    spell's level or higher". A cantrip produces no effect of this kind at all rather than one
+    of level 0 — p. 104 lists four ways to cast without a slot, and none of them spends one.
+    """
+    if slot_level < 1:
+        raise ValueError(
+            f"a spell slot is level 1 to {MAX_SPELL_LEVEL}, not {slot_level}. p. 104 puts a "
+            "level 0 spell outside the slot economy entirely, so a cantrip expends no slot "
+            "rather than expending a slot of no level"
+        )
+    return Effect(
+        kind=EffectKind.SPELL_SLOT_EXPENDED,
+        target_id=caster_id,
+        amount=slot_level,
+        description=description,
+    )
+
+
+def concentration_begun(caster_id: str, *, description: str) -> Effect:
+    """Concentration started by the ruling that is applying this (p. 179, 0038 clause 7).
+
+    Carries no name for what is being concentrated on, deliberately: `_apply` takes the
+    ruling's own rule id, so the record cannot disagree with the ruling that produced it.
+    """
+    return Effect(
+        kind=EffectKind.CONCENTRATION_BEGUN,
+        target_id=caster_id,
+        amount=0,
+        description=description,
     )
 
 
@@ -495,6 +578,18 @@ class Proposal:
 
     test: D20Test | None = None
     citations: tuple[str, ...] = ()
+    #: Effects that apply because the **action happened**, not because a branch was selected
+    #: (0038 clause 6). A spell slot is the first: p. 104 ties expenditure to the casting —
+    #: "When you cast a spell, you expend a slot" — and says nothing about how the roll came
+    #: out.
+    #:
+    #: **Not the same as `outcome`.** That is the branch a *testless* proposal resolves to,
+    #: and it is still a consequence — Falling's damage is what the fall did. This is what the
+    #: act cost, and it applies alongside a test's branches rather than instead of them.
+    #:
+    #: The alternative was duplicating a cost into every branch, which is safe, says the wrong
+    #: thing, and escapes the next branch somebody adds.
+    always: tuple[Declared, ...] = ()
     #: The branch a testless proposal resolves to. Not `on_success`, because nothing
     #: succeeded — there was no test to succeed at, and a name implying one would be the
     #: record saying a roll happened.
@@ -529,7 +624,14 @@ class Proposal:
                 "the branch taken when there is no test, so nothing would select it here. "
                 "Use on_success/on_failure for a proposal that rolls"
             )
-        for name in ("outcome", "on_success", "on_failure", "on_natural_20", "on_natural_1"):
+        for name in (
+            "always",
+            "outcome",
+            "on_success",
+            "on_failure",
+            "on_natural_20",
+            "on_natural_1",
+        ):
             _refuse_undecidable_conditional(name, getattr(self, name) or ())
 
 
@@ -1044,14 +1146,20 @@ def _branch(proposal: Proposal, result: D20Result | None) -> Sequence[Declared]:
     need them say so in terms: a natural 1 on a death save costs two failures *instead of*
     the one an ordinary failure costs, not as well as.
     """
+    # 0038 clause 6. What the act cost comes first, and comes whatever was selected: p. 104
+    # spends the slot on the casting, not on the outcome. First rather than last so that a
+    # conditional in the selected branch reads a state the cost has already settled, and so
+    # that the ledger records the cost before the consequence — which is the order they
+    # happened in.
     if result is None:
         # 0027 clause 6: no test, so no branch was selected — there is one.
-        return proposal.outcome
+        return (*proposal.always, *proposal.outcome)
     if result.used == DIE_SIDES and proposal.on_natural_20 is not None:
-        return proposal.on_natural_20
+        return (*proposal.always, *proposal.on_natural_20)
     if result.used == 1 and proposal.on_natural_1 is not None:
-        return proposal.on_natural_1
-    return proposal.on_success if result.succeeded else proposal.on_failure
+        return (*proposal.always, *proposal.on_natural_1)
+    selected = proposal.on_success if result.succeeded else proposal.on_failure
+    return (*proposal.always, *selected)
 
 
 def _roll_declared(
@@ -1189,6 +1297,17 @@ def _apply(
         elif effect.kind is EffectKind.CONDITION_ENDED:
             assert effect.condition is not None
             state = state.with_condition_ended(effect.target_id, effect.condition)
+        elif effect.kind is EffectKind.ACTION_SPENT:
+            assert effect.action is not None  # __post_init__ refuses one without
+            state = state.with_action_spent(effect.target_id, effect.action)
+        elif effect.kind is EffectKind.SPELL_SLOT_EXPENDED:
+            state = state.with_spell_slot_expended(effect.target_id, effect.amount)
+        elif effect.kind is EffectKind.CONCENTRATION_BEGUN:
+            # 0028 clause 1's move, for the same reason: what the Concentration is *on* is
+            # the ruling's own rule, so it is taken from here rather than carried on the
+            # effect. No payload field, and no way to claim a source the ruling did not have.
+            assert rule_id is not None, "an outcome always names the rule that produced it"
+            state = state.with_concentration_begun(effect.target_id, rule_id)
         elif effect.kind is EffectKind.CONCENTRATION_ENDED:
             state = state.with_concentration_ended(effect.target_id)
         elif effect.kind is EffectKind.EXHAUSTION_GAINED:
@@ -1309,6 +1428,7 @@ def _effect_payload(e: Effect) -> Mapping[str, object]:
         # 0032 clause 4. The predicate, so the record says what was ASKED as well as what
         # was answered — an effect that applied unconditionally and one whose condition
         # happened to hold are different facts.
+        "action": str(e.action) if e.action else None,
         "when": str(e.when) if e.when else None,
         "description": e.description,
     }

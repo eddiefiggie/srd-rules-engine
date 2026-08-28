@@ -540,7 +540,7 @@ def test_the_surface_reports_no_concentration_once_a_condition_has_broken_it() -
         round_number=state.round_number,
     )
 
-    assert state.combatant("pc").concentration.spell is None, (
+    assert state.combatant("pc").concentration.rule_id is None, (
         "the end is materialised now, so the field itself is the answer the surface reports"
     )
     result = read(state, "pc")

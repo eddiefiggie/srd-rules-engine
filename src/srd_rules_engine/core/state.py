@@ -26,7 +26,7 @@ from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 from typing import Any, Final
 
-from srd_rules_engine.core.actions import ActionBudget, still_dodging
+from srd_rules_engine.core.actions import ActionBudget, ActionKind, still_dodging
 from srd_rules_engine.core.areas import Area
 from srd_rules_engine.core.clock import (
     STABLE_RECOVERY_HIT_POINTS,
@@ -73,7 +73,7 @@ from srd_rules_engine.core.sight import (
     obscurement_at,
 )
 from srd_rules_engine.core.skills import SKILL_ABILITY, PerceptionCheck, Skill
-from srd_rules_engine.core.spellcasting import Concentration, SpellSlots
+from srd_rules_engine.core.spellcasting import Concentration, Spell, SpellSlots
 
 #: p. 17: "On your third success, you become Stable... On your third failure, you die."
 DEATH_SAVE_THRESHOLD: Final = 3
@@ -264,6 +264,21 @@ class Combatant:
     #: Spell slots, for a creature that has any. `None` for one that does not, which is a
     #: different thing from having none left.
     slots: SpellSlots | None = None
+    #: What this creature can cast — **ruleset data, carried by the caster** (0038 clause 1).
+    #:
+    #: It rides here rather than being handed to `legal_actions`, and that is 0026 clause 1
+    #: rather than convenience: `legal_actions(state, actor_id)` takes state and nothing else,
+    #: so a caller passing a spell list in would be a caller deciding what may be cast, one
+    #: call at a time. Lighting and obstructions ride on the state for the same reason.
+    #:
+    #: **One list, not two** (0038 clause 8). p. 104 says features specify "which spells you
+    #: have access to […] and whether you can change the list you have prepared"; it defines
+    #: no separate "known spells" list. Preparation (#249) later refines how this list is
+    #: arrived at rather than adding a second beside it.
+    #:
+    #: What each spell *does* is not here. That is the resolver the ruleset registers through
+    #: `core.casting.spell_resolvers`.
+    spells: tuple[Spell, ...] = ()
     #: The spells this creature has prepared, by id (p. 104, #19). Ids are the ruleset's,
     #: because this engine ships no spell list (#21) and will not invent one.
     #:
@@ -536,6 +551,19 @@ class EncounterState:
     #: **Not cleared by `advanced_turn`**, for the same reason: a debt incurred on the
     #: monster's turn is owed by the caster, who is not the creature whose turn is ending.
     concentration_saves_owed: tuple[ConcentrationDebt, ...] = ()
+    #: Who has already expended a spell slot this turn (p. 105, 0038): "On a turn, you can
+    #: expend only one spell slot to cast a spell."
+    #:
+    #: **Its own field rather than a `discharged` entry, and the cardinality is not the
+    #: reason** — that matches, and both clear on the same advance. The *meaning* is what
+    #: differs. `discharged` records that an **obligation was met**; this records that a
+    #: **resource was spent**. A guard reading one for the other is answering a different
+    #: question, and 0036 clause 3 is the record of what one structure carrying two meanings
+    #: costs. Two mechanisms that clear together are still two mechanisms.
+    #:
+    #: A cantrip never appears here: p. 104 puts a level 0 spell outside the slot economy, so
+    #: it spends nothing and this rule has nothing to say about it.
+    slots_expended_this_turn: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
         """Retire every effect whose sustaining Concentration is gone (p. 179, 0037 clause 3).
@@ -1010,6 +1038,62 @@ class EncounterState:
         remaining = list(self.concentration_saves_owed)
         remaining.remove(debt)
         return self._evolve(concentration_saves_owed=tuple(remaining))
+
+    def with_action_spent(self, combatant_id: str, action: ActionKind) -> EncounterState:
+        """Charge the action economy for something a ruling did (p. 176-177, p. 185).
+
+        `ActionBudget.spend` refuses one that is not available and asks the conditions itself,
+        so a caller cannot spend an action a creature does not have by forgetting to check.
+
+        **Casting is the only thing that charges this today**, and that is a disclosed gap
+        rather than a design: an attack has never cost the Action, because nothing in the
+        adjudication path spent anything until #248.
+        """
+        target = self.combatant(combatant_id)
+        spent = replace(target, actions=target.actions.spend(action, target.conditions))
+        return self._evolve(combatants=self._replacing(spent))
+
+    def with_spell_slot_expended(self, combatant_id: str, slot_level: int) -> EncounterState:
+        """Spend a slot to cast, and record that this turn's one slot has gone (p. 104, p. 105).
+
+        Two rules, one transition, because they are one event. p. 104 spends the slot; p. 105
+        says "On a turn, you can expend only one spell slot to cast a spell", and a caller
+        able to do the first without the second would be a caller able to cast twice by
+        forgetting a rule.
+
+        `SpellSlots.expend` refuses a slot that is not there, so an overspend is an error
+        rather than a negative count. Reached only through a ruling — the wrapper in
+        `core.spellcasting` is what puts the effect in the branch, so a ruleset cannot cast
+        for free by declining to write it (0038 clause 3).
+        """
+        target = self.combatant(combatant_id)
+        if target.slots is None:
+            raise ValueError(
+                f"{target.name} has no spell slots at all, so there is none to expend. A "
+                "caster's slots are ruleset data and a creature without them casts only "
+                "what p. 104 puts outside the slot economy"
+            )
+        spent = replace(target, slots=target.slots.expend(slot_level))
+        return self._evolve(
+            combatants=self._replacing(spent),
+            slots_expended_this_turn=self.slots_expended_this_turn | {combatant_id},
+        )
+
+    def with_concentration_begun(self, combatant_id: str, rule_id: str) -> EncounterState:
+        """Begin concentrating on what that rule produced (p. 179, 0038 clause 7).
+
+        The rule id rather than a spell name, because p. 179's replacement clause is "the
+        moment you start casting a spell that requires Concentration **or activate another
+        effect that requires Concentration**" — so an item-granted Concentration has to be
+        expressible, and a field called `spell` could not hold one honestly (#241).
+
+        `Concentration.begin` is p. 179's own replacement rule and does the work: whatever
+        came before ends, at the moment this starts rather than when it resolves, so a caster
+        cannot hold two by having the second fail.
+        """
+        target = self.combatant(combatant_id)
+        begun = replace(target, concentration=target.concentration.begin(rule_id))
+        return self._evolve(combatants=self._replacing(begun))
 
     def with_concentration_ended(self, combatant_id: str) -> EncounterState:
         """End what this creature was concentrating on (p. 179).
@@ -1706,19 +1790,23 @@ class EncounterState:
         ended = self._retired(self.combatants[self.turn_index].id)
 
         # An obligation is owed once per turn, so the record of having met it does not
-        # outlive the turn it belonged to.
+        # outlive the turn it belonged to. p. 105's one spell slot is cleared in the same
+        # breath and is deliberately not the same field: one records an obligation met, the
+        # other a resource spent, and they agree about *when* rather than about what.
         following = self.turn_index + 1
         if following < len(self.combatants):
             return ended._evolve(
                 turn_index=following,
                 combatants=ended._refreshed(following),
                 discharged=frozenset(),
+                slots_expended_this_turn=frozenset(),
             )
         return ended._evolve(
             turn_index=0,
             round_number=self.round_number + 1,
             combatants=ended._refreshed(0),
             discharged=frozenset(),
+            slots_expended_this_turn=frozenset(),
         )
 
     def _retired(self, actor_id: str) -> EncounterState:

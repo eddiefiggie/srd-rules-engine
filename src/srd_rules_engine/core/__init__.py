@@ -31,9 +31,11 @@ from srd_rules_engine.core.adjudicate import (
     Resolver,
     Ruling,
     Status,
+    concentration_begun,
     concentration_ended,
     condition_applied,
     condition_ended,
+    spell_slot_expended,
 )
 from srd_rules_engine.core.canonical import (
     MAX_SAFE_INTEGER,
@@ -41,6 +43,7 @@ from srd_rules_engine.core.canonical import (
     canonicalize,
     digest,
 )
+from srd_rules_engine.core.casting import spell_resolver, spell_resolvers
 from srd_rules_engine.core.clock import (
     HOURS_PER_DAY,
     MINUTES_PER_DAY,
@@ -175,6 +178,8 @@ from srd_rules_engine.core.read_surface import (
     Verdict,
     attack_key,
     attack_target,
+    cast_declared,
+    cast_key,
     issue_token,
     legal_actions,
     read,
@@ -362,7 +367,10 @@ __all__ = [
     "burning_resolver",
     "burning_rule",
     "canonicalize",
+    "cast_declared",
+    "cast_key",
     "check_storable",
+    "concentration_begun",
     "concentration_ended",
     "concentration_resolver",
     "concentration_rule",
@@ -404,6 +412,9 @@ __all__ = [
     "save_ends_rule_id",
     "save_ends_rules",
     "session_report",
+    "spell_resolver",
+    "spell_resolvers",
+    "spell_slot_expended",
     "stable_recovery_minute",
     "suffocation_resolver",
     "suffocation_rule",

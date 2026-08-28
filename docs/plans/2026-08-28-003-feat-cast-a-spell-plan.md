@@ -112,9 +112,15 @@ the R32 disclosures; guards and proofs; the build stamp.
 - **Components and Casting in Armor** — #245, #246,
   [#247](https://github.com/eddiefiggie/srd-rules-engine/issues/247). Disclosed here.
 - **The Magic action as a *general* action**, for features and magic items that require one
-  (p. 185). This builds the casting half only. **File before merge** — p. 185 states two uses
-  and this serves one, which is exactly the kind of half-built entry a later audit reads as
-  finished.
+  (p. 185). This builds the casting half only. Filed as
+  [#253](https://github.com/eddiefiggie/srd-rules-engine/issues/253), and `magic` stays
+  unclaimed until both halves exist.
+- **Nothing but casting charges the action economy.** Found here rather than anticipated:
+  `ActionBudget.spend` had no caller outside `dodging()`, so **an attack does not cost the
+  Action** and still does not. Charging it is a behavioural change to a mechanic that has
+  shipped since the vertical slice, and folding it into a spellcasting PR would be the wrong
+  place for it. Filed as [#252](https://github.com/eddiefiggie/srd-rules-engine/issues/252)
+  and disclosed in `core.casting`.
 
 **Out of scope:** any spell content, now or ever (R31).
 
@@ -192,4 +198,10 @@ the R32 disclosures; guards and proofs; the build stamp.
   accepted it; the alternative escapes the next branch someone adds.
 - **The wrapper is indirection**, and a consumer who reaches past `spell_resolvers` gets a
   free spell. Mitigated by that being the only documented path and by a guard.
-- **Coverage will move**, and the figure must be re-derived rather than guessed.
+- ~~**Coverage will move**, and the figure must be re-derived rather than guessed.~~ **It does
+  not.** The inventory carries no shape for p. 104-105's casting rules at all — every entry is
+  drawn from the Rules Glossary and the other enumerable sections — and the one entry this
+  work touches, `magic` (p. 185), stays **unclaimed** because its second half is unbuilt
+  ([#253](https://github.com/eddiefiggie/srd-rules-engine/issues/253)). Kept struck through
+  because the assumption was wrong in the direction that overstates, which is the one R17
+  exists to catch.

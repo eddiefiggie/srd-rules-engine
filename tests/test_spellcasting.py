@@ -128,23 +128,28 @@ def test_a_negative_ability_modifier_lowers_both() -> None:
 
 def test_starting_a_second_concentration_spell_ends_the_first() -> None:
     """p. 179: "You lose Concentration on an effect the moment you start casting a spell
-    that requires Concentration."
+    that requires Concentration **or activate another effect that requires Concentration**."
 
     Replacement rather than refusal, and at the moment casting *starts* rather than when it
     resolves — so a caster cannot keep the first by having the second one fail. Holding two
     is unrepresentable here rather than merely discouraged.
-    """
-    holding = Concentration().begin("Bless")
-    assert holding.spell == "Bless"
 
-    second = holding.begin("Hold Person")
-    assert second.spell == "Hold Person"
+    **What is held is a rule id**, not a spell name (#241, 0038 clause 7). The second half of
+    the sentence is why: an effect activated from a magic item requires Concentration too, and
+    it has no spell name to put in a field. So the ids here are rule ids, and the fact that
+    one of them could name an item's effect rather than a spell is the point.
+    """
+    holding = Concentration().begin("spell:bless")
+    assert holding.rule_id == "spell:bless"
+
+    second = holding.begin("item:necklace-of-prayer-beads")
+    assert second.rule_id == "item:necklace-of-prayer-beads"
     assert second.active
 
 
 def test_concentration_can_be_ended_at_will() -> None:
     """p. 179: "The creator can end Concentration at any time (no action required).\""""
-    assert not Concentration().begin("Bless").ended().active
+    assert not Concentration().begin("spell:bless").ended().active
 
 
 def test_incapacitation_ends_concentration_without_a_save() -> None:
@@ -167,7 +172,7 @@ def test_incapacitation_ends_concentration_without_a_save() -> None:
         armour_class=12,
         abilities={"con": 12},
         proficiency_bonus=2,
-        concentration=Concentration().begin("Bless"),
+        concentration=Concentration().begin("spell:bless"),
     )
     assert holding.concentration.active, "precondition: it is up while nothing has broken it"
 

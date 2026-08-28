@@ -45,7 +45,7 @@ def caster(*, spell: str | None = "hold-person") -> Combatant:
         abilities={"str": 8, "dex": 12, "con": 14},
         proficiency_bonus=2,
         is_player_character=True,
-        concentration=Concentration(spell=spell),
+        concentration=Concentration(rule_id=spell),
     )
 
 
@@ -215,7 +215,7 @@ def test_damage_that_breaks_concentration_drops_it() -> None:
 def test_another_casters_effect_is_untouched() -> None:
     """0037 clause 2's point: ending X's Concentration retires exactly what X sustained."""
     druid = replace(
-        caster(), id="druid", name="Druid", concentration=Concentration(spell="entangle")
+        caster(), id="druid", name="Druid", concentration=Concentration(rule_id="entangle")
     )
     both = replace(
         victim(),
@@ -303,7 +303,7 @@ def test_retirement_settles_in_one_pass() -> None:
         caster(),
         id="druid",
         name="Druid",
-        concentration=Concentration(spell="entangle"),
+        concentration=Concentration(rule_id="entangle"),
         conditions=Conditions(
             held=frozenset({Condition.INCAPACITATED}), durations={Condition.INCAPACITATED: HELD}
         ),

@@ -1046,6 +1046,22 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"requires Concentration",
     ),
     (
+        105,
+        "only one spell slot may be expended on a turn, whichever actions are used",
+        r"On a turn, you can expend only one spell slot to cast a spell",
+    ),
+    (
+        104,
+        "a cantrip is cast without a spell slot, which is why casting and spending differ",
+        r"Cantrips\. A cantrip is cast without a spell slot",
+    ),
+    (
+        185,
+        "the Magic action is what an action-timed spell costs",
+        r"When you take the Magic action, you cast a spell that has a casting time of an "
+        r"action",
+    ),
+    (
         179,
         "damage is the occasion, and the save it compels is a Constitution save",
         r"If you take damage, you must succeed on a Constitution saving throw to maintain "
