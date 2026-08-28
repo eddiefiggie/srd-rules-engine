@@ -48,7 +48,8 @@ from srd_rules_engine.core import (
     read_ledger,
 )
 from srd_rules_engine.core import Catalogue as Cat
-from srd_rules_engine.core.read_surface import END_TURN
+from srd_rules_engine.core.position import MovementMode
+from srd_rules_engine.core.read_surface import END_TURN, dash_key
 from srd_rules_engine.loop.drivers import DriverExhausted, ScriptedDriver, drive
 from srd_rules_engine.loop.turn import (
     BlockedFactRequest,
@@ -346,7 +347,7 @@ def test_a_terminal_outcome_carries_the_refusals_and_what_was_offered(
     assert [a.key for a in outcome.offered] == [
         END_TURN,
         "attack:boar",
-        "dash",
+        dash_key(MovementMode.WALK),
         "dodge",
         "disengage",
     ]
@@ -557,7 +558,7 @@ def test_the_loop_yields_typed_requests_and_never_calls_the_driver(tmp_path: Pat
     assert [a.key for a in first.offered.actions] == [
         END_TURN,
         "attack:boar",
-        "dash",
+        dash_key(MovementMode.WALK),
         "dodge",
         "disengage",
     ]

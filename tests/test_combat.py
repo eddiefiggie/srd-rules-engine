@@ -40,7 +40,7 @@ from srd_rules_engine.core import (
     load_fixture_ruleset,
     read,
 )
-from srd_rules_engine.core.actions import ActionBudget, dodging
+from srd_rules_engine.core.actions import ActionBudget, ActionKind, dodging
 from srd_rules_engine.core.adjudicate import Proposal, _apply, _roll_declared
 from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.d20 import DAMAGE_OFFSET, INITIATIVE_BAND, D20Test, TestKind, roll
@@ -64,6 +64,19 @@ STRIKE = Rule(
 BLADE = Weapon(name="fixture blade", damage_dice=2, damage_sides=6, ability="str")
 
 RULESET = load_fixture_ruleset("combat", [STRIKE])
+
+
+def damage_effect(ruling: Ruling) -> Effect:
+    """The damage this attack dealt.
+
+    Selected by kind rather than by position, because since #252 an attack's first effect is
+    the **Action it spent** (p. 176, p. 177) — a cost in `Proposal.always`, applied before the
+    branch the roll selected. Indexing `effects[0]` for the damage was only ever right while
+    nothing an adjudication did cost anything.
+    """
+    damage = [e for e in ruling.effects if e.kind is EffectKind.DAMAGE]
+    assert len(damage) == 1, f"expected one damage effect, got {[e.kind for e in ruling.effects]}"
+    return damage[0]
 
 
 def d20(proposal: Proposal) -> D20Test:
@@ -218,7 +231,9 @@ def test_a_miss_deals_no_damage(tmp_path: Path) -> None:
     ruling, after = build(tmp_path / "m", seed=seed_that(False, state, tmp_path)).adjudicate(
         state, strike(state)
     )
-    assert ruling.effects == ()
+    assert not [e for e in ruling.effects if e.kind is EffectKind.DAMAGE], (
+        "a miss deals no damage — the Action it spent is a cost, not a consequence"
+    )
     assert after.combatant("boar").hit_points == state.combatant("boar").hit_points
 
 
@@ -234,7 +249,7 @@ def test_damage_reduces_hit_points_and_the_read_surface_reports_the_reduced_valu
     ruling, after = build(tmp_path / "d", seed=seed_that(True, state, tmp_path)).adjudicate(
         state, strike(state)
     )
-    dealt = ruling.effects[0].amount
+    dealt = damage_effect(ruling).amount
 
     assert dealt > 0
     assert after.combatant("boar").hit_points == before - dealt
@@ -267,7 +282,7 @@ def test_damage_is_rolled_from_the_same_seed_as_the_attack(tmp_path: Path) -> No
 
     assert ruling.result is not None and ruling.result.seed == seed
     faces = roll(seed, count=2, sides=6, offset=DAMAGE_OFFSET)
-    assert ruling.effects[0].amount == sum(faces) + 3, "str 16 is +3"
+    assert damage_effect(ruling).amount == sum(faces) + 3, "str 16 is +3"
 
 
 def test_the_effect_names_the_weapon_that_dealt_the_damage(tmp_path: Path) -> None:
@@ -279,8 +294,8 @@ def test_the_effect_names_the_weapon_that_dealt_the_damage(tmp_path: Path) -> No
         tmp_path / "n", seed=seed_that(True, state, tmp_path), weapon=BLADE
     ).adjudicate(state, strike(state))
 
-    assert ruling.effects[0].description.startswith(f"{BLADE.name}:")
-    assert "2d6" in ruling.effects[0].description, "and the dice it was rolled from"
+    assert damage_effect(ruling).description.startswith(f"{BLADE.name}:")
+    assert "2d6" in damage_effect(ruling).description, "and the dice it was rolled from"
 
 
 def test_damage_dice_are_drawn_clear_of_the_attack_roll(tmp_path: Path) -> None:
@@ -430,10 +445,48 @@ def test_the_state_the_ruling_returns_already_has_the_damage(tmp_path: Path) -> 
     ruling, after = build(tmp_path / "r", seed=seed_that(True, state, tmp_path)).adjudicate(
         state, strike(state)
     )
-    reapplied, _, _withheld = _apply(after, ruling.effects, seed=1)
+    # The damage alone, because since #252 the ruling also carries the Action it spent and
+    # re-applying *that* raises `ActionUnavailable` — a louder failure than the quiet one
+    # this test is about, and one that would hide it.
+    reapplied, _, _withheld = _apply(after, (damage_effect(ruling),), seed=1)
     assert reapplied.combatant("boar").hit_points < after.combatant("boar").hit_points, (
         "the private applier is not idempotent — which is exactly why it is not public"
     )
+
+
+def test_an_attack_costs_the_action(tmp_path: Path) -> None:
+    """#252. p. 176: "On your turn, you can take one action", and p. 177 makes an attack one:
+    "When you take the Attack action, you can make **one attack roll**."
+
+    It cost nothing until #252, because nothing an adjudication did cost anything —
+    `ActionBudget.spend` had no caller outside `dodging()`. So the read surface consulted an
+    economy that was never charged, and a driver could attack as many times as it asked to.
+
+    **Extra Attack would make one-Action-one-roll wrong**, and it is class content this
+    repository ships none of. p. 177 mentions it under *Moving between Attacks* — "a feature,
+    such as Extra Attack, that gives you more than one attack as part of the Attack action" —
+    so the day a ruleset can bring one, this is the line that has to change.
+    """
+    state = encounter()
+    ruling, after = build(tmp_path / "a", seed=seed_that(True, state, tmp_path)).adjudicate(
+        state, strike(state)
+    )
+
+    spent = [e for e in ruling.effects if e.kind is EffectKind.ACTION_SPENT]
+    assert [e.action for e in spent] == [ActionKind.ACTION]
+    assert not after.combatant("pc").actions.available(ActionKind.ACTION)
+
+
+def test_the_action_is_charged_even_when_the_attack_misses(tmp_path: Path) -> None:
+    """A cost, not a consequence. p. 177 spends the action on *taking* the Attack action, and
+    a miss is still an attack made — so the charge is in `always` rather than in a branch."""
+    state = encounter()
+    ruling, after = build(tmp_path / "m", seed=seed_that(False, state, tmp_path)).adjudicate(
+        state, strike(state)
+    )
+
+    assert not [e for e in ruling.effects if e.kind is EffectKind.DAMAGE], "precondition: a miss"
+    assert not after.combatant("pc").actions.available(ActionKind.ACTION)
 
 
 # --- Reading the target ------------------------------------------------------------------
@@ -454,7 +507,10 @@ def test_the_target_is_read_from_the_action_key_never_from_the_label(tmp_path: P
     ruling, _ = build(tmp_path / "t", seed=seed_that(True, state, tmp_path)).adjudicate(
         state, mislabelled
     )
-    assert [e.target_id for e in ruling.effects] == ["boar"]
+    assert damage_effect(ruling).target_id == "boar", "the key's target, not the label's"
+    assert [e.target_id for e in ruling.effects if e.kind is not EffectKind.ACTION_SPENT] == [
+        "boar"
+    ], "and nothing else the attack did landed on anyone the key did not name"
 
 
 def test_attack_target_reads_only_attack_keys() -> None:

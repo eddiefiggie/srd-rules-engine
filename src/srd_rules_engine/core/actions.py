@@ -169,10 +169,15 @@ def dodging(budget: ActionBudget, conditions: Conditions, speed: int) -> ActionB
     Speed is 0." Both are checked when it is taken *and* whenever it is read, because a
     creature can be grappled after Dodging — so this returns a budget whose `dodging` flag
     is already false in that case rather than one that lies until someone re-checks.
+
+    **It does not spend the Action, and did until #252.** Every action this engine charges
+    is charged in one place now — an `EffectKind.ACTION_SPENT` in the ruling's `always`
+    branch — so a Dodge that also spent here would be billed twice, and `ActionBudget.spend`
+    would raise on the second. Deciding whether the benefit holds is this function's job;
+    charging for it is the economy's.
     """
-    spent = budget.spend(ActionKind.ACTION, conditions)
     holds = not conditions.cannot_act() and speed > 0
-    return replace(spent, dodging=holds)
+    return replace(budget, dodging=holds)
 
 
 def still_dodging(budget: ActionBudget, conditions: Conditions, speed: int) -> bool:

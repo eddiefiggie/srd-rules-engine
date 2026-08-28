@@ -967,7 +967,7 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         176,
-        "one action per turn",
+        "one action per turn — which nothing enforced until #252 gave it consumers",
         r"On your turn, you can take one action",
     ),
     (
@@ -1044,6 +1044,23 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "starting another Concentration effect ends the first, at the moment casting starts",
         r"You lose Concentration on an effect the moment you start casting a spell that "
         r"requires Concentration",
+    ),
+    (
+        177,
+        "the Attack action buys ONE attack roll, absent a feature that grants more",
+        r"When you take the Attack action, you can make one attack roll with a weapon or an "
+        r"Unarmed Strike",
+    ),
+    (
+        180,
+        "Dash grants the creature's speed after modifiers, and it chooses which speed",
+        r"you can use that speed instead of your Speed when you take this action\. You "
+        r"choose which speed to use each time you take it",
+    ),
+    (
+        181,
+        "Disengage suppresses Opportunity Attacks for the rest of the turn",
+        r"your movement doesn.t provoke Opportunity Attacks for the rest of the current turn",
     ),
     (
         105,

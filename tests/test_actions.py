@@ -162,9 +162,20 @@ def test_dodging_gives_disadvantage_against_and_advantage_on_dexterity_saves() -
     assert budget.dexterity_saves() is Advantage.ADVANTAGE
 
 
-def test_dodging_costs_the_action() -> None:
+def test_dodging_no_longer_charges_the_action_itself() -> None:
+    """It did until #252, and the move is what made the economy consistent.
+
+    Every action this engine charges is now charged in one place — an
+    `EffectKind.ACTION_SPENT` in the ruling's `always` branch — so a Dodge that also spent
+    here would be billed twice and `ActionBudget.spend` would raise on the second. Whether
+    the benefit holds is this function's question; charging for it is the economy's.
+
+    `tests/test_turn_actions.py` is where the Action is asserted to be spent, because that is
+    where the ruling that spends it lives.
+    """
     budget = dodging(ActionBudget(), Conditions(), 30)
-    assert not budget.available(ActionKind.ACTION)
+    assert budget.dodging
+    assert budget.available(ActionKind.ACTION), "the charge belongs to the ruling, not here"
 
 
 def test_a_dodge_is_lost_to_incapacitation_or_a_speed_of_zero() -> None:
@@ -183,11 +194,12 @@ def test_a_dodge_is_lost_to_incapacitation_or_a_speed_of_zero() -> None:
 
 
 def test_dodging_while_already_unable_to_hold_it_grants_nothing() -> None:
-    """Taking it with Speed 0 spends the action and confers no benefit — the document ties
-    the benefit to the state, not to the taking."""
+    """Taking it with Speed 0 confers no benefit — the document ties the benefit to the
+    state, not to the taking. The Action is still spent, and `tests/test_turn_actions.py`
+    asserts that where the charge now lives: a creature that Dodges to no effect has still
+    used its Action on it."""
     budget = dodging(ActionBudget(), Conditions(), 0)
     assert not budget.dodging
-    assert not budget.available(ActionKind.ACTION), "the action was still spent"
 
 
 def test_a_combatant_reports_whether_its_dodge_still_stands() -> None:

@@ -26,7 +26,7 @@ from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 from typing import Any, Final
 
-from srd_rules_engine.core.actions import ActionBudget, ActionKind, still_dodging
+from srd_rules_engine.core.actions import ActionBudget, ActionKind, dodging, still_dodging
 from srd_rules_engine.core.areas import Area
 from srd_rules_engine.core.clock import (
     STABLE_RECOVERY_HIT_POINTS,
@@ -1052,6 +1052,50 @@ class EncounterState:
         target = self.combatant(combatant_id)
         spent = replace(target, actions=target.actions.spend(action, target.conditions))
         return self._evolve(combatants=self._replacing(spent))
+
+    def with_dash(self, combatant_id: str, feet: int) -> EncounterState:
+        """p. 180: "When you take the Dash action, you gain extra movement for the current
+        turn. The increase equals your Speed after applying any modifiers."
+
+        The feet arrive from the ruling rather than being recomputed here, because p. 180
+        gives the creature a **choice** — "If you have a special speed, such as a Fly Speed
+        or Swim Speed, you can use that speed instead of your Speed… You choose which speed
+        to use each time you take it" — and a choice recomputed at application is a choice
+        the caller did not make.
+        """
+        if feet < 0:
+            raise ValueError("Dash grants movement; a negative increase is not a Dash")
+        target = self.combatant(combatant_id)
+        return self._evolve(
+            combatants=self._replacing(replace(target, actions=target.actions.dashed(feet)))
+        )
+
+    def with_dodge(self, combatant_id: str) -> EncounterState:
+        """p. 181's Dodge, taken. Whether the benefits hold is decided by `core.actions`,
+        which re-asks p. 181's two conditions rather than freezing an answer."""
+        target = self.combatant(combatant_id)
+        held = dodging(
+            target.actions,
+            target.conditions,
+            target.conditions.speed_after(target.speeds.walk),
+        )
+        return self._evolve(combatants=self._replacing(replace(target, actions=held)))
+
+    def with_disengage(self, combatant_id: str) -> EncounterState:
+        """p. 181: "your movement doesn't provoke Opportunity Attacks for the rest of the
+        current turn."
+
+        **Nothing reads it yet**, because Opportunity Attacks are an unimplemented shape
+        (p. 185). The flag is set truthfully so that the rule which eventually reads it finds
+        an answer, rather than the action being offered and doing nothing — which is the
+        state all three of these were in before #252.
+        """
+        target = self.combatant(combatant_id)
+        return self._evolve(
+            combatants=self._replacing(
+                replace(target, actions=replace(target.actions, disengaged=True))
+            )
+        )
 
     def with_spell_slot_expended(self, combatant_id: str, slot_level: int) -> EncounterState:
         """Spend a slot to cast, and record that this turn's one slot has gone (p. 104, p. 105).

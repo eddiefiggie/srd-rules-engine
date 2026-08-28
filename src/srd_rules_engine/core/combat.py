@@ -41,6 +41,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.adjudicate import (
     DamageDice,
     Declaration,
@@ -48,6 +49,7 @@ from srd_rules_engine.core.adjudicate import (
     EffectKind,
     Proposal,
     Resolver,
+    action_spent,
 )
 from srd_rules_engine.core.d20 import (
     INITIATIVE_BAND,
@@ -246,6 +248,23 @@ def attack_resolver(weapon: Weapon) -> Resolver:
             modifiers.append(Modifier(source=f"{weapon.name} bonus", value=weapon.bonus))
 
         return Proposal(
+            # p. 176: "On your turn, you can take one action." p. 177 makes an attack one:
+            # "When you take the Attack action, you can make **one attack roll**." So one
+            # Action buys one attack roll here, and #252 is where that finally cost
+            # something — nothing in the adjudication path charged anything until #248.
+            #
+            # **Extra Attack would make this wrong**, and it is a class feature this
+            # repository ships none of: a feature that "gives you more than one attack as
+            # part of the Attack action" (p. 177) would need the Action charged once for
+            # several rolls. There is nothing to model it with today, and the day there is,
+            # this is the line that has to change.
+            always=(
+                action_spent(
+                    declaration.actor_id,
+                    ActionKind.ACTION,
+                    description="the Action spent on the Attack (p. 176, p. 177)",
+                ),
+            ),
             test=D20Test(
                 kind=TestKind.ATTACK,
                 target=target.armour_class,

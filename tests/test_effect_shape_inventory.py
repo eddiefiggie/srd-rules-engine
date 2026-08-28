@@ -620,3 +620,47 @@ def test_two_ids_resolving_to_one_symbol_are_one_shape(inventory: Inventory) -> 
         "ids sharing a symbol is exactly what this record says is one shape, so this cannot "
         "be left as it is."
     )
+
+
+def test_every_claimed_symbol_resolves(inventory: Inventory) -> None:
+    """R17's other direction, and it had no guard until #252.
+
+    The two existing checks compare `ENGINE_SHAPES`' **keys** against the inventory, which is
+    what the coverage arithmetic needs. Nothing checked the **values** — so four of them named
+    symbols that do not exist: `core.state.action`, `core.combat.attack`,
+    `core.combat.initiative` and `core.combat.hit_points`.
+
+    That is not an arithmetic error, and it is worse than one in a specific way: the value is
+    the only evidence a reader has that a claimed shape is claimed against something real.
+    A key with a dangling value counts toward 95 of 209 and points at nothing, which is
+    indistinguishable from a shape that is genuinely resolved.
+
+    Dataclass fields count, and have to be asked for by name — `getattr(D20Test, "target")`
+    raises for a field with no default even though the field is real, which is how a naive
+    version of this guard would report four false positives beside the four true ones.
+    """
+    import importlib
+    from dataclasses import fields, is_dataclass
+
+    def resolves(path: str) -> bool:
+        parts = path.split(".")
+        for split in range(len(parts), 0, -1):
+            try:
+                obj = importlib.import_module("srd_rules_engine." + ".".join(parts[:split]))
+            except ModuleNotFoundError:
+                continue
+            for name in parts[split:]:
+                if hasattr(obj, name):
+                    obj = getattr(obj, name)
+                    continue
+                return is_dataclass(obj) and name in {f.name for f in fields(obj)}
+            return True
+        return False
+
+    dangling = sorted(
+        f"{sid} -> {path}" for sid, path in ENGINE_SHAPES.items() if not resolves(path)
+    )
+    assert not dangling, (
+        "these shapes are claimed against symbols that do not exist, so the claim rests on "
+        f"nothing a reader can check: {dangling}"
+    )
