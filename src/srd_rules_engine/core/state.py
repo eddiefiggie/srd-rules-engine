@@ -293,6 +293,27 @@ class Combatant:
     def __post_init__(self) -> None:
         object.__setattr__(self, "abilities", MappingProxyType(dict(self.abilities)))
 
+        # p. 179: "Your Concentration **ends** if you have the Incapacitated condition or you
+        # die." Ends, not suspends — the event is spent when it happens, and the spell does
+        # not come back when the condition lifts (0037 clause 4, #238).
+        #
+        # **Written here rather than at each writer**, which is the difference between an
+        # invariant and a convention. `with_condition` and `with_death` both reach state
+        # through `replace`, so both re-run this; so does anything added later, and so does a
+        # `Combatant` a caller constructs by hand — the case a derivation covered and two
+        # scattered writes would not.
+        #
+        # It is still materialised rather than derived, and that is the whole of #238: this
+        # runs once, when the state carrying the condition is built, and the value it writes
+        # is what every reader sees afterwards. `after_conditions` recomputed the answer from
+        # whatever conditions were held at the moment somebody asked, so a condition that
+        # arrived and departed left no trace and handed the spell back.
+        if self.concentration.active and (
+            self.death_saves.dead
+            or any(effects.concentration_broken for effects in self.conditions.effects)
+        ):
+            object.__setattr__(self, "concentration", self.concentration.ended())
+
     @property
     def is_down(self) -> bool:
         """At 0 hit points a combatant stops acting."""
@@ -937,13 +958,27 @@ class EncounterState:
     def with_concentration_ended(self, combatant_id: str) -> EncounterState:
         """End what this creature was concentrating on (p. 179).
 
-        The state half of `EffectKind.CONCENTRATION_ENDED`. Reached only through a ruling,
-        which is what keeps a failed save the *only* way damage breaks Concentration — a
-        caller able to end it directly would be a caller able to decide the outcome the
-        save exists to decide (R1).
+        Two callers, and the distinction matters.
 
-        `Concentration.ended` is p. 179's own sentence and is what does the work here, so
-        this method holds the state transition and no rule of its own.
+        **The state half of `EffectKind.CONCENTRATION_ENDED`.** Damage breaks Concentration
+        only through a failed save, so that route reaches here through a ruling and through
+        nothing else — a caller able to end it directly on the damage path would be a caller
+        able to decide the outcome the save exists to decide (R1).
+
+        **The voluntary end**, which is the caller's outright: "The creator can end
+        Concentration at any time *(no action required)*." Nothing is rolled, nothing is
+        spent, and no rule can refuse it — so it is a transition a driver calls, not a
+        declaration and not a `LegalAction`. The read surface enumerates what a creature may
+        do **on its turn**; this is neither turn-bound nor an action, and a slot in which it
+        were expressible would price something the document gives away.
+
+        The two are one method because they are one state change. What separates them is who
+        may call it, and R1 constrains only the first — an agent that ends its own
+        Concentration has decided nothing the dice were owed.
+
+        `Concentration.ended` is p. 179's own sentence and does the work; this holds the
+        state transition and no rule of its own. Idempotent, because three routes reach the
+        end and none of them can see the others.
         """
         target = self.combatant(combatant_id)
         ended = replace(target, concentration=target.concentration.ended())
@@ -1026,11 +1061,13 @@ class EncounterState:
         # p. 179 says "the damage taken", so a creature Immune to the type takes none and
         # owes none. `ConcentrationDebt` refuses an amount of 0 rather than trusting this.
         #
-        # `after_conditions` rather than the stored field, so this agrees with the read
-        # surface about who is concentrating — p. 179 ends Concentration on Incapacitated
-        # and nothing writes the field when a condition lands.
+        # The **stored** field, which is now the only answer there is (0037 clause 4). This
+        # read `after_conditions` until #238, deliberately, so that state and the read
+        # surface would agree about who is concentrating. They agreed and were wrong
+        # together: after an Incapacitated condition lifted, the derivation handed the spell
+        # back and this compelled a save to maintain something p. 179 had already ended.
         owed = self.concentration_saves_owed
-        if amount > 0 and target.concentration.after_conditions(target.conditions).active:
+        if amount > 0 and target.concentration.active:
             owed = (*owed, ConcentrationDebt(combatant_id=combatant_id, amount=amount))
 
         state = self._evolve(combatants=self._replacing(reduced), concentration_saves_owed=owed)

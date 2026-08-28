@@ -102,6 +102,7 @@ rejected options and the reason survive, not the exact headings.
 | [0034](0034-a-term-the-document-defines-and-never-uses.md) | A term the document defines and never uses is vocabulary — `weapon-attack` has no consumers, so it is neither a second shape nor a double count, and the denominator falls to 210 | [#229](https://github.com/eddiefiggie/srd-rules-engine/issues/229) |
 | [0035](0035-two-names-for-one-thing-are-one-shape.md) | Two names for one thing are one shape — `save` and `saving-throw` already resolved to the same symbol, so the test is identity rather than usage, and both figures fall to 95 of 209 | [#230](https://github.com/eddiefiggie/srd-rules-engine/issues/230) |
 | [0036](0036-a-fourth-occasion-owed-by-whoever-took-the-damage.md) | Concentration's damage save gets a fourth occasion — detection in `with_damage`, production in the loop, and the debt is per damage instance because `discharged` is once per turn | [#215](https://github.com/eddiefiggie/srd-rules-engine/issues/215) |
+| [0037](0037-a-concentration-is-an-early-out-not-an-axis.md) | A Concentration sustains an effect through a second **early-out** on its duration, not a fifth `DurationKind` — the span p. 179 states survives, and the end is materialised rather than derived | [#239](https://github.com/eddiefiggie/srd-rules-engine/issues/239), [#238](https://github.com/eddiefiggie/srd-rules-engine/issues/238) |
 
 ## What belongs here, and what doesn't
 

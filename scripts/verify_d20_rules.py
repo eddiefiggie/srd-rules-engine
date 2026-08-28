@@ -1063,6 +1063,11 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"Your Concentration ends if you have the Incapacitated condition or you die",
     ),
     (
+        179,
+        "the voluntary end is the creator's outright, and costs no action",
+        r"The creator can end Concentration at any time \(no action required\)",
+    ),
+    (
         176,
         "the Rules Glossary states the same cancellation rule",
         r"Advantage and Dis-?\s*advantage on the same roll cancel each other",

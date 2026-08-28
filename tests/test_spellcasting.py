@@ -8,6 +8,8 @@ written against that failure instead.
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 
 from srd_rules_engine.core.conditions import Condition, Conditions
@@ -35,6 +37,7 @@ from srd_rules_engine.core.spellcasting import (
     spell_reaches,
     spell_save_dc,
 )
+from srd_rules_engine.core.state import Combatant
 
 WIZARD = SpellSlots(total={1: 4, 2: 3, 3: 2})
 
@@ -147,13 +150,34 @@ def test_concentration_can_be_ended_at_will() -> None:
 def test_incapacitation_ends_concentration_without_a_save() -> None:
     """p. 179: "Your Concentration ends if you have the Incapacitated condition." No roll.
 
-    Read from `core.conditions`' own `concentration_broken` rather than re-deciding which
-    conditions qualify, so the two cannot disagree.
+    **The rule moved out of `Concentration` in #238 and the rule did not change.** It was a
+    pure `after_conditions(conditions)` derivation here; it is now materialised by
+    `Combatant.__post_init__`, because p. 179 says *ends* and a derivation cannot record an
+    event — the spell came back when the condition lifted (0037 clause 4).
+
+    Which conditions qualify is still `core.conditions`' own `concentration_broken` and is
+    still asked in one place, so Stunned qualifies by implying Incapacitated (R14) rather
+    than by being listed anywhere.
     """
-    holding = Concentration().begin("Bless")
-    stunned = Conditions(held=frozenset({Condition.STUNNED}))
-    assert not holding.after_conditions(stunned).active
-    assert holding.after_conditions(Conditions()).active
+    holding = Combatant(
+        id="pc",
+        name="Pc",
+        hit_points=10,
+        max_hit_points=10,
+        armour_class=12,
+        abilities={"con": 12},
+        proficiency_bonus=2,
+        concentration=Concentration().begin("Bless"),
+    )
+    assert holding.concentration.active, "precondition: it is up while nothing has broken it"
+
+    stunned = dataclasses.replace(
+        holding, conditions=Conditions(held=frozenset({Condition.STUNNED}))
+    )
+    assert not stunned.concentration.active
+
+    # And it stays ended, which is the half the derivation could not express.
+    assert not dataclasses.replace(stunned, conditions=Conditions()).concentration.active
 
 
 def test_the_concentration_dc_is_ten_or_half_the_damage() -> None:
@@ -187,6 +211,36 @@ def test_the_cap_keeps_a_huge_hit_makeable() -> None:
     assert concentration_save_dc(90) == CONCENTRATION_DC_CAP
     assert concentration_save_dc(60) == CONCENTRATION_DC_CAP
     assert concentration_save_dc(58) == 29, "just under the cap, still arithmetic"
+
+
+def test_the_clauses_that_end_concentration_are_asserted_against_the_document() -> None:
+    """Presence, not truth — the verifier needs the PDF and CI has no copy.
+
+    Two sentences, and the engine now rests on both. p. 179's "Incapacitated **or you die**"
+    is what `Combatant.__post_init__` materialises, and the death half is the part a
+    conditions-only reading drops — it was unreachable until #238 and is easy to lose again,
+    because death is not one of the fifteen conditions.
+
+    "(no action required)" is a **rule value**, not colour: it is why the voluntary end is a
+    transition a driver calls rather than a `LegalAction` the surface prices. An engine that
+    charged an action for it would be inventing a cost the document declines to state.
+
+    Proved to catch the plausible-wrong value: "at any time (no action required)" was
+    corrupted to "as an action" on a copy of the verifier and the clause reported unmatched.
+    """
+    from pathlib import Path as _Path
+
+    verifier = (
+        _Path(__file__).resolve().parents[1] / "scripts" / "verify_d20_rules.py"
+    ).read_text()
+    assert "Incapacitated condition or you die" in verifier, (
+        "the death half of p. 179's clause is gone from verify_d20_rules.py, so the "
+        "sentence Combatant.__post_init__ rests on is no longer re-checkable (#238)"
+    )
+    assert "no action required" in verifier, (
+        "the voluntary end's cost is no longer asserted, so nothing goes red if the engine "
+        "starts charging an action for something p. 179 gives away"
+    )
 
 
 def test_the_floor_and_the_cap_are_the_documents_own_numbers() -> None:

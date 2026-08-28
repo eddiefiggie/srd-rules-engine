@@ -53,7 +53,6 @@ from enum import StrEnum
 from types import MappingProxyType
 from typing import Final
 
-from srd_rules_engine.core.conditions import Conditions
 from srd_rules_engine.core.d20 import D20Test, TestKind
 from srd_rules_engine.core.obstructions import Obstruction, line_is_blocked
 from srd_rules_engine.core.position import Position, within
@@ -218,18 +217,21 @@ class Concentration:
         return Concentration(spell=spell)
 
     def ended(self) -> Concentration:
-        """p. 179: "The creator can end Concentration at any time (no action required).\""""
-        return Concentration()
+        """p. 179: "The creator can end Concentration at any time (no action required)."
 
-    def after_conditions(self, conditions: Conditions) -> Concentration:
-        """p. 179: "Your Concentration ends if you have the Incapacitated condition."
+        Every route that ends Concentration comes through here — the voluntary end this
+        sentence licenses, the failed damage save (0036), and the Incapacitated-or-Dead
+        clause `Combatant.__post_init__` materialises (0037 clause 4).
 
-        `core.conditions` already reports `concentration_broken` for Incapacitated, so this
-        reads that rather than re-deciding which conditions qualify — one rule, one place.
+        **There was an `after_conditions` beside this until #238**, deriving the
+        Incapacitated end from the conditions held whenever somebody asked. It is gone
+        rather than repaired: p. 179 says Concentration *ends*, and a function of the
+        present conditions cannot record that a condition arrived and departed. The spell
+        came back when the condition lifted, and `with_damage` — asking the same derivation
+        so that state and the read surface would agree — then compelled a save to maintain
+        it.
         """
-        if any(effects.concentration_broken for effects in conditions.effects):
-            return Concentration()
-        return self
+        return Concentration()
 
 
 def concentration_save_dc(damage: int) -> int:

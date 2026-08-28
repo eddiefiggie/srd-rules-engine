@@ -361,12 +361,14 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
             if actor.slots is not None
             else {}
         ),
-        # Derived, not the stored value. p. 179 ends Concentration on Incapacitated, and a
-        # read that reported the field as last written would tell the agent a spell is up
-        # after the condition that broke it landed. `after_conditions` is pure and returns a
-        # new value, so this stays a read (R19). `core.state.with_damage` derives it the same
-        # way, or state and the read surface would disagree about who is concentrating.
-        concentrating_on=actor.concentration.after_conditions(conditions).spell,
+        # The stored value, which since #238 is the only answer there is. This derived it
+        # through `Concentration.after_conditions` — because nothing wrote the field when a
+        # condition landed, and a raw read would have said a spell was still up after the
+        # condition that broke it. The derivation covered that direction and could not cover
+        # the other: p. 179 *ends* Concentration, so the spell must not return when the
+        # condition lifts. `Combatant.__post_init__` now spends it where the event happens
+        # (0037 clause 4), which leaves this a plain read and still no mutation (R19).
+        concentrating_on=actor.concentration.spell,
         elapsed_minutes=state.clock.elapsed_minutes,
         minutes_until_recovery=(
             max(0, actor.death_saves.recovers_at_minute - state.clock.elapsed_minutes)
