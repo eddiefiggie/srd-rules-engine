@@ -360,6 +360,23 @@ class Combatant:
         # is what every reader sees afterwards. `after_conditions` recomputed the answer from
         # whatever conditions were held at the moment somebody asked, so a condition that
         # arrived and departed left no trace and handed the spell back.
+        # p. 90: "A Two-Handed weapon **requires two hands** when you attack with it", and
+        # p. 105 asks whether a hand is free. Neither is checkable while a creature can hold
+        # more than it has hands for — which it could until #263: a one-handed creature
+        # gripping a greataxe reported 0 free hands and was accepted.
+        #
+        # Refused at construction, where every writer passes, rather than at the call sites
+        # that put things in hands. `hands is None` is not a violation: no SRD rule states how
+        # many hands a creature has, so an unstated count cannot be exceeded (R31).
+        if self.hands is not None:
+            committed = sum(carried.hands_used for carried in self.equipment)
+            if committed > self.hands:
+                raise ValueError(
+                    f"{self.name} is holding things needing {committed} hands and has "
+                    f"{self.hands}. A Two-Handed weapon requires two hands (p. 90), so a "
+                    "creature that cannot spare them cannot be wielding it"
+                )
+
         if self.concentration.active and (
             self.death_saves.dead
             or any(effects.concentration_broken for effects in self.conditions.effects)

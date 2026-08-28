@@ -61,6 +61,7 @@ from srd_rules_engine.core.d20 import (
 )
 from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.equipment import HEAVY_SCORE_THRESHOLD as HEAVY_SCORE_THRESHOLD
+from srd_rules_engine.core.equipment import Carriage, Carried
 from srd_rules_engine.core.equipment import Weapon as Weapon
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.obstructions import Cover, total_cover
@@ -142,7 +143,9 @@ def attack_resolver() -> Resolver:
         facts: Mapping[str, Resolution],
     ) -> Proposal:
         actor = state.combatant(declaration.actor_id)
-        weapon, target_id = _weapon_and_target(actor, declaration)
+        wielded, target_id = _weapon_and_target(actor, declaration)
+        assert isinstance(wielded.item, Weapon)
+        weapon = wielded.item
         target = state.combatant(target_id)
         ability = actor.modifier(weapon.ability)
 
@@ -233,7 +236,7 @@ def attack_resolver() -> Resolver:
                     count=weapon.damage_dice,
                     # Versatile (p. 90) selects the die; the ability modifier is whichever
                     # one Finesse let the wielder choose, and it reaches both rolls.
-                    sides=weapon.sides_in_use,
+                    sides=weapon.sides_in_use(wielded.hands_used),
                     damage_type=weapon.damage_type,
                     # The same bonus, on the other roll. p. 213 says "attack rolls **and**
                     # damage rolls", so a weapon bonus reaching only the attack would be
@@ -372,7 +375,7 @@ def unarmed_strike_resolver() -> Resolver:
     return resolve
 
 
-def _weapon_and_target(actor: Combatant, declaration: Declaration) -> tuple[Weapon, str]:
+def _weapon_and_target(actor: Combatant, declaration: Declaration) -> tuple[Carried, str]:
     """Which weapon this attack swung, and at whom, read off the key the surface offered.
 
     The key names both since #258, and the weapon is looked up in what the creature is
@@ -387,9 +390,10 @@ def _weapon_and_target(actor: Combatant, declaration: Declaration) -> tuple[Weap
             "either off the label would be the engine taking a mechanic from prose (R6)"
         )
     weapon_id, target_id = declared
-    for held in actor.weapons_held:
-        if held.id == weapon_id:
-            return held, target_id
+    for carried in actor.equipment:
+        if carried.carriage is Carriage.HELD and carried.item.id == weapon_id:
+            assert isinstance(carried.item, Weapon)
+            return carried, target_id
     raise ValueError(
         f"{actor.name} is not holding {weapon_id!r}. p. 177 attacks "
         '"with a weapon or an Unarmed Strike", and the read surface offers only weapons in '

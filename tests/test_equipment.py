@@ -102,13 +102,58 @@ def test_only_held_things_cost_hands() -> None:
     assert laden.free_hands == 1
 
 
-def test_holding_more_than_there_are_hands_reports_none_free_rather_than_negative() -> None:
-    """A ruleset's error, and reporting -1 would invite arithmetic on a number that means
-    nothing. p. 105 asks whether a hand is free; the answer here is no."""
-    overloaded = creature(
-        hands=1, equipment=(Carried(SWORD, Carriage.HELD), Carried(GREATAXE, Carriage.HELD))
+def test_holding_more_than_there_are_hands_is_refused() -> None:
+    """p. 90: "A Two-Handed weapon **requires two hands** when you attack with it."
+
+    **This test asserted 0 free hands until #263**, and accepting the state was the reason
+    Two-Handed was representable and unenforced: a one-handed creature could grip a greataxe
+    and simply report nothing free. The requirement is only real if the state that violates it
+    cannot be built.
+
+    Refused at construction, where every writer passes.
+    """
+    with pytest.raises(ValueError, match="Two-Handed weapon requires two hands"):
+        creature(
+            hands=1,
+            equipment=(Carried(SWORD, Carriage.HELD), Carried(GREATAXE, Carriage.HELD)),
+        )
+
+
+def test_an_unstated_hand_count_cannot_be_exceeded() -> None:
+    """R31. No SRD rule says how many hands a creature has, so a creature whose ruleset did
+    not say has no limit to break — refusing it would enforce a number the document does not
+    state."""
+    unstated = creature(equipment=(Carried(GREATAXE, Carriage.HELD),))
+    assert unstated.free_hands is None
+
+
+def test_a_versatile_grip_is_the_creature_s_and_not_the_weapon_s() -> None:
+    """p. 90: "A Versatile weapon can be used with one or two hands." A choice the creature
+    makes each time, so it lives on `Carried` — `Weapon.wielded_two_handed` was a field on the
+    weapon describing how the creature held it, which is `Weapon.proficient`'s mistake one
+    field further down (#263)."""
+    from srd_rules_engine.core.equipment import Weapon
+
+    longsword = Weapon(
+        id="fixture:longsword", damage_dice=1, damage_sides=8, versatile_sides=10, hands_when_held=1
     )
-    assert overloaded.free_hands == 0
+    assert "wielded_two_handed" not in Weapon.__dataclass_fields__
+
+    one_handed = Carried(longsword, Carriage.HELD)
+    two_handed = Carried(longsword, Carriage.HELD, hands=2)
+    assert longsword.sides_in_use(one_handed.hands_used) == 8
+    assert longsword.sides_in_use(two_handed.hands_used) == 10
+
+    # The same weapon, two creatures, two grips — unexpressible before.
+    assert creature(hands=2, equipment=(one_handed,)).free_hands == 1
+    assert creature(hands=2, equipment=(two_handed,)).free_hands == 0
+
+
+def test_a_grip_is_stated_only_for_something_held() -> None:
+    """p. 90's choice is about a weapon being *used*, so a grip on a stowed item describes
+    nothing and is refused rather than silently ignored."""
+    with pytest.raises(ValueError, match="commits no hands"):
+        Carried(SWORD, Carriage.STOWED, hands=1)
 
 
 def test_one_free_hand_is_what_an_s_m_spell_needs() -> None:

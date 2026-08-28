@@ -158,7 +158,13 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # Weapon properties and the one mastery property nothing else gates (#16).
         "weapon-finesse": "core.combat.Weapon.finesse",
         "weapon-heavy": "core.combat.Weapon.heavy_disadvantage",
-        "weapon-versatile": "core.combat.Weapon.sides_in_use",
+        "weapon-versatile": "core.equipment.Weapon.sides_in_use",
+        # p. 90: "A Two-Handed weapon requires two hands when you attack with it." Claimed
+        # since #263, when the requirement stopped being merely representable: a creature
+        # holding more than its hands allow is refused at construction, so a two-handed
+        # weapon cannot be wielded by a creature that cannot spare two hands. The path is the
+        # invariant rather than a field, because the field alone enforced nothing.
+        "weapon-two-handed": "core.state.Combatant.__post_init__",
         "mastery-graze": "core.combat.Weapon.graze",
         # Position, movement and range in feet (#17, #20).
         "speed": "core.position.Speeds.walk",

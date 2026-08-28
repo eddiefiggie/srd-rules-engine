@@ -104,7 +104,12 @@ def strike_with(state: EncounterState, weapon: Weapon, target: str = "boar") -> 
 
 
 def encounter(
-    *, pc_ac: int = 13, boar_ac: int = 13, weapon: Weapon = BLADE, proficient: bool = True
+    *,
+    pc_ac: int = 13,
+    boar_ac: int = 13,
+    weapon: Weapon = BLADE,
+    proficient: bool = True,
+    hands: int | None = None,
 ) -> EncounterState:
     """The pc **holds** its weapon since #258 — a weapon is an `Item` a creature carries
     (0040 clause 1), so an attack is offered for what is in hand rather than for whatever
@@ -123,7 +128,7 @@ def encounter(
                 abilities={"str": 16, "dex": 14},
                 proficiency_bonus=2,
                 hands=2,
-                equipment=(Carried(weapon, Carriage.HELD),),
+                equipment=(Carried(weapon, Carriage.HELD, hands=hands),),
                 weapon_proficiencies=frozenset({weapon.id}) if proficient else frozenset(),
             ),
             Combatant(
@@ -723,6 +728,7 @@ def _propose_with(
     target: str = "boar",
     state: EncounterState | None = None,
     proficient: bool = True,
+    hands: int | None = None,
 ) -> Proposal:
     """The proposal for attacking with that weapon, **held**.
 
@@ -731,7 +737,7 @@ def _propose_with(
     and reads what was swung off the key the read surface offered (0040 clauses 1 and 4).
     """
     if state is None:
-        state = encounter(weapon=weapon, proficient=proficient)
+        state = encounter(weapon=weapon, proficient=proficient, hands=hands)
     else:
         # A caller that built its own state — for cover, light, conditions — still has to put
         # the weapon in the actor's hand, because that is where the resolver reads it from.
@@ -739,7 +745,7 @@ def _propose_with(
         armed = dataclasses.replace(
             state.combatant(actor),
             hands=2,
-            equipment=(Carried(weapon, Carriage.HELD),),
+            equipment=(Carried(weapon, Carriage.HELD, hands=hands),),
             weapon_proficiencies=frozenset({weapon.id}) if proficient else frozenset(),
         )
         state = dataclasses.replace(
@@ -814,13 +820,16 @@ def test_a_weapon_without_heavy_never_takes_the_penalty() -> None:
 def test_versatile_uses_the_larger_die_only_in_two_hands() -> None:
     """p. 90: a Versatile weapon "deals that damage when used with two hands to make a
     melee attack". Both halves are conditions."""
-    one = Weapon(id="longsword", damage_dice=1, damage_sides=8, versatile_sides=10)
-    two = Weapon(
-        id="longsword", damage_dice=1, damage_sides=8, versatile_sides=10, wielded_two_handed=True
+    longsword = Weapon(
+        id="longsword", damage_dice=1, damage_sides=8, versatile_sides=10, hands_when_held=1
     )
 
-    assert _dice(_propose_with(one)).sides == 8
-    assert _dice(_propose_with(two)).sides == 10
+    # The **same weapon**, gripped two ways — which was unexpressible until #263 moved the
+    # grip off the weapon and onto `Carried`. Two `Weapon` objects differing by a
+    # `wielded_two_handed` flag were two weapons, so this test could not have been written
+    # about one longsword.
+    assert _dice(_propose_with(longsword)).sides == 8
+    assert _dice(_propose_with(longsword, hands=2)).sides == 10
 
 
 def test_versatile_is_a_melee_property() -> None:
