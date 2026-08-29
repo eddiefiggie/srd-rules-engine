@@ -230,7 +230,12 @@ EFFECTS: Final[dict[Condition, ConditionEffects]] = {
         auto_critical_within_5_feet=True,
         implies=frozenset({Condition.INCAPACITATED, Condition.PRONE}),
         drops_held_items=True,
-        unenforced_clauses=("remains-prone-when-this-ends", "unaware"),
+        # `remains-prone-when-this-ends` came off with #292. p. 191's "When this condition
+        # ends, you remain Prone" is enforced by `Conditions.without`, which re-applies Prone
+        # on its own behalf rather than letting it lift with the source that implied it — so
+        # the disclosure was stale in the harmless direction, telling a reader less was
+        # modelled than is. It was suspected in the issue and confirmed before removal.
+        unenforced_clauses=("unaware",),
     ),
 }
 

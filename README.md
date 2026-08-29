@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08292026.18` — **the guard was red on its first run, and every hit was from the same day.** [#291](https://github.com/eddiefiggie/srd-rules-engine/issues/291): a Status row saying a clause is `not built` while the issue holding it is **closed** reads as finished work and as absent work at once, which `AGENTS.md` calls worse than unfiled. `scripts/check_status_rows.py` found **twelve such rows across three records** — 0041, 0044 and 0045 — every one created hours earlier by a build ([#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283), [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273), [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288)) whose record nobody went back to. The defect #291 was filed for, caught by the guard #291 asked for, on work that postdates the issue. **It keys on table rows, not on the phrase**: 0027's Status section ends with a dated append narrating *"This record shipped saying 'Decided, not built'"* and correctly citing closed issues, so a phrase match would flag it forever while loosening the phrase would blind the guard — both directions asserted. Pure parsing in `scripts/status_rows.py` and unit-tested hermetically; the network half is a CI job, the split `check_build_stamp_advanced.py` already uses. **The mirror stays a process rule** — an *open* issue over shipped work is the judgement no guard can make, and it was met by hand four times today. **102 of 209, unmoved.** 220 clauses. 1615 tests.
+**Current build:** `08292026.19` — **a disclosure could be deleted while its rule stayed unbuilt, and every test would pass.** [#292](https://github.com/eddiefiggie/srd-rules-engine/issues/292) pins the whole set of `unenforced_clauses`, **both ways**: a removal means R32 may have acquired a false claim, and an addition means the engine stopped enforcing something. A pin catching only removals is half a guard, and both directions are proved. **The issue also suspected one was already stale, and it was** — `remains-prone-when-this-ends` has been enforced since the condition set shipped, because `Conditions.without` re-applies Prone on its own behalf when Unconscious ends rather than letting it lift with the source that implied it. Stale in the **harmless** direction, telling readers less was modelled than is; confirmed behaviourally before removal, and the removal is asserted beside the enforcement rather than on its own. That pairing has now retired three clauses — `drops-what-it-holds` ([#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280)), the two the object-interaction cap replaced ([#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288)), and this one. What the pin cannot decide is whether a clause's rule is genuinely unbuilt; that judgement stays a person's, and the pin makes every change deliberate so the question gets asked at the diff. **102 of 209, unmoved.** 220 clauses. 1620 tests.
 
 ---
 
@@ -224,11 +224,12 @@ one, and the plan is amended to match:
   payload derives `compat` from its own schema version
   (closed [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106))
 
-**Next up:** the three process gaps this session opened and did not close —
-[#282](https://github.com/eddiefiggie/srd-rules-engine/issues/282) (the README's decision-record list), [#291](https://github.com/eddiefiggie/srd-rules-engine/issues/291) (a Status row may
-cite a closed issue) and [#292](https://github.com/eddiefiggie/srd-rules-engine/issues/292) (a disclosure may be retired without its rule).
-Each needs a decision about how much machinery the process deserves rather than more code,
-and #292's cost is no longer hypothetical: it was met by hand twice in one day.
+**Next up:** [#282](https://github.com/eddiefiggie/srd-rules-engine/issues/282) — the README's own decision-record list, which stopped at
+0022 and reads as complete. It is the last of the three process gaps this session opened,
+and the only one still needing a decision rather than code: complete the list and guard
+completeness, replace it with a pointer, or curate it and say so.
+Then the spellcasting cluster ([#245](https://github.com/eddiefiggie/srd-rules-engine/issues/245)-[#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250)), unblocked now that an
+equipment model exists.
 
 ## Development
 
@@ -278,4 +279,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-29 — build `08292026.18`._
+_Last updated: 2026-08-29 — build `08292026.19`._

@@ -668,7 +668,11 @@ def test_unconscious_no_longer_discloses_a_clause_it_now_enforces() -> None:
     """
     disclosed = EFFECTS[Condition.UNCONSCIOUS].unenforced_clauses
     assert "drops-what-it-holds" not in disclosed
-    assert disclosed == ("remains-prone-when-this-ends", "unaware")
+    # `remains-prone-when-this-ends` left too, in #292 — it was stale in the harmless
+    # direction, because `Conditions.without` enforces p. 191's "you remain Prone".
+    # Two of Unconscious's three disclosures have now come off by this same pairing, and the
+    # set is pinned in `tests/test_disclosures_are_pinned.py` so a third cannot go quietly.
+    assert disclosed == ("unaware",)
     after = apply_one(
         _laden(),
         condition_applied("pc", Condition.UNCONSCIOUS, description="struck senseless"),

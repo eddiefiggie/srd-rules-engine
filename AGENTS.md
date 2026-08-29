@@ -229,6 +229,26 @@ named the PDF five times at a home-relative path, followed the rule above as far
 found it did not reach, and guessed. The leak guard caught it at `git add` — which is the guard
 working, and also the latest possible moment for a rule to be learned.
 
+**A disclosure and the rule it discloses move together, and the set is pinned.**
+`unenforced_clauses` is how R32 stays honest — a mechanic the engine holds but does not
+enforce is *named* rather than left to be discovered. Nothing pinned the strings until
+[#292](https://github.com/eddiefiggie/srd-rules-engine/issues/292), so a disclosure could be deleted while its rule stayed unbuilt and every test
+would still pass: R32 quietly becoming a false claim, and the dangerous direction, because a
+reader told nothing is missing concludes the mechanic is complete.
+
+`tests/test_disclosures_are_pinned.py` holds the whole set, **both ways** — an addition means
+the engine stopped enforcing something, which is as much a change as a removal. A pin catching
+only removals is half a guard. What it cannot do is decide whether a clause's rule is
+genuinely unbuilt; that is the judgement `tests/test_decision_records.py` also declines, so the
+pin makes every change *deliberate* and a reviewer asks the question at the diff.
+
+**Take a clause off in the same change that builds its rule**, and assert the two together.
+That pairing has now retired three clauses — `drops-what-it-holds` ([#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280)), the two
+the object-interaction cap replaced ([#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288)), and `remains-prone-when-this-ends`,
+which turned out to be stale in the *harmless* direction: `Conditions.without` had enforced
+p. 191's "you remain Prone" all along, so the disclosure was telling readers less was modelled
+than is.
+
 **Narration bounds are advisory to the caller** (R7). The engine states what may and may not be
 asserted; it does not enforce it. Do not add enforcement machinery that implies otherwise, and do
 not describe bounds as enforced in user-facing prose.
