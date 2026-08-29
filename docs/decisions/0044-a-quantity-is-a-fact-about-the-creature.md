@@ -189,9 +189,9 @@ In the tree:
 
 ## Status of implementation
 
-**Nothing here is built.** This record decides;
+**Clauses 1 to 6 are built.** Clauses 1-4 and 6 by [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273); clause 5 by [#301](https://github.com/eddiefiggie/srd-rules-engine/issues/301), which needed no new route for narrative facts after all — the fight ending is a claim carried by an ordinary declaration, and the recovery it licenses is an outcome like any other. The record expected a route because it was reasoning from `with_time_passed`, which is a *state method* a caller invokes; a recovery is not, because it changes what a creature has. This record decides;
 [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273) builds clauses 1 to 4 and
-6 and **remains open**. Clause 5's recovery is [#301](https://github.com/eddiefiggie/srd-rules-engine/issues/301).
+6, and clause 5's recovery is [#301](https://github.com/eddiefiggie/srd-rules-engine/issues/301).
 
 | Clause | State |
 |---|---|
@@ -199,7 +199,7 @@ In the tree:
 | 2 — which ammunition a weapon needs is content, by id | **Decided, not built.** [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273) |
 | 3 — firing expends one, and firing without any is not offered | **Decided, not built.** [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273) |
 | 4 — the free hand is p. 105's question again | **Decided, not built.** [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273) |
-| 5 — p. 14's test is stated, and the engine may evaluate none of it | **Decided, not built.** [#301](https://github.com/eddiefiggie/srd-rules-engine/issues/301), split out so the firing half is not blocked behind a route for encounter-scoped narrative facts that does not exist |
+| 5 — p. 14's test is stated, and the engine may evaluate none of it | **Built.** `ammunition_recovery_resolver` accepts the claim that the fight ended and says in its narration bounds that it did not check — refusing on p. 14's two observable conditions would overrule the agent on the three it cannot see ([#301](https://github.com/eddiefiggie/srd-rules-engine/issues/301)) |
 | 6 — the used-tally is the first per-encounter structure | **Decided, not built.** [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273) |
 
 _Written 2026-08-29 against SRD v5.2.1._

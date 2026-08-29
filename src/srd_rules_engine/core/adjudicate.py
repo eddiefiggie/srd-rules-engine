@@ -259,6 +259,21 @@ class EffectKind(StrEnum):
     #: happened, so it rides in `Proposal.always` beside the action charge rather than in a
     #: hit branch. p. 89 does not return a piece on a miss.
     AMMUNITION_SPENT = "ammunition-spent"
+    #: Ammunition recovered after a fight (p. 89, #301). `item_id` names which and `amount`
+    #: is how many pieces came back — "half the ammunition (round down) you used in the
+    #: fight; the rest is lost", so the fight's tally clears whatever the half came to.
+    AMMUNITION_RECOVERED = "ammunition-recovered"
+    #: Campaign minutes elapsed because a rule said so (#301). `amount` is the minutes.
+    #:
+    #: **This is rule-stated time, not the agent-supplied kind 0020 clause 3 governs.** That
+    #: clause is about a narrative fact — "only the agent knows the party walked for three
+    #: hours" — and p. 89 is not asking: "you can spend **1 minute** to recover half the
+    #: ammunition". The agent decides *that* the recovery is attempted; the document decides
+    #: what it costs, which is the invariant working rather than an exception to it.
+    #:
+    #: `EncounterState.with_time_passed` still decides every consequence, so a minute spent
+    #: here retires the spans and recoveries a minute retires anywhere else.
+    TIME_PASSED = "time-passed"
 
 
 #: The kinds that carry a condition rather than a number. Named because three places have
@@ -278,6 +293,7 @@ ITEM_KINDS: Final = frozenset(
         EffectKind.CARRIAGE_CHANGED,
         EffectKind.OBJECT_PICKED_UP,
         EffectKind.AMMUNITION_SPENT,
+        EffectKind.AMMUNITION_RECOVERED,
     }
 )
 
@@ -534,6 +550,27 @@ def loading_fired(target_id: str, action: ActionKind, *, description: str) -> Ef
         amount=0,
         description=description,
         action=action,
+    )
+
+
+def ammunition_recovered(target_id: str, item_id: str, pieces: int, *, description: str) -> Effect:
+    """Ammunition recovered after a fight (p. 89, #301)."""
+    return Effect(
+        kind=EffectKind.AMMUNITION_RECOVERED,
+        target_id=target_id,
+        amount=pieces,
+        description=description,
+        item_id=item_id,
+    )
+
+
+def time_passed(target_id: str, minutes: int, *, description: str) -> Effect:
+    """Campaign minutes a rule states (#301). See `EffectKind.TIME_PASSED`."""
+    return Effect(
+        kind=EffectKind.TIME_PASSED,
+        target_id=target_id,
+        amount=minutes,
+        description=description,
     )
 
 
@@ -1553,6 +1590,11 @@ def _apply(
         elif effect.kind is EffectKind.AMMUNITION_SPENT:
             assert effect.item_id is not None  # __post_init__ refuses one without
             state = state.with_ammunition_spent(effect.target_id, effect.item_id)
+        elif effect.kind is EffectKind.AMMUNITION_RECOVERED:
+            assert effect.item_id is not None  # __post_init__ refuses one without
+            state = state.with_ammunition_recovered(effect.target_id, effect.item_id, effect.amount)
+        elif effect.kind is EffectKind.TIME_PASSED:
+            state = state.with_time_passed(effect.amount)
         elif effect.kind is EffectKind.LOADING_FIRED:
             assert effect.action is not None  # __post_init__ refuses one without
             state = state.with_loading_shot(effect.target_id, str(effect.action))

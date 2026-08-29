@@ -239,6 +239,15 @@ def items_in(equipment: tuple[Carried, ...], carriage: Carriage) -> tuple[Item, 
 #: boundary in a different place.
 HEAVY_SCORE_THRESHOLD = 13
 
+#: p. 89: "you can spend **1 minute** to recover half the ammunition". The document's number
+#: rather than the agent's, which is why the recovery ruling states it instead of taking it
+#: through `with_time_passed` — 0020 clause 3 governs the agent-supplied kind of elapsed time.
+#:
+#: It lives here beside `HEAVY_SCORE_THRESHOLD` rather than in `core.combat` because both are
+#: p. 89 weapon-property numbers, and `test_no_weapon_list_ships_in_this_module` pins that
+#: module's constants so a rule value cannot hide among them looking verified.
+RECOVERY_MINUTES = 1
+
 
 @dataclass(frozen=True, kw_only=True)
 class Weapon(Item):
