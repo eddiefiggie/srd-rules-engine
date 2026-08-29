@@ -183,6 +183,8 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # p. 89, #273. A count on `Carried`, one piece per attack, and the shot refused
         # without any. p. 89's recovery is #301 and needs a fight boundary.
         "weapon-ammunition": "core.state.EncounterState.with_ammunition_spent",
+        # p. 13, p. 191, #288. One object interaction a turn, and the Action buys another.
+        "utilize": "core.combat.object_interaction_resolver",
         "mastery-graze": "core.combat.Weapon.graze",
         # Position, movement and range in feet (#17, #20).
         "speed": "core.position.Speeds.walk",

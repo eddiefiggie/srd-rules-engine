@@ -44,7 +44,7 @@ from srd_rules_engine.core.equipment import Multiattack
 from srd_rules_engine.core.position import Position
 from srd_rules_engine.core.read_surface import (
     ATTACK_STOW,
-    SWAP_CAP_IS_THE_ENGINES,
+    OBJECT_INTERACTION_CAP,
     attack_swap_key,
 )
 from srd_rules_engine.memory.store import JsonMemoryStore
@@ -228,7 +228,7 @@ def test_a_second_swap_is_refused_however_many_attacks_remain(tmp_path: Path) ->
     swap = attack_swap_key(BLADE.id, "boar", AXE.id, swap=ATTACK_STOW)
     assert swap in keys(state)
     _ruling, after = build(tmp_path).adjudicate(state, declare(state, swap))
-    assert "pc" in after.swaps_this_turn
+    assert "pc" in after.object_interactions_this_turn
     assert after.attacks_remaining("pc") == 2, "rolls remain"
     assert any(k.startswith("attack:") for k in keys(after)), "and the blade is still in hand"
     assert not any(k.startswith("attack-") for k in keys(after)), "and no second swap"
@@ -236,15 +236,24 @@ def test_a_second_swap_is_refused_however_many_attacks_remain(tmp_path: Path) ->
 
 def test_the_cap_is_disclosed_as_the_engines_rather_than_the_documents() -> None:
     """R32. An agent shown one swap and refused a second is entitled to know the cap was
-    decided here — 0043 clause 3 is an intersection of two readings, not a printed rule."""
+    decided here — 0043 clause 3 is an intersection of two readings, not a printed rule.
+
+    **The clause was renamed by #288**, when p. 13's own route arrived and the cap stopped
+    being about swaps: `one-swap-per-turn-is-the-engines-cap` became
+    `one-object-interaction-a-turn-is-the-engines-cap`, and
+    `free-object-interaction-unmodelled` came off entirely because 0045 decided what it
+    disclosed. The three moved **together**, which is
+    [#292](https://github.com/eddiefiggie/srd-rules-engine/issues/292)'s point — nothing pins
+    these strings, so the rename and the rule had to travel in one change.
+    """
     situation = read(encounter(Multiattack(attacks=3)), "pc").situation
     assert situation is not None
-    assert SWAP_CAP_IS_THE_ENGINES in situation.unenforced_clauses
+    assert OBJECT_INTERACTION_CAP in situation.unenforced_clauses
 
 
 def test_unconsciouss_drop_does_not_spend_the_swap_allowance(tmp_path: Path) -> None:
     """p. 191 detaches an item too, and the creature never chose to. Spending p. 177's
-    allowance on it would refuse a swap the rules permit — which is why `WEAPON_SWAPPED` is
+    allowance on it would refuse a swap the rules permit — which is why `OBJECT_INTERACTED` is
     its own effect rather than inferred from the carriage change beside it."""
     from srd_rules_engine.core.adjudicate import _apply, condition_applied
     from srd_rules_engine.core.conditions import Condition
@@ -256,7 +265,7 @@ def test_unconsciouss_drop_does_not_spend_the_swap_allowance(tmp_path: Path) -> 
         seed=1,
     )
     assert after.detached_objects, "p. 191 dropped the blade"
-    assert "pc" not in after.swaps_this_turn
+    assert "pc" not in after.object_interactions_this_turn
 
 
 def test_the_swap_record_clears_when_the_turn_advances(tmp_path: Path) -> None:
@@ -265,8 +274,8 @@ def test_the_swap_record_clears_when_the_turn_advances(tmp_path: Path) -> None:
         state,
         declare(state, attack_swap_key(BLADE.id, "boar", BLADE.id, swap=ATTACK_STOW)),
     )
-    assert "pc" in after.swaps_this_turn
-    assert "pc" not in after.advanced_turn().swaps_this_turn
+    assert "pc" in after.object_interactions_this_turn
+    assert "pc" not in after.advanced_turn().object_interactions_this_turn
 
 
 # --- the type refuses what a reader could not read correctly ----------------------------

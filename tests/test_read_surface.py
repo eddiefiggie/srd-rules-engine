@@ -32,11 +32,14 @@ from srd_rules_engine.core.read_surface import (
     END_TURN,
     TOKEN_SCHEME,
     UNARMED_STRIKE_ID,
+    VERB_DROP,
+    VERB_STOW,
     LegalAction,
     Verdict,
     attack_key,
     attack_swap_key,
     dash_key,
+    interaction_key,
     issue_token,
     legal_actions,
     read,
@@ -166,6 +169,12 @@ def test_the_active_combatant_is_offered_actions() -> None:
         # and nothing is on the ground, so those two sources contribute nothing here.
         attack_swap_key(FIXTURE_BLADE.id, "boar", FIXTURE_BLADE.id, swap=ATTACK_STOW),
         attack_swap_key(FIXTURE_BLADE.id, "boar", FIXTURE_BLADE.id, swap=ATTACK_DROP),
+        # p. 13's free object interaction, offered without an attack (#288, 0045 clause 2).
+        # The same moves as the swap above, and 0042 shipped their absence as an accepted
+        # cost: "the engine offers no way to sheathe a sword on a quiet turn." No `equip`
+        # among them, because nothing is stowed and nothing reachable is on the ground.
+        interaction_key(VERB_STOW, FIXTURE_BLADE.id),
+        interaction_key(VERB_DROP, FIXTURE_BLADE.id),
         dash_key(MovementMode.WALK),
         DODGE,
         DISENGAGE,

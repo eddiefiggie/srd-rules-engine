@@ -682,18 +682,21 @@ class EncounterState:
     #: Action bought are left" and a set of actors cannot answer it — which is what separates
     #: this from the three structures above.
     attacks_this_turn: Mapping[str, int] = field(default_factory=dict)
-    #: Who has already drawn on p. 177's one weapon swap this turn (0043 clause 3).
+    #: Who has already spent this turn's one object interaction (0045 clause 1).
     #:
-    #: **A set, and 0043 clause 4 argued for a count.** The clause was reasoning about the
-    #: attack tally beside it and carried the swap along; the swap's cap is *one*, so the only
-    #: question is whether this creature has taken it, and a set answers exactly that. A count
-    #: here would carry a number nothing may read past 1.
+    #: **One allowance, two routes.** p. 13 grants "one object or feature of the environment
+    #: for free" per turn and p. 177 grants one weapon swap per attack, and the document never
+    #: composes them. Two interactions are legal under the independent reading and not under
+    #: the shared one; one is legal under both, so the engine offers the intersection and
+    #: records both routes here (0043 clause 3, 0045 clause 1).
     #:
-    #: The cap is the **engine's**, not the document's: p. 177 grants one swap per attack and
-    #: p. 13 one object interaction per turn, and nothing composes them. One swap is legal
-    #: under both readings and two under only one, so the engine offers the intersection and
-    #: says so (0043 clause 3).
-    swaps_this_turn: frozenset[str] = frozenset()
+    #: **This was `swaps_this_turn` until #288**, when p. 13's route arrived and the old name
+    #: became a lie — it now records picking a rock up as readily as sheathing a sword.
+    #:
+    #: A set, not a count: the cap is one, so the only question is whether this creature has
+    #: taken it. A second interaction needs the Utilize action (p. 13), which spends the
+    #: Action rather than this.
+    object_interactions_this_turn: frozenset[str] = frozenset()
     #: Which `(actor, action kind)` pairs have already fired a Loading weapon (p. 90, #271).
     #:
     #: **Keyed by the action used, not by the turn.** p. 90 caps the shot "when you use an
@@ -1907,9 +1910,15 @@ class EncounterState:
         """Whether p. 90's one shot is already spent for that action."""
         return (combatant_id, action) in self.loading_shots_this_turn
 
-    def with_weapon_swapped(self, combatant_id: str) -> EncounterState:
-        """Record that p. 177's one swap has been drawn on this turn (0043 clause 3)."""
-        return self._evolve(swaps_this_turn=self.swaps_this_turn | {combatant_id})
+    def with_object_interaction(self, combatant_id: str) -> EncounterState:
+        """Record this turn's one object interaction as spent (0045 clause 1).
+
+        Either route spends it — p. 177's swap during an attack, or p. 13's free interaction
+        on its own — because the engine treats them as one allowance.
+        """
+        return self._evolve(
+            object_interactions_this_turn=self.object_interactions_this_turn | {combatant_id}
+        )
 
     def attacks_remaining(self, combatant_id: str) -> int:
         """How many attack rolls this creature's Attack action still buys (p. 257).
@@ -2169,7 +2178,7 @@ class EncounterState:
                 slots_expended_this_turn=frozenset(),
                 light_attacks_this_turn=frozenset(),
                 attacks_this_turn={},
-                swaps_this_turn=frozenset(),
+                object_interactions_this_turn=frozenset(),
                 loading_shots_this_turn=frozenset(),
             )
         return ended._evolve(
@@ -2180,7 +2189,7 @@ class EncounterState:
             slots_expended_this_turn=frozenset(),
             light_attacks_this_turn=frozenset(),
             attacks_this_turn={},
-            swaps_this_turn=frozenset(),
+            object_interactions_this_turn=frozenset(),
             loading_shots_this_turn=frozenset(),
         )
 

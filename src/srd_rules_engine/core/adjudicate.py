@@ -242,10 +242,13 @@ class EffectKind(StrEnum):
     #: clause 4). Its own kind rather than a field on `ACTION_SPENT`, because a Multiattack's
     #: second and third rolls spend **no** action — the Action was spent buying all of them.
     ATTACK_MADE = "attack-made"
-    #: p. 177's one weapon swap, drawn on (0043 clause 3). Its own kind rather than inferred
-    #: from the carriage change beside it, because p. 191's Unconscious also detaches an item
-    #: and must not spend an allowance the creature never chose to use.
-    WEAPON_SWAPPED = "weapon-swapped"
+    #: This turn's one object interaction, spent (0045 clause 1). Its own kind rather than
+    #: inferred from the carriage change beside it, because p. 191's Unconscious also detaches
+    #: an item and must not spend an allowance the creature never chose to use.
+    #:
+    #: Named for the **allowance**, not the move: p. 177's swap and p. 13's free interaction
+    #: are one budget, and either spends this.
+    OBJECT_INTERACTED = "object-interacted"
     #: p. 90's one shot from a Loading weapon, fired with the action named in `action`
     #: (#271). Its own kind rather than a flag on `ATTACK_MADE`, because the cap is keyed by
     #: the **action used** and a Multiattack's later rolls spend no action of their own — so
@@ -516,10 +519,10 @@ def attack_made(target_id: str, *, description: str) -> Effect:
     )
 
 
-def weapon_swapped(target_id: str, *, description: str) -> Effect:
-    """p. 177's one swap, drawn on for this turn (0043 clause 3)."""
+def object_interacted(target_id: str, *, description: str) -> Effect:
+    """This turn's one object interaction, spent (0045 clause 1)."""
     return Effect(
-        kind=EffectKind.WEAPON_SWAPPED, target_id=target_id, amount=0, description=description
+        kind=EffectKind.OBJECT_INTERACTED, target_id=target_id, amount=0, description=description
     )
 
 
@@ -1545,8 +1548,8 @@ def _apply(
             state = state.with_object_picked_up(effect.target_id, effect.item_id)
         elif effect.kind is EffectKind.ATTACK_MADE:
             state = state.with_attack_made(effect.target_id)
-        elif effect.kind is EffectKind.WEAPON_SWAPPED:
-            state = state.with_weapon_swapped(effect.target_id)
+        elif effect.kind is EffectKind.OBJECT_INTERACTED:
+            state = state.with_object_interaction(effect.target_id)
         elif effect.kind is EffectKind.AMMUNITION_SPENT:
             assert effect.item_id is not None  # __post_init__ refuses one without
             state = state.with_ammunition_spent(effect.target_id, effect.item_id)

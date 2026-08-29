@@ -48,7 +48,7 @@ from srd_rules_engine.core.read_surface import (
     ATTACK_DROP,
     ATTACK_EQUIP,
     ATTACK_STOW,
-    FREE_OBJECT_INTERACTION,
+    OBJECT_INTERACTION_CAP,
     attack_swap_declared,
     attack_swap_key,
 )
@@ -287,18 +287,18 @@ def test_the_swap_happens_whether_or_not_the_attack_lands(tmp_path: Path) -> Non
 # --- 0042 clause 6: the silence, disclosed -----------------------------------------------
 
 
-def test_the_unmodelled_free_interaction_is_disclosed_rather_than_implied() -> None:
-    """0042 clause 6, and R32.
+def test_the_cap_is_disclosed_as_the_engines_rather_than_the_documents() -> None:
+    """0045 clause 1, and R32.
 
-    p. 13 grants one object interaction per turn; p. 177 grants one weapon swap per attack.
-    **The document never states their relationship** — p. 191 puts drawing a sword during the
-    Attack action in one sentence with interacting "while doing something else" and stops
-    short of saying the free interaction is thereby spent.
+    p. 13 grants one object interaction a turn; p. 177 grants one weapon swap per attack.
+    **The document never states their relationship**, so the engine takes the intersection —
+    one, whichever route spends it — and says the cap is its own.
 
-    An agent shown a swap offer would otherwise reasonably infer *something* about the other
-    budget, in either direction. Naming it is the only honest option while `utilize` (#288)
-    and `multiattack` (#289) are unbuilt and the readings cannot diverge.
+    This replaces `free-object-interaction-unmodelled`, which disclosed the silence while
+    nothing else could spend an interaction. #288 built p. 13's route, which made the two
+    readings distinguishable in play, and a disclosure a reader can catch the engine
+    contradicting is a way of not deciding (0045 Options, rejecting Option 3).
     """
     situation = read(encounter(), "pc").situation
     assert situation is not None
-    assert FREE_OBJECT_INTERACTION in situation.unenforced_clauses
+    assert OBJECT_INTERACTION_CAP in situation.unenforced_clauses
