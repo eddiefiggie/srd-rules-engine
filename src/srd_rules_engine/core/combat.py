@@ -50,6 +50,7 @@ from srd_rules_engine.core.adjudicate import (
     Proposal,
     Resolver,
     action_spent,
+    ammunition_recovered,
     ammunition_spent,
     attack_made,
     carriage_changed,
@@ -57,6 +58,7 @@ from srd_rules_engine.core.adjudicate import (
     object_detached,
     object_interacted,
     object_picked_up,
+    time_passed,
 )
 from srd_rules_engine.core.d20 import (
     INITIATIVE_BAND,
@@ -68,7 +70,7 @@ from srd_rules_engine.core.d20 import (
 )
 from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.equipment import HEAVY_SCORE_THRESHOLD as HEAVY_SCORE_THRESHOLD
-from srd_rules_engine.core.equipment import Carriage, Carried
+from srd_rules_engine.core.equipment import RECOVERY_MINUTES, Carriage, Carried
 from srd_rules_engine.core.equipment import Weapon as Weapon
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.obstructions import Cover, total_cover
@@ -511,6 +513,80 @@ def object_interaction_resolver() -> Resolver:
             may_claim=(f"that {actor.name} {verb}s {item_id}",),
             may_not_claim=(
                 "that anything was found, opened, triggered or learned by the interaction",
+            ),
+        )
+
+    return resolve
+
+
+def ammunition_recovery_resolver() -> Resolver:
+    """p. 89's minute spent recovering ammunition after a fight (0044 clause 5, #301).
+
+    > After a fight, you can spend 1 minute to recover half the ammunition (round down) you
+    > used in the fight; the rest is lost.
+
+    **No d20 test**, for `object_interaction_resolver`'s reason: nothing is decided by a roll.
+    The arithmetic is the document's and the minute is the document's; what the agent supplies
+    is that the fight is over.
+
+    ## The engine does not check that it is
+
+    p. 14 states the test — "Combat ends when one side or the other is defeated, which can mean
+    the creatures are killed or **knocked out** or have **surrendered** or **fled**. Combat can
+    also end when **both sides agree to end it**" — and the engine can observe two of its five
+    conditions. Surrender, flight and mutual agreement are judgements about the fiction, and
+    R20 keeps the memory port typed so the engine never reads prose to find one.
+
+    **So the claim is accepted, and the acceptance is disclosed** (0044 clause 5). Refusing on
+    the two observable conditions would be the engine overruling the agent on the three it
+    cannot see, and the half it *can* see is the half that answers *yes* — so inferring from it
+    would end fights early and hand back arrows on the engine's own authority.
+    """
+
+    def resolve(
+        *,
+        state: EncounterState,
+        declaration: Declaration,
+        facts: Mapping[str, Resolution],
+    ) -> Proposal:
+        actor = state.combatant(declaration.actor_id)
+        recoverable = state.recoverable_ammunition(actor.id)
+        if not state.ammunition_used or not any(
+            who == actor.id for who, _ in state.ammunition_used
+        ):
+            raise ValueError(
+                f"{actor.name} used no ammunition in this fight, so p. 89 has nothing to "
+                "recover half of. A minute spent recovering nothing is not a rule the "
+                "document states"
+            )
+
+        effects: list[Effect] = [
+            # Every kind used is closed, including those whose half rounded to nothing:
+            # p. 89 says "the rest is lost", so a single piece fired recovers none and
+            # leaves nothing behind to recover later.
+            ammunition_recovered(
+                actor.id,
+                item_id,
+                pieces,
+                description=(
+                    f"{pieces} of {item_id} recovered, half of what was used (p. 89)"
+                    if pieces
+                    else f"none of {item_id} recovered; half of one rounds down (p. 89)"
+                ),
+            )
+            for item_id, pieces in sorted(recoverable.items())
+        ]
+        effects.append(
+            time_passed(actor.id, RECOVERY_MINUTES, description="1 minute spent recovering (p. 89)")
+        )
+
+        return Proposal(
+            outcome=tuple(effects),
+            citations=("SRD 5.2.1 p. 89, Ammunition", "SRD 5.2.1 p. 14, Ending Combat"),
+            may_claim=("that the recovered ammunition was gathered up",),
+            may_not_claim=(
+                "that the fight is over — the engine accepted that claim and did not check it",
+                "that the ammunition not recovered is findable later; p. 89 says it is lost",
             ),
         )
 

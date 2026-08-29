@@ -1895,6 +1895,61 @@ class EncounterState:
             ammunition_used=tally,
         )
 
+    def with_ammunition_recovered(
+        self, combatant_id: str, item_id: str, pieces: int
+    ) -> EncounterState:
+        """Return recovered pieces and close the fight's tally for them (p. 89, #301).
+
+        > After a fight, you can spend 1 minute to recover **half the ammunition (round down)
+        > you used in the fight**; the rest is lost.
+
+        **The tally clears whatever the half came to**, because "the rest is lost" — a
+        creature that used one piece recovers none and has nothing left to recover later.
+        Leaving the tally would let a second minute recover from the same fight.
+
+        Recovered pieces arrive **stowed**, which is 0039 clause 3's residual: p. 89 does not
+        say where they go, and stowed is the carriage that commits no hands and asserts
+        nothing. A creature that still has some gets more of them; one that spent the lot gets
+        the entry back.
+
+        **And a creature that spent the lot gets an `Item` carrying only its id** (R32). The
+        last piece took the entry with it, so the weight and hand count are gone unless a
+        detached object still names them. Nothing reads either today — p. 178's carrying
+        capacity is blocked on a `Size` this engine does not have
+        ([#259](https://github.com/eddiefiggie/srd-rules-engine/issues/259)) — and the
+        alternative is refusing a recovery p. 89 allows, or holding a registry of every item
+        a creature ever had.
+        """
+        target = self.combatant(combatant_id)
+        tally = dict(self.ammunition_used)
+        tally.pop((combatant_id, item_id), None)
+        if pieces < 1:
+            return self._evolve(ammunition_used=tally)
+
+        held = next((c for c in target.equipment if c.item.id == item_id), None)
+        if held is not None:
+            equipment = tuple(
+                replace(c, quantity=c.quantity + pieces) if c.item.id == item_id else c
+                for c in target.equipment
+            )
+        else:
+            recovered = next(
+                (o.item for o in self.detached_objects if o.item.id == item_id), None
+            ) or Item(id=item_id)
+            equipment = (*target.equipment, Carried(recovered, Carriage.STOWED, quantity=pieces))
+        return self._evolve(
+            combatants=self._replacing(replace(target, equipment=equipment)),
+            ammunition_used=tally,
+        )
+
+    def recoverable_ammunition(self, combatant_id: str) -> Mapping[str, int]:
+        """How much of each kind a minute would recover (p. 89). Half, rounding down."""
+        return {
+            item: used // 2
+            for (who, item), used in self.ammunition_used.items()
+            if who == combatant_id
+        }
+
     def ammunition_for(self, combatant_id: str, item_id: str) -> int:
         """How many pieces of that ammunition the creature has (p. 89). Zero if none."""
         target = self.combatant(combatant_id)

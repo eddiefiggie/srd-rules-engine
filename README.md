@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08292026.16` — **a sword can be sheathed on a quiet turn.** [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) builds [0045](docs/decisions/0045-one-object-interaction-a-turn-and-the-action-buys-more.md), lifting the accepted cost 0042 shipped in exactly those words. p. 13's free interaction offers **the same four moves** p. 177's swap already performed, so both routes share one enumeration rather than drifting apart, and both spend **one allowance** — the intersection 0043 clause 3 took, applied a second time. Utilize then buys another with the Action, which is a real effect rather than a placeholder: it is the only way to sheathe one weapon and draw another in a turn. **Two disclosures came off together and a third replaced them** — `free-object-interaction-unmodelled` and `one-swap-per-turn-is-the-engines-cap` became `one-object-interaction-a-turn-is-the-engines-cap`, and nothing pins those strings, so the rename and the rule had to travel in one change ([#292](https://github.com/eddiefiggie/srd-rules-engine/issues/292)'s point, met by hand). `swaps_this_turn` is renamed too: it now records picking a rock up as readily as sheathing a sword, and the old name would lie. **A testless proposal states its effects in `outcome`** (0027 clause 6) — sheathing a sword decides nothing, and `always` is for costs beside a roll. **101 of 209 -> 102 of 209**, and `utilize` is the fifth action shape. 220 clauses. 1598 tests.
+**Current build:** `08292026.17` — **the engine hands back arrows without checking the fight is over, and says so.** [#301](https://github.com/eddiefiggie/srd-rules-engine/issues/301) builds 0044 clause 5. p. 89 recovers "half the ammunition (round down) you used in the fight; the rest is lost", so the tally clears whatever the half came to — a single piece fired recovers none and leaves nothing to try again for. **The boundary is the interesting half.** p. 14 states five conditions for combat ending and the engine can observe two; the two it can see are the ones that answer *yes*, so inferring would end fights early while refusing would overrule the agent on the three it cannot. The claim is accepted and the **narration bound says it was not checked** — a test fires the recovery with a conscious hostile five feet away and expects it to succeed. **0044 expected this to need a new route for narrative facts and it did not**: the record was reasoning from `with_time_passed`, a state method a caller invokes, and a recovery is not one because it changes what a creature has. **p. 89's minute is the document's number, not the agent's** — 0020 clause 3 governs agent-supplied time, so the ruling states the minute and `with_time_passed` still decides its consequences. A guard caught the constant hiding in `core.combat`, where a rule value "reads exactly like a verified one"; it lives beside `HEAVY_SCORE_THRESHOLD` now. **102 of 209, unmoved** — `weapon-ammunition` already resolved. 220 clauses. 1607 tests.
 
 ---
 
@@ -224,10 +224,11 @@ one, and the plan is amended to match:
   payload derives `compat` from its own schema version
   (closed [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106))
 
-**Next up:** [#301](https://github.com/eddiefiggie/srd-rules-engine/issues/301) — p. 89's ammunition recovery, which needs a route for
-encounter-scoped narrative facts. p. 14 *does* say when combat ends, and three of its five
-conditions are judgements about the fiction, so the engine may evaluate none of it — the
-supplied-fact shape `with_time_passed` already uses is where that has to land.
+**Next up:** the three process gaps this session opened and did not close —
+[#282](https://github.com/eddiefiggie/srd-rules-engine/issues/282) (the README's decision-record list), [#291](https://github.com/eddiefiggie/srd-rules-engine/issues/291) (a Status row may
+cite a closed issue) and [#292](https://github.com/eddiefiggie/srd-rules-engine/issues/292) (a disclosure may be retired without its rule).
+Each needs a decision about how much machinery the process deserves rather than more code,
+and #292's cost is no longer hypothetical: it was met by hand twice in one day.
 
 ## Development
 
@@ -277,4 +278,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-29 — build `08292026.16`._
+_Last updated: 2026-08-29 — build `08292026.17`._
