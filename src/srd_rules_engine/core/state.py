@@ -299,6 +299,37 @@ class Combatant:
     #: ship (R31). So the engine holds the resolved relation and a ruleset that knows the
     #: categories expands them into ids, the same split under which no spell list ships.
     weapon_proficiencies: frozenset[str] = frozenset()
+    #: Which weapons this creature may use the **mastery property** of, by item id (p. 90,
+    #: 0047 clause 1).
+    #:
+    #: p. 90 opens the Mastery Properties section by gating every one of them: a mastery
+    #: property is "usable only by a character who has a feature, such as Weapon Mastery,
+    #: **that unlocks the property for the character**". p. 89 says it again in the Weapons
+    #: table's column list — "To use that property, you must have a feature that lets you use
+    #: it."
+    #:
+    #: **A separate relation from `weapon_proficiencies`, not a subset of it.** The five
+    #: classes that ship the feature do not agree on whether proficiency is required: Paladin
+    #: (p. 54), Ranger (p. 59) and Rogue (p. 62) each say "of your choice **with which you
+    #: have proficiency**", while Barbarian (p. 29) says "two kinds of Simple or Martial Melee
+    #: weapons of your choice" and Fighter (p. 48) "three kinds of Simple or Martial weapons
+    #: of your choice", neither mentioning proficiency. Deriving one from the other would be
+    #: right for three classes and invented for two, and it is smaller than proficiency in
+    #: every case — a Fighter is proficient with far more weapons than the three it masters.
+    #:
+    #: **By id, and the source of the permission is deliberately not held.** p. 90 writes
+    #: "**such as** Weapon Mastery", leaving the set of unlocking features open, and the
+    #: features themselves are class content this repository does not ship (R31). So the
+    #: engine holds the resolved relation and a ruleset that knows the class tables expands
+    #: them into ids — the same split as `weapon_proficiencies` under 0040 clause 2, and as
+    #: `may_substitute_focus` above.
+    #:
+    #: **Empty by default, and that is the answer for every monster too.** p. 89 gives
+    #: proficiency an explicit monster rule — "A monster is proficient with any weapon in its
+    #: stat block" — and p. 90 gives mastery no parallel. It says "a **character**". Reading
+    #: one across from the other would grant every monster in the bestiary the mastery
+    #: property of everything it holds, on the engine's own authority (R31).
+    mastery_weapons: frozenset[str] = frozenset()
     #: Whether this creature may substitute a Spellcasting Focus for a spell's Material
     #: components (p. 105, p. 188, #245).
     #:
