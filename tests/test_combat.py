@@ -544,7 +544,7 @@ def test_the_target_is_read_from_the_action_key_never_from_the_label(tmp_path: P
     ACTOR_BOOKKEEPING = {
         EffectKind.ACTION_SPENT,
         EffectKind.ATTACK_MADE,
-        EffectKind.WEAPON_SWAPPED,
+        EffectKind.OBJECT_INTERACTED,
     }
     assert [e.target_id for e in ruling.effects if e.kind not in ACTOR_BOOKKEEPING] == ["boar"], (
         "and nothing else the attack did landed on anyone the key did not name"

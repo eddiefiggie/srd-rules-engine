@@ -96,14 +96,34 @@ def attack_key(weapon_id: str, target_id: str) -> str:
     return f"{ATTACK}:{weapon_id}:{target_id}"
 
 
-#: p. 13's one free object interaction per turn, which this engine does not model, and whose
-#: relationship to p. 177's per-attack swap the document never states (0042 clause 6).
-FREE_OBJECT_INTERACTION: Final = "free-object-interaction-unmodelled"
+#: 0045 clause 1. One object interaction a turn is the **engine's** cap, taken as the
+#: intersection of two readings the document does not choose between — p. 13's per-turn free
+#: interaction and p. 177's per-attack swap. Named rather than left to look like a printed rule
+#: an agent could cite.
+#:
+#: It replaces `free-object-interaction-unmodelled` and `one-swap-per-turn-is-the-engines-cap`,
+#: which disclosed the two halves of a silence that is now decided (0042 clause 6, 0043
+#: clause 3). The three moved together, which is
+#: [#292](https://github.com/eddiefiggie/srd-rules-engine/issues/292)'s point.
+OBJECT_INTERACTION_CAP: Final = "one-object-interaction-a-turn-is-the-engines-cap"
 
-#: 0043 clause 3. The one-swap-per-turn cap is the **engine's**, taken as the intersection of
-#: two readings the document does not choose between — so it is named rather than left to look
-#: like a printed rule an agent could cite.
-SWAP_CAP_IS_THE_ENGINES: Final = "one-swap-per-turn-is-the-engines-cap"
+#: 0045 clause 5. p. 14 lets the GM escalate an otherwise-free interaction to an action, and
+#: p. 177's *Breaking Objects* lets one be broken with Attack or Utilize. Both are a person's
+#: judgement, and the engine models neither the objects nor the escalation — so the Utilize
+#: offered here reaches the four moves the engine has and nothing else.
+UTILIZE_REACHES_FOUR_MOVES: Final = "utilize-reaches-only-the-engines-object-moves"
+
+#: A standalone object interaction — p. 13's free one — and the Utilize action that buys
+#: another (p. 13, p. 191, 0045 clauses 2-3).
+INTERACT: Final = "interact"
+UTILIZE: Final = "utilize"
+
+#: The three moves an interaction may be. `EQUIP` covers both of p. 177's sources, drawing
+#: from stowed and picking up, because which one applies is a fact about where the item is
+#: rather than a choice the creature makes.
+VERB_EQUIP: Final = "equip"
+VERB_STOW: Final = "stow"
+VERB_DROP: Final = "drop"
 
 #: An attack that also equips or unequips one weapon (p. 177, 0042 clauses 1-3).
 #:
@@ -558,6 +578,9 @@ def legal_actions(state: EncounterState, actor_id: str) -> tuple[LegalAction, ..
     actions.extend(_light_bonus_attacks(state, actor))
 
     actions.extend(_castable(state, actor))
+    # p. 13's free interaction, and p. 191's action for a second. Outside the `has_action`
+    # branch because the free one costs no action at all (0045 clauses 1 and 3).
+    actions.extend(_interactions(state, actor))
 
     if has_action:
         speed = actor.conditions.speed_after(actor.speeds.walk)
@@ -792,7 +815,7 @@ def _draw_and_use(state: EncounterState, actor: Combatant) -> tuple[LegalAction,
     dagger and reaching for a bow is asking about the bow's range.
     """
     offered: list[LegalAction] = []
-    if actor.id in state.swaps_this_turn:  # 0043 clause 3, as in `_swaps`
+    if actor.id in state.object_interactions_this_turn:  # 0043 clause 3, as in `_swaps`
         return ()
     equippable: list[tuple[Item, str]] = [
         (c.item, str(Carriage.STOWED)) for c in actor.equipment if c.carriage is Carriage.STOWED
@@ -823,6 +846,93 @@ def _draw_and_use(state: EncounterState, actor: Combatant) -> tuple[LegalAction,
     return tuple(offered)
 
 
+def interaction_key(verb: str, item_id: str, *, utilize: bool = False) -> str:
+    """The key one standalone object interaction is offered under (0045 clauses 2-3).
+
+    `utilize=True` is the same move bought with the Action, which is p. 13's "if you want to
+    interact with a second object, you need to take the Utilize action" — same verb, same
+    item, a different price.
+    """
+    return f"{UTILIZE if utilize else INTERACT}:{verb}:{_escape(item_id)}"
+
+
+def interaction_declared(action_key: str | None) -> tuple[str, str, bool] | None:
+    """`(verb, item_id, utilize)` an interaction key names, or `None`."""
+    if action_key is None:
+        return None
+    for prefix, utilize in ((INTERACT, False), (UTILIZE, True)):
+        if not action_key.startswith(f"{prefix}:"):
+            continue
+        verb, _, item = action_key[len(prefix) + 1 :].partition(":")
+        if verb not in (VERB_EQUIP, VERB_STOW, VERB_DROP) or not item:
+            return None
+        return verb, _unescape(item), utilize
+    return None
+
+
+def _interaction_options(
+    state: EncounterState, actor: Combatant
+) -> tuple[tuple[str, Item, str], ...]:
+    """Every `(verb, item, source)` this creature could interact with right now.
+
+    Shared by p. 177's attack-time swap and p. 13's standalone interaction, because 0045
+    clause 2 settles that they are **the same four moves** — the second route offers what the
+    first already did, and enumerating them twice is how the two would drift apart.
+
+    An unplaced detached object is absent, and stays absent: 0041 clause 4's cost does not
+    soften because a new route arrived (0045 clause 6).
+    """
+    options: list[tuple[str, Item, str]] = []
+    for carried in actor.equipment:
+        if carried.carriage is Carriage.STOWED:
+            options.append((VERB_EQUIP, carried.item, str(Carriage.STOWED)))
+        elif carried.carriage is Carriage.HELD:
+            options.append((VERB_STOW, carried.item, str(Carriage.HELD)))
+            options.append((VERB_DROP, carried.item, str(Carriage.HELD)))
+    reachable = reachable_objects(state.detached_objects, actor.position, actor.reach)
+    options.extend((VERB_EQUIP, obj.item, "detached") for obj in reachable or ())
+    return tuple(options)
+
+
+def _interactions(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...]:
+    """p. 13's one free object interaction, and the Utilize action that buys another.
+
+    > You can interact with **one object or feature of the environment for free**, during
+    > either your move or action… **If you want to interact with a second object, you need to
+    > take the Utilize action.**
+
+    **This route did not exist until #288**, and 0042 shipped its absence as an accepted cost:
+    "the engine offers no way to sheathe a sword on a quiet turn." It is the same four moves
+    p. 177 offers during an attack, offered without one.
+
+    **Free first, then the Action.** The free interaction is offered while unspent; once it is
+    gone the same moves reappear under `utilize:`, which spends the Action. A creature with no
+    Action left is offered neither, and that is p. 176's economy rather than a special case
+    (0045 clause 4).
+    """
+    free = actor.id not in state.object_interactions_this_turn
+    utilize = not free and actor.actions.available(ActionKind.ACTION, actor.conditions)
+    if not free and not utilize:
+        return ()
+    return tuple(
+        LegalAction(
+            key=interaction_key(verb, item.id, utilize=utilize),
+            label=(
+                f"{verb.capitalize()} {item.id}"
+                + (" (Utilize action)" if utilize else " (free interaction)")
+            ),
+            detail={
+                "verb": verb,
+                "item": item.id,
+                "from": source,
+                # p. 13 gives one free; p. 191's action buys the next.
+                "costs_action": utilize,
+            },
+        )
+        for verb, item, source in _interaction_options(state, actor)
+    )
+
+
 def _swaps(
     state: EncounterState, actor: Combatant, weapon: Weapon, target: Combatant
 ) -> tuple[LegalAction, ...]:
@@ -851,7 +961,7 @@ def _swaps(
     # per attack and p. 13 one object interaction per turn, and nothing composes them — one
     # swap is legal under both readings and two under only one, so the engine offers the
     # intersection. The cap is the engine's, and `Situation.unenforced_clauses` says so.
-    if actor.id in state.swaps_this_turn:
+    if actor.id in state.object_interactions_this_turn:
         return ()
 
     for carried in actor.equipment:
@@ -1080,11 +1190,11 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
     # (`multiattack`) are the two shapes that would make the readings diverge, and each
     # carries the clause. Disclosed here because an agent reading a swap offer would
     # otherwise reasonably infer the free interaction had been spent, or preserved.
-    unenforced.append(FREE_OBJECT_INTERACTION)
-    # 0043 clause 3. Only while the creature could still swap: once it has, the refusal is
+    unenforced.append(UTILIZE_REACHES_FOUR_MOVES)
+    # 0045 clause 1. Only while the creature could still interact: once it has, the refusal is
     # visible in the menu and the disclosure has done its work.
-    if actor.id not in state.swaps_this_turn:
-        unenforced.append(SWAP_CAP_IS_THE_ENGINES)
+    if actor.id not in state.object_interactions_this_turn:
+        unenforced.append(OBJECT_INTERACTION_CAP)
 
     return Situation(
         hit_points=actor.hit_points,

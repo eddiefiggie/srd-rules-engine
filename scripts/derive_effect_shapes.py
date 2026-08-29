@@ -67,6 +67,10 @@ KINDS: dict[str, tuple[str, bool]] = {
     # Dash, Disengage and Dodge need only the action economy and movement, both of which
     # exist. The other eight wait on skills, attitudes, spellcasting or reaction triggers.
     **{n: ("action", True) for n in ("Dash", "Disengage", "Dodge")},
+    # p. 13's free object interaction and the action that buys a second (#288, 0045). It
+    # reaches the four moves the engine models — equip, stow, drop, pick up — and p. 14's GM
+    # escalation and p. 177's Breaking Objects stay beyond it, disclosed on the read surface.
+    "Utilize": ("action", True),
     **{
         n: ("action", False)
         for n in (
@@ -77,7 +81,6 @@ KINDS: dict[str, tuple[str, bool]] = {
             "Ready",
             "Search",
             "Study",
-            "Utilize",
         )
     },
     # --- untagged entries ---------------------------------------------------------------

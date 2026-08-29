@@ -55,8 +55,8 @@ from srd_rules_engine.core.adjudicate import (
     carriage_changed,
     loading_fired,
     object_detached,
+    object_interacted,
     object_picked_up,
-    weapon_swapped,
 )
 from srd_rules_engine.core.d20 import (
     INITIATIVE_BAND,
@@ -76,10 +76,13 @@ from srd_rules_engine.core.position import distance_feet, within
 from srd_rules_engine.core.read_surface import (
     ATTACK_DROP,
     ATTACK_EQUIP,
+    VERB_EQUIP,
+    VERB_STOW,
     attack_declared,
     attack_swap_declared,
     attack_throw_declared,
     bonus_attack_declared,
+    interaction_declared,
 )
 from srd_rules_engine.core.read_surface import UNARMED_REACH_FEET as UNARMED_REACH_FEET
 from srd_rules_engine.core.read_surface import UNARMED_STRIKE_ID as UNARMED_STRIKE_ID
@@ -234,7 +237,7 @@ def attack_resolver() -> Resolver:
                 # clause 3).
                 *(
                     (
-                        weapon_swapped(
+                        object_interacted(
                             declaration.actor_id,
                             description="p. 177's one equip or unequip, drawn on this turn",
                         ),
@@ -416,6 +419,102 @@ def unarmed_strike_rule() -> Rule:
         provenance=RuleProvenance.SRD,
         verification=UNARMED_STRIKE_VERIFICATION,
     )
+
+
+def object_interaction_resolver() -> Resolver:
+    """p. 13's free object interaction, and p. 191's Utilize action (0045, #288).
+
+    > You can interact with **one object or feature of the environment for free**, during
+    > either your move or action… If you want to interact with a second object, you need to
+    > take the Utilize action.
+
+    **No d20 test.** Sheathing a sword decides nothing — there is no target number and no
+    roll — so this proposes effects and no `test`, the shape 0027 clause 6 opened for outcomes
+    without one. It is still a ruling: R1 keeps the one entry point the only thing that
+    changes state, and #119 stopped a caller reaching past it to move a condition.
+
+    The moves are the same four p. 177's swap performs (0045 clause 2), so they route through
+    the same transitions — a carriage change for drawing and stowing, 0041's detachment for
+    dropping, and its reverse for picking up.
+    """
+
+    def resolve(
+        *,
+        state: EncounterState,
+        declaration: Declaration,
+        facts: Mapping[str, Resolution],
+    ) -> Proposal:
+        actor = state.combatant(declaration.actor_id)
+        declared = interaction_declared(declaration.intent.action_key)
+        if declared is None:
+            raise ValueError(
+                "this declaration is not an object interaction: p. 13's free interaction and "
+                "p. 191's Utilize are offered under their own keys, and one carrying neither "
+                "names something else"
+            )
+        verb, item_id, utilize = declared
+        effects: list[Effect] = []
+
+        if verb == VERB_EQUIP:
+            if any(o.item.id == item_id for o in state.detached_objects):
+                effects.append(
+                    object_picked_up(
+                        actor.id, item_id, description=f"{actor.name} picks up {item_id}: p. 13"
+                    )
+                )
+            else:
+                effects.append(
+                    carriage_changed(
+                        actor.id,
+                        item_id,
+                        Carriage.HELD,
+                        description=f"{actor.name} draws {item_id}: p. 13",
+                    )
+                )
+        elif verb == VERB_STOW:
+            effects.append(
+                carriage_changed(
+                    actor.id,
+                    item_id,
+                    Carriage.STOWED,
+                    description=f"{actor.name} stows {item_id}: p. 13",
+                )
+            )
+        else:
+            effects.append(
+                object_detached(
+                    actor.id, item_id, description=f"{actor.name} drops {item_id}: p. 13"
+                )
+            )
+
+        # p. 13 gives one free; the second costs the Action (p. 191). The allowance is spent
+        # either way, because the Utilize action is what you take *because* the free one is
+        # gone — it does not restore it.
+        effects.append(
+            object_interacted(actor.id, description="this turn's one object interaction (p. 13)")
+        )
+        if utilize:
+            effects.append(
+                action_spent(
+                    actor.id,
+                    ActionKind.ACTION,
+                    description="the Action spent on Utilize (p. 191)",
+                )
+            )
+
+        return Proposal(
+            # `outcome`, not `always`: 0027 clause 6 gives a testless proposal its own field,
+            # and `always` is for costs that ride *beside* a roll. There is no roll here —
+            # sheathing a sword decides nothing — so these are the outcome itself.
+            outcome=tuple(effects),
+            citations=("SRD 5.2.1 p. 13, Interacting with Things", "SRD 5.2.1 p. 191, Utilize"),
+            may_claim=(f"that {actor.name} {verb}s {item_id}",),
+            may_not_claim=(
+                "that anything was found, opened, triggered or learned by the interaction",
+            ),
+        )
+
+    return resolve
 
 
 def unarmed_strike_resolver() -> Resolver:
