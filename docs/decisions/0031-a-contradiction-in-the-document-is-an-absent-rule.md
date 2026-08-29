@@ -202,7 +202,7 @@ In the tree: `Conditions.speeds_after` implements only the feet-denominated effe
 | 2 — 0030 clause 1 is not reached | Not a mechanism, and the reason this record exists. Enforced by review |
 | 3 — prefer non-implementation | **Already true for both instances**, and now true on purpose. `Conditions.speeds_after` implements no proportional effect; `core.hazards` implements neither Dehydration nor Malnutrition |
 | 4 — refuse the combination where the engine must answer | **Not built, and unreachable today.** No contradiction is reachable from a built mechanic. Filed as [#209](https://github.com/eddiefiggie/srd-rules-engine/issues/209) |
-| 5 — a clause-4 refusal is a read-surface refusal | Not built, with clause 4. The constraint is recorded now so that whoever builds it does not satisfy clause 4 by raising mid-ruling |
+| 5 — a clause-4 refusal is a read-surface refusal | **Not built, with clause 4** — [#209](https://github.com/eddiefiggie/srd-rules-engine/issues/209) holds both. The constraint is recorded now so that whoever builds it does not satisfy clause 4 by raising mid-ruling |
 | 6 — each instance is named beside the code | **Built.** `Conditions.speeds_after` cites this record and #205 |
 
 **Neither settled issue is closed by resolving its contradiction**, and that is the point. #182 and
