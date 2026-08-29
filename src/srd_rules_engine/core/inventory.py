@@ -171,6 +171,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # exception is the whole of it are all enforced, and `light_attacks_this_turn` is what
         # remembers the condition across the turn.
         "weapon-light": "core.read_surface._light_bonus_attacks",
+        # p. 90, #284. The offer is bounded by the weapon's range rather than the wielder's
+        # reach, the melee ability modifier survives the throw, and the weapon detaches
+        # unplaced whether it hits or misses.
+        "weapon-thrown": "core.read_surface._throwable",
         "mastery-graze": "core.combat.Weapon.graze",
         # Position, movement and range in feet (#17, #20).
         "speed": "core.position.Speeds.walk",

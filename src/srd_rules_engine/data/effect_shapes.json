@@ -1372,7 +1372,7 @@
    "tag": null,
    "reference": "Equipment, p. 90 (Thrown)",
    "kind": "weapon-property",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "weapon-two-handed",

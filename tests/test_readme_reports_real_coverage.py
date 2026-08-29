@@ -62,6 +62,9 @@ NAMED_SLICES: dict[str, tuple[str, ...] | None] = {
     "conditions": ("condition",),
     "the d20 test": ("test",),
     "senses and light": ("sense", "environment"),
+    # p. 89-90's nine properties (#284). Named here rather than dropped from the README,
+    # because the row's job is to say which slices moved and this is the one that did.
+    "weapon properties": ("weapon-property",),
 }
 
 

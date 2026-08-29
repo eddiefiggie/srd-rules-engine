@@ -967,7 +967,10 @@ def test_a_weapon_range_lists_two_numbers() -> None:
         Weapon(id="odd", damage_dice=1, damage_sides=6, melee=False, normal_range=80)
     with pytest.raises(ValueError, match="not shorter"):
         Weapon(id="odd", damage_dice=1, damage_sides=6, melee=False, normal_range=80, long_range=40)
-    with pytest.raises(ValueError, match="ranged-weapon property"):
+    # Widened by #284: p. 90's *Range* entry gives one to a weapon with "the Ammunition **or
+    # Thrown** property", so a Melee weapon carries a range exactly when it is Thrown. The
+    # refusal is now for a Melee weapon that is neither.
+    with pytest.raises(ValueError, match="Ranged weapon or a Thrown one"):
         Weapon(id="odd", damage_dice=1, damage_sides=6, normal_range=80, long_range=320)
 
 

@@ -171,6 +171,33 @@ def attack_swap_declared(action_key: str | None) -> tuple[str, str, str, str] | 
     return None
 
 
+#: A weapon thrown to make a ranged attack (p. 90, #284). Its own prefix rather than an
+#: ordinary attack key, because the two differ in what bounds them and in what they leave
+#: behind: this one is bounded by the weapon's range rather than the wielder's reach, and the
+#: weapon ends the attack out of the creature's hands.
+ATTACK_THROW: Final = "attack-throw"
+
+
+def attack_throw_key(weapon_id: str, target_id: str) -> str:
+    """The key one throw is offered under (p. 90, 0042 clause 3's enumeration)."""
+    return f"{ATTACK_THROW}:{weapon_id}:{target_id}"
+
+
+def attack_throw_declared(action_key: str | None) -> tuple[str, str] | None:
+    """The weapon and target a throw key names, or `None` if it is not one.
+
+    Parsed from the right for `attack_declared`'s reason: a weapon id may contain colons
+    while a combatant id is one segment. A throw carries no second item id, so it needs none
+    of the escaping p. 177's swap keys do.
+    """
+    if action_key is None or not action_key.startswith(f"{ATTACK_THROW}:"):
+        return None
+    weapon_id, _, target_id = action_key[len(ATTACK_THROW) + 1 :].rpartition(":")
+    if not weapon_id or not target_id:
+        return None
+    return weapon_id, target_id
+
+
 BONUS_ATTACK: Final = "bonus-attack"
 
 
@@ -656,8 +683,62 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
             )
             offered.extend(_swaps(state, actor, weapon, target))
 
+    offered.extend(_throwable(state, actor))
     offered.extend(_draw_and_use(state, actor))
 
+    return tuple(offered)
+
+
+def _throwable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...]:
+    """Every throw this creature may make right now (p. 90, #284).
+
+    > **Thrown.** If a weapon has the Thrown property, you can throw the weapon to make a
+    > ranged attack, and you can draw that weapon as part of the attack. If the weapon is a
+    > Melee weapon, use the same ability modifier for the attack and damage rolls that you use
+    > for a melee attack with that weapon.
+
+    **Held weapons and stowed ones both**, because p. 90's second clause says so outright —
+    "you can draw that weapon as part of the attack" is the Thrown property carrying its own
+    equip, and it needs no Attack-action swap to spend.
+
+    **Bounded by the weapon's range, not the wielder's reach**, which is the distinction
+    `_within_weapon_range` now takes a parameter for: the same Dagger reaches five feet when
+    swung and sixty when thrown.
+
+    **A Melee weapon that lacks Thrown is not offered here.** p. 183 makes throwing one an
+    improvised weapon dealing "1d4 damage of a type the GM thinks is appropriate" — a person's
+    judgement this engine may not invent, and
+    [#264](https://github.com/eddiefiggie/srd-rules-engine/issues/264)'s territory.
+    """
+    offered: list[LegalAction] = []
+    for carried in actor.equipment:
+        item = carried.item
+        if not isinstance(item, Weapon) or not item.thrown:
+            continue
+        if carried.carriage not in (Carriage.HELD, Carriage.STOWED):
+            continue
+        for target in state.combatants:
+            if target.id == actor.id or target.is_down:
+                continue
+            if not _within_weapon_range(actor, item, target, thrown=True):
+                continue
+            offered.append(
+                LegalAction(
+                    key=attack_throw_key(item.id, target.id),
+                    label=f"Throw {item.id} at {target.name}",
+                    detail={
+                        **_attack_detail(actor, item, target),
+                        "thrown": True,
+                        # p. 90: a Melee weapon thrown keeps the modifier it uses in melee,
+                        # which is what stops a thrown Dagger silently becoming a Dexterity
+                        # attack because it is now a ranged one.
+                        "ability": item.ability,
+                        "drawn_as_part_of_the_attack": carried.carriage is Carriage.STOWED,
+                        # 0041 clause 4: it leaves the hand and no rule says where it lands.
+                        "lands": "unplaced",
+                    },
+                )
+            )
     return tuple(offered)
 
 
@@ -847,16 +928,24 @@ def _within(actor: Combatant, target: Combatant, feet: int) -> bool:
     return bool(distance_feet(actor.position, target.position) <= feet)
 
 
-def _within_weapon_range(actor: Combatant, weapon: Weapon, target: Combatant) -> bool:
+def _within_weapon_range(
+    actor: Combatant, weapon: Weapon, target: Combatant, *, thrown: bool = False
+) -> bool:
     """Whether this weapon can reach that target at all (p. 90, p. 186).
 
     "Can reach at all" rather than "reaches without penalty": long range is the bound, and the
     Disadvantage inside it is a modifier rather than a refusal.
+
+    **Which bound applies is a question about the attack, not about the weapon** (#284). p. 90
+    gives a Thrown weapon a range and a Dagger is a Melee weapon that may be thrown, so the
+    same object is bounded by the wielder's reach when swung and by its range when thrown.
+    Reading `long_range is not None` alone — which is what this did while no melee weapon had
+    a range — would let a Dagger stab a target sixty feet away.
     """
     if actor.position is None or target.position is None:
         return True
     distance = distance_feet(actor.position, target.position)
-    if weapon.long_range is not None:
+    if (thrown or not weapon.melee) and weapon.long_range is not None:
         return bool(distance <= weapon.long_range)
     return bool(distance <= actor.reach)
 
