@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08292026.19` — **a disclosure could be deleted while its rule stayed unbuilt, and every test would pass.** [#292](https://github.com/eddiefiggie/srd-rules-engine/issues/292) pins the whole set of `unenforced_clauses`, **both ways**: a removal means R32 may have acquired a false claim, and an addition means the engine stopped enforcing something. A pin catching only removals is half a guard, and both directions are proved. **The issue also suspected one was already stale, and it was** — `remains-prone-when-this-ends` has been enforced since the condition set shipped, because `Conditions.without` re-applies Prone on its own behalf when Unconscious ends rather than letting it lift with the source that implied it. Stale in the **harmless** direction, telling readers less was modelled than is; confirmed behaviourally before removal, and the removal is asserted beside the enforcement rather than on its own. That pairing has now retired three clauses — `drops-what-it-holds` ([#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280)), the two the object-interaction cap replaced ([#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288)), and this one. What the pin cannot decide is whether a clause's rule is genuinely unbuilt; that judgement stays a person's, and the pin makes every change deliberate so the question gets asked at the diff. **102 of 209, unmoved.** 220 clauses. 1620 tests.
+**Current build:** `08292026.20` — **the complete list is shorter than the partial one was.** [#282](https://github.com/eddiefiggie/srd-rules-engine/issues/282) offered three options — complete the list, replace it with a pointer, or curate it and say so — and framed the choice as honesty against length. **The framing had a false premise.** The hand-written list was **64 lines for 22 records**, because every entry paraphrased the record's title as a gloss and wrapped over two or three lines; one generated line per record covers all **45 in 45 lines**. So the fourth option dominates the three: generate it. The paraphrase was also a second place for one claim to drift, which is the shape [#291](https://github.com/eddiefiggie/srd-rules-engine/issues/291) had just finished removing from the Status tables — and this repository's record titles are already sentences, so the gloss was restating the heading three lines below it. `render_record_index.py` reads each record's own first line and its `**Settles:**` issues; a test and a CI job fail when the README disagrees. Proved red both ways: a record dropped from the list, and a title changed without regenerating. **102 of 209, unmoved.** 220 clauses. 1625 tests.
 
 ---
 
@@ -157,79 +157,62 @@ Complete coverage of the document is **not** the same as a correct inventory. Th
 and consolidation questions raised across the sweeps are tracked separately.
 
 Settled design decisions live in [`docs/decisions/`](docs/decisions/). A gate closes by producing
-one, and the plan is amended to match:
+one, and the plan is amended to match. **Every record is listed**, and the list is generated
+from the records themselves by `scripts/render_record_index.py` — a hand-written one stopped at
+0022 and read as complete for nineteen records ([#282](https://github.com/eddiefiggie/srd-rules-engine/issues/282)):
 
-- [0001 — the agent seam](docs/decisions/0001-agent-seam.md) — the turn loop yields typed requests
-  rather than calling the agent (closed [#4](https://github.com/eddiefiggie/srd-rules-engine/issues/4))
-- [0002 — ledger durability](docs/decisions/0002-ledger-durability.md) — nothing escapes the engine
-  before its record is durable (closed [#5](https://github.com/eddiefiggie/srd-rules-engine/issues/5))
-- [0003 — seed and verification](docs/decisions/0003-seed-and-verification.md) — no community
-  dataset seeds the mechanics, and the official SRD v5.2.1 is the only verification reference
-  (closed [#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6))
-- [0004 — the trigger catalogue](docs/decisions/0004-trigger-catalogue.md) — the catalogue is data,
-  and over-firing is a fidelity defect
-  (closed [#7](https://github.com/eddiefiggie/srd-rules-engine/issues/7))
-- [0005 — retry bounds](docs/decisions/0005-retry-bounds.md) — bounds belong to the turn loop, and
-  exhaustion is a terminal outcome rather than a rules status
-  (closed [#11](https://github.com/eddiefiggie/srd-rules-engine/issues/11))
-- [0006 — ledger format](docs/decisions/0006-ledger-format.md) — JSONL with a fixed envelope, and a
-  reader API rather than a public file format
-  (closed [#10](https://github.com/eddiefiggie/srd-rules-engine/issues/10))
-- [0007 — alternatives verification](docs/decisions/0007-alternatives-verification.md) — read tokens
-  make the agent's claim checkable without relaxing R19
-  (closed [#8](https://github.com/eddiefiggie/srd-rules-engine/issues/8))
-- [0008 — the extension channel](docs/decisions/0008-extension-channel.md) — reverse-DNS namespaces
-  that no engine rule may consume
-  (closed [#9](https://github.com/eddiefiggie/srd-rules-engine/issues/9))
-- [0009 — the reference memory store](docs/decisions/0009-reference-memory-store.md) — flat JSON,
-  because the store is a projection of the ledger
-  (closed [#12](https://github.com/eddiefiggie/srd-rules-engine/issues/12))
-- [0010 — the blocked loop](docs/decisions/0010-blocked-loop.md) — a block is a suspension, and the
-  loop bounds itself
-  (closed [#33](https://github.com/eddiefiggie/srd-rules-engine/issues/33))
-- [0011 — layout and versioning](docs/decisions/0011-module-layout-and-versioning.md) — layer
-  boundaries are a guard test, and schemas carry a min-reader floor
-  (closed [#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13))
-- [0012 — fixture provenance](docs/decisions/0012-fixture-provenance.md) — provenance selects the
-  entry point, not a branch inside one
-  (closed [#41](https://github.com/eddiefiggie/srd-rules-engine/issues/41))
-- [0013 — effect-shape normalisation](docs/decisions/0013-effect-shape-normalisation.md) — the
-  vocabulary normalises on mechanism, not on the feature that exhibits it
-  (closed [#76](https://github.com/eddiefiggie/srd-rules-engine/issues/76))
-- [0014 — positional state](docs/decisions/0014-positional-state.md) — position is three integer
-  coordinates in feet, and distance is never a float
-  (settles the positional model for [#17](https://github.com/eddiefiggie/srd-rules-engine/issues/17) and [#20](https://github.com/eddiefiggie/srd-rules-engine/issues/20))
-- [0015 — reactions and the agent seam](docs/decisions/0015-reactions-and-the-agent-seam.md) — the
-  generator seam already serves reactions; what they need is state and triggers
-  (settles the architectural question [#16](https://github.com/eddiefiggie/srd-rules-engine/issues/16) raised)
-- [0016 — adapters hold the turn](docs/decisions/0016-adapters-hold-the-turn.md) — an adapter holds
-  the suspended turn, and never exposes adjudication
-  (settles the adapter shape for [#97](https://github.com/eddiefiggie/srd-rules-engine/issues/97))
-- [0017 — verification is asserted, not read](docs/decisions/0017-verification-is-asserted-not-read.md)
-  — verification is a pattern asserted against the document, and it does not cover modelling
-  (supersedes [0003](docs/decisions/0003-seed-and-verification.md) in part)
-- [0018 — API stability](docs/decisions/0018-api-stability.md) — three stability tiers, an integer
-  API version, and a committed surface that is enumerated
-  (closed [#39](https://github.com/eddiefiggie/srd-rules-engine/issues/39))
-- [0019 — `kind` is a filing label](docs/decisions/0019-kind-is-a-filing-label.md) — a filing label,
-  not a model, and it stays one axis
-  (closed [#84](https://github.com/eddiefiggie/srd-rules-engine/issues/84))
-- [0020 — two kinds of time](docs/decisions/0020-two-kinds-of-time.md) — the encounter axis and the
-  campaign clock, and a turn never advances the clock
-  (closed [#85](https://github.com/eddiefiggie/srd-rules-engine/issues/85))
-- [0021 — a round is six seconds](docs/decisions/0021-a-round-is-six-seconds.md) — the document does
-  print the conversion (p. 98), which amends 0020's first clause
-  (closed [#108](https://github.com/eddiefiggie/srd-rules-engine/issues/108))
-- [0022 — `compat` is a reader version](docs/decisions/0022-compat-is-a-reader-version.md) — no
-  payload derives `compat` from its own schema version
-  (closed [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106))
+<!-- record-index: generated by scripts/render_record_index.py -->
+- [0001 — The agent seam is a generator of typed requests](docs/decisions/0001-agent-seam.md) — settles [#4](https://github.com/eddiefiggie/srd-rules-engine/issues/4)
+- [0002 — Nothing escapes the engine before its record is durable](docs/decisions/0002-ledger-durability.md) — settles [#5](https://github.com/eddiefiggie/srd-rules-engine/issues/5)
+- [0003 — No structured seed for mechanics; the official SRD 5.2.1 is the verification reference](docs/decisions/0003-seed-and-verification.md) — settles [#6](https://github.com/eddiefiggie/srd-rules-engine/issues/6)
+- [0004 — The trigger catalogue is data, and over-firing is a fidelity defect](docs/decisions/0004-trigger-catalogue.md) — settles [#7](https://github.com/eddiefiggie/srd-rules-engine/issues/7)
+- [0005 — Retry bounds belong to the turn loop, and exhaustion is not a rules outcome](docs/decisions/0005-retry-bounds.md) — settles [#11](https://github.com/eddiefiggie/srd-rules-engine/issues/11)
+- [0006 — JSONL with a fixed envelope, and a reader API rather than a public file format](docs/decisions/0006-ledger-format.md) — settles [#10](https://github.com/eddiefiggie/srd-rules-engine/issues/10)
+- [0007 — Read tokens make the alternatives claim checkable without touching R19](docs/decisions/0007-alternatives-verification.md) — settles [#8](https://github.com/eddiefiggie/srd-rules-engine/issues/8)
+- [0008 — Reverse-DNS extension namespaces that no engine rule may consume](docs/decisions/0008-extension-channel.md) — settles [#9](https://github.com/eddiefiggie/srd-rules-engine/issues/9)
+- [0009 — The reference memory store is flat JSON, because it is a projection of the ledger](docs/decisions/0009-reference-memory-store.md) — settles [#12](https://github.com/eddiefiggie/srd-rules-engine/issues/12)
+- [0010 — A block is a suspension, and the loop bounds itself](docs/decisions/0010-blocked-loop.md) — settles [#33](https://github.com/eddiefiggie/srd-rules-engine/issues/33)
+- [0011 — Layer boundaries are a guard test, and schemas carry a min-reader floor](docs/decisions/0011-module-layout-and-versioning.md) — settles [#13](https://github.com/eddiefiggie/srd-rules-engine/issues/13)
+- [0012 — Provenance selects the entry point, not a branch inside one](docs/decisions/0012-fixture-provenance.md) — settles [#41](https://github.com/eddiefiggie/srd-rules-engine/issues/41)
+- [0013 — The effect-shape vocabulary normalises on mechanism, not on the feature that exhibits it](docs/decisions/0013-effect-shape-normalisation.md) — settles [#76](https://github.com/eddiefiggie/srd-rules-engine/issues/76)
+- [0014 — Position is three integer coordinates in feet, and distance is never a float](docs/decisions/0014-positional-state.md) — settles [#17](https://github.com/eddiefiggie/srd-rules-engine/issues/17), [#20](https://github.com/eddiefiggie/srd-rules-engine/issues/20)
+- [0015 — The generator seam already serves reactions; what they need is state and triggers](docs/decisions/0015-reactions-and-the-agent-seam.md) — settles [#4](https://github.com/eddiefiggie/srd-rules-engine/issues/4), [#16](https://github.com/eddiefiggie/srd-rules-engine/issues/16)
+- [0016 — An adapter holds the suspended turn, and never exposes adjudication](docs/decisions/0016-adapters-hold-the-turn.md) — settles [#97](https://github.com/eddiefiggie/srd-rules-engine/issues/97)
+- [0017 — Verification is a pattern asserted against the document, and it does not cover modelling](docs/decisions/0017-verification-is-asserted-not-read.md) — settles [#21](https://github.com/eddiefiggie/srd-rules-engine/issues/21)
+- [0018 — Three stability tiers, an integer API version, and a committed surface that is enumerated](docs/decisions/0018-api-stability.md) — settles [#39](https://github.com/eddiefiggie/srd-rules-engine/issues/39)
+- [0019 — `kind` is a filing label, not a model, and stays one axis](docs/decisions/0019-kind-is-a-filing-label.md) — settles [#84](https://github.com/eddiefiggie/srd-rules-engine/issues/84)
+- [0020 — Two kinds of time, minutes as the unit, and the round-to-clock bridge left unbuilt](docs/decisions/0020-two-kinds-of-time.md) — settles [#85](https://github.com/eddiefiggie/srd-rules-engine/issues/85)
+- [0021 — A round is exactly six seconds, and the clock still does not advance itself](docs/decisions/0021-a-round-is-six-seconds.md) — settles [#108](https://github.com/eddiefiggie/srd-rules-engine/issues/108)
+- [0022 — `compat` is a reader version, and no payload derives it from its own schema version](docs/decisions/0022-compat-is-a-reader-version.md) — settles [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106)
+- [0023 — The turn's end is a loop-owned phase, and an early-out is two mechanisms rather than one](docs/decisions/0023-the-turns-end-is-a-loop-owned-phase.md) — settles [#110](https://github.com/eddiefiggie/srd-rules-engine/issues/110)
+- [0024 — the README's build line is the build record, and `CHANGELOG.md` is retired](docs/decisions/0024-the-build-line-is-the-build-record.md) — settles [#146](https://github.com/eddiefiggie/srd-rules-engine/issues/146)
+- [0025 — sight is a relation derived over stored state, and the mapping that resolves it ships empty](docs/decisions/0025-sight-is-a-relation-over-stored-state.md) — settles [#138](https://github.com/eddiefiggie/srd-rules-engine/issues/138)
+- [0026 — Terrain enters by one route, and it is state](docs/decisions/0026-terrain-enters-as-state.md) — settles [#151](https://github.com/eddiefiggie/srd-rules-engine/issues/151)
+- [0027 — The turn's start is a phase too, and not every outcome rolls a d20](docs/decisions/0027-occasions-and-outcomes-without-a-roll.md) — settles [#124](https://github.com/eddiefiggie/srd-rules-engine/issues/124), [#140](https://github.com/eddiefiggie/srd-rules-engine/issues/140)
+- [0028 — An Exhaustion level carries the rule that caused it](docs/decisions/0028-a-level-carries-the-rule-that-caused-it.md) — settles [#180](https://github.com/eddiefiggie/srd-rules-engine/issues/180)
+- [0029 — Whether a wall blocks sight is a property of the wall](docs/decisions/0029-whether-a-wall-blocks-sight-is-a-property-of-the-wall.md) — settles [#188](https://github.com/eddiefiggie/srd-rules-engine/issues/188)
+- [0030 — An unanswerable qualifier resolves in the direction that cannot invent an outcome](docs/decisions/0030-an-unanswerable-qualifier-resolves-away-from-invention.md) — settles [#190](https://github.com/eddiefiggie/srd-rules-engine/issues/190)
+- [0031 — Two printed rules that disagree state no rule, and 0030's tiebreak must not be reached for them](docs/decisions/0031-a-contradiction-in-the-document-is-an-absent-rule.md) — settles [#182](https://github.com/eddiefiggie/srd-rules-engine/issues/182), [#205](https://github.com/eddiefiggie/srd-rules-engine/issues/205)
+- [0032 — An effect may be conditional on what a sibling effect turned out to be, and the only honest place to ask is where the damage settles](docs/decisions/0032-an-outcome-conditional-on-its-own-damage.md) — settles [#173](https://github.com/eddiefiggie/srd-rules-engine/issues/173)
+- [0033 — A glossary entry is an index into the rules, not the boundary of one](docs/decisions/0033-a-glossary-entry-is-an-index-not-a-shapes-boundary.md) — settles [#228](https://github.com/eddiefiggie/srd-rules-engine/issues/228)
+- [0034 — A term the document defines and never uses is vocabulary](docs/decisions/0034-a-term-the-document-defines-and-never-uses.md) — settles [#229](https://github.com/eddiefiggie/srd-rules-engine/issues/229)
+- [0035 — Two names for one thing are one shape](docs/decisions/0035-two-names-for-one-thing-are-one-shape.md) — settles [#230](https://github.com/eddiefiggie/srd-rules-engine/issues/230)
+- [0036 — A fourth occasion, owed by whoever took the damage](docs/decisions/0036-a-fourth-occasion-owed-by-whoever-took-the-damage.md) — settles [#215](https://github.com/eddiefiggie/srd-rules-engine/issues/215)
+- [0037 — A concentration is an early-out, not an axis](docs/decisions/0037-a-concentration-is-an-early-out-not-an-axis.md) — settles [#239](https://github.com/eddiefiggie/srd-rules-engine/issues/239)
+- [0038 — A spell is data the caster carries, and the engine spends what casting costs](docs/decisions/0038-a-spell-is-data-the-caster-carries.md) — settles [#244](https://github.com/eddiefiggie/srd-rules-engine/issues/244)
+- [0039 — Equipment is what a creature holds, wears and carries](docs/decisions/0039-equipment-is-what-a-creature-holds-wears-and-carries.md) — settles [#256](https://github.com/eddiefiggie/srd-rules-engine/issues/256)
+- [0040 — A weapon is an item, and proficiency is the wielder's](docs/decisions/0040-a-weapon-is-an-item-and-proficiency-is-the-wielders.md) — settles [#262](https://github.com/eddiefiggie/srd-rules-engine/issues/262)
+- [0041 — An item that leaves a creature is an object, and where it lands is unstated](docs/decisions/0041-an-item-that-leaves-a-creature-is-an-object-somewhere-unstated.md) — settles [#265](https://github.com/eddiefiggie/srd-rules-engine/issues/265), [#272](https://github.com/eddiefiggie/srd-rules-engine/issues/272)
+- [0042 — Equipping rides on the attack that permits it, and the second interaction is unmodelled](docs/decisions/0042-equipping-rides-on-the-attack-that-permits-it.md) — settles [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283)
+- [0043 — One action, several attacks, and one swap](docs/decisions/0043-one-action-several-attacks-and-one-swap.md) — settles [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289)
+- [0044 — A quantity is a fact about the creature, not about the item](docs/decisions/0044-a-quantity-is-a-fact-about-the-creature.md) — settles [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273)
+- [0045 — One object interaction a turn, and the Action buys more](docs/decisions/0045-one-object-interaction-a-turn-and-the-action-buys-more.md) — settles [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288)
+<!-- /record-index -->
 
-**Next up:** [#282](https://github.com/eddiefiggie/srd-rules-engine/issues/282) — the README's own decision-record list, which stopped at
-0022 and reads as complete. It is the last of the three process gaps this session opened,
-and the only one still needing a decision rather than code: complete the list and guard
-completeness, replace it with a pointer, or curate it and say so.
-Then the spellcasting cluster ([#245](https://github.com/eddiefiggie/srd-rules-engine/issues/245)-[#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250)), unblocked now that an
-equipment model exists.
+**Next up:** the spellcasting cluster, [#245](https://github.com/eddiefiggie/srd-rules-engine/issues/245)-[#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250). #245 is the entry
+point and its premise — "no equipment model" — stopped being true today, so p. 105's
+Somatic and Material components have a hand count and a component pouch to read at last.
+Every process gap this session opened is closed.
 
 ## Development
 
@@ -279,4 +262,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-29 — build `08292026.19`._
+_Last updated: 2026-08-29 — build `08292026.20`._
