@@ -260,14 +260,32 @@ VOCABULARY_REASONS: dict[str, str] = {
 #: the sweeps hard-coded `False`, which was fine while none of them was implemented and
 #: became a floor the moment one was. Asserted against `ENGINE_SHAPES` in both directions
 #: by tests/test_effect_shape_inventory.py, so an optimistic entry here fails the build.
+#: Which of the section sweeps' shapes the engine resolves. The glossary sweep carries the
+#: same claim in `KINDS`, and `tests/test_effect_shape_inventory.py` compares **both** against
+#: the shipped data — because a generator whose flags disagree with the file it writes turns
+#: the next regeneration into a silent rewrite of coverage.
+#:
+#: That guard read only `KINDS` until #325, and this set had drifted six deep behind it:
+#: `multiattack`, `weapon-ammunition`, `weapon-light`, `weapon-loading`, `weapon-thrown` and
+#: `weapon-two-handed` were each claimed in the JSON by hand as their PR landed and never
+#: written back here. Regenerating would have reported 97 implemented over a shipped 103,
+#: with the full suite green — the identical failure the `KINDS` half of the guard was
+#: written for, one constant away from where it was looking.
 IMPLEMENTED_SECTION_SHAPES: frozenset[str] = frozenset(
     {
         "natural-20-auto-hit",
         "advantage-does-not-stack",
         "damage-application-order",
         "damage-modifier-no-stacking",
+        "multiattack",
+        "weapon-ammunition",
         "weapon-finesse",
         "weapon-heavy",
+        "weapon-light",
+        "weapon-loading",
+        "weapon-reach",
+        "weapon-thrown",
+        "weapon-two-handed",
         "weapon-versatile",
         "mastery-graze",
         "split-movement",
@@ -338,6 +356,32 @@ SPELL_PAGES = range(106, 175)
 #: Lines that are the running header rather than content. Filtering these by position
 #: rather than by content silently dropped 25 spell headings sitting at y=38.9.
 RUNNING_HEADER = re.compile(r"^\s*(System Reference Document 5\.2\.1|\d{1,3})\s*$")
+
+
+def baseline(spans: list[dict[str, object]]) -> float:
+    """Where a line sits on the page, for ordering it against the others (#326).
+
+    **The baseline, not the top of the bounding box.** The two are not interchangeable here
+    and the difference reordered every entry in the document. Headings are 12pt
+    GillSans-SemiBold and body text is 10pt Cambria, and the fonts declare very different
+    boxes — Cambria's reported top sits about 31pt above its baseline, GillSans-SemiBold's
+    about 11. So a heading and the body line beneath it sorted in the wrong order by a
+    constant 7.14pt, and each entry's first line was appended to the *previous* entry:
+
+        bbox top 211.03 / baseline 222.34  'Reach'
+        bbox top 203.89 / baseline 235.06  'A Reach weapon adds 5 feet to your reach when you'
+
+    Every entry's verified text was therefore a window shifted one line late at both ends —
+    missing its own opening line and carrying the next entry's. Nothing went red, because
+    every pattern in this file was chosen by someone reading that shifted text. The danger is
+    that a pattern can match prose belonging to the **next** entry, which makes a citation
+    verifiable against the wrong entry — the one thing these sweeps exist to prevent.
+
+    A baseline is font-independent, which is why it is the right key rather than a corrected
+    offset.
+    """
+    return min(float(s["origin"][1]) for s in spans)  # type: ignore[index]
+
 
 #: Effect shapes the Rules Glossary never names, found by sweeping Spell Descriptions.
 #:
@@ -463,7 +507,7 @@ def read_spells(pdf: Path) -> dict[str, dict[str, object]]:
                 if RUNNING_HEADER.match(text):
                     continue
                 x0 = min(s["bbox"][0] for s in spans)
-                y0 = min(s["bbox"][1] for s in spans)
+                y0 = baseline(spans)
                 heading = any(
                     s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
                 )
@@ -611,7 +655,7 @@ def read_monsters(pdf: Path) -> dict[str, dict[str, object]]:
                 if RUNNING_HEADER.match(text):
                     continue
                 x0 = min(s["bbox"][0] for s in spans)
-                y0 = min(s["bbox"][1] for s in spans)
+                y0 = baseline(spans)
                 heading = any(
                     s["font"] == HEADING_FONT and round(s["size"], 1) == MONSTER_HEADING_SIZE
                     for s in spans
@@ -741,7 +785,7 @@ def read_magic_items(pdf: Path) -> dict[str, dict[str, object]]:
                 if RUNNING_HEADER.match(text):
                     continue
                 x0 = min(s["bbox"][0] for s in spans)
-                y0 = min(s["bbox"][1] for s in spans)
+                y0 = baseline(spans)
                 heading = any(
                     s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
                 )
@@ -796,10 +840,17 @@ EQUIPMENT_PAGES = range(88, 103)
 
 #: Effect shapes found by sweeping Equipment, verified the same way the others are.
 #:
-#: Two exclusions, both deliberate. `Reach` is here as a weapon property but the Rules
-#: Glossary already defines it (p. 186), so it is not re-added. The armor subsections
-#: ("Light, Medium, or Heavy Armor", "Shield") are subdivisions of `Armor Training`, which
-#: the Glossary already names.
+#: One exclusion, deliberate: the armor subsections ("Light, Medium, or Heavy Armor",
+#: "Shield") are subdivisions of `Armor Training`, which the Glossary already names.
+#:
+#: **`Reach` used to be a second, and it was wrong** (#316). The stated reason was that the
+#: Rules Glossary already defines it at p. 186, which is true of the *term* and not of the
+#: *mechanic*: p. 186 gives the 5-foot default "unless a rule says otherwise", and p. 90 is
+#: the rule that says otherwise. Folding them let one flag claim two mechanics, and the
+#: engine had built only the default — so `reach` read as implemented over an unbuilt weapon
+#: property for as long as the fold stood. The inventory's own granularity rule settles it:
+#: entries sit at independently-failable granularity, and these two failed independently for
+#: forty-five builds. The fifteen conditions are separate entries for the same reason.
 #:
 #: The eight mastery properties are listed individually even though five of them deliver
 #: effects the inventory already names — Push is forced movement, Topple applies Prone, Vex
@@ -845,6 +896,14 @@ EQUIPMENT_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
         r"regardless of the number of attacks you can normally make",
     ),
     ("weapon-range", "Range", "weapon-property", "Range", 90, r"normal range in feet"),
+    (
+        "weapon-reach",
+        "Reach",
+        "weapon-property",
+        "Reach",
+        90,
+        r"adds 5 feet to your reach when you attack with it",
+    ),
     (
         "weapon-thrown",
         "Thrown",
@@ -928,7 +987,7 @@ def read_equipment(pdf: Path) -> dict[str, dict[str, object]]:
                 if RUNNING_HEADER.match(text):
                     continue
                 x0 = min(s["bbox"][0] for s in spans)
-                y0 = min(s["bbox"][1] for s in spans)
+                y0 = baseline(spans)
                 heading = any(
                     s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
                 )
@@ -1091,7 +1150,7 @@ def read_classes(pdf: Path) -> dict[str, dict[str, object]]:
                 if RUNNING_HEADER.match(text):
                     continue
                 x0 = min(s["bbox"][0] for s in spans)
-                y0 = min(s["bbox"][1] for s in spans)
+                y0 = baseline(spans)
                 heading = any(
                     s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
                 )
@@ -1239,7 +1298,7 @@ def read_feats(pdf: Path) -> dict[str, dict[str, object]]:
                 if RUNNING_HEADER.match(text):
                     continue
                 x0 = min(s["bbox"][0] for s in spans)
-                y0 = min(s["bbox"][1] for s in spans)
+                y0 = baseline(spans)
                 heading = any(
                     s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
                 )
@@ -1386,7 +1445,7 @@ def read_toolbox(pdf: Path) -> dict[str, dict[str, object]]:
                 if RUNNING_HEADER.match(text):
                     continue
                 x0 = min(s["bbox"][0] for s in spans)
-                y0 = min(s["bbox"][1] for s in spans)
+                y0 = baseline(spans)
                 heading = any(
                     s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
                 )
@@ -1506,7 +1565,7 @@ def read_origins(pdf: Path) -> dict[str, dict[str, object]]:
                 if RUNNING_HEADER.match(text):
                     continue
                 x0 = min(s["bbox"][0] for s in spans)
-                y0 = min(s["bbox"][1] for s in spans)
+                y0 = baseline(spans)
                 heading = any(
                     s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
                 )
@@ -1667,7 +1726,7 @@ def read_playing(pdf: Path) -> dict[str, dict[str, object]]:
                 if RUNNING_HEADER.match(text):
                     continue
                 x0 = min(s["bbox"][0] for s in spans)
-                y0 = min(s["bbox"][1] for s in spans)
+                y0 = baseline(spans)
                 heading = any(
                     s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
                 )
@@ -1774,7 +1833,7 @@ def read_chargen(pdf: Path) -> dict[str, dict[str, object]]:
                 if RUNNING_HEADER.match(text):
                     continue
                 x0 = min(s["bbox"][0] for s in spans)
-                y0 = min(s["bbox"][1] for s in spans)
+                y0 = baseline(spans)
                 heading = any(
                     s["font"] == HEADING_FONT and round(s["size"], 1) == HEADING_SIZE for s in spans
                 )

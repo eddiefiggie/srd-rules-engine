@@ -54,6 +54,11 @@ from srd_rules_engine.core.rules import (
 #: p. 186: "A creature has a reach of 5 feet unless a rule says otherwise."
 DEFAULT_REACH_FEET: Final = 5
 
+#: p. 90: a Reach weapon "adds 5 feet to your reach". Added to the creature's own reach
+#: rather than replacing it, because p. 186's 5 is a default and not a ceiling — a creature
+#: that already reaches further keeps the difference (#316).
+REACH_PROPERTY_FEET: Final = 5
+
 #: R31. The movement costs and the reach default are rule values; the measurement method
 #: deliberately is **not** cited, because the document does not supply one.
 MOVEMENT_VERIFICATION: Final = Verification(

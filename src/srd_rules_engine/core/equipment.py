@@ -68,7 +68,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from srd_rules_engine.core.damage import DamageType
-from srd_rules_engine.core.position import Position, within
+from srd_rules_engine.core.position import REACH_PROPERTY_FEET, Position, within
 
 
 class Carriage(StrEnum):
@@ -293,6 +293,23 @@ class Weapon(Item):
     light: bool = False
     #: Versatile (p. 90): the damage die when "used with two hands to make a melee attack".
     versatile_sides: int | None = None
+    #: Reach (p. 90): "A Reach weapon adds 5 feet to your reach when you attack with it, as
+    #: well as when determining your reach for Opportunity Attacks with it."
+    #:
+    #: **A weapon fact that was stored as a creature fact** (#316). p. 186 gives a creature a
+    #: reach of 5 feet "unless a rule says otherwise", and this is the rule that says
+    #: otherwise — so the engine held the default arm and not the exception. `Combatant.reach`
+    #: could be set to 10 by hand, and that is wrong twice: the bonus then reaches a Dagger
+    #: held in the same hand, and it reaches Opportunity Attacks made with any weapon, where
+    #: p. 90 says "with it" both times. The same boundary 0040 clause 2 drew for `proficient`
+    #: and #263 drew for the grip, in the other direction — those were creature facts on the
+    #: weapon, and this was a weapon fact on the creature.
+    #:
+    #: **No invariant ties this to a Melee weapon.** Every weapon the document gives it to is
+    #: one, and p. 90 never says the property requires it — asserting otherwise would be the
+    #: inferred rule value #284 found already shipped in `Range`'s own check. On a Ranged
+    #: weapon it is simply inert, because the range branch answers first.
+    reach: bool = False
     #: Graze (p. 90), a mastery property: damage on a miss equal to the ability modifier.
     graze: bool = False
     #: Ammunition (p. 89): the **id of the item this weapon fires**, or `None` for a weapon
@@ -368,6 +385,15 @@ class Weapon(Item):
                 "a Thrown weapon states the range of the throw (p. 90): its range sits in "
                 "parentheses after the property, and without it nothing bounds the throw"
             )
+
+    def reach_in_use(self, creature_reach: int) -> int:
+        """This wielder's reach for an attack made with this weapon (p. 90).
+
+        Takes the creature's own reach rather than reading a constant, because p. 186's 5
+        feet is a default — "unless a rule says otherwise" — and a creature may already have
+        another. Reach adds to whatever that is; it does not replace it with 10.
+        """
+        return creature_reach + REACH_PROPERTY_FEET if self.reach else creature_reach
 
     def sides_in_use(self, hands: int) -> int:
         """The damage die this attack rolls, for a weapon held in that many hands.

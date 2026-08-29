@@ -1367,6 +1367,14 @@
    "implemented": true
   },
   {
+   "id": "weapon-reach",
+   "name": "Reach",
+   "tag": null,
+   "reference": "Equipment, p. 90 (Reach)",
+   "kind": "weapon-property",
+   "implemented": true
+  },
+  {
    "id": "weapon-thrown",
    "name": "Thrown",
    "tag": null,

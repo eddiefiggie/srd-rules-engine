@@ -867,10 +867,14 @@ def _out_of_range(
     # bounded by reach when it is swung (#284). Asking the weapon alone would let a Dagger
     # stab across the room the moment it gained a Thrown range.
     if weapon.normal_range is None or (weapon.melee and not thrown):
-        if not within(actor.position, target.position, actor.reach):
+        # p. 90's Reach property adds to the wielder's reach "when you attack with it", so
+        # the bound is a fact about this weapon in this creature's hands rather than about
+        # the creature alone (#316). Asking `actor.reach` directly gave a Glaive 5 feet.
+        reach = weapon.reach_in_use(actor.reach)
+        if not within(actor.position, target.position, reach):
             raise ValueError(
                 f"{target.name} is {distance_feet(actor.position, target.position)} feet "
-                f"away and {actor.name} has a reach of {actor.reach} feet"
+                f"away and {actor.name} has a reach of {reach} feet with {weapon.id}"
             )
         return False
 

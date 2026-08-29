@@ -50,6 +50,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from srd_rules_engine.core.actions import ActionKind
+from srd_rules_engine.core.equipment import Carriage, Weapon, items_in
 from srd_rules_engine.core.position import Position, within
 from srd_rules_engine.core.rules import Verification, VerificationMethod, VerificationState
 from srd_rules_engine.core.state import Combatant, EncounterState
@@ -89,12 +90,37 @@ class Provocation:
         return self.withheld is None
 
 
+def _reaches(reactor: Combatant) -> frozenset[int]:
+    """Every reach this creature could make an Opportunity Attack at (p. 90, p. 186).
+
+    The creature's own reach is always a candidate — a creature holding nothing still has
+    one, and p. 191's Unarmed Strike is always available. A held Reach weapon adds a second,
+    because p. 90 extends the reach "when determining your reach for Opportunity Attacks
+    **with it**": the bonus belongs to the attack that weapon would make, not to the creature.
+
+    A set rather than a maximum, and the difference is a real case rather than tidiness. A
+    creature holding a Glaive and a Dagger has reaches of 10 and 5, and a mover going from 3
+    feet to 7 leaves the Dagger's reach while staying inside the Glaive's — so it provokes,
+    and a maximum would say it does not.
+    """
+    weapons = (
+        item for item in items_in(reactor.equipment, Carriage.HELD) if isinstance(item, Weapon)
+    )
+    return frozenset({reactor.reach} | {w.reach_in_use(reactor.reach) for w in weapons})
+
+
 def _left_reach(reactor: Combatant, frm: Position, to: Position) -> bool:
-    """p. 185: the mover *leaves* the reach, so being outside it all along is not a trigger."""
+    """p. 185: the mover *leaves* the reach, so being outside it all along is not a trigger.
+
+    Asked once per reach the reactor has, because leaving *a* reach it could attack at is
+    what provokes (#316). Reading `reactor.reach` alone gave a Reach weapon no reach at all.
+    """
     if reactor.position is None:
         return False
-    reach = reactor.reach
-    return within(reactor.position, frm, reach) and not within(reactor.position, to, reach)
+    return any(
+        within(reactor.position, frm, reach) and not within(reactor.position, to, reach)
+        for reach in _reaches(reactor)
+    )
 
 
 def provocations(
