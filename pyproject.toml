@@ -66,6 +66,11 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 python_version = "3.11"
 files = ["src", "tests"]
 strict = true
+# `scripts/status_rows.py` is imported by `tests/test_status_rows.py` and is deliberately not
+# in the package: it parses `docs/`, and a documentation parser shipped to library users is
+# noise in a product that is a rules engine. Putting it on the path type-checks it rather than
+# silencing it, which is the difference between a boundary and a hole (#291).
+mypy_path = "scripts"
 
 # The MCP SDK is an optional extra, so a checkout without it must still type-check. The
 # import is inside a function and guarded, and the adapter is typed against `Any` at that

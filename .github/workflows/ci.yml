@@ -36,6 +36,23 @@ jobs:
       - name: Run tests
         run: pytest
 
+  status-rows:
+    name: Status rows cite open issues
+    # Every push, not only a pull request: a row goes stale when a build MERGES and its record
+    # is not revisited, so `main` is exactly where the drift lands. The first run of this
+    # check found twelve such rows, all created the same day (#291).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Check Status tables against live issue state
+        # `gh` is preinstalled on the runner and GITHUB_TOKEN is enough to read issue state.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/check_status_rows.py
+
   build-stamp:
     name: Build stamp advanced
     # Only on a pull request: on `main` there is nothing to advance past, and the question
