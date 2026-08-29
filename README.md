@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08282026.14` — **p. 89's Light property, whose damage rule is all exception.** [#270](https://github.com/eddiefiggie/srd-rules-engine/issues/270): attacking with a Light weapon as the Attack action buys one extra attack as a Bonus Action, with a **different** Light weapon — p. 89's own example is a Shortsword in one hand and a Dagger in the other, so "different" is the item's identity and not its kind. **The damage rule's exception is the whole of it**: "you don't add your ability modifier to the extra attack's damage **unless that modifier is negative**", so a +3 is dropped and a -2 is kept. An implementation that simply dropped the modifier would be wrong for every creature with a penalty, and wrong in the direction that helps them — the attack *roll* keeps it either way. A third per-turn structure joins `discharged` and `slots_expended_this_turn`, and means a third thing: not an obligation met nor a resource spent but **what was done and with what**, because "different from which" cannot be answered by a set of actors. **Two things the proofs caught, not review**: the extra attack was nested inside the `has_action` branch and so unreachable — by the time it is available the Action has been spent buying it — and the "Attack action" clause was shadowed by every caller passing no weapon on a Bonus Action, which is a rule relying on a convention. **96 of 209 -> 97 of 209.** Also removed: `_target_of`, dead since #258 and duplicating a live refusal message, which is where a later fix would have landed. 194 clauses. 1505 tests.
+**Current build:** `08292026.1` — **0041: five rules let go of an item and none says where it lands.** [#265](https://github.com/eddiefiggie/srd-rules-engine/issues/265), [#272](https://github.com/eddiefiggie/srd-rules-engine/issues/272): a javelin in flight and a sword on the floor are neither worn, held nor stowed, and [0039](docs/decisions/0039-equipment-is-what-a-creature-holds-wears-and-carries.md) closed that vocabulary at three. **The document's silence here is evidence rather than a gap in the reading**: `falls to the ground` appears five times and every one is an effect stating its own outcome, so p. 217's Dancing Sword — the only text that ever puts a released weapon somewhere specific, "in your space" — is a magic item describing itself. A general rule would make that clause unnecessary. So a detached object's position is `Position | None` and is **never defaulted**, the shape `Combatant.position` and `Combatant.hands` already carry. **Both issues asked to be decided together and were half right**: dropping and throwing share a vocabulary question and not a destination question, because p. 90 gives a thrown weapon a range in feet — so `detached_at = the holder's position` looks right for a drop and returns every javelin to the feet of whoever threw it. Reading the two entries side by side, rather than each issue's summary of the other, is what caught it. Also found: p. 190 teleports "everything you're wearing and carrying", which turns a fourth `Carriage` member from a style choice into a dropped sword that teleports away with the creature who dropped it. **97 of 209, unmoved** — this decides, [#277](https://github.com/eddiefiggie/srd-rules-engine/issues/277)-[#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280) build. **194 verifier clauses -> 200, and two of the four document-wide clauses are now 0041's**: `falls to the ground` x5 and `picking it up` x1, because a decision resting on an absence decays silently unless the absence is the thing asserted. Both proved red before being trusted. 1505 tests.
 
 ---
 
@@ -224,15 +224,14 @@ one, and the plan is amended to match:
   payload derives `compat` from its own schema version
   (closed [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106))
 
-**Next up:** [#140](https://github.com/eddiefiggie/srd-rules-engine/issues/140) — the four
-hazards Falling left behind. Two of them now have an occasion to fire on: Burning at the turn's
-start, Suffocation at its end, both phases the engine holds. What they still need is
-[0027](docs/decisions/0027-occasions-and-outcomes-without-a-roll.md) clause 5 — somewhere for
-"this creature is Burning" to live that is not `Conditions`, since it is not one of the fifteen.
-Dehydration and Malnutrition are further off, and not for a structural reason: they fire on
-whether a creature drank or ate, which is a narrative fact this engine cannot observe. That is
-the same wall [#141](https://github.com/eddiefiggie/srd-rules-engine/issues/141) reports for the
-afflictions, and nothing settled so far touches it.
+**Next up:** [#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279) — where a dropped or thrown object is, which [0041](docs/decisions/0041-an-item-that-leaves-a-creature-is-an-object-somewhere-unstated.md)
+settles by refusing to answer. Detached objects become state and their position stays
+`Position | None`, so a ruleset that knows its scene says and nothing else does. It carries a
+cost that ships disclosed rather than solved: a dropped weapon cannot be picked up where no
+position was stated. [#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280) then retires the `drops-what-it-holds` disclosure p. 191
+has carried on Unconscious since [#93](https://github.com/eddiefiggie/srd-rules-engine/issues/93), and [#265](https://github.com/eddiefiggie/srd-rules-engine/issues/265)'s pick-up mechanism is
+printed in full across pp. 12, 177 and 191 — one free object interaction per turn, Utilize for
+more, one equip per attack.
 
 ## Development
 
@@ -282,4 +281,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-28 — build `08282026.14`._
+_Last updated: 2026-08-29 — build `08292026.1`._
