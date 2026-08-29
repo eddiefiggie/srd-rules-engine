@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08292026.21` — **the word the rule turns on is "free", and it appears once.** [#245](https://github.com/eddiefiggie/srd-rules-engine/issues/245) builds p. 105's Somatic and Material components, deferred by 0038 clause 2 because holding V/S/M while enforcing nothing is a decay this repository has found twice — and the hand count #257 built is what made them checkable. **p. 105 writes the two differently**: Somatic needs "at least one of their hands", Material needs "a hand **free**". So **a creature with both hands full can still gesture**, which contradicts how the rule is usually played and is what the document says; reading *free* into Somatic would be an inferred rule value of exactly the plausible, universally-remembered, stated-nowhere kind. One free hand serves both together (0039 clause 4). **The substitution splits on the same word**: a Component Pouch needs "a hand free to reach into it" and changes nothing, while a Spellcasting Focus "you must **hold**" — so a focus occupies a hand and is the only route by which a full-handed caster casts an M spell. It substitutes only for materials neither consumed nor costed, which are the *spell's* properties and are why 0039 clause 2 kept them off `Item`. **Verbal stays unenforced and is now named**: p. 105 turns it on gagged-or-silenced and the engine models neither ([#246](https://github.com/eddiefiggie/srd-rules-engine/issues/246)). **102 of 209 -> 103 of 209** — `spellcasting-focus` resolves. 220 clauses. 1636 tests.
+**Current build:** `08292026.22` — **one sentence, enforced in one place and not the other.** [#249](https://github.com/eddiefiggie/srd-rules-engine/issues/249): p. 104 says "Before you can cast a spell, you must have the spell **prepared in your mind**", and `ritual_cast` has enforced exactly that since #19 — *"a spell merely known is not enough"* — while **ordinary casting never asked**. Same sentence, two readings, and the inconsistency had been sitting in the tree. The gate is now the read surface's (R18), and it broke **sixteen casting tests** whose casters carried spells nothing had prepared: one shared fixture, and the rule starting to bite. **What this build did not do is the more useful half.** It began by adding `always_prepared` and a `prepared_limit` to enforce p. 104's exemption — and a pre-existing test refused it outright: *"one set, per p. 104's own scoping"*. That decision was already made, already reasoned, and already tested: for the question this engine asks — is it prepared **now** — the always-prepared distinction does not exist, and the count is class data. **The field already existed and I had not looked.** Reverted. Also held: a cantrip is not exempt from being prepared, though it never counts against a list p. 104 scopes to "level 1+ spells". **103 of 209, unmoved** — preparation is a precondition, not a shape. 224 clauses -> 226, one proved red. 1639 tests.
 
 ---
 
@@ -209,11 +209,10 @@ from the records themselves by `scripts/render_record_index.py` — a hand-writt
 - [0045 — One object interaction a turn, and the Action buys more](docs/decisions/0045-one-object-interaction-a-turn-and-the-action-buys-more.md) — settles [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288)
 <!-- /record-index -->
 
-**Next up:** the rest of the spellcasting cluster — [#249](https://github.com/eddiefiggie/srd-rules-engine/issues/249) (preparation is a
-mechanism a ruleset fills), [#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250) (longer casting times), [#253](https://github.com/eddiefiggie/srd-rules-engine/issues/253) (the
-Magic action's feature-and-item half). [#246](https://github.com/eddiefiggie/srd-rules-engine/issues/246) and [#247](https://github.com/eddiefiggie/srd-rules-engine/issues/247) stay blocked on
-subsystems that do not exist: nothing models being gagged or in magical silence, and
-armour training is a legality rule the engine cannot evaluate.
+**Next up:** [#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250) — longer casting times, where the Magic action is taken each
+turn and a break refunds nothing because nothing was spent. Then [#253](https://github.com/eddiefiggie/srd-rules-engine/issues/253), the
+Magic action's feature-and-item half. [#246](https://github.com/eddiefiggie/srd-rules-engine/issues/246) and [#247](https://github.com/eddiefiggie/srd-rules-engine/issues/247) stay blocked on
+subsystems that do not exist, and are disclosed rather than skipped.
 
 ## Development
 
@@ -263,4 +262,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-29 — build `08292026.21`._
+_Last updated: 2026-08-29 — build `08292026.22`._

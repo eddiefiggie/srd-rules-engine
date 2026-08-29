@@ -95,6 +95,10 @@ def caster(**overrides: object) -> Combatant:
         "is_player_character": True,
         "slots": SpellSlots(total={1: 2, 2: 1}),
         "spells": ALL_SPELLS,
+        # p. 104: "Before you can cast a spell, you must have the spell prepared in your
+        # mind." Enforced for ordinary casting since #249 — every test in this file predates
+        # that and carried spells nothing had prepared, which is the rule starting to bite.
+        "prepared": frozenset(spell.rule_id for spell in ALL_SPELLS),
     }
     fields.update(overrides)
     return Combatant(**fields)  # type: ignore[arg-type]
@@ -494,3 +498,42 @@ def test_a_failed_cast_still_replaces_the_concentration_it_started(tmp_path: Pat
             )
             return
     raise AssertionError("no seed below 60 failed the test; the sweep proved nothing")
+
+
+# --- p. 104's precondition, enforced for ordinary casting too (#249) ---------------------
+
+
+def test_an_unprepared_spell_is_not_offered() -> None:
+    """p. 104: "Before you can cast a spell, you must have the spell **prepared in your mind**
+    or have access to the spell from a magic item."
+
+    `ritual_cast` has enforced this sentence since #19 — "a spell merely known is not enough"
+    — and ordinary casting was the half that did not ask. The two now read the same rule the
+    same way.
+    """
+    carried_but_unprepared = caster(prepared=frozenset())
+    state = EncounterState.new([carried_but_unprepared, boar()])
+    assert not any(k.startswith("cast:") for k in read(state, "mage").keys)
+
+
+def test_preparing_one_of_them_offers_exactly_that_one() -> None:
+    """The gate is per spell, not per caster — carrying the data is not preparing it."""
+    one = ALL_SPELLS[0]
+    state = EncounterState.new([caster(prepared=frozenset({one.rule_id})), boar()])
+    offered = {k for k in read(state, "mage").keys if k.startswith("cast:")}
+    assert offered, "the prepared one is castable"
+    assert all(one.rule_id in key for key in offered), f"and nothing else is: {sorted(offered)}"
+
+
+def test_a_cantrip_is_not_exempt_from_being_prepared() -> None:
+    """p. 104's changeable list is of "level 1+ spells you prepare", so a cantrip never
+    counts against its size — but the precondition above is about *any* spell, and the
+    document draws no exemption for level 0. Reading one in would be the familiar shape
+    rather than the printed rule (R31).
+    """
+    cantrips = [s for s in ALL_SPELLS if s.is_cantrip]
+    assert cantrips, "the fixture carries a cantrip"
+    state = EncounterState.new([caster(prepared=frozenset()), boar()])
+    assert not any(
+        cantrip.rule_id in key for key in read(state, "mage").keys for cantrip in cantrips
+    )

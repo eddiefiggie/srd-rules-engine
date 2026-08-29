@@ -1413,6 +1413,21 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"the GM might require you to take the Utilize action to open a stuck door or turn a "
         r"crank to lower a drawbridge",
     ),
+    # --- #249: preparation ---------------------------------------------------------------
+    (
+        104,
+        "preparation is a precondition of casting ANY spell, which ritual_cast has enforced "
+        "since #19 and ordinary casting did not ask until #249",
+        r"Before you can cast a spell, you must have the spell prepared in your mind or have "
+        r"access to the spell from a magic item",
+    ),
+    (
+        104,
+        r"and the CHANGEABLE list is of level 1\+ spells - so a cantrip never counts against "
+        "its size, while still needing to be prepared by the sentence above",
+        r"If you have a list of level 1\+ spells you prepare, your spellcasting feature "
+        r"specifies when you can change the list and the number of spells you can change",
+    ),
     # --- #245: spell components --------------------------------------------------------
     (
         105,
