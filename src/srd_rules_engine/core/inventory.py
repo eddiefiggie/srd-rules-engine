@@ -188,6 +188,12 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # p. 188, #245. A held focus provides Material components that are neither consumed
         # nor costed, and the caster needs the feature p. 106 requires.
         "spellcasting-focus": "core.spellcasting.component_refusal",
+        # p. 90, #316. The tenth weapon property, and the one that was folded into p. 186's
+        # glossary entry on the reasoning that the Glossary already defines the term. The
+        # term, yes; the mechanic, no — so the fold let `reach`'s implemented flag claim a
+        # rule that was not built. Both call sites take it: the attack's range bound and the
+        # reach an Opportunity Attack is determined at.
+        "weapon-reach": "core.equipment.Weapon.reach_in_use",
         "mastery-graze": "core.combat.Weapon.graze",
         # Position, movement and range in feet (#17, #20).
         "speed": "core.position.Speeds.walk",
@@ -220,6 +226,9 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # this engine does not model and a trait it cannot read. `Speeds.burrow` carries the
         # number and `with_movement` refuses the mode without it; the entry's substance is
         # the restriction, and none of it is enforced.
+        # p. 186's entry is the *default* — "a reach of 5 feet unless a rule says otherwise"
+        # — and that is all this id has ever claimed. The rule that says otherwise is p. 90's
+        # Reach property, filed separately below (#316).
         "reach": "core.position.DEFAULT_REACH_FEET",
         "weapon-range": "core.combat.Weapon.normal_range",
         # The six areas of effect, as unobstructed volume (#20, and #91 for what is missing).

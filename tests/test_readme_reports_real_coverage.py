@@ -62,8 +62,9 @@ NAMED_SLICES: dict[str, tuple[str, ...] | None] = {
     "conditions": ("condition",),
     "the d20 test": ("test",),
     "senses and light": ("sense", "environment"),
-    # p. 89-90's nine properties (#284). Named here rather than dropped from the README,
-    # because the row's job is to say which slices moved and this is the one that did.
+    # p. 89-90's ten properties (#284, #316). Named here rather than dropped from the README,
+    # because the row's job is to say which slices moved and this is the one that did. It was
+    # "nine" until #316 found that the document defines ten and the inventory carried nine.
     "weapon properties": ("weapon-property",),
 }
 

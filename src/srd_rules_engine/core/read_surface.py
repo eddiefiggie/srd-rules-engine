@@ -1150,7 +1150,11 @@ def _within_weapon_range(
     distance = distance_feet(actor.position, target.position)
     if (thrown or not weapon.melee) and weapon.long_range is not None:
         return bool(distance <= weapon.long_range)
-    return bool(distance <= actor.reach)
+    # p. 90's Reach property adds to the wielder's reach "when you attack with it", so the
+    # bound belongs to this weapon in this creature's hands (#316). Reading `actor.reach`
+    # alone withheld the offer entirely, which is the direction that matters here: an attack
+    # the rules permit was never presented, so nothing downstream could have caught it.
+    return bool(distance <= weapon.reach_in_use(actor.reach))
 
 
 def _attack_detail(actor: Combatant, weapon: Weapon, target: Combatant) -> dict[str, object]:
@@ -1163,7 +1167,10 @@ def _attack_detail(actor: Combatant, weapon: Weapon, target: Combatant) -> dict[
     if actor.position is not None and target.position is not None:
         distance = distance_feet(actor.position, target.position)
         detail["distance"] = distance
-        detail["reach"] = actor.reach
+        # The reach this attack is bounded by, which p. 90's Reach property makes a fact
+        # about the weapon rather than the creature (#316). Reporting `actor.reach` beside a
+        # Reach weapon's offer would contradict the offer itself.
+        detail["reach"] = weapon.reach_in_use(actor.reach)
         # p. 90: "When attacking a target beyond normal range, you have Disadvantage on the
         # attack roll." Reported so the agent can weigh the shot it is being offered.
         if weapon.normal_range is not None:

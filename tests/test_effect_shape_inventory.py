@@ -19,6 +19,7 @@ import json
 import re
 from importlib import resources
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import pytest
@@ -353,6 +354,22 @@ def test_the_shape_field_says_what_kind_is_for() -> None:
 # --- The generator and the data it generated (#138) -----------------------------------
 
 
+def _generator() -> ModuleType:
+    """The generator, imported from its path — it is a script rather than a package module.
+
+    Read directly rather than re-run: regenerating needs the SRD PDF and CI has no copy of it
+    (`NOTICE.md`). The flags are the half that can be checked without the document, and the
+    flags are the half that drifts.
+    """
+    spec = importlib.util.spec_from_file_location(
+        "derive_effect_shapes", REPO_ROOT / "scripts" / "derive_effect_shapes.py"
+    )
+    assert spec is not None and spec.loader is not None
+    generator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(generator)
+    return generator
+
+
 def test_the_glossary_claims_agree_with_the_generator_that_writes_them() -> None:
     """`derive_effect_shapes.py` is the stated source of `effect_shapes.json`, so re-running
     it must not change what the engine claims.
@@ -369,13 +386,7 @@ def test_the_glossary_claims_agree_with_the_generator_that_writes_them() -> None
     PDF and CI has no copy of it (`NOTICE.md`). The flag is the half that can be checked
     without the document — and the flag is the half that drifted.
     """
-    spec = importlib.util.spec_from_file_location(
-        "derive_effect_shapes", REPO_ROOT / "scripts" / "derive_effect_shapes.py"
-    )
-    assert spec is not None and spec.loader is not None
-    generator = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(generator)
-
+    generator = _generator()
     inventory = load_inventory()
     disagreements = []
     for name, (_kind, implemented) in generator.KINDS.items():
@@ -392,6 +403,43 @@ def test_the_glossary_claims_agree_with_the_generator_that_writes_them() -> None
         + "\n  ".join(disagreements)
         + "\n\nClaim a shape in BOTH places — the generator's KINDS and the shipped "
         "effect_shapes.json — or the next regeneration silently rewrites coverage."
+    )
+
+
+def test_the_section_claims_agree_with_the_generator_that_writes_them() -> None:
+    """The same guard, for the three quarters of the inventory `KINDS` does not cover (#325).
+
+    The glossary sweep takes its flag from `KINDS`. **Every other sweep** — Equipment,
+    Monsters, Classes, Feats, Spell Descriptions, Magic Items, Gameplay Toolbox, Playing the
+    Game, Character Creation, Character Origins — takes it from a different constant,
+    `IMPLEMENTED_SECTION_SHAPES`, and the test above never read that one.
+
+    It had drifted six deep: `multiattack`, `weapon-ammunition`, `weapon-light`,
+    `weapon-loading`, `weapon-thrown` and `weapon-two-handed` were each claimed in the JSON by
+    hand as their PR landed and never written back to the generator. Regenerating reported 97
+    implemented over a shipped 103 — the identical failure the `KINDS` half was written for,
+    one constant away from where it was looking. The lesson its docstring draws ("nothing
+    compared the data against the thing that writes it") was true of a quarter of the file.
+
+    **Both directions**, and they fail differently. A shape the data claims and the set does
+    not is coverage a regeneration would silently drop. A shape the set claims and the data
+    does not is a claim the generator would write with nothing behind it — which
+    `test_no_shape_is_marked_implemented_without_an_engine_claim` would then catch on the
+    data, one regeneration too late.
+    """
+    generator = _generator()
+    inventory = load_inventory()
+
+    glossary_ids = {generator.slug(name) for name in generator.KINDS}
+    claimed_by_data = {s.id for s in inventory.implemented if s.id not in glossary_ids}
+    claimed_by_generator = set(generator.IMPLEMENTED_SECTION_SHAPES)
+
+    assert claimed_by_data == claimed_by_generator, (
+        "the generator's IMPLEMENTED_SECTION_SHAPES disagrees with the shipped "
+        "effect_shapes.json:\n"
+        f"  data claims, generator does not: {sorted(claimed_by_data - claimed_by_generator)}\n"
+        f"  generator claims, data does not: {sorted(claimed_by_generator - claimed_by_data)}\n"
+        "\nClaim a section shape in BOTH places, or the next regeneration rewrites coverage."
     )
 
 
