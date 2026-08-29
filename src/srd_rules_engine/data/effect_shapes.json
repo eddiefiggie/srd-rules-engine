@@ -972,7 +972,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 188",
    "kind": "equipment",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "sphere",

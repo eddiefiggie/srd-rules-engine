@@ -1413,6 +1413,34 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"the GM might require you to take the Utilize action to open a stuck door or turn a "
         r"crank to lower a drawbridge",
     ),
+    # --- #245: spell components --------------------------------------------------------
+    (
+        105,
+        "Somatic asks for a hand and NOT a free one - the word 'free' appears for Material "
+        "and not here, which is the whole of the distinction (#245)",
+        r"A spellcaster must use at least one of their hands to perform these movements",
+    ),
+    (
+        105,
+        "and Material asks for a FREE hand, which the same hand may be - so an S,M spell "
+        "needs one free hand rather than two (0039 clause 4)",
+        r"The spellcaster must have a hand free to access them, but it can be the same hand "
+        r"used to perform Somatic components, if any",
+    ),
+    (
+        106,
+        "a Pouch needs a free hand and a Focus is HELD - which is why a focus is the only "
+        "route by which a full-handed caster provides Material components",
+        r"To use a Component Pouch, you must have a hand free to reach into it, and to use a "
+        r"Spellcasting Focus, you must hold it unless its description says otherwise",
+    ),
+    (
+        188,
+        "and a Focus substitutes only for materials neither consumed nor costed - properties "
+        "of the SPELL's component, which is why 0039 clause 2 kept them off `Item`",
+        r"in place of a spell.s Material compo-?\s*nents if those materials aren.t consumed by "
+        r"the spell and don.t have a cost specified",
+    ),
     # --- 0044 / #273: Ammunition -------------------------------------------------------
     (
         89,

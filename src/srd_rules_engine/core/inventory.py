@@ -185,6 +185,9 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "weapon-ammunition": "core.state.EncounterState.with_ammunition_spent",
         # p. 13, p. 191, #288. One object interaction a turn, and the Action buys another.
         "utilize": "core.combat.object_interaction_resolver",
+        # p. 188, #245. A held focus provides Material components that are neither consumed
+        # nor costed, and the caster needs the feature p. 106 requires.
+        "spellcasting-focus": "core.spellcasting.component_refusal",
         "mastery-graze": "core.combat.Weapon.graze",
         # Position, movement and range in feet (#17, #20).
         "speed": "core.position.Speeds.walk",

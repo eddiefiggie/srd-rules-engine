@@ -183,7 +183,9 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Speed": ("movement", True),
     "Spell": ("vocabulary", False),
     "Spell Attack": ("test", True),
-    "Spellcasting Focus": ("equipment", False),
+    # p. 188, #245. A held focus stands in for Material components that are neither
+    # consumed nor costed, which is what `component_refusal` reads.
+    "Spellcasting Focus": ("equipment", True),
     "Stable": ("state", True),
     "Stat Block": ("vocabulary", False),
     "Surprise": ("effect", False),

@@ -56,7 +56,7 @@ from srd_rules_engine.core.equipment import (
 from srd_rules_engine.core.position import MovementMode, distance_feet
 from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.sight import LightLevel, Senses
-from srd_rules_engine.core.spellcasting import CastingTime
+from srd_rules_engine.core.spellcasting import CastingTime, component_refusal
 from srd_rules_engine.core.state import Combatant, EncounterState
 
 #: Marks the token's encoding. An unrecognised prefix yields `unread` rather than an
@@ -112,6 +112,11 @@ OBJECT_INTERACTION_CAP: Final = "one-object-interaction-a-turn-is-the-engines-ca
 #: judgement, and the engine models neither the objects nor the escalation — so the Utilize
 #: offered here reaches the four moves the engine has and nothing else.
 UTILIZE_REACHES_FOUR_MOVES: Final = "utilize-reaches-only-the-engines-object-moves"
+
+#: p. 105 refuses a Verbal component to "a creature who is gagged or in an area of magical
+#: silence", and the engine models neither (#246). A spell carrying one is offered anyway, so
+#: the rule that went unchecked is named rather than inferred from a silent pass.
+VERBAL_UNCHECKED: Final = "verbal-component-gagged-or-silenced-unchecked"
 
 #: A standalone object interaction — p. 13's free one — and the Utilize action that buys
 #: another (p. 13, p. 191, 0045 clauses 2-3).
@@ -616,9 +621,16 @@ def _castable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...
       spell." Once one has gone, levelled spells drop off the menu and **cantrips do not**,
       because p. 104 puts a level 0 spell outside the slot economy entirely.
 
-    What is **not** asked is components and armour training, which this engine cannot check.
-    `core.casting` discloses that in full: an offer here means castable as far as this engine
-    can tell, which is not the same as castable.
+    * **The components can be provided** (p. 105, #245), which was the fourth thing this
+      surface could not ask until an equipment model existed. `component_refusal` computes it
+      from the caster's hands and what it holds; a spell whose components cannot be provided
+      is not offered, and the reason is p. 105's own sentence.
+
+    What is **still** not asked is Verbal and armour training. p. 105 refuses a Verbal
+    component to "a creature who is gagged or in an area of magical silence" and the engine
+    models neither (#246); armour training is #247. `core.casting` discloses both: an offer
+    here means castable as far as this engine can tell, which is still not the same as
+    castable.
     """
     offered: list[LegalAction] = []
     spent_a_slot = actor.id in state.slots_expended_this_turn
@@ -626,6 +638,13 @@ def _castable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...
     for spell in actor.spells:
         kind = ACTION_FOR_CASTING.get(spell.casting_time)
         if kind is None or not actor.actions.available(kind, actor.conditions):
+            continue
+
+        # p. 105: "If the spellcaster can't provide one or more of a spell's components, the
+        # spellcaster can't cast the spell." Legality rather than a refusal afterwards (R18),
+        # so a spell whose Somatic or Material components this creature cannot provide simply
+        # is not offered (#245).
+        if component_refusal(spell, actor.equipment, actor.hands) is not None:
             continue
 
         if spell.is_cantrip:
@@ -1191,6 +1210,10 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
     # carries the clause. Disclosed here because an agent reading a swap offer would
     # otherwise reasonably infer the free interaction had been spent, or preserved.
     unenforced.append(UTILIZE_REACHES_FOUR_MOVES)
+    # Only while the creature actually carries a Verbal spell: a disclosure about a rule that
+    # cannot apply to this creature is noise, and #292 pins the set so it has to be deliberate.
+    if any(spell.verbal for spell in actor.spells):
+        unenforced.append(VERBAL_UNCHECKED)
     # 0045 clause 1. Only while the creature could still interact: once it has, the refusal is
     # visible in the menu and the disclosure has done its work.
     if actor.id not in state.object_interactions_this_turn:
