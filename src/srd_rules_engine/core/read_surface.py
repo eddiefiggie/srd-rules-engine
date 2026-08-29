@@ -647,6 +647,13 @@ def _castable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...
         if component_refusal(spell, actor.equipment, actor.hands) is not None:
             continue
 
+        # p. 104: "Before you can cast a spell, you must have the spell **prepared in your
+        # mind** or have access to the spell from a magic item." Enforced here since #249;
+        # `ritual_cast` has enforced the same sentence since #19 — "a spell merely known is
+        # not enough" — and ordinary casting was the half that did not ask (R18).
+        if spell.rule_id not in actor.prepared:
+            continue
+
         if spell.is_cantrip:
             levels: tuple[int, ...] = (0,)
         elif spent_a_slot or actor.slots is None:
