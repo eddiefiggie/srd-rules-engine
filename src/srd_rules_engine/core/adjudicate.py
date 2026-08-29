@@ -39,6 +39,7 @@ from typing import Final, Protocol
 
 from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.canonical import MAX_SAFE_INTEGER
+from srd_rules_engine.core.conditions import EFFECTS as CONDITION_EFFECTS
 from srd_rules_engine.core.conditions import Condition
 from srd_rules_engine.core.d20 import (
     DAMAGE_OFFSET,
@@ -51,6 +52,7 @@ from srd_rules_engine.core.d20 import resolve as roll_d20
 from srd_rules_engine.core.d20 import roll as dice
 from srd_rules_engine.core.damage import DamageOutcome, DamageType
 from srd_rules_engine.core.duration import Duration
+from srd_rules_engine.core.equipment import Carriage, items_in
 from srd_rules_engine.core.ledger import COMPAT, Ledger
 from srd_rules_engine.core.memory_port import (
     DefaultKind,
@@ -212,6 +214,21 @@ class EffectKind(StrEnum):
     #:
     #: Carries no number: p. 179 gives the save one consequence and it is not a quantity.
     CONCENTRATION_ENDED = "concentration-ended"
+    #: An item let go of by the ruling that caused it (0041 clause 7, #280). `item_id` names
+    #: which; `amount` is unused and 0.
+    #:
+    #: **Detachment is an outcome, not bookkeeping.** p. 191 makes it a consequence of a
+    #: condition and p. 130 of a failed save, so a caller reaching past adjudication to move
+    #: an item out of a hand would be a caller deciding one — the thing #119 stopped for
+    #: conditions and R1 exists to prevent generally.
+    #:
+    #: **It carries no position, and that is 0041 clause 4 rather than an omission.** None of
+    #: the five printed rules that detach an item says where it lands, so the object arrives
+    #: unplaced and the read surface reports it as such. The three texts that *do* state a
+    #: destination — pp. 209, 217, 247 — are magic items stating their own outcome, and this
+    #: repository ships no magic items (R31). A field nothing sets is the decay #228, #215
+    #: and #252 each found, so the rule that needs one brings it.
+    OBJECT_DETACHED = "object-detached"
 
 
 #: The kinds that carry a condition rather than a number. Named because three places have
@@ -306,6 +323,10 @@ class Effect:
     #: `None` for every other action, and for an attack whose weapon does not matter to any
     #: rule the engine holds.
     weapon_id: str | None = None
+    #: `OBJECT_DETACHED` only: which item left the creature (0041 clause 7). By id, because
+    #: that is what a declaration names and what the ledger records — the same identity
+    #: `Item.id` carries everywhere else.
+    item_id: str | None = None
     #: 0032 clauses 1-3. When set, this effect applies only if the predicate holds against
     #: what a **sibling** effect in the same branch settled to — and `_apply` is the only
     #: place that can ask, because it is the only place the settled number exists.
@@ -344,6 +365,12 @@ class Effect:
                 f"a {self.kind} effect names no weapon. p. 89's Light property reads which "
                 "weapon the Attack *action* was spent on, so the weapon travels with the "
                 "action and nowhere else"
+            )
+        if (self.kind is EffectKind.OBJECT_DETACHED) != (self.item_id is not None):
+            raise ValueError(
+                "an object-detached effect names the item that left, and no other kind "
+                "carries one. An unnamed detachment could not be applied, and an item id "
+                "riding on another kind would be a change no transition performs"
             )
         if (self.kind is EffectKind.ACTION_SPENT) != (self.action is not None):
             raise ValueError(
@@ -406,6 +433,26 @@ def condition_ended(target_id: str, condition: Condition, *, description: str) -
         amount=0,
         description=description,
         condition=condition,
+    )
+
+
+def object_detached(target_id: str, item_id: str, *, description: str) -> Effect:
+    """An item let go of by the ruling that caused it (0041 clause 7, #280).
+
+    Built here rather than as a raw `Effect` so `amount=0` is written once, the way
+    `condition_applied` does it — a zero at every call site is a number a reader has to
+    interpret.
+
+    The object arrives with **no position**: p. 191, p. 177, p. 90, p. 116 and p. 130 each
+    detach an item and none states a destination, so the read surface reports it among
+    `unplaced_objects` rather than somewhere invented (0041 clause 4).
+    """
+    return Effect(
+        kind=EffectKind.OBJECT_DETACHED,
+        target_id=target_id,
+        amount=0,
+        description=description,
+        item_id=item_id,
     )
 
 
@@ -1330,12 +1377,25 @@ def _apply(
             state = state.with_death(effect.target_id)
         elif effect.kind is EffectKind.CONDITION_APPLIED:
             assert effect.condition is not None  # __post_init__ refuses one without
+            # Read before applying: what the creature holds is the thing p. 191 sheds, and
+            # reading it afterwards would work today only because applying a condition
+            # happens not to touch equipment.
+            shed = _shed_by(state, effect.target_id, effect.condition)
             state = state.with_condition(
                 effect.target_id,
                 effect.condition,
                 duration=effect.duration,
                 source_id=effect.source_id,
             )
+            # p. 191: "you drop whatever you're holding". Derived by the engine rather than
+            # left to the resolver that applied the condition, for the reason implication is
+            # derived — a ruleset that forgot would keep a sword in an unconscious hand, and
+            # nothing would say so. They land as their own effects, so the ledger records
+            # each one and R7 leaves the narrator free to report it.
+            for dropped in shed:
+                landed.append(dropped)
+                assert dropped.item_id is not None  # __post_init__ refuses one without
+                state = state.with_object_detached(dropped.target_id, dropped.item_id)
         elif effect.kind is EffectKind.CONDITION_ENDED:
             assert effect.condition is not None
             state = state.with_condition_ended(effect.target_id, effect.condition)
@@ -1360,6 +1420,9 @@ def _apply(
             state = state.with_concentration_begun(effect.target_id, rule_id)
         elif effect.kind is EffectKind.CONCENTRATION_ENDED:
             state = state.with_concentration_ended(effect.target_id)
+        elif effect.kind is EffectKind.OBJECT_DETACHED:
+            assert effect.item_id is not None  # __post_init__ refuses one without
+            state = state.with_object_detached(effect.target_id, effect.item_id)
         elif effect.kind is EffectKind.EXHAUSTION_GAINED:
             # 0028 clause 1: the level carries the rule that caused it, and the ruling's
             # own rule is that rule. Taking it from here rather than from the effect keeps
@@ -1376,6 +1439,32 @@ def _apply(
                 "transition is the quiet direction to be wrong in"
             )
     return state, tuple(landed), tuple(withheld)
+
+
+def _shed_by(state: EncounterState, target_id: str, condition: Condition) -> tuple[Effect, ...]:
+    """The items a condition makes its holder let go of (p. 191, #280).
+
+    One condition states this today — Unconscious, whose entry reads "you drop whatever
+    you're holding" — and it is declared on `ConditionEffects` rather than matched on here,
+    so a second one arrives with its citation and needs no change to this function.
+
+    **Held items only.** "Holding" is what p. 191 says; worn armour and a stowed rope are
+    carried and are not shed. `Carriage.HELD` is exactly that distinction.
+
+    A creature that already has the condition holds nothing to drop, so re-applying it is
+    naturally idempotent rather than specially cased.
+    """
+    if not CONDITION_EFFECTS[condition].drops_held_items:
+        return ()
+    target = state.combatant(target_id)
+    return tuple(
+        object_detached(
+            target_id,
+            item.id,
+            description=f"{target.name} drops {item.id}: p. 191, Unconscious",
+        )
+        for item in items_in(target.equipment, Carriage.HELD)
+    )
 
 
 def _holds(when: When, target_id: str, taken: Mapping[str, int]) -> bool:

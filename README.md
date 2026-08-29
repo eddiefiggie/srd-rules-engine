@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08292026.3` — **a clause whose content is an absence needs a guard to be finishable at all.** [#277](https://github.com/eddiefiggie/srd-rules-engine/issues/277), [#278](https://github.com/eddiefiggie/srd-rules-engine/issues/278): both stayed open for a build over work that had shipped inside #279, which misreads as outstanding exactly as a closed issue misreads as finished — the mirror of the defect the previous build fixed. Closing them found the asymmetry. **#278 was complete; #277 was not.** 0041 clause 1 is a decision *not* to add a type, so it ships as **nothing** — no symbol, no branch, no field — and it was reported complete on the strength of a diff that could not, even in principle, show it. #277 had asked for the vocabulary *plus the guard that keeps a second type from arriving later*, and only the vocabulary existed. `Item.__subclasses__() == [Weapon]` is now pinned and `DetachedObject` is asserted not to be an `Item` at all, proved red against an appended `GroundItem(Item)` — a clean single failure, after a first corruption stole the `@dataclass` decorator and produced seven. **The same lesson this record already carries from the other direction**: its document-wide verifier clauses exist because a decision resting on an absence decays silently, and so does a clause whose whole content is one. **97 of 209, unmoved.** 200 clauses. 1516 tests.
+**Current build:** `08292026.4` — **p. 191 finally takes the sword out of the unconscious hand.** [#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280), 0041 clause 7: `EffectKind.OBJECT_DETACHED` makes letting go an **outcome**, so a caller can no longer move an item out of a hand by reaching past adjudication — the thing [#119](https://github.com/eddiefiggie/srd-rules-engine/issues/119) stopped for conditions. **The clause said detachment happens through a ruling and did not say who derives it**, and the plausible reading is the wrong one: leaving p. 191's drop to whichever resolver applies Unconscious satisfies the clause and reproduces the exact failure this engine exists to remove — a ruleset that forgot would keep the sword in hand and nothing would say so. The engine derives it, the way it derives implication, and **each dropped item lands as its own recorded `Effect`** rather than as a side effect, because a change the ledger cannot see is one no narrator can report and no replay can reproduce. Held items only — p. 191 says *holding*, so worn armour and a stowed rope stay. The weapon arrives **unplaced**, which is clause 4 doing its job. **A disclosure retired without its rule would have been invisible**: nothing pinned `drops-what-it-holds`, so the string could have come off with the behaviour never built and every test still green — removal and enforcement are now one assertion, proved by building the rule and taking it away again. The condition set's unenforced clauses go 11 -> 10. **97 of 209, unmoved** — a shape resolves when its mechanic does, and Unconscious already counted. 200 clauses. 1525 tests.
 
 ---
 
@@ -224,12 +224,12 @@ one, and the plan is amended to match:
   payload derives `compat` from its own schema version
   (closed [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106))
 
-**Next up:** [#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280) — detachment through a ruling, which is what finally *puts*
-something into the tuple #279 just built. It also retires the `drops-what-it-holds`
-disclosure p. 191 has carried on Unconscious since [#93](https://github.com/eddiefiggie/srd-rules-engine/issues/93). Then [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) for
-p. 177's equip and p. 12's one free object interaction, whose mechanism is printed in full
-across three pages, and [#284](https://github.com/eddiefiggie/srd-rules-engine/issues/284) for Thrown's arithmetic with its destination
-disclosed as refused.
+**Next up:** [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) — p. 177's equip and unequip, whose mechanism is printed in
+full across pp. 12, 177 and 191: one free object interaction per turn, the Utilize action
+beyond that, and one weapon equipped or unequipped per attack made as part of the Attack
+action. Then [#284](https://github.com/eddiefiggie/srd-rules-engine/issues/284) for Thrown's arithmetic, whose destination stays refused. With
+#280 landed, 0041 has one unbuilt clause left and it is the one with no design question in
+it.
 
 ## Development
 
@@ -279,4 +279,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-29 — build `08292026.3`._
+_Last updated: 2026-08-29 — build `08292026.4`._

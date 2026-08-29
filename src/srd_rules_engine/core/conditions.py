@@ -139,6 +139,15 @@ class ConditionEffects:
     immune_to_poisoned: bool = False
     implies: frozenset[Condition] = field(default_factory=frozenset)
     #: Clauses the engine holds but does not enforce, named rather than left to discovery.
+    #: p. 191, *Unconscious*: "you drop whatever you're holding". A consequence of the
+    #: condition, stated in the condition's own entry, so it lives beside the citation rather
+    #: than in whichever resolver happens to apply the condition — a ruleset that forgot it
+    #: would be a ruleset silently keeping a sword in an unconscious hand (#280, 0041
+    #: clause 7).
+    #:
+    #: **Held items only**, which is what "holding" says. Worn armour and a stowed rope are
+    #: carried and not held, and p. 191 does not shed them.
+    drops_held_items: bool = False
     unenforced_clauses: tuple[str, ...] = ()
 
 
@@ -220,7 +229,8 @@ EFFECTS: Final[dict[Condition, ConditionEffects]] = {
         auto_fail_strength_and_dexterity_saves=True,
         auto_critical_within_5_feet=True,
         implies=frozenset({Condition.INCAPACITATED, Condition.PRONE}),
-        unenforced_clauses=("drops-what-it-holds", "remains-prone-when-this-ends", "unaware"),
+        drops_held_items=True,
+        unenforced_clauses=("remains-prone-when-this-ends", "unaware"),
     ),
 }
 
