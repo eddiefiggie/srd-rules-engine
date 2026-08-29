@@ -68,6 +68,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from srd_rules_engine.core.damage import DamageType
+from srd_rules_engine.core.position import Position, within
 
 
 class Carriage(StrEnum):
@@ -322,3 +323,82 @@ class Weapon(Item):
             return False
         required = "str" if self.melee else "dex"
         return scores.get(required, 10) < HEAVY_SCORE_THRESHOLD
+
+
+@dataclass(frozen=True)
+class DetachedObject:
+    """An object no creature has (0041 clauses 1, 3 and 4).
+
+    **Not a new kind of thing.** p. 191: "A weapon is an object that is in the Simple or
+    Martial weapon category", and p. 12 lists a *sword* among its examples of an object. The
+    `Item` that was held is the `Item` that is on the floor, so this wraps one rather than
+    subtyping it — what changed is a **relation**, not a type (0041 clause 1). A creature no
+    longer has it, so it is not in `Combatant.equipment` and carries no `Carriage`: every
+    member of that enum is a way of *being carried*, and p. 190 then teleports the lot.
+
+    ## Its position is unknown until something says otherwise
+
+    **Five printed rules detach an item from a creature and none states where it goes** —
+    p. 177's Attack action ("sheathing, stowing, or dropping it"), p. 191's Unconscious ("you
+    drop whatever you're holding"), p. 90's Thrown, and the *Command* and *Fear* spells on
+    pp. 116 and 130. There is no rule value to read, so `None` is the honest default and
+    means *nobody has said*, exactly as it does on `Combatant.position` and `Combatant.hands`.
+
+    **The default that is not written here is the dropping creature's own space.** It is the
+    most plausible sentence in this area and it is not in the document: p. 217's Dancing Sword
+    spends a clause saying "falls to the ground **in your space**", which a general rule would
+    make unnecessary. It is also wrong for the other half of the vocabulary — p. 90 gives a
+    thrown weapon a range in feet, so the thrower's position is the one place the javelin
+    certainly is not. Dropping and throwing share this type and do not share a destination
+    (0041 clause 5), which is why the field refuses a default rather than taking the one that
+    serves the commoner rule.
+
+    Nothing else rides here. Which rule detached it, and from whom, are facts no engine rule
+    reads today — and a field the engine has no rule about is a field nothing reads, the decay
+    #228, #215 and #252 each found.
+    """
+
+    item: Item
+    #: Where it is, in feet, or `None` because **no rule said**. See the class docstring: this
+    #: is a refusal rather than an omission, and `reachable_objects` reports it as one.
+    position: Position | None = None
+
+
+def reachable_objects(
+    objects: tuple[DetachedObject, ...],
+    actor_position: Position | None,
+    reach: int,
+) -> tuple[DetachedObject, ...] | None:
+    """Which detached objects are within `reach`, or `None` if that cannot be answered.
+
+    Three outcomes rather than two, and the middle one is the point (0041 clause 4):
+
+    - `None` — the **actor** has no position, so no distance is computable. An encounter that
+      tracks no positions gets a refusal, not an empty tuple.
+    - An empty tuple — distances were computed and nothing is in reach.
+    - Objects — those whose own position is stated and within `reach`.
+
+    An object whose position is `None` is in none of these, because it cannot be placed. It is
+    **not silently dropped**: `unplaced_objects` names it, and the read surface reports both.
+    Returning it as reachable would invent the coordinate this whole type exists to refuse;
+    omitting it without a word would show an empty menu whose emptiness a reader has to
+    interpret, which is the narrowing #267 caught in 0040 clause 3.
+    """
+    if actor_position is None:
+        return None
+    return tuple(
+        obj
+        for obj in objects
+        if obj.position is not None and within(actor_position, obj.position, reach)
+    )
+
+
+def unplaced_objects(objects: tuple[DetachedObject, ...]) -> tuple[DetachedObject, ...]:
+    """The detached objects no rule has placed (R32).
+
+    Disclosed rather than left to be inferred from an absence. These are exactly the objects
+    a ruleset could make reachable by stating where they are, so a reader seeing them knows
+    the gap is *unstated position* rather than *out of reach* — two different answers that an
+    empty reachable list would render identical.
+    """
+    return tuple(obj for obj in objects if obj.position is None)

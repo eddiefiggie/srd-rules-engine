@@ -46,7 +46,7 @@ from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.canonical import CanonicalizationError, digest
 from srd_rules_engine.core.conditions import Condition
 from srd_rules_engine.core.d20 import Advantage
-from srd_rules_engine.core.equipment import Weapon
+from srd_rules_engine.core.equipment import Weapon, reachable_objects, unplaced_objects
 from srd_rules_engine.core.position import MovementMode, distance_feet
 from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.sight import LightLevel, Senses
@@ -349,6 +349,20 @@ class Situation:
     #: with the same limit — a range the engine cannot yet apply is still a fact the agent
     #: is entitled to know it has.
     senses: Senses
+    #: Item ids of detached objects within this creature's reach (0041 clauses 3 and 4), or
+    #: `None` when the creature has no position and no distance is computable. `None` is a
+    #: refusal rather than "none in reach" — an encounter tracking no positions cannot answer
+    #: the question, and an empty tuple would say it had.
+    reachable_objects: tuple[str, ...] | None
+    #: Item ids of detached objects **no rule has placed** (R32). Reported beside the list
+    #: above because an object missing from it for want of a stated position and one missing
+    #: because it is genuinely far away are different answers, and an empty reachable list
+    #: renders them identical.
+    #:
+    #: Five printed rules detach an item and none says where it lands (0041 clause 4), so
+    #: this is the ordinary case rather than an error: a ruleset that states where the sword
+    #: fell moves an entry from here to there.
+    unplaced_objects: tuple[str, ...]
     unenforced_clauses: tuple[str, ...]
 
 
@@ -736,6 +750,13 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
             state.lighting.level_at(actor.position) if actor.position is not None else None
         ),
         senses=actor.senses,
+        reachable_objects=(
+            None
+            if (reachable := reachable_objects(state.detached_objects, actor.position, actor.reach))
+            is None
+            else tuple(obj.item.id for obj in reachable)
+        ),
+        unplaced_objects=tuple(obj.item.id for obj in unplaced_objects(state.detached_objects)),
         unenforced_clauses=tuple(unenforced),
     )
 

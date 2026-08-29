@@ -236,22 +236,38 @@ In the tree:
 
 ## Status of implementation
 
-**Nothing here is built.** This record decides; every clause is held by an issue below —
-[#277](https://github.com/eddiefiggie/srd-rules-engine/issues/277), [#278](https://github.com/eddiefiggie/srd-rules-engine/issues/278), [#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279) and [#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280), filed before this record
-merged.
+**Clauses 3 and 4 are built** by [#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279). The rest are decided and each held by an
+issue below.
+
+**Two clauses were held by nothing for the length of one build, and the mechanism is worth
+recording.** This record closed [#265](https://github.com/eddiefiggie/srd-rules-engine/issues/265) and [#272](https://github.com/eddiefiggie/srd-rules-engine/issues/272) by keyword and said each
+was "re-filed as the build it unblocks" — but the table pointed clause 6 at #265 itself, and
+no re-filing happened. So the moment the record merged, clause 6 and Thrown's arithmetic were
+tracked by *closed* issues, which `AGENTS.md` calls worse than unfiled: a closed issue reads
+as finished work rather than as absent work. Filed as [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) and [#284](https://github.com/eddiefiggie/srd-rules-engine/issues/284)
+during #279. **A record that closes an issue may not also cite it as the holder of unbuilt
+work** — the closing keyword and the tracking pointer cannot be the same number.
 
 | Clause | State |
 |---|---|
 | 1 — detachment changes a relation, not a type | **Decided, not built.** [#277](https://github.com/eddiefiggie/srd-rules-engine/issues/277) |
 | 2 — detachment removes the item from `Combatant.equipment`; `Carriage` stays at three | **Decided, not built.** [#278](https://github.com/eddiefiggie/srd-rules-engine/issues/278) |
-| 3 — detached objects ride on `EncounterState` | **Decided, not built.** [#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279) |
-| 4 — position is `Position \| None`, never defaulted | **Decided, not built.** [#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279), the clause this record exists for |
+| 3 — detached objects ride on `EncounterState` | **Built.** `EncounterState.detached_objects`, beside `obstructions` and `lighting` ([#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279)) |
+| 4 — position is `Position \| None`, never defaulted | **Built.** `DetachedObject.position`, with `reachable_objects` returning `None` for a positionless actor and `unplaced_objects` naming what no rule placed ([#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279)) |
 | 5 — dropping and throwing share a vocabulary and not a destination | **Decided.** Records why clause 4 refuses; nothing to build |
-| 6 — pick-up is p. 12's object interaction and p. 177's equip | **Decided, not built.** [#265](https://github.com/eddiefiggie/srd-rules-engine/issues/265) |
+| 6 — pick-up is p. 12's object interaction and p. 177's equip | **Decided, not built.** [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) — *not* #265, which this record closed |
 | 7 — detachment happens through a ruling | **Decided, not built.** [#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280), which also takes p. 191's `drops-what-it-holds` disclosure off |
 
-**#265 and #272 are closed by this record**, and each is re-filed as the build it unblocks:
-#265's equip/unequip mechanism by clause 6, #272's Thrown arithmetic with its destination
-disclosed as refused under clause 4.
+**#265 and #272 are closed by this record**, and each was re-filed as the build it unblocks:
+#265's equip/unequip mechanism as [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283), #272's Thrown arithmetic as
+[#284](https://github.com/eddiefiggie/srd-rules-engine/issues/284) with its destination disclosed as refused under clause 4.
+
+**What #279's build found that this record did not.** Clause 4 said the position is never
+defaulted and did not say what *reads* it. Three outcomes were needed rather than two: an
+actor with no position gets `None` — the question is unanswerable — while an actor who does
+have one gets a computed list that an unplaced object is absent from. Those two absences are
+different facts, so `unplaced_objects` names the second rather than leaving a reader to infer
+it from an empty list. That is the same narrowing [#267](https://github.com/eddiefiggie/srd-rules-engine/issues/267) caught in 0040 clause 3, and
+the record would have shipped it again.
 
 _Written 2026-08-29 against SRD v5.2.1._
