@@ -100,6 +100,11 @@ def attack_key(weapon_id: str, target_id: str) -> str:
 #: relationship to p. 177's per-attack swap the document never states (0042 clause 6).
 FREE_OBJECT_INTERACTION: Final = "free-object-interaction-unmodelled"
 
+#: 0043 clause 3. The one-swap-per-turn cap is the **engine's**, taken as the intersection of
+#: two readings the document does not choose between — so it is named rather than left to look
+#: like a printed rule an agent could cite.
+SWAP_CAP_IS_THE_ENGINES: Final = "one-swap-per-turn-is-the-engines-cap"
+
 #: An attack that also equips or unequips one weapon (p. 177, 0042 clauses 1-3).
 #:
 #: **Three prefixes for p. 177's three destinations**, not two. "Equipping a weapon includes
@@ -532,7 +537,18 @@ def legal_actions(state: EncounterState, actor_id: str) -> tuple[LegalAction, ..
     # p. 176: "On your turn, you can take one action", and p. 177 makes an attack one — so an
     # attack leaves the menu once the Action is gone. It did not until #252, because nothing
     # charged the Action for an attack and the offer had nothing to be conditional on.
-    if has_action:
+    # p. 257: "Some creatures can make more than one attack **when they take the Attack
+    # action**", so the Action buys several rolls and the attack stays on the menu while any
+    # remain. A creature with no Multiattack has exactly one, which is the pre-existing
+    # behaviour written as a special case of the general one (0043 clause 1).
+    # **And only once the Action went to the Attack action.** `attacks_remaining` alone says
+    # a creature that spent its Action on Dodge may still attack, because it counts rolls
+    # rather than asking what the Action bought. Having already made one this turn is what
+    # says the Action was spent here.
+    mid_multiattack = bool(
+        state.attacks_this_turn.get(actor.id, 0) and state.attacks_remaining(actor.id)
+    )
+    if has_action or mid_multiattack:
         actions.extend(_attackable(state, actor))
 
     # p. 89's extra Light attack is made **as a Bonus Action**, so it is offered outside the
@@ -669,6 +685,12 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
         )
 
     for weapon in actor.weapons_held:
+        # p. 257: the entry "details the attacks a creature can make", so a Multiattack that
+        # named a set restricts which weapons may fill its rolls. An empty set permits any
+        # held weapon — the reading that refuses nothing for a ruleset that stated a count
+        # and no list (0043 clause 2).
+        if actor.multiattack is not None and not actor.multiattack.allows(weapon.id):
+            continue
         for target in state.combatants:
             if target.id == actor.id or target.is_down:
                 continue
@@ -762,6 +784,8 @@ def _draw_and_use(state: EncounterState, actor: Combatant) -> tuple[LegalAction,
     dagger and reaching for a bow is asking about the bow's range.
     """
     offered: list[LegalAction] = []
+    if actor.id in state.swaps_this_turn:  # 0043 clause 3, as in `_swaps`
+        return ()
     equippable: list[tuple[Item, str]] = [
         (c.item, str(Carriage.STOWED)) for c in actor.equipment if c.carriage is Carriage.STOWED
     ]
@@ -815,6 +839,12 @@ def _swaps(
     rather than as an empty menu (#267).
     """
     offered: list[LegalAction] = []
+    # 0043 clause 3: at most one swap per turn, whatever the attack count. p. 177 grants one
+    # per attack and p. 13 one object interaction per turn, and nothing composes them — one
+    # swap is legal under both readings and two under only one, so the engine offers the
+    # intersection. The cap is the engine's, and `Situation.unenforced_clauses` says so.
+    if actor.id in state.swaps_this_turn:
+        return ()
 
     for carried in actor.equipment:
         if carried.carriage is Carriage.STOWED:
@@ -1014,6 +1044,10 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
     # carries the clause. Disclosed here because an agent reading a swap offer would
     # otherwise reasonably infer the free interaction had been spent, or preserved.
     unenforced.append(FREE_OBJECT_INTERACTION)
+    # 0043 clause 3. Only while the creature could still swap: once it has, the refusal is
+    # visible in the menu and the disclosure has done its work.
+    if actor.id not in state.swaps_this_turn:
+        unenforced.append(SWAP_CAP_IS_THE_ENGINES)
 
     return Situation(
         hit_points=actor.hit_points,

@@ -175,16 +175,28 @@ In the tree:
 
 ## Status of implementation
 
-**Nothing here is built.** This record decides;
-[#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289) builds clauses 1 to 4 and
-**remains open**.
+**Clauses 1 to 4 are built** by [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289). Clause 5 is decided and its remaining half is
+held by [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288).
+
+**Two things the build found that this record did not.**
+
+**Clause 4 conflated two structures.** It argued for a count rather than a set, and that is
+right for the attack tally and wrong for the swap beside it: the swap's cap is *one*, so the
+only question is whether this creature has taken it, and a set of actors answers exactly that.
+A count there would carry a number nothing may read past 1. `attacks_this_turn` is the count
+the clause was reasoning about; `swaps_this_turn` is a set.
+
+**"Rolls remain" is not "the Action bought them."** `attacks_remaining` counts rolls and cannot
+say what the Action was spent on, so a creature that took the Dodge action had three rolls
+remaining by arithmetic and was offered an attack. Having **already attacked this turn** is
+what says the Action went to the Attack action, and the offer turns on that instead.
 
 | Clause | State |
 |---|---|
-| 1 — Multiattack is the Attack action; one Action buys several rolls | **Decided, not built.** [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289) |
-| 2 — how many and which is ruleset data on the creature | **Decided, not built.** [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289) |
-| 3 — at most one swap per turn, as the intersection of two readings | **Decided, not built.** [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289), the clause this record exists for |
-| 4 — the swap count is per-turn state | **Decided, not built.** [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289) |
+| 1 — Multiattack is the Attack action; one Action buys several rolls | **Built.** `action_spent` is emitted only on the turn's first roll, and the attack stays on the menu while rolls remain ([#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289)) |
+| 2 — how many and which is ruleset data on the creature | **Built** as `Combatant.multiattack`. `permitted` empty means *any held weapon*, the reading that refuses nothing; a fixed composition like the balor's one-each is not expressible and is disclosed ([#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289)) |
+| 3 — at most one swap per turn, as the intersection of two readings | **Built**, and named as the engine's cap in `Situation.unenforced_clauses`. p. 191's Unconscious drop deliberately does not spend it, which is why `WEAPON_SWAPPED` is its own effect ([#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289)) |
+| 4 — the swap count is per-turn state | **Built, and the clause gained a finding.** Two structures, not one: `attacks_this_turn` is a count and `swaps_this_turn` is a set, because a cap of one asks a different question ([#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289)) |
 | 5 — p. 13's free interaction stays unmodelled, and clause 6 is narrowed rather than closed | **Decided.** Nothing to build; [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) carries the remaining half |
 
 _Written 2026-08-29 against SRD v5.2.1._

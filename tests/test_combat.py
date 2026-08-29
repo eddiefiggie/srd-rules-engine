@@ -537,9 +537,18 @@ def test_the_target_is_read_from_the_action_key_never_from_the_label(tmp_path: P
         state, mislabelled
     )
     assert damage_effect(ruling).target_id == "boar", "the key's target, not the label's"
-    assert [e.target_id for e in ruling.effects if e.kind is not EffectKind.ACTION_SPENT] == [
-        "boar"
-    ], "and nothing else the attack did landed on anyone the key did not name"
+    # The attacker's own bookkeeping is excluded, not the target's: what the attack *did* is
+    # what must land on the named target. `ATTACK_MADE` joined `ACTION_SPENT` here with #289,
+    # for the same reason — it records that the actor spent one of the rolls p. 257's Attack
+    # action bought, and an effect about the attacker is not an effect on a bystander.
+    ACTOR_BOOKKEEPING = {
+        EffectKind.ACTION_SPENT,
+        EffectKind.ATTACK_MADE,
+        EffectKind.WEAPON_SWAPPED,
+    }
+    assert [e.target_id for e in ruling.effects if e.kind not in ACTOR_BOOKKEEPING] == ["boar"], (
+        "and nothing else the attack did landed on anyone the key did not name"
+    )
 
 
 def test_attack_target_reads_only_attack_keys() -> None:

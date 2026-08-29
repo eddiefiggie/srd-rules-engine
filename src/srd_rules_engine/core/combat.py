@@ -50,9 +50,11 @@ from srd_rules_engine.core.adjudicate import (
     Proposal,
     Resolver,
     action_spent,
+    attack_made,
     carriage_changed,
     object_detached,
     object_picked_up,
+    weapon_swapped,
 )
 from srd_rules_engine.core.d20 import (
     INITIATIVE_BAND,
@@ -225,18 +227,55 @@ def attack_resolver() -> Resolver:
             # ordering `_swap_effects` documents.
             always=(
                 *before,
-                action_spent(
-                    declaration.actor_id,
-                    ActionKind.BONUS_ACTION if is_bonus else ActionKind.ACTION,
-                    description=(
-                        f"the Bonus Action spent on p. 89's extra Light attack with {weapon.id}"
-                        if is_bonus
-                        else "the Action spent on the Attack (p. 176, p. 177)"
-                    ),
-                    # p. 89 reads which weapon the Attack action was spent on, so the ordinary
-                    # attack carries it and the bonus one does not — the bonus attack is what
-                    # the record *buys*, not what it records.
-                    weapon_id=None if is_bonus else weapon.id,
+                # p. 177's allowance is drawn on when a swap actually happens, and only then.
+                # p. 191's Unconscious detaches an item too and must not spend it (0043
+                # clause 3).
+                *(
+                    (
+                        weapon_swapped(
+                            declaration.actor_id,
+                            description="p. 177's one equip or unequip, drawn on this turn",
+                        ),
+                    )
+                    if (before or after)
+                    else ()
+                ),
+                # p. 257 counts the rolls the *Attack action* bought. p. 89's extra attack is
+                # a **Bonus Action** — a separate action, which #271 verified against the tree
+                # — so it is an attack roll and not one of them.
+                *(
+                    ()
+                    if is_bonus
+                    else (
+                        attack_made(
+                            declaration.actor_id,
+                            description=f"an attack roll with {weapon.id} (p. 177, p. 257)",
+                        ),
+                    )
+                ),
+                # p. 257: "Some creatures can make more than one attack **when they take the
+                # Attack action**", so the Action is spent once and buys them all. Charging it
+                # per roll is what `attack_resolver` has carried a comment about since the
+                # economy landed, naming this exact feature (0043 clause 1).
+                *(
+                    ()
+                    if not is_bonus and state.attacks_this_turn.get(declaration.actor_id, 0)
+                    else (
+                        action_spent(
+                            declaration.actor_id,
+                            ActionKind.BONUS_ACTION if is_bonus else ActionKind.ACTION,
+                            description=(
+                                f"the Bonus Action spent on p. 89's extra Light attack with "
+                                f"{weapon.id}"
+                                if is_bonus
+                                else "the Action spent on the Attack (p. 176, p. 177)"
+                            ),
+                            # p. 89 reads which weapon the Attack action was spent on, so the
+                            # ordinary attack carries it and the bonus one does not — the bonus
+                            # attack is what the record *buys*, not what it records.
+                            weapon_id=None if is_bonus else weapon.id,
+                        ),
+                    )
                 ),
                 *after,
                 # p. 90: the weapon is *thrown*, so it ends the attack out of the creature's

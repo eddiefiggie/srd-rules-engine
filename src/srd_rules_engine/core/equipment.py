@@ -426,3 +426,53 @@ def unplaced_objects(objects: tuple[DetachedObject, ...]) -> tuple[DetachedObjec
     empty reachable list would render identical.
     """
     return tuple(obj for obj in objects if obj.position is None)
+
+
+@dataclass(frozen=True)
+class Multiattack:
+    """How many attack rolls the Attack action buys this creature (p. 257, 0043 clauses 1-2).
+
+    > Some creatures can make more than one attack **when they take the Attack action**. Such
+    > creatures have the Multiattack entry in the "Actions" section of their stat block. This
+    > entry details the attacks a creature can make, as well as any additional abilities it
+    > can use, **as part of the Attack action**.
+
+    **Not a second action.** The Action is spent once and buys `attacks` rolls, which is why
+    `attack_resolver` charges the economy only on the first of them.
+
+    **What the entry says is the ruleset's** (0043 clause 2). The engine holds how many rolls
+    remain and whether a weapon is among the permitted ones; the aboleth's "two Tentacle
+    attacks", the bandit's "two attacks, using Scimitar and Pistol in any combination" and the
+    balor's "one Flame Whip attack and one Lightning Blade attack" are content, and a grammar
+    for them here would be a weapon table by another name (R31).
+
+    **It rides on the creature rather than in the bestiary**, because pp. 136, 166 and 232
+    give a Multiattack to a **spell's** summoned creature — so it is not a monster-only fact.
+
+    ## What this shape cannot say
+
+    `permitted` is a **pool**: `attacks` rolls drawn from that set in any combination, which is
+    the bandit's and the assassin's shape. A *fixed* composition — the balor's one-each — needs
+    a per-weapon limit this does not carry, and none of the six shipped stat blocks has one.
+    Disclosed rather than guessed at (R32).
+    """
+
+    #: How many attack rolls the Attack action buys. At least one; a Multiattack that buys
+    #: none is an entry that does nothing, and the creature's ordinary attack covers it.
+    attacks: int
+    #: Which weapons may fill those rolls, by id. **Empty means any weapon the creature
+    #: holds** — the reading that refuses nothing, for a ruleset that stated a count and not a
+    #: list. It is not "no weapon may", which would make the entry unusable.
+    permitted: frozenset[str] = frozenset()
+
+    def __post_init__(self) -> None:
+        if self.attacks < 1:
+            raise ValueError(
+                f"a Multiattack buys at least one attack roll, not {self.attacks}. p. 257 "
+                "describes making *more than one* attack, and an entry buying none is an "
+                "entry with nothing to detail"
+            )
+
+    def allows(self, weapon_id: str) -> bool:
+        """Whether this weapon may fill one of the rolls (p. 257)."""
+        return not self.permitted or weapon_id in self.permitted
