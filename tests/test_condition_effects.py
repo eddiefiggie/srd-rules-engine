@@ -44,6 +44,7 @@ from srd_rules_engine.core import (
     DurationKind,
     EncounterState,
     Intent,
+    Item,
     Ledger,
     Proposal,
     Rule,
@@ -63,6 +64,7 @@ from srd_rules_engine.core.adjudicate import (
     When,
     _apply,
 )
+from srd_rules_engine.core.conditions import EFFECTS
 from srd_rules_engine.core.d20 import D20Test, Modifier, TestKind
 from srd_rules_engine.core.damage import DamageType, Defences
 from srd_rules_engine.core.memory_port import Resolution
@@ -578,3 +580,139 @@ def test_damage_cannot_itself_be_conditional_on_damage() -> None:
     this, so it is refused rather than given an order-dependent meaning."""
     with pytest.raises(ValueError, match="damage cannot be conditional on damage"):
         replace(_hurt(), when=When.DAMAGE_TAKEN)
+
+
+# --- 0041 clause 7: detachment is an outcome (#280) -------------------------------------
+
+
+ARMOUR = Item(id="fixture-mail", weight=55.0)
+ROPE = Item(id="fixture-rope", weight=10.0)
+
+
+def _laden() -> EncounterState:
+    """The `pc` holding a weapon, wearing armour, and with a rope stowed.
+
+    All three carriages, because p. 191 sheds exactly one of them.
+    """
+    state = encounter()
+    laden = replace(
+        state.combatant("pc"),
+        equipment=(
+            Carried(GRIP, Carriage.HELD),
+            Carried(ARMOUR, Carriage.WORN),
+            Carried(ROPE, Carriage.STOWED),
+        ),
+    )
+    return EncounterState.new([laden, state.combatant("troll")])
+
+
+def test_falling_unconscious_drops_what_is_held_and_nothing_else() -> None:
+    """p. 191, *Unconscious*: "Inert. You have the Incapacitated and Prone conditions, and
+    **you drop whatever you're holding**."
+
+    "Holding" is the word, so worn armour and a stowed rope stay. Until #280 this clause was
+    disclosed in `unenforced_clauses` and did nothing.
+    """
+    after = apply_one(
+        _laden(),
+        condition_applied("pc", Condition.UNCONSCIOUS, description="struck senseless"),
+    )
+    still_carried = {c.item.id for c in after.combatant("pc").equipment}
+    assert still_carried == {ARMOUR.id, ROPE.id}
+    assert [obj.item.id for obj in after.detached_objects] == [GRIP.id]
+
+
+def test_the_dropped_weapon_lands_nowhere_the_document_states() -> None:
+    """0041 clause 4. p. 191 sheds the weapon and does not say where it goes, so it arrives
+    unplaced rather than in the creature's space — the default p. 217's Dancing Sword has to
+    spend a clause stating for itself."""
+    after = apply_one(
+        _laden(),
+        condition_applied("pc", Condition.UNCONSCIOUS, description="struck senseless"),
+    )
+    assert after.detached_objects[0].position is None
+
+
+def test_the_drop_is_its_own_recorded_effect_rather_than_a_silent_state_change() -> None:
+    """R1 and R5. A mechanical change the ledger cannot see is one no narrator can report
+    and no replay can reproduce — so the drop lands as an `Effect` beside the condition,
+    not as a side effect of applying it."""
+    _after, landed, _withheld = _apply(
+        _laden(),
+        (condition_applied("pc", Condition.UNCONSCIOUS, description="struck senseless"),),
+        seed=1,
+    )
+    kinds = [effect.kind for effect in landed]
+    assert kinds == [EffectKind.CONDITION_APPLIED, EffectKind.OBJECT_DETACHED]
+    assert landed[1].item_id == GRIP.id
+    assert landed[1].target_id == "pc"
+
+
+def test_the_engine_derives_the_drop_rather_than_trusting_a_resolver_to_emit_it() -> None:
+    """The reason this is engine-derived and not a resolver's job: a ruleset that forgot
+    would keep a sword in an unconscious hand and nothing would say so. The caller here
+    emits **only** the condition, and the drop happens anyway."""
+    only_the_condition = condition_applied(
+        "pc", Condition.UNCONSCIOUS, description="struck senseless"
+    )
+    assert only_the_condition.item_id is None
+    after = apply_one(_laden(), only_the_condition)
+    assert after.detached_objects
+
+
+def test_unconscious_no_longer_discloses_a_clause_it_now_enforces() -> None:
+    """The disclosure and the behaviour are asserted **together**, and that pairing is the
+    point: nothing pinned `"drops-what-it-holds"` before, so it could have been deleted
+    without the rule being built — an overclaim no guard would have caught. R32 is only
+    honest while the removal and the enforcement move as one.
+    """
+    disclosed = EFFECTS[Condition.UNCONSCIOUS].unenforced_clauses
+    assert "drops-what-it-holds" not in disclosed
+    assert disclosed == ("remains-prone-when-this-ends", "unaware")
+    after = apply_one(
+        _laden(),
+        condition_applied("pc", Condition.UNCONSCIOUS, description="struck senseless"),
+    )
+    assert after.detached_objects
+
+
+def test_falling_unconscious_twice_drops_nothing_the_second_time() -> None:
+    """Idempotent because it is derived from what is *held*, not specially cased — a
+    creature that already dropped its sword is holding nothing to drop."""
+    state = _laden()
+    once = apply_one(
+        state, condition_applied("pc", Condition.UNCONSCIOUS, description="struck senseless")
+    )
+    twice = apply_one(
+        once, condition_applied("pc", Condition.UNCONSCIOUS, description="still senseless")
+    )
+    assert len(twice.detached_objects) == 1
+
+
+def test_a_condition_that_states_no_drop_sheds_nothing() -> None:
+    """Only p. 191 says this, so only Unconscious does it. Poisoned leaves the sword in hand."""
+    after = apply_one(
+        _laden(), condition_applied("pc", Condition.POISONED, description="a venomous bite")
+    )
+    assert after.detached_objects == ()
+    assert len(after.combatant("pc").equipment) == 3
+
+
+def test_detaching_an_item_a_creature_does_not_have_is_refused() -> None:
+    """Inventing an object out of a name would put a weapon on the floor that never
+    existed — the direction that quietly adds rather than quietly loses."""
+    with pytest.raises(ValueError, match="no item"):
+        encounter().with_object_detached("pc", "fixture-nonexistent")
+
+
+def test_an_object_detached_effect_names_the_item_and_no_other_kind_may() -> None:
+    with pytest.raises(ValueError, match="names the item that left"):
+        Effect(kind=EffectKind.OBJECT_DETACHED, target_id="pc", amount=0, description="x")
+    with pytest.raises(ValueError, match="names the item that left"):
+        Effect(
+            kind=EffectKind.HEALING,
+            target_id="pc",
+            amount=1,
+            description="x",
+            item_id=GRIP.id,
+        )

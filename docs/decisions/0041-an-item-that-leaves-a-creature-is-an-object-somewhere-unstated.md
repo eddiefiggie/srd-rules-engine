@@ -185,10 +185,10 @@ printed across three pages, and all of it is buildable now — what waits is one
 - **#272 becomes buildable except its destination.** Thrown's attack half is arithmetic p. 90
   states outright, and "you can draw that weapon as part of the attack" is #265's equip clause
   again. Where the javelin lands stays refused.
-- **p. 191's `drops-what-it-holds` becomes enforceable.** It is disclosed in
-  `ConditionEffects.unenforced_clauses` today and was held by no issue until this record;
-  clause 7 makes it a ruling the engine can perform, and the disclosure then comes off
-  ([#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280)).
+- **p. 191's `drops-what-it-holds` is now enforced**, and the disclosure is off
+  ([#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280)). The clause is declared on `ConditionEffects` beside its citation rather
+  than matched on in the adjudicator, so a second condition that sheds arrives with its own
+  printed sentence and needs no change to the code that reads it.
 - **#273's ammunition touches this and is not settled by it.** p. 128 groups "a thrown weapon
   **or piece of ammunition**" as one category of released thing, so a spent arrow detaches the
   way a thrown javelin does. The quantity question #273 names is untouched.
@@ -236,7 +236,7 @@ In the tree:
 
 ## Status of implementation
 
-**Clauses 1 to 4 are built.** [#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279) shipped all four: clauses 3 and 4 were its
+**Clauses 1 to 4 and 7 are built.** [#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279) shipped all four: clauses 3 and 4 were its
 stated scope, and clauses 1 and 2 landed inside it because the state could not be built
 without settling the shape it holds. Clauses 6 and 7 are decided and held by issues below.
 
@@ -266,7 +266,7 @@ work** — the closing keyword and the tracking pointer cannot be the same numbe
 | 4 — position is `Position \| None`, never defaulted | **Built.** `DetachedObject.position`, with `reachable_objects` returning `None` for a positionless actor and `unplaced_objects` naming what no rule placed ([#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279)) |
 | 5 — dropping and throwing share a vocabulary and not a destination | **Decided.** Records why clause 4 refuses; nothing to build |
 | 6 — pick-up is p. 12's object interaction and p. 177's equip | **Decided, not built.** [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) — *not* #265, which this record closed |
-| 7 — detachment happens through a ruling | **Decided, not built.** [#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280), which also takes p. 191's `drops-what-it-holds` disclosure off |
+| 7 — detachment happens through a ruling | **Built.** `EffectKind.OBJECT_DETACHED` and `EncounterState.with_object_detached`; p. 191's drop is derived by the engine when Unconscious lands, and its `drops-what-it-holds` disclosure is retired ([#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280)) |
 
 **#265 and #272 are closed by this record**, and each was re-filed as the build it unblocks:
 #265's equip/unequip mechanism as [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283), #272's Thrown arithmetic as
@@ -286,5 +286,20 @@ the one clause whose completion could not be checked by reading the diff, and it
 complete on that basis before the guard existed. **A clause whose content is an absence needs
 a guard to be finishable at all**, which is the same lesson the document-wide verifier clauses
 in this record's Evidence section carry, arriving a second time from the other direction.
+
+**And what #280 found.** Clause 7 said detachment happens through a ruling and did not say
+**who derives it**. Leaving p. 191's drop to the resolver that applies Unconscious would have
+satisfied the clause as written and reproduced the failure this engine exists to remove: a
+ruleset that forgot would keep a sword in an unconscious hand, and nothing would say so. So
+the engine derives the drop from the condition, the way it derives implication, and each
+dropped item lands as its own recorded `Effect` rather than as a side effect of applying the
+condition — a mechanical change the ledger cannot see is one no narrator can report and no
+replay can reproduce.
+
+**A disclosure retired without its rule would have been invisible.** Nothing pinned
+`"drops-what-it-holds"`, so the string could have been deleted and the behaviour never built,
+leaving R32 dishonest with every test green. The removal and the enforcement are now asserted
+in one test for that reason, and the pairing was proved by building the rule and taking it
+away again.
 
 _Written 2026-08-29 against SRD v5.2.1._

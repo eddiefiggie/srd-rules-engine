@@ -1806,6 +1806,38 @@ class EncounterState:
         remaining = target.conditions.without(frozenset({condition}))
         return self._evolve(combatants=self._replacing(replace(target, conditions=remaining)))
 
+    def with_object_detached(self, combatant_id: str, item_id: str) -> EncounterState:
+        """Take one item off a creature and leave it in the encounter (0041 clause 7, #280).
+
+        The item stops being the creature's — it leaves `equipment` entirely rather than
+        acquiring a fourth `Carriage` — and arrives in `detached_objects` **with no
+        position**, because five printed rules detach an item and none says where it lands
+        (0041 clause 4). p. 217's Dancing Sword is the only text in the document that ever
+        places a released weapon, and it is a magic item stating its own outcome.
+
+        The `Item` is carried across unchanged: p. 191 calls a weapon an object and p. 12
+        lists a sword among its examples, so nothing here changes type (0041 clause 1).
+
+        **The carriage is not consulted.** Which items a rule sheds is the rule's business —
+        p. 191 sheds what is *held*, and a rule that shed a stowed thing would be no less
+        expressible. Refusing an item the creature does not have is a different matter: that
+        is a caller naming something that is not there, and inventing an object out of it
+        would put a sword on the floor that never existed.
+        """
+        target = self.combatant(combatant_id)
+        remaining = tuple(c for c in target.equipment if c.item.id != item_id)
+        if len(remaining) == len(target.equipment):
+            raise ValueError(
+                f"{combatant_id} has no item {item_id!r} to let go of. Detaching one it does "
+                "not have would create an object from nothing, which is the direction that "
+                "quietly adds a weapon to the floor"
+            )
+        detached = next(c.item for c in target.equipment if c.item.id == item_id)
+        return self._evolve(
+            combatants=self._replacing(replace(target, equipment=remaining)),
+            detached_objects=(*self.detached_objects, DetachedObject(detached)),
+        )
+
     def with_time_passed(self, minutes: int) -> EncounterState:
         """Advance campaign time and apply what elapsing it decided (decision 0020).
 
