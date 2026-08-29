@@ -12,6 +12,17 @@ question in the area it covers — each one states what was chosen, what was rej
 evidence, so a decision does not get re-litigated from scratch by whoever arrives next. A gate
 issue closes by producing one of these, and the plan is amended to match.
 
+**The README's index of them is generated, not written.** `scripts/render_record_index.py`
+renders it from each record's own first line and `**Settles:**` issues;
+`tests/test_record_index.py` and the **The README lists every record** CI job fail when
+README.md disagrees. Add a record and regenerate — do not hand-edit the block between its
+markers.
+
+A hand-written list stopped at 0022 and read as complete for nineteen records
+([#282](https://github.com/eddiefiggie/srd-rules-engine/issues/282)), and it was *longer* than the complete one: every entry paraphrased the
+title three lines below it, which is a second place for one claim to drift — the shape
+[#291](https://github.com/eddiefiggie/srd-rules-engine/issues/291) had just finished removing from the Status tables.
+
 ## The invariant everything else serves
 
 **The agent decides *that* a rule applies and *which* one. It can never decide *how it turns

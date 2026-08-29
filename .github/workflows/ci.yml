@@ -36,6 +36,20 @@ jobs:
       - name: Run tests
         run: pytest
 
+  record-index:
+    name: The README lists every record
+    # Hermetic, unlike the status-rows job beside it: this reads the tree only. It is a job
+    # rather than only a pytest test so a records-only change that forgot to regenerate is
+    # named by CI as its own failure rather than buried in a suite run (#282).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Check the generated record index
+        run: python scripts/render_record_index.py --check
+
   status-rows:
     name: Status rows cite open issues
     # Every push, not only a pull request: a row goes stale when a build MERGES and its record
