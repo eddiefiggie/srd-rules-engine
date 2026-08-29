@@ -195,6 +195,11 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # reach an Opportunity Attack is determined at.
         "weapon-reach": "core.equipment.Weapon.reach_in_use",
         "mastery-graze": "core.combat.Weapon.graze",
+        # p. 90, #320. p. 89's extra attack, re-routed into the Attack action: offered under
+        # its own key, costing nothing, and capped with the Bonus Action route at the one
+        # extra attack p. 89 grants — which needed a per-turn record, because the Bonus Action
+        # spend had been doing that job and a Nick attack spends nothing.
+        "mastery-nick": "core.read_surface.nick_attack_key",
         # Position, movement and range in feet (#17, #20).
         "speed": "core.position.Speeds.walk",
         "difficult-terrain": "core.position.movement_cost",

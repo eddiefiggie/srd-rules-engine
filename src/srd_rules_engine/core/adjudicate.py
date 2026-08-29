@@ -254,6 +254,14 @@ class EffectKind(StrEnum):
     #: the **action used** and a Multiattack's later rolls spend no action of their own — so
     #: the pair this records is not recoverable from the attack tally beside it.
     LOADING_FIRED = "loading-fired"
+    #: p. 89's one extra Light attack, taken this turn (#320). Its own kind, and it exists
+    #: because p. 90's Nick removed the thing that used to record it. The Bonus Action spend
+    #: *was* the bookkeeping — a second extra attack was refused because no Bonus Action
+    #: remained — and a Nick attack spends nothing, so nothing stopped a creature taking one
+    #: by each route. p. 90 says "as part of the Attack action **instead of** as a Bonus
+    #: Action", which is one attack made one way or the other, and p. 89 grants "**one**
+    #: extra attack" whichever way it is made.
+    EXTRA_ATTACK_MADE = "extra-attack-made"
     #: One piece of ammunition expended by an attack (p. 89, #273). `item_id` names which.
     #: "Each attack expends one piece of ammunition" — a cost that applies because the attack
     #: happened, so it rides in `Proposal.always` beside the action charge rather than in a
@@ -532,6 +540,16 @@ def attack_made(target_id: str, *, description: str) -> Effect:
     """One attack roll, counted against the Multiattack allowance (p. 257)."""
     return Effect(
         kind=EffectKind.ATTACK_MADE, target_id=target_id, amount=0, description=description
+    )
+
+
+def extra_attack_made(target_id: str, *, description: str) -> Effect:
+    """p. 89's one extra Light attack, taken by either route (#320). See the kind."""
+    return Effect(
+        kind=EffectKind.EXTRA_ATTACK_MADE,
+        target_id=target_id,
+        amount=0,
+        description=description,
     )
 
 
@@ -1587,6 +1605,8 @@ def _apply(
             state = state.with_attack_made(effect.target_id)
         elif effect.kind is EffectKind.OBJECT_INTERACTED:
             state = state.with_object_interaction(effect.target_id)
+        elif effect.kind is EffectKind.EXTRA_ATTACK_MADE:
+            state = state.with_extra_attack(effect.target_id)
         elif effect.kind is EffectKind.AMMUNITION_SPENT:
             assert effect.item_id is not None  # __post_init__ refuses one without
             state = state.with_ammunition_spent(effect.target_id, effect.item_id)
