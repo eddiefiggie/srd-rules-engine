@@ -303,3 +303,14 @@ in one test for that reason, and the pairing was proved by building the rule and
 away again.
 
 _Written 2026-08-29 against SRD v5.2.1._
+
+_Updated 2026-08-29 ([#284](https://github.com/eddiefiggie/srd-rules-engine/issues/284)). Both re-filed issues have landed: [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) built
+clause 6 and #284 built p. 90's Thrown. **Clause 4's accepted cost is now something a player
+meets rather than a paragraph** — a thrown javelin leaves the hand whether it hits or misses,
+lands where no rule states, and cannot be picked up unless a ruleset says where it fell. The
+record predicted that and the build is where it bites. #284 also found the cost has a second
+face the record did not see: the same silence that refuses a destination is what makes
+`Weapon`'s range fields mean different things for a swing and for a throw, and an invariant
+written when no melee weapon could carry a range had to be corrected rather than merely
+extended._
+

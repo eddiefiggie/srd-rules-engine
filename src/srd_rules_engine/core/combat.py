@@ -74,6 +74,7 @@ from srd_rules_engine.core.read_surface import (
     ATTACK_EQUIP,
     attack_declared,
     attack_swap_declared,
+    attack_throw_declared,
     bonus_attack_declared,
 )
 from srd_rules_engine.core.read_surface import UNARMED_REACH_FEET as UNARMED_REACH_FEET
@@ -160,7 +161,7 @@ def attack_resolver() -> Resolver:
         # copy of their logic. The projected state is read and discarded; `_apply` performs
         # the move for real, from the effects returned below.
         before, after = _swap_effects(state, actor, declaration)
-        wielded, target_id, is_bonus = _weapon_and_target(
+        wielded, target_id, is_bonus, is_thrown = _weapon_and_target(
             _after_equipping(state, before).combatant(declaration.actor_id), declaration
         )
         assert isinstance(wielded.item, Weapon)
@@ -169,7 +170,7 @@ def attack_resolver() -> Resolver:
         ability = actor.modifier(weapon.ability)
 
         _refuse_if_behind_total_cover(state, actor, target)
-        beyond_normal = _out_of_range(weapon, actor, target)
+        beyond_normal = _out_of_range(weapon, actor, target, thrown=is_thrown)
         # p. 184's exception to Invisible, asked in both directions (#193). Each needs
         # CERTAINTY to move away from the answer that cannot manufacture an outcome, so an
         # UNSTATED view leaves both where 0030 clause 1 puts them.
@@ -238,6 +239,26 @@ def attack_resolver() -> Resolver:
                     weapon_id=None if is_bonus else weapon.id,
                 ),
                 *after,
+                # p. 90: the weapon is *thrown*, so it ends the attack out of the creature's
+                # hands. Where it lands is stated by nothing — 0041 clause 4 — so it arrives
+                # among the detached objects with no position, and the read surface reports it
+                # under `unplaced_objects` rather than somewhere invented.
+                #
+                # In `always` because the weapon leaves the hand whether or not the throw hits:
+                # p. 128 says "a thrown weapon or piece of ammunition returns to normal size
+                # immediately after it **hits or misses** a target", which is the document
+                # treating both outcomes as leaving the weapon elsewhere.
+                *(
+                    (
+                        object_detached(
+                            declaration.actor_id,
+                            weapon.id,
+                            description=f"{actor.name} throws {weapon.id}: p. 90",
+                        ),
+                    )
+                    if is_thrown
+                    else ()
+                ),
             ),
             test=D20Test(
                 kind=TestKind.ATTACK,
@@ -497,7 +518,9 @@ def _swap_effects(
     )
 
 
-def _weapon_and_target(actor: Combatant, declaration: Declaration) -> tuple[Carried, str, bool]:
+def _weapon_and_target(
+    actor: Combatant, declaration: Declaration
+) -> tuple[Carried, str, bool, bool]:
     """Which weapon this attack swung, and at whom, read off the key the surface offered.
 
     The key names both since #258, and the weapon is looked up in what the creature is
@@ -506,11 +529,12 @@ def _weapon_and_target(actor: Combatant, declaration: Declaration) -> tuple[Carr
     """
     key = declaration.intent.action_key
     bonus = bonus_attack_declared(key)
+    thrown = attack_throw_declared(key)
     swap = attack_swap_declared(key)
     # p. 177's swap keys name the same attack with one weapon moved, so the weapon and target
     # are read from them the same way (0042 clauses 1 and 3). The move itself is the ruling's
     # effect, built by `_swap_effects`.
-    declared = bonus or (swap[:2] if swap else None) or attack_declared(key)
+    declared = bonus or thrown or (swap[:2] if swap else None) or attack_declared(key)
     if declared is None:
         raise ValueError(
             "this declaration is not an attack: an attack names the weapon and the target "
@@ -518,8 +542,12 @@ def _weapon_and_target(actor: Combatant, declaration: Declaration) -> tuple[Carr
             "either off the label would be the engine taking a mechanic from prose (R6)"
         )
     weapon_id, target_id = declared
+    # p. 90: "you can throw the weapon to make a ranged attack, and **you can draw that
+    # weapon as part of the attack**" — so a throw may start from a stowed weapon, and the
+    # Thrown property carries its own equip rather than spending p. 177's swap.
+    allowed = (Carriage.HELD, Carriage.STOWED) if thrown is not None else (Carriage.HELD,)
     for carried in actor.equipment:
-        if carried.carriage is Carriage.HELD and carried.item.id == weapon_id:
+        if carried.carriage in allowed and carried.item.id == weapon_id:
             assert isinstance(carried.item, Weapon)
             if bonus and not carried.item.light:
                 raise ValueError(
@@ -527,7 +555,17 @@ def _weapon_and_target(actor: Combatant, declaration: Declaration) -> tuple[Carr
                     "by one and made with another. A bonus attack with anything else is an "
                     "attack the read surface never offered"
                 )
-            return carried, target_id, bonus is not None
+            if thrown is not None and not carried.item.thrown:
+                # p. 183: throwing a Melee weapon that lacks Thrown makes it an improvised
+                # weapon dealing "1d4 damage of a type the GM thinks is appropriate" — a
+                # person's judgement this engine may not invent (#264). Refused rather than
+                # resolved as an ordinary throw, which would silently keep the weapon's dice.
+                raise ValueError(
+                    f"{weapon_id!r} does not have the Thrown property, and p. 183 makes "
+                    "throwing one an improvised weapon whose damage type is the GM's to "
+                    "choose. The engine has no way to supply that, so no throw is offered"
+                )
+            return carried, target_id, bonus is not None, thrown is not None
     raise ValueError(
         f"{actor.name} is not holding {weapon_id!r}. p. 177 attacks "
         '"with a weapon or an Unarmed Strike", and the read surface offers only weapons in '
@@ -563,7 +601,9 @@ def _refuse_if_behind_total_cover(
         )
 
 
-def _out_of_range(weapon: Weapon, actor: Combatant, target: Combatant) -> bool:
+def _out_of_range(
+    weapon: Weapon, actor: Combatant, target: Combatant, *, thrown: bool = False
+) -> bool:
     """Whether the attack is beyond normal range, refusing one beyond long range.
 
     p. 90: "When attacking a target beyond normal range, you have Disadvantage on the
@@ -577,7 +617,10 @@ def _out_of_range(weapon: Weapon, actor: Combatant, target: Combatant) -> bool:
     if actor.position is None or target.position is None:
         return False
 
-    if weapon.normal_range is None:
+    # p. 90's range belongs to the *throw*, so a Melee weapon that carries one is still
+    # bounded by reach when it is swung (#284). Asking the weapon alone would let a Dagger
+    # stab across the room the moment it gained a Thrown range.
+    if weapon.normal_range is None or (weapon.melee and not thrown):
         if not within(actor.position, target.position, actor.reach):
             raise ValueError(
                 f"{target.name} is {distance_feet(actor.position, target.position)} feet "

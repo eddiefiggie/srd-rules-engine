@@ -1365,6 +1365,40 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"When you take the Attack action, you can make one attack roll with a weapon or an "
         r"Unarmed Strike",
     ),
+    # --- #284: Thrown ------------------------------------------------------------------
+    (
+        90,
+        "a Thrown weapon is thrown to make a RANGED attack, and carries its own equip",
+        r"you can throw the weapon to make a ranged attack, and you can draw that weapon as "
+        r"part of the attack",
+    ),
+    (
+        90,
+        "and a thrown MELEE weapon keeps the modifier it uses in melee - the sentence that "
+        "stops a ranged attack silently becoming a Dexterity one",
+        r"If the weapon is a Melee weapon, use the same ability modifier for the attack and "
+        r"damage rolls that you use for a melee attack with that weapon",
+    ),
+    (
+        90,
+        "and Range attaches to the Ammunition OR THROWN property - so a Melee weapon carries "
+        "one exactly when it is Thrown, which the range invariant refused until #284",
+        r"A Range weapon has a range in parentheses after the Ammunition or Thrown property",
+    ),
+    (
+        183,
+        "throwing a Melee weapon that lacks Thrown makes it improvised, whose damage type is "
+        "a person's judgement - so the engine refuses the throw rather than resolving it",
+        r"if you use a Ranged weapon to make a melee attack or throw a Melee weapon that "
+        r"lacks the Thrown property, the weapon counts as an improvised weapon",
+    ),
+    (
+        128,
+        "and a thrown weapon is elsewhere whether it HITS OR MISSES, which is why the "
+        "detachment rides in `always` rather than in a hit branch",
+        r"A thrown weapon or piece of ammunition returns to normal size imme-?\s*diately "
+        r"after it hits or misses a target",
+    ),
 )
 
 #: Clauses about the document as a whole rather than about one page, as

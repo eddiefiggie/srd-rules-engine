@@ -268,9 +268,20 @@ class Weapon(Item):
     versatile_sides: int | None = None
     #: Graze (p. 90), a mastery property: damage on a miss equal to the ability modifier.
     graze: bool = False
+    #: Thrown (p. 90): "you can throw the weapon to make a ranged attack, and you can draw
+    #: that weapon as part of the attack." A property of the weapon, and orthogonal to
+    #: `melee` — a Dagger is a Melee weapon that may be thrown, which is why p. 90 spends its
+    #: second sentence on which ability such a throw uses.
+    thrown: bool = False
     #: Range (p. 90): "The first is the weapon's normal range in feet, and the second is
-    #: the weapon's long range." Ranged weapons only; a melee weapon uses the wielder's
-    #: reach instead.
+    #: the weapon's long range."
+    #:
+    #: **Not Ranged weapons only**, which this said until #284. p. 90's *Range* entry reads
+    #: "A Range weapon has a range in parentheses after the **Ammunition or Thrown**
+    #: property", so a Melee weapon with Thrown carries one too — and it is the range of the
+    #: *throw*, never of a melee swing with the same weapon. Whether these numbers or the
+    #: wielder's reach applies is therefore a question about **how the weapon is being used**,
+    #: which is why the range checks take the attack mode rather than reading `melee` here.
     normal_range: int | None = None
     long_range: int | None = None
     #: A flat bonus that reaches **both** rolls. Berserker Axe (Magic Items, p. 213) is
@@ -294,8 +305,21 @@ class Weapon(Item):
         if self.normal_range is not None and self.long_range is not None:
             if self.long_range < self.normal_range:
                 raise ValueError("a weapon's long range is not shorter than its normal range")
-            if self.melee:
-                raise ValueError("Range is a ranged-weapon property; a melee weapon uses reach")
+            # p. 90's *Range* entry: "A Range weapon has a range in parentheses after the
+            # **Ammunition or Thrown** property." So a Melee weapon carries one exactly when
+            # it is Thrown — a Dagger's 20/60 is the range of the throw, never of the stab.
+            # This refused every melee weapon until #284, which was right only while nothing
+            # had the Thrown property to give one to.
+            if self.melee and not self.thrown:
+                raise ValueError(
+                    "Range belongs to a Ranged weapon or a Thrown one (p. 90); a Melee "
+                    "weapon that is neither uses its wielder's reach"
+                )
+        if self.thrown and self.normal_range is None:
+            raise ValueError(
+                "a Thrown weapon states the range of the throw (p. 90): its range sits in "
+                "parentheses after the property, and without it nothing bounds the throw"
+            )
 
     def sides_in_use(self, hands: int) -> int:
         """The damage die this attack rolls, for a weapon held in that many hands.
