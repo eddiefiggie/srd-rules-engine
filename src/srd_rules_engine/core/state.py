@@ -694,6 +694,13 @@ class EncounterState:
     #: under both readings and two under only one, so the engine offers the intersection and
     #: says so (0043 clause 3).
     swaps_this_turn: frozenset[str] = frozenset()
+    #: Which `(actor, action kind)` pairs have already fired a Loading weapon (p. 90, #271).
+    #:
+    #: **Keyed by the action used, not by the turn.** p. 90 caps the shot "when you use an
+    #: action, a Bonus Action, or a Reaction to fire it", so a creature holding both may fire
+    #: once with each — a per-turn key would refuse the second, which the document permits.
+    #: And not keyed by weapon: two Loading weapons do not buy two shots from one action.
+    loading_shots_this_turn: frozenset[tuple[str, str]] = frozenset()
 
     def __post_init__(self) -> None:
         """Retire every effect whose sustaining Concentration is gone (p. 179, 0037 clause 3).
@@ -1837,6 +1844,16 @@ class EncounterState:
         tally[combatant_id] = tally.get(combatant_id, 0) + 1
         return self._evolve(attacks_this_turn=tally)
 
+    def with_loading_shot(self, combatant_id: str, action: str) -> EncounterState:
+        """Record that a Loading weapon has been fired with that action (p. 90, #271)."""
+        return self._evolve(
+            loading_shots_this_turn=self.loading_shots_this_turn | {(combatant_id, action)}
+        )
+
+    def has_fired_loading(self, combatant_id: str, action: str) -> bool:
+        """Whether p. 90's one shot is already spent for that action."""
+        return (combatant_id, action) in self.loading_shots_this_turn
+
     def with_weapon_swapped(self, combatant_id: str) -> EncounterState:
         """Record that p. 177's one swap has been drawn on this turn (0043 clause 3)."""
         return self._evolve(swaps_this_turn=self.swaps_this_turn | {combatant_id})
@@ -2100,6 +2117,7 @@ class EncounterState:
                 light_attacks_this_turn=frozenset(),
                 attacks_this_turn={},
                 swaps_this_turn=frozenset(),
+                loading_shots_this_turn=frozenset(),
             )
         return ended._evolve(
             turn_index=0,
@@ -2110,6 +2128,7 @@ class EncounterState:
             light_attacks_this_turn=frozenset(),
             attacks_this_turn={},
             swaps_this_turn=frozenset(),
+            loading_shots_this_turn=frozenset(),
         )
 
     def _retired(self, actor_id: str) -> EncounterState:

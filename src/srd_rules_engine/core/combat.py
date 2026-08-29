@@ -52,6 +52,7 @@ from srd_rules_engine.core.adjudicate import (
     action_spent,
     attack_made,
     carriage_changed,
+    loading_fired,
     object_detached,
     object_picked_up,
     weapon_swapped,
@@ -238,6 +239,22 @@ def attack_resolver() -> Resolver:
                         ),
                     )
                     if (before or after)
+                    else ()
+                ),
+                # p. 90: "You can fire only one piece of ammunition from a Loading weapon
+                # when you use an action, a Bonus Action, or a Reaction to fire it,
+                # **regardless of the number of attacks you can normally make**." Recorded
+                # against the action that fired it, because that final clause is the whole
+                # property and it only bites once one action buys several rolls (#271, #289).
+                *(
+                    (
+                        loading_fired(
+                            declaration.actor_id,
+                            ActionKind.BONUS_ACTION if is_bonus else ActionKind.ACTION,
+                            description=f"p. 90's one shot from {weapon.id}",
+                        ),
+                    )
+                    if weapon.loading
                     else ()
                 ),
                 # p. 257 counts the rolls the *Attack action* bought. p. 89's extra attack is

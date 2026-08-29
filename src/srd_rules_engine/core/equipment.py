@@ -268,6 +268,19 @@ class Weapon(Item):
     versatile_sides: int | None = None
     #: Graze (p. 90), a mastery property: damage on a miss equal to the ability modifier.
     graze: bool = False
+    #: Loading (p. 90): "You can fire only **one** piece of ammunition from a Loading weapon
+    #: when you use an action, a Bonus Action, or a Reaction to fire it, **regardless of the
+    #: number of attacks you can normally make**."
+    #:
+    #: The cap is **per action used to fire**, not per turn: a creature with an Action and a
+    #: Bonus Action may fire once with each. That final clause is what the property is for,
+    #: and it had nothing to bite on until p. 257's Multiattack let one Action buy several
+    #: rolls (#271, #289).
+    #:
+    #: **No invariant ties this to a Ranged weapon.** Every weapon the document gives it to is
+    #: one, and p. 90 never says the property requires it — asserting otherwise would be the
+    #: inferred rule value #284 found already shipped in `Range`'s own check.
+    loading: bool = False
     #: Thrown (p. 90): "you can throw the weapon to make a ranged attack, and you can draw
     #: that weapon as part of the attack." A property of the weapon, and orthogonal to
     #: `melee` — a Dagger is a Melee weapon that may be thrown, which is why p. 90 spends its

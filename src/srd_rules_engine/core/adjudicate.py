@@ -246,6 +246,11 @@ class EffectKind(StrEnum):
     #: from the carriage change beside it, because p. 191's Unconscious also detaches an item
     #: and must not spend an allowance the creature never chose to use.
     WEAPON_SWAPPED = "weapon-swapped"
+    #: p. 90's one shot from a Loading weapon, fired with the action named in `action`
+    #: (#271). Its own kind rather than a flag on `ATTACK_MADE`, because the cap is keyed by
+    #: the **action used** and a Multiattack's later rolls spend no action of their own — so
+    #: the pair this records is not recoverable from the attack tally beside it.
+    LOADING_FIRED = "loading-fired"
 
 
 #: The kinds that carry a condition rather than a number. Named because three places have
@@ -254,6 +259,11 @@ CONDITION_KINDS: Final = frozenset({EffectKind.CONDITION_APPLIED, EffectKind.CON
 
 #: The kinds that name an item rather than a number. Named for `CONDITION_KINDS`' reason:
 #: three places agree on the split, and a membership test repeated at each drifts.
+#: The kinds that name one of p. 176-177's three actions. `ACTION_SPENT` says which was
+#: spent; `LOADING_FIRED` says which one fired the shot p. 90 caps. Two meanings, one field,
+#: and the split is named for `CONDITION_KINDS`' reason.
+ACTION_KINDS: Final = frozenset({EffectKind.ACTION_SPENT, EffectKind.LOADING_FIRED})
+
 ITEM_KINDS: Final = frozenset(
     {
         EffectKind.OBJECT_DETACHED,
@@ -408,11 +418,12 @@ class Effect:
                 "does. Detaching has no carriage at all and picking up always arrives held, "
                 "so a carriage on either would describe a destination its transition ignores"
             )
-        if (self.kind is EffectKind.ACTION_SPENT) != (self.action is not None):
+        if (self.kind in ACTION_KINDS) != (self.action is not None):
             raise ValueError(
-                "an action-spent effect names which action it spent, and no other kind "
-                "carries one. p. 176-177 gives three and they are not interchangeable — a "
-                "Reaction is free of the other two"
+                f"a {self.kind} effect names which of p. 176-177's three actions it means, "
+                "and only the action kinds carry one. They are not interchangeable — a "
+                "Reaction is free of the other two, and p. 90 caps a Loading shot per action "
+                "used rather than per turn"
             )
         if self.kind is not EffectKind.CONDITION_APPLIED and (
             self.duration is not None or self.source_id is not None
@@ -503,6 +514,17 @@ def weapon_swapped(target_id: str, *, description: str) -> Effect:
     """p. 177's one swap, drawn on for this turn (0043 clause 3)."""
     return Effect(
         kind=EffectKind.WEAPON_SWAPPED, target_id=target_id, amount=0, description=description
+    )
+
+
+def loading_fired(target_id: str, action: ActionKind, *, description: str) -> Effect:
+    """p. 90's one shot from a Loading weapon, spent for that action (#271)."""
+    return Effect(
+        kind=EffectKind.LOADING_FIRED,
+        target_id=target_id,
+        amount=0,
+        description=description,
+        action=action,
     )
 
 
@@ -1508,6 +1530,9 @@ def _apply(
             state = state.with_attack_made(effect.target_id)
         elif effect.kind is EffectKind.WEAPON_SWAPPED:
             state = state.with_weapon_swapped(effect.target_id)
+        elif effect.kind is EffectKind.LOADING_FIRED:
+            assert effect.action is not None  # __post_init__ refuses one without
+            state = state.with_loading_shot(effect.target_id, str(effect.action))
         elif effect.kind is EffectKind.EXHAUSTION_GAINED:
             # 0028 clause 1: the level carries the rule that caused it, and the ruling's
             # own rule is that rule. Taking it from here rather than from the effect keeps

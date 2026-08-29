@@ -177,6 +177,9 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "weapon-thrown": "core.read_surface._throwable",
         # p. 257, #289. One Action buys several rolls; the composition is the ruleset's.
         "multiattack": "core.state.EncounterState.attacks_remaining",
+        # p. 90, #271. One shot per action used, which only bites once one action buys
+        # several rolls — so this shape waited on `multiattack` rather than on Light.
+        "weapon-loading": "core.state.EncounterState.has_fired_loading",
         "mastery-graze": "core.combat.Weapon.graze",
         # Position, movement and range in feet (#17, #20).
         "speed": "core.position.Speeds.walk",

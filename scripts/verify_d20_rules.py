@@ -1399,6 +1399,15 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"A thrown weapon or piece of ammunition returns to normal size imme-?\s*diately "
         r"after it hits or misses a target",
     ),
+    # --- #271: Loading -----------------------------------------------------------------
+    (
+        90,
+        "Loading caps the shot per ACTION USED and not per turn, and the final clause is the "
+        "whole property - unreachable until one action bought several rolls",
+        r"You can fire only one piece of ammunition from a Loading weapon when you use an "
+        r"action, a Bonus Action, or a Reaction to fire it, regardless of the number of "
+        r"attacks you can normally make",
+    ),
     # --- 0043: Multiattack -------------------------------------------------------------
     (
         257,
