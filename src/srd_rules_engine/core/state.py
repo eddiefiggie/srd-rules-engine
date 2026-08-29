@@ -299,6 +299,19 @@ class Combatant:
     #: ship (R31). So the engine holds the resolved relation and a ruleset that knows the
     #: categories expands them into ids, the same split under which no spell list ships.
     weapon_proficiencies: frozenset[str] = frozenset()
+    #: Whether this creature may substitute a Spellcasting Focus for a spell's Material
+    #: components (p. 105, p. 188, #245).
+    #:
+    #: **A fact about the caster, not about the focus.** p. 106: "a spellcaster can substitute
+    #: a Spellcasting Focus **if the caster has a feature that allows that substitution**", and
+    #: p. 188: "Some **classes** allow its members to use certain types of Spellcasting
+    #: Focuses." The features are class content this repository does not ship (R31), so the
+    #: engine holds the resolved permission and a ruleset says — the same split as
+    #: `weapon_proficiencies` under 0040 clause 2.
+    #:
+    #: Defaults to `False`, which refuses a substitution nobody granted rather than inventing
+    #: a feature. A Component Pouch needs no such permission and is unaffected.
+    may_substitute_focus: bool = False
     #: How many hands this creature has, or `None` because **no SRD rule says**.
     #:
     #: Every printed rule about hands is relational — "a free hand" (pp. 89, 105, 182, 190),

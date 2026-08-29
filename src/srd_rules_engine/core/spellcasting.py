@@ -54,6 +54,7 @@ from types import MappingProxyType
 from typing import Final
 
 from srd_rules_engine.core.d20 import D20Test, TestKind
+from srd_rules_engine.core.equipment import Carriage, Carried, free_hands
 from srd_rules_engine.core.obstructions import Obstruction, line_is_blocked
 from srd_rules_engine.core.position import Position, within
 from srd_rules_engine.core.rules import (
@@ -275,12 +276,13 @@ class Spell:
     nothing reads, and this repository has found that decay twice (#228, #215). It is not a
     gap and should not be filed as one.
 
-    **No components, yet.** p. 105 states the rule — "If the spellcaster can't provide one or
-    more of a spell's components, the spellcaster can't cast the spell" — and this engine can
-    check none of the three: Verbal needs gagged-or-magically-silenced, and Somatic and
-    Material need an equipment model that does not exist. Holding V/S/M while enforcing
-    nothing would be the same decay in a slower form, so the field arrives with the subsystem
-    that can read it (#245, #246). The gap is disclosed in this module's docstring (R32).
+    **Components arrived with the subsystem that reads them** (#245). They were deferred by
+    0038 clause 2 because holding V/S/M while enforcing nothing is the decay this repository
+    has found twice — and the hand count #257 built is what made Somatic and Material
+    checkable. **Verbal is still unenforced**: p. 105 turns it on being gagged or in an area
+    of magical silence, and the engine models neither
+    ([#246](https://github.com/eddiefiggie/srd-rules-engine/issues/246)), so a `verbal`
+    spell is never refused for it. Disclosed rather than silently passed.
 
     **No name.** `rule_id` is the identity, because that is what a `Declaration` names and
     what the ledger records. A display name is the ruleset's to hold.
@@ -293,6 +295,21 @@ class Spell:
     #: Where the spell may originate (p. 105). `None` when the ruleset states none, which is
     #: the honest value for a spell whose range this engine was not told.
     spell_range: SpellRange | None = None
+    #: p. 105's Verbal component. Held and **not enforced**: a creature "gagged or in an area
+    #: of magical silence" cannot cast one, and the engine models neither ([#246]({I}/246)).
+    #: It is carried so the read surface can say which spells the unchecked rule applies to.
+    verbal: bool = False
+    #: p. 105's Somatic component: "A spellcaster must use **at least one of their hands** to
+    #: perform these movements."
+    somatic: bool = False
+    #: p. 105's Material component: "The spellcaster must have **a hand free** to access
+    #: them, but it can be the same hand used to perform Somatic components, if any."
+    material: bool = False
+    #: p. 105 and p. 188 gate the Pouch-or-Focus substitution on the spell's materials being
+    #: neither consumed nor costed — properties of **the spell's component**, not of the pouch
+    #: that replaces it, which is why 0039 clause 2 kept them off `Item` and sent them here.
+    material_consumed: bool = False
+    material_has_cost: bool = False
 
     def __post_init__(self) -> None:
         if not self.rule_id:
@@ -481,3 +498,83 @@ def spell_reaches(
         return within(caster, origin, reach_feet)
     assert spell_range.feet is not None  # __post_init__ refuses one without
     return within(caster, origin, spell_range.feet)
+
+
+#: Why a spell's components cannot be provided, or `None` when they can (p. 105, #245).
+#: A string rather than an enum because each is one printed sentence and the read surface
+#: reports it verbatim; nothing branches on it.
+ComponentRefusal = str | None
+
+
+def component_refusal(spell: Spell, carried: tuple[Carried, ...], hands: int | None) -> str | None:
+    """Why this caster cannot provide `spell`'s components, or `None` if it can (p. 105).
+
+    > If the spellcaster can't provide one or more of a spell's components, the spellcaster
+    > can't cast the spell.
+
+    ## Somatic asks for a hand; Material asks for a *free* one
+
+    p. 105 writes the two differently and the difference is the whole of this function:
+
+    * **Somatic** — "A spellcaster must use **at least one of their hands** to perform these
+      movements."
+    * **Material** — "The spellcaster must have **a hand free** to access them."
+
+    The word *free* appears for one and not the other. **So a creature with both hands full
+    can still perform Somatic components here**, which contradicts how the rule is usually
+    played and is what the document says (R31). Reading "free" into Somatic would be an
+    inferred rule value of exactly the kind that is plausible, universal in most people's
+    memory of the game, and stated nowhere.
+
+    ## One hand serves both
+
+    "…but it can be the same hand used to perform Somatic components, if any." So an S,M spell
+    needs **one** free hand, not two — 0039 clause 4, and the clause an implementation drops.
+
+    ## The substitution, and the hand it does or does not need
+
+    p. 105-106 allows a Component Pouch or a Spellcasting Focus in place of materials that are
+    neither consumed nor costed, and the two differ in what they ask of a hand:
+
+    * a Pouch — "you must have **a hand free** to reach into it", so it changes nothing;
+    * a Focus — "you must **hold** it", so it occupies a hand and needs no free one.
+
+    A Focus is therefore the only route by which a caster with no free hand may cast an M
+    spell, and only with the feature p. 106 requires — which is `Combatant.may_substitute_focus`
+    and is a ruleset's to grant (R31).
+
+    ## What it does not check
+
+    **Verbal.** p. 105 refuses it to "a creature who is gagged or in an area of magical
+    silence", and the engine models neither ([#246](https://github.com/eddiefiggie/srd-rules-engine/issues/246)).
+    A `verbal` spell passes here and the read surface says the rule went unchecked.
+
+    **An unstated hand count refuses nothing.** `hands is None` means no rule said how many a
+    creature has, and `Combatant.__post_init__` already settles that direction for p. 90's
+    Two-Handed: an unstated count cannot be exceeded (R31, 0039 clause 4).
+    """
+    if hands is None:
+        return None
+    if spell.somatic and hands < 1:
+        return "p. 105: a Somatic component needs at least one hand, and this creature has none"
+    if not spell.material:
+        return None
+
+    free = free_hands(carried, hands)
+    if free is None or free >= 1:
+        # Materials directly, or a Pouch — both want one free hand, which there is.
+        return None
+
+    # No free hand. Only a held Focus can still provide the materials, and only when p. 188's
+    # two conditions on the *spell's* component hold and the caster has the feature.
+    if spell.material_consumed or spell.material_has_cost:
+        return (
+            "p. 188: a Spellcasting Focus stands in only for materials that are neither "
+            "consumed nor costed, and this spell's are, so a free hand is required"
+        )
+    if not any(c.carriage is Carriage.HELD and c.item.is_spellcasting_focus for c in carried):
+        return (
+            "p. 105: a Material component needs a hand free to access it, or a Spellcasting "
+            "Focus held — and this creature has neither"
+        )
+    return None
