@@ -229,7 +229,7 @@ Built, 2026-08-24, except where noted. `tests/test_turn_end.py` covers it.
 | 2 — obligations derived from state, never declared | `EncounterState.obligations_outstanding`. Asserted by a test whose driver supplies **no declarations at all** — if the phase asked for one, `ScriptedDriver` would raise. |
 | 3 — the outcome still goes through the one entry point | `core.save_ends` is a resolver like any other; the engine rolls it (R1, R4). |
 | 4 — an `EffectKind` for a condition ending | Landed with [#119](https://github.com/eddiefiggie/srd-rules-engine/issues/119) rather than here, which is what made clause 3 possible. |
-| 5 — the event-triggered early-out does not use this path | Unchanged and still unbuilt; it belongs in `with_damage` and is not part of this work. |
+| 5 — the event-triggered early-out does not use this path | **Decided, not built.** [#314](https://github.com/eddiefiggie/srd-rules-engine/issues/314). It belongs in `with_damage` and was not part of this work; `Duration` models the save and the Concentration early-outs and has no field for this one. |
 | 6 — `advanced_turn` refuses while an obligation is outstanding | Built, with `waive_obligations=True` as the explicit escape. |
 
 **Clause 6 cost less than this record feared, and needed one thing it did not anticipate.**

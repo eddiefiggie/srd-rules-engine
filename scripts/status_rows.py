@@ -65,7 +65,18 @@ RECORD = re.compile(r"^\d{4}-[a-z0-9-]+\.md$")
 #: The next top-level section, or the end of the file.
 NEXT_SECTION = re.compile(r"^## ", re.MULTILINE)
 
-ISSUE_REF = re.compile(r"/issues/(\d+)")
+#: An issue citation, in **both** forms a row uses. A Markdown link matches on its href and a
+#: bare `#140` on itself; the two overlap on linked refs and callers take the set.
+#:
+#: **The bare form was invisible until #312's follow-up, and it was hiding a live defect.**
+#: 0027 clause 8 said "Not built. Part of #140" over closed #140, with Dehydration and
+#: Malnutrition still `"implemented": false` — precisely what this guard exists to catch, and
+#: it read straight past it because the citation was not a link. Seven rows across five records
+#: cite an issue this way and nothing had ever checked one of them.
+#:
+#: `\b` after the digits is what keeps `#1a2b3c` from reading as issue 1: the boundary fails
+#: between two word characters, so a ref has to end where the number ends.
+ISSUE_REF = re.compile(r"/issues/(\d+)|#(\d+)\b")
 
 #: What a state cell says when the clause is decided and nobody has built it. Matched
 #: case-insensitively against the claim alone, so "**Built, and the clause gained a finding.**"
@@ -88,6 +99,20 @@ ISSUE_REF = re.compile(r"/issues/(\d+)")
 UNBUILT = re.compile(r"not built|unbuilt(?=\s*$|\s*[^\w\s])", re.IGNORECASE)
 
 
+def issues_in(text: str) -> tuple[int, ...]:
+    """Every issue number cited in that text, deduplicated, in citation order.
+
+    A linked ref matches both alternatives of `ISSUE_REF`, so the dedupe is not tidiness: it
+    stops one citation being reported, and counted, twice.
+    """
+    found: list[int] = []
+    for link, bare in ISSUE_REF.findall(text):
+        number = int(link or bare)
+        if number not in found:
+            found.append(number)
+    return tuple(found)
+
+
 @dataclass(frozen=True)
 class Claim:
     """One assertion about one clause, and the issues it cites.
@@ -101,7 +126,7 @@ class Claim:
     @property
     def issues(self) -> tuple[int, ...]:
         """Every issue number this claim cites, in the order it cites them."""
-        return tuple(int(n) for n in ISSUE_REF.findall(self.text))
+        return issues_in(self.text)
 
     @property
     def unbuilt(self) -> bool:
@@ -122,7 +147,7 @@ class StatusRow:
     def issues(self) -> tuple[int, ...]:
         """Every issue the row cites, across all its claims. Existence is checked against
         this; whether an issue is *open* is a question about one claim, not about the row."""
-        return tuple(int(n) for n in ISSUE_REF.findall(self.state))
+        return issues_in(self.state)
 
     @property
     def unbuilt(self) -> bool:

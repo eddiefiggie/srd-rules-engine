@@ -34,9 +34,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from status_rows import (  # noqa: E402
+    ISSUE_REF,
     README_HEADING,
     Claim,
     all_rows,
+    issues_in,
     readme_rows,
     rows_in,
     sentences,
@@ -269,3 +271,43 @@ def test_all_rows_reads_readme_as_well_as_the_records() -> None:
     rows = all_rows(DECISIONS, README)
     assert any(r.record == "README.md" for r in rows)
     assert any(r.record.startswith("0040") for r in rows)
+
+
+# --- both citation forms (#312 follow-up) -------------------------------------------------
+
+
+def test_a_bare_issue_reference_is_read() -> None:
+    """The form the guard could not see, and the one that was hiding a live defect: 0027
+    clause 8 said "Not built. Part of #140" over closed #140 with both its shapes still
+    unimplemented. Seven rows across five records cite an issue this way."""
+    assert issues_in("Not built. Part of #140") == (140,)
+    assert Claim("Not built. Part of #140").issues == (140,)
+
+
+def test_a_linked_issue_is_counted_once_not_twice() -> None:
+    """A Markdown link matches both alternatives — its href and the `#301` in its label. The
+    dedupe is not tidiness: without it one citation is reported, and counted, twice."""
+    assert issues_in("[#301](https://github.com/x/y/issues/301)") == (301,)
+
+
+def test_both_forms_together_keep_citation_order() -> None:
+    assert issues_in("bare #7, then [#9](https://github.com/x/y/issues/9)") == (7, 9)
+
+
+def test_a_hex_colour_is_not_an_issue_reference() -> None:
+    """`\\b` after the digits is what stops `#1a2b3c` reading as issue 1: the boundary fails
+    between two word characters, so a reference has to end where its number ends."""
+    assert issues_in("the swatch is #1a2b3c") == ()
+    assert issues_in("see #1a") == ()
+
+
+def test_every_bare_reference_in_the_corpus_is_a_plausible_issue() -> None:
+    """The corpus control for the new form. A pattern that matched nothing bare would pass
+    every fixture above and leave the hole exactly where it was."""
+    rows = all_rows(DECISIONS, README)
+    linked = {n for r in rows for n in ISSUE_REF.findall(r.state) for n in (n[0],) if n}
+    assert linked, "no linked references at all, which means the parser is reading nothing"
+    bare_only = {n for r in rows for n in r.issues if str(n) not in linked and f"#{n}" in r.state}
+    assert bare_only, "no row cites an issue bare, which was true of neither corpus"
+    for number in bare_only:
+        assert 0 < number < 10_000, f"#{number} is not a plausible issue"
