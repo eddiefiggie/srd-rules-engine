@@ -152,6 +152,18 @@ class Carried:
 
     item: Item
     carriage: Carriage = Carriage.STOWED
+    #: How many of this item the creature has (p. 89, 0044 clause 1).
+    #:
+    #: **On the relation, not on the item.** Two creatures may hold different numbers of the
+    #: same thing, and the same twenty arrows become a different number the moment half are
+    #: fired — so a count is a fact about the *having*. `proficient` and the grip were both
+    #: fields on `Weapon` describing the creature until 0040 clause 2 and #263, and both
+    #: ended up here; a count is the third instance of that shape.
+    #:
+    #: **At least one, because `Carried` means the creature has it.** Spending the last piece
+    #: removes the entry rather than leaving a zero — nought arrows is not a kind of carrying,
+    #: and an empty quiver is a different item from the arrows that were in it.
+    quantity: int = 1
     #: How many hands this creature has committed to it, when that differs from the item's
     #: own requirement (p. 90). `None` means the item decides.
     #:
@@ -167,6 +179,12 @@ class Carried:
     hands: int | None = None
 
     def __post_init__(self) -> None:
+        if self.quantity < 1:
+            raise ValueError(
+                f"a creature carries one or more of a thing, not {self.quantity}. Spending "
+                "the last piece removes the entry, so a zero here would describe carrying "
+                "nought of something"
+            )
         if self.hands is None:
             return
         if self.carriage is not Carriage.HELD:
@@ -268,6 +286,14 @@ class Weapon(Item):
     versatile_sides: int | None = None
     #: Graze (p. 90), a mastery property: damage on a miss equal to the ability modifier.
     graze: bool = False
+    #: Ammunition (p. 89): the **id of the item this weapon fires**, or `None` for a weapon
+    #: without the property. "You can use a weapon that has the Ammunition property to make a
+    #: ranged attack **only if you have ammunition to fire from it**."
+    #:
+    #: **By id, because what a Light Crossbow actually fires is content.** p. 89: "The type of
+    #: ammunition required is specified with the weapon's range" — and the weapons table is
+    #: not shipped here (R31). The same split as 0040 clause 2's proficiency-by-id.
+    ammunition_id: str | None = None
     #: Loading (p. 90): "You can fire only **one** piece of ammunition from a Loading weapon
     #: when you use an action, a Bonus Action, or a Reaction to fire it, **regardless of the
     #: number of attacks you can normally make**."

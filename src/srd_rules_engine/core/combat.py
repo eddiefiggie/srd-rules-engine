@@ -50,6 +50,7 @@ from srd_rules_engine.core.adjudicate import (
     Proposal,
     Resolver,
     action_spent,
+    ammunition_spent,
     attack_made,
     carriage_changed,
     loading_fired,
@@ -239,6 +240,20 @@ def attack_resolver() -> Resolver:
                         ),
                     )
                     if (before or after)
+                    else ()
+                ),
+                # p. 89: "Each attack expends one piece of ammunition." A cost that applies
+                # because the attack happened, so it sits beside the action charge rather
+                # than in a hit branch — p. 89 does not return the arrow on a miss.
+                *(
+                    (
+                        ammunition_spent(
+                            declaration.actor_id,
+                            weapon.ammunition_id,
+                            description=f"one {weapon.ammunition_id} fired from {weapon.id}",
+                        ),
+                    )
+                    if weapon.ammunition_id is not None
                     else ()
                 ),
                 # p. 90: "You can fire only one piece of ammunition from a Loading weapon

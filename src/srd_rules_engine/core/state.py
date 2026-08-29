@@ -701,6 +701,21 @@ class EncounterState:
     #: once with each — a per-turn key would refuse the second, which the document permits.
     #: And not keyed by weapon: two Loading weapons do not buy two shots from one action.
     loading_shots_this_turn: frozenset[tuple[str, str]] = frozenset()
+    #: How much ammunition each creature has spent **in this fight**, as `(actor, item) ->
+    #: count` (p. 89, 0044 clause 6).
+    #:
+    #: **The first structure here that does not clear when the turn advances.** The six above
+    #: are per-turn; this one is per-encounter, because p. 89 recovers "half the ammunition
+    #: (round down) **you used in the fight**" — which is not derivable from what remains. A
+    #: creature that started with six arrows and holds two may have fired four, or fired one
+    #: and dropped three.
+    #:
+    #: Nothing reads it yet: recovery needs a boundary for "after a fight", and p. 14's test
+    #: for combat ending has five conditions of which this engine can observe two
+    #: ([#301](https://github.com/eddiefiggie/srd-rules-engine/issues/301), 0044 clause 5).
+    #: Recorded now because the fight it counts is happening now, and a tally started later
+    #: cannot recover what it did not see.
+    ammunition_used: Mapping[tuple[str, str], int] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Retire every effect whose sustaining Concentration is gone (p. 179, 0037 clause 3).
@@ -1843,6 +1858,44 @@ class EncounterState:
         tally = dict(self.attacks_this_turn)
         tally[combatant_id] = tally.get(combatant_id, 0) + 1
         return self._evolve(attacks_this_turn=tally)
+
+    def with_ammunition_spent(self, combatant_id: str, item_id: str) -> EncounterState:
+        """Spend one piece of ammunition and count it against this fight (p. 89, #273).
+
+        "Each attack expends one piece of ammunition." Spending the last one **removes the
+        entry**, because `Carried` means the creature has the thing and nought arrows is not
+        a kind of carrying (0044 clause 1).
+
+        The used-tally is not decremented alongside it: it counts what was spent in this
+        fight, and that only ever goes up (0044 clause 6).
+        """
+        target = self.combatant(combatant_id)
+        held = next((c for c in target.equipment if c.item.id == item_id), None)
+        if held is None:
+            raise ValueError(
+                f'{combatant_id} has no {item_id!r} to fire. p. 89 allows the attack "only '
+                'if you have ammunition to fire from it", so the read surface never offered '
+                "this — spending what is not there would fire a shot from nothing"
+            )
+        remaining = tuple(
+            replace(carried, quantity=carried.quantity - 1)
+            if carried.item.id == item_id
+            else carried
+            for carried in target.equipment
+            # The last piece takes the entry with it, rather than leaving a zero.
+            if not (carried.item.id == item_id and carried.quantity == 1)
+        )
+        tally = dict(self.ammunition_used)
+        tally[(combatant_id, item_id)] = tally.get((combatant_id, item_id), 0) + 1
+        return self._evolve(
+            combatants=self._replacing(replace(target, equipment=remaining)),
+            ammunition_used=tally,
+        )
+
+    def ammunition_for(self, combatant_id: str, item_id: str) -> int:
+        """How many pieces of that ammunition the creature has (p. 89). Zero if none."""
+        target = self.combatant(combatant_id)
+        return next((c.quantity for c in target.equipment if c.item.id == item_id), 0)
 
     def with_loading_shot(self, combatant_id: str, action: str) -> EncounterState:
         """Record that a Loading weapon has been fired with that action (p. 90, #271)."""
