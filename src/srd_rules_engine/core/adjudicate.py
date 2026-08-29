@@ -251,6 +251,11 @@ class EffectKind(StrEnum):
     #: the **action used** and a Multiattack's later rolls spend no action of their own — so
     #: the pair this records is not recoverable from the attack tally beside it.
     LOADING_FIRED = "loading-fired"
+    #: One piece of ammunition expended by an attack (p. 89, #273). `item_id` names which.
+    #: "Each attack expends one piece of ammunition" — a cost that applies because the attack
+    #: happened, so it rides in `Proposal.always` beside the action charge rather than in a
+    #: hit branch. p. 89 does not return a piece on a miss.
+    AMMUNITION_SPENT = "ammunition-spent"
 
 
 #: The kinds that carry a condition rather than a number. Named because three places have
@@ -269,6 +274,7 @@ ITEM_KINDS: Final = frozenset(
         EffectKind.OBJECT_DETACHED,
         EffectKind.CARRIAGE_CHANGED,
         EffectKind.OBJECT_PICKED_UP,
+        EffectKind.AMMUNITION_SPENT,
     }
 )
 
@@ -525,6 +531,17 @@ def loading_fired(target_id: str, action: ActionKind, *, description: str) -> Ef
         amount=0,
         description=description,
         action=action,
+    )
+
+
+def ammunition_spent(target_id: str, item_id: str, *, description: str) -> Effect:
+    """One piece of ammunition expended by an attack (p. 89, #273)."""
+    return Effect(
+        kind=EffectKind.AMMUNITION_SPENT,
+        target_id=target_id,
+        amount=0,
+        description=description,
+        item_id=item_id,
     )
 
 
@@ -1530,6 +1547,9 @@ def _apply(
             state = state.with_attack_made(effect.target_id)
         elif effect.kind is EffectKind.WEAPON_SWAPPED:
             state = state.with_weapon_swapped(effect.target_id)
+        elif effect.kind is EffectKind.AMMUNITION_SPENT:
+            assert effect.item_id is not None  # __post_init__ refuses one without
+            state = state.with_ammunition_spent(effect.target_id, effect.item_id)
         elif effect.kind is EffectKind.LOADING_FIRED:
             assert effect.action is not None  # __post_init__ refuses one without
             state = state.with_loading_shot(effect.target_id, str(effect.action))

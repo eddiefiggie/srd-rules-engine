@@ -1324,7 +1324,7 @@
    "tag": null,
    "reference": "Equipment, p. 89 (Ammunition)",
    "kind": "weapon-property",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "weapon-finesse",
