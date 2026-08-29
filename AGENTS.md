@@ -131,6 +131,32 @@ resolves *inside* the export before trusting the run. The second is the one that
 the only step that can tell a real red from a false green, so the script aborts rather than
 reporting when it fails.
 
+**A base-tree proof satisfied by a collection error has proved nothing about any individual
+assertion.** When a change adds a whole test module, the file goes red on *import* against the
+base tree, and that red is indivisible: it arrives whether the file holds fifteen real
+assertions or fourteen and one that cannot fail. `prove_against_base.sh` says so itself — "a
+collection error is a legitimate red — the module under test does not exist on the base tree" —
+and it is right, which is the problem. The rule above is satisfied and has established only
+that the module is new.
+
+So every assertion the change relies on is proved by corrupting the behaviour it guards, and
+**the corruption must go red on the test written for it**. A corruption that goes red on a
+neighbouring test has found a different defect and left yours unproved. That sentence is the
+operative one: it is what exposed both defects
+([#298](https://github.com/eddiefiggie/srd-rules-engine/issues/298)), and in each case the suite was fully green and the two proof rules had been
+followed.
+
+Two shapes, and the second is the one review cannot see:
+
+- **A tautology.** `len(offered) == len(set(offered))` where `offered` is already a set is
+  `True` by construction. Visible on re-reading, and re-reading only happened because the
+  corruption fired on the wrong test.
+- **Vacuous under its own fixture.** A test stowed a creature's only weapon, so the creature
+  held nothing, so no attack was offered, so the code path under test was never reached. The
+  assertion was true for a reason unrelated to the rule it named. **Nothing about reading the
+  assertion reveals this** — only exercising the negative case does, and removing the rule
+  entirely left the test green.
+
 **Bump the build stamp and the README together, on every pull request.** Not "every build" —
 that wording left it open whether a docs-only or test-only change ships one, and the repository
 answered in practice long before it said so: the last PR to merge without a bump was
