@@ -1,6 +1,6 @@
 """Hazards: the effects the world has on a creature without anyone attacking it.
 
-Two of the five are here.
+Three of the five are here.
 
 **Falling** fires on no occasion at all — it resolves when the creature lands — which is why
 it was the first that could be built (0027 clause 7, applying
@@ -10,22 +10,36 @@ unchanged: an event resolves where the event happens, not in a catch-all).
 **Burning** fires at the start of each of the creature's turns (p. 178), which is a phase this
 engine has held since 0027 clauses 1-4 — the same one the death save fires in.
 
-The other three are not blocked on an occasion any more. Suffocation has one (the turn's end,
-built by 0023); Dehydration and Malnutrition fire at a day's end on the campaign axis. Nor are
-they blocked on *gaining* an Exhaustion level any more —
+**Suffocation** fires at the end of one (p. 189), which is the occasion 0023 built. Its
+*removal* is Falling's shape rather than Burning's: p. 189 takes the levels back "when a
+creature can breathe again", an event and not a schedule, so it resolves in
+`EncounterState.with_breath_regained` and never on a timer this engine runs.
+
+**Dehydration and Malnutrition are the two that remain**, and neither of the things that used
+to block them still does. Both fire at a day's end on the campaign axis, which `core.clock`
+counts. *Gaining* a level stopped being the obstacle when
 [#178](https://github.com/eddiefiggie/srd-rules-engine/issues/178) built
-`EffectKind.EXHAUSTION_GAINED` and `EncounterState.with_exhaustion`.
+`EffectKind.EXHAUSTION_GAINED` and `EncounterState.with_exhaustion`. **Removal stopped being
+one when a level learned to carry its own cause** —
+[0028](../../../docs/decisions/0028-a-level-carries-the-rule-that-caused-it.md), which reached
+that by reading the document rather than the issue: #180 framed the problem over three sources
+and four rules, and pp. 181-236 hold **seven sources and five removal shapes**, four of which
+need to know which level is which. `Conditions.exhaustion_levels` is a tuple of rule ids, and
+`EncounterState.with_exhaustion_removed(caused_by=...)` takes the rule whose levels go rather
+than a count.
 
-What blocks them now is **removal**, and it is a design question rather than a missing part.
-Four rules remove Exhaustion levels and no two agree: a Long Rest removes one (p. 181),
-breathing again removes every level *suffocation* caused (p. 189), and dehydration's and
-malnutrition's levels are removable by nothing until the creature drinks or eats (pp. 181,
-185). Two of those are about a level's **provenance**, and one integer cannot say which of a
-creature's levels are which — [#180](https://github.com/eddiefiggie/srd-rules-engine/issues/180).
+Which means the *lock* these two need already exists ahead of the hazards themselves:
+`LOCKED_EXHAUSTION_RULES` names their rule ids, so `with_long_rest` will not take a level
+pp. 181 and 185 say cannot be taken until the creature drinks or eats.
 
-Suffocation is the one this bites hardest: its removal rule is half its glossary entry, so
-building it with a suffocation-shaped counter would answer #180 in code rather than in a
-record. Burning needed none of this, because it deals Fire *damage*.
+What is left is not a shared blocker but a split, and 0027 clause 8 is where it was drawn
+([#315](https://github.com/eddiefiggie/srd-rules-engine/issues/315)). **Dehydration inflicts
+Exhaustion outright** — no die — which is what `EncounterState.with_time_passed` already does
+and says it does: "deterministic bookkeeping rather than outcomes". **Malnutrition is a DC 10
+Constitution saving throw**, which is a die, which is an adjudication (R1, R4). It cannot ride
+that path, because that path is the one that throws no die. It needs a campaign-axis
+**occasion**, the way `loop.turn.TurnLoop.end_turn` is the occasion for p. 63's save and
+`core.save_ends` its rolling half. The axis exists; nothing on it can reach adjudication.
 
 ## Falling asks nothing of the d20
 
