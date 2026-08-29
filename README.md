@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08292026.12` — **the clause that had nothing to bite on for the life of this repository.** [#271](https://github.com/eddiefiggie/srd-rules-engine/issues/271): p. 90 caps a Loading weapon at one shot "when you use an action, a Bonus Action, or a Reaction to fire it, **regardless of the number of attacks you can normally make**" — and that final clause was unreachable until one action could buy several rolls. **#271 guessed wrong about this once**: filed saying Light would be the trigger, corrected when [#270](https://github.com/eddiefiggie/srd-rules-engine/issues/270) landed and turned out not to be, because p. 89's extra attack is a *Bonus Action* and one shot each was always within the cap. [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289) is what finally made it bite, and the fix is keyed **per action used** rather than per turn — a per-turn key would refuse the Bonus Action's shot, which the document allows. **No invariant ties Loading to a Ranged weapon**: every weapon the document gives it to is one and p. 90 never says so, which is the inferred rule value [#284](https://github.com/eddiefiggie/srd-rules-engine/issues/284) found already shipped inside `Range`'s own check. Two of my tests were wrong before the engine was — p. 89 needs a *different* Light weapon for the bonus attack, and a boar at 20 feet is out of an Unarmed Strike's reach. **99 of 209 -> 100 of 209**, and weapon properties reach **8 of 9**. 214 clauses. 1569 tests.
+**Current build:** `08292026.13` — **a quantity is a fact about the creature, not about the item.** [0044](docs/decisions/0044-a-quantity-is-a-fact-about-the-creature.md) settles [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273)'s design. Ammunition is the last of p. 89-90's nine properties and the only one needing **a thing there can be twenty of**, and [0040](docs/decisions/0040-a-weapon-is-an-item-and-proficiency-is-the-wielders.md) named this moment in advance — "the next subtype of `Item` will make it a chain. Worth watching." The count goes on `Carried` instead, and the argument is historical rather than aesthetic: `proficient` was a field on `Weapon` describing the *wielder* until 0040, and `wielded_two_handed` described how the *creature* gripped it until #263. **A count is the third instance of that shape**, and both earlier ones ended up on the relation. So 0040's watch closes without the chain forming. **And this record was wrong before it was right**: clause 5 first said the document never states when a fight ends, and `combat ends` returns p. 14 — *"killed or knocked out or have surrendered or fled… or both sides agree"*. Five conditions, **the engine can observe two**, and the two it can see are the ones that answer *yes* — so every error runs toward declaring a fight over that is not. A stated test the engine may evaluate none of is a tighter constraint than the silence assumed, reaching the same decision by the opposite route, which is exactly the agreement that hides a bad argument. Recovery split to [#301](https://github.com/eddiefiggie/srd-rules-engine/issues/301). 215 clauses -> 218, one proved red. **100 of 209, unmoved** — this decides, #273 builds. 1569 tests.
 
 ---
 
@@ -224,10 +224,10 @@ one, and the plan is amended to match:
   payload derives `compat` from its own schema version
   (closed [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106))
 
-**Next up:** [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273) — Ammunition, the last unbuilt weapon property, and the one
-with a design question in it: nothing in this engine has a quantity, and p. 89's recovery
-clause needs a record of how much was *used* rather than how much remains. Then
-[#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288), which inherits a narrower question than it was filed with.
+**Next up:** [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273) — building what 0044 settled: a count on `Carried`, one piece
+spent per attack, the shot refused without ammunition, and the first per-encounter tally on
+`EncounterState`. That completes p. 89-90's nine weapon properties. [#301](https://github.com/eddiefiggie/srd-rules-engine/issues/301) holds
+the recovery, and [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) still inherits a narrower question than it was filed with.
 
 ## Development
 
@@ -277,4 +277,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-29 — build `08292026.12`._
+_Last updated: 2026-08-29 — build `08292026.13`._

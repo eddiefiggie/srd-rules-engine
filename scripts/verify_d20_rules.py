@@ -1399,6 +1399,29 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"A thrown weapon or piece of ammunition returns to normal size imme-?\s*diately "
         r"after it hits or misses a target",
     ),
+    # --- 0044 / #273: Ammunition -------------------------------------------------------
+    (
+        89,
+        "ammunition is a condition of the attack and one piece goes per attack - so the shot "
+        "is refused rather than resolved, and the count is spent (0044 clauses 2-3)",
+        r"only if you have ammunition to fire from it\. The type of ammunition required is "
+        r"specified with the weapon.s range\. Each attack expends one piece of ammunition",
+    ),
+    (
+        89,
+        "and recovery is a function of how much was USED, not of how much remains - which is "
+        "why the tally is its own per-encounter structure (0044 clause 6)",
+        r"After a fight, you can spend 1 minute to recover half the ammunition \(round down\) "
+        r"you used in the fight; the rest is lost",
+    ),
+    (
+        14,
+        "the document DOES say when combat ends, and three of its five conditions are "
+        "judgements about the fiction - so the engine may evaluate none of it (0044 clause 5)",
+        r"Combat ends when one side or the other is defeated, which can mean the creatures "
+        r"are killed or knocked out or have surrendered or fled\. Combat can also end when "
+        r"both sides agree to end it",
+    ),
     # --- #271: Loading -----------------------------------------------------------------
     (
         90,
