@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08292026.8` — **a Dagger reaches five feet when swung and sixty when thrown, and the engine was one field away from confusing them.** [#284](https://github.com/eddiefiggie/srd-rules-engine/issues/284) builds p. 90's Thrown property. **The trap was in an invariant, not in new code**: `Weapon` *refused* a range on a Melee weapon — "Range is a ranged-weapon property" — which was right only while nothing had Thrown to give one to. p. 90's own *Range* entry says a range sits "in parentheses after the **Ammunition or Thrown** property", so a Melee weapon carries one exactly when it is Thrown. Both range checks read `long_range is not None` alone, so lifting the invariant without them would have let a Dagger **stab a target sixty feet away**. Which bound applies is a question about the *attack*, not the weapon, and both now take the mode. p. 90's second sentence — "use the same ability modifier … that you use for a melee attack" — reads as a warning and is one: a thrown weapon does not become a Dexterity attack because it is ranged. The weapon **leaves the hand whether it hits or misses** (p. 128 treats both alike) and lands **nowhere the document states**, so 0041 clause 4's accepted cost arrives where a player meets it — the javelin is gone. Throwing a weapon *without* the property is refused rather than resolved, because p. 183 makes its damage type a person's judgement ([#264](https://github.com/eddiefiggie/srd-rules-engine/issues/264)). 207 clauses -> 212, one proved red. **97 of 209 -> 98 of 209** — `weapon-thrown` resolves. 1551 tests.
+**Current build:** `08292026.9` — **when two readings overlap, the overlap is a rule; only the disagreement is a silence.** [0043](docs/decisions/0043-one-action-several-attacks-and-one-swap.md) settles [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289)'s design and answers half of 0042 clause 6, which arrived exactly by the route that record predicted. **p. 257 is what makes it bite**: "Some creatures can make more than one attack **when they take the Attack action**" — Multiattack is not a second action, it is the Attack action buying several rolls, so p. 177 offers a three-attack creature three occasions to swap a weapon while p. 13 grants one object interaction a turn. **The reflex is to pick the better-argued reading**, and either would survive review; both are inventions. 0043 takes the **intersection** instead — one swap is legal under both readings, two under only one — so the engine offers one and discloses the cap as its own rather than the document's. That move is available because the readings *overlap* rather than contradict, which is the line between this and [0031](docs/decisions/0031-a-contradiction-in-the-document-is-an-absent-rule.md). Also settled: one Action buys several rolls — **the line `attack_resolver` has carried a comment about since the economy landed**, naming the feature that would make it wrong and which line changes; a disclosed limitation doing its job. The composition stays ruleset data, because a grammar for "any combination" in the engine is a weapon table by another name. **98 of 209, unmoved** — this decides, [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289) builds and stays open. 212 clauses -> 214, one proved red. 1551 tests.
 
 ---
 
@@ -224,12 +224,11 @@ one, and the plan is amended to match:
   payload derives `compat` from its own schema version
   (closed [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106))
 
-**Next up:** [#284](https://github.com/eddiefiggie/srd-rules-engine/issues/284) — Thrown's arithmetic, whose destination stays refused, now
-that the equip half it shares with p. 177 is built. Then [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) or
-[#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289), whichever is wanted first: each makes
-[0042](docs/decisions/0042-equipping-rides-on-the-attack-that-permits-it.md) clause 6's
-question reachable, and owes it an answer rather than inheriting the deferral. **0041 and
-0042 are now fully built.**
+**Next up:** [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289) — building what 0043 settled: one Action buying several
+attack rolls, the composition supplied by a ruleset, and one swap per turn. It unblocks
+[#271](https://github.com/eddiefiggie/srd-rules-engine/issues/271)'s Loading, whose "regardless of the number of attacks you can normally
+make" has had nothing to bite on, and gives p. 179's concentration debt its first real
+exercise. [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) then inherits a narrower question than it was filed with.
 
 ## Development
 
@@ -279,4 +278,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-29 — build `08292026.8`._
+_Last updated: 2026-08-29 — build `08292026.9`._

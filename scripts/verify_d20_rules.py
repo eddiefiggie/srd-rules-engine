@@ -1399,6 +1399,20 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"A thrown weapon or piece of ammunition returns to normal size imme-?\s*diately "
         r"after it hits or misses a target",
     ),
+    # --- 0043: Multiattack -------------------------------------------------------------
+    (
+        257,
+        "Multiattack is the ATTACK ACTION buying more than one roll, not a second action - "
+        "which is what makes 0042 clause 6's silence reachable (0043 clause 1)",
+        r"Some creatures can make more than one attack when they take the Attack action",
+    ),
+    (
+        257,
+        "and the entry's contents are the monster's, which is why the composition is ruleset "
+        "data and not an engine grammar (0043 clause 2)",
+        r"This entry details the attacks a creature can make, as well as any additional "
+        r"abili-?\s*ties it can use, as part of the Attack action",
+    ),
 )
 
 #: Clauses about the document as a whole rather than about one page, as
