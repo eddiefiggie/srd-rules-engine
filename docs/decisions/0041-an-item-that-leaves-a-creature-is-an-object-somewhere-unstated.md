@@ -236,8 +236,18 @@ In the tree:
 
 ## Status of implementation
 
-**Clauses 3 and 4 are built** by [#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279). The rest are decided and each held by an
-issue below.
+**Clauses 1 to 4 are built.** [#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279) shipped all four: clauses 3 and 4 were its
+stated scope, and clauses 1 and 2 landed inside it because the state could not be built
+without settling the shape it holds. Clauses 6 and 7 are decided and held by issues below.
+
+**A second tracking defect, and it is the mirror of the first.** #277 and #278 stayed open for
+a build over work that had shipped — which reads as outstanding exactly as a *closed* issue
+reads as finished. Both are now closed with the evidence. #278 was complete on merge; **#277
+was not**, and the audit is what found it: the issue asked for the vocabulary "plus the guard
+that keeps a second type from arriving later", and only the vocabulary had shipped. A decision
+*not* to add a type leaves no code behind to read, so the guard is the only thing that records
+it — `test_letting_go_of_an_item_adds_no_type_to_the_item_hierarchy`, proved red against an
+appended `GroundItem(Item)`.
 
 **Two clauses were held by nothing for the length of one build, and the mechanism is worth
 recording.** This record closed [#265](https://github.com/eddiefiggie/srd-rules-engine/issues/265) and [#272](https://github.com/eddiefiggie/srd-rules-engine/issues/272) by keyword and said each
@@ -250,8 +260,8 @@ work** — the closing keyword and the tracking pointer cannot be the same numbe
 
 | Clause | State |
 |---|---|
-| 1 — detachment changes a relation, not a type | **Decided, not built.** [#277](https://github.com/eddiefiggie/srd-rules-engine/issues/277) |
-| 2 — detachment removes the item from `Combatant.equipment`; `Carriage` stays at three | **Decided, not built.** [#278](https://github.com/eddiefiggie/srd-rules-engine/issues/278) |
+| 1 — detachment changes a relation, not a type | **Built.** `DetachedObject` composes an `Item` rather than subtyping one, and `Item.__subclasses__() == [Weapon]` is pinned — the only record a not-built decision leaves ([#277](https://github.com/eddiefiggie/srd-rules-engine/issues/277)) |
+| 2 — detachment removes the item from `Combatant.equipment`; `Carriage` stays at three | **Built.** `Carriage` pinned at three members, so p. 190's "wearing and carrying" cannot quietly acquire a fourth ([#278](https://github.com/eddiefiggie/srd-rules-engine/issues/278)) |
 | 3 — detached objects ride on `EncounterState` | **Built.** `EncounterState.detached_objects`, beside `obstructions` and `lighting` ([#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279)) |
 | 4 — position is `Position \| None`, never defaulted | **Built.** `DetachedObject.position`, with `reachable_objects` returning `None` for a positionless actor and `unplaced_objects` naming what no rule placed ([#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279)) |
 | 5 — dropping and throwing share a vocabulary and not a destination | **Decided.** Records why clause 4 refuses; nothing to build |
@@ -269,5 +279,12 @@ have one gets a computed list that an unplaced object is absent from. Those two 
 different facts, so `unplaced_objects` names the second rather than leaving a reader to infer
 it from an empty list. That is the same narrowing [#267](https://github.com/eddiefiggie/srd-rules-engine/issues/267) caught in 0040 clause 3, and
 the record would have shipped it again.
+
+**And what the #277/#278 audit found.** Clause 1 is a decision not to add a type, so unlike
+every other clause here it ships as *nothing* — no symbol, no branch, no field. That made it
+the one clause whose completion could not be checked by reading the diff, and it was reported
+complete on that basis before the guard existed. **A clause whose content is an absence needs
+a guard to be finishable at all**, which is the same lesson the document-wide verifier clauses
+in this record's Evidence section carry, arriving a second time from the other direction.
 
 _Written 2026-08-29 against SRD v5.2.1._
