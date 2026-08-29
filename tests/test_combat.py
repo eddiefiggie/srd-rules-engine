@@ -109,6 +109,7 @@ def encounter(
     boar_ac: int = 13,
     weapon: Weapon = BLADE,
     proficient: bool = True,
+    masters: bool = True,
     hands: int | None = None,
 ) -> EncounterState:
     """The pc **holds** its weapon since #258 — a weapon is an `Item` a creature carries
@@ -116,7 +117,9 @@ def encounter(
     weapon a resolver happened to close over.
 
     `proficient` is the wielder's now (p. 89), so it is a fact about the combatant here
-    rather than a field on the weapon."""
+    rather than a field on the weapon. `masters` is the same shape for p. 90's mastery
+    properties (0047) — a separate relation, because the five classes that grant it do not
+    agree on whether proficiency is required."""
     return EncounterState.new(
         [
             Combatant(
@@ -130,6 +133,7 @@ def encounter(
                 hands=2,
                 equipment=(Carried(weapon, Carriage.HELD, hands=hands),),
                 weapon_proficiencies=frozenset({weapon.id}) if proficient else frozenset(),
+                mastery_weapons=frozenset({weapon.id}) if masters else frozenset(),
             ),
             Combatant(
                 id="boar",
@@ -737,6 +741,7 @@ def _propose_with(
     target: str = "boar",
     state: EncounterState | None = None,
     proficient: bool = True,
+    masters: bool = True,
     hands: int | None = None,
 ) -> Proposal:
     """The proposal for attacking with that weapon, **held**.
@@ -746,7 +751,7 @@ def _propose_with(
     and reads what was swung off the key the read surface offered (0040 clauses 1 and 4).
     """
     if state is None:
-        state = encounter(weapon=weapon, proficient=proficient, hands=hands)
+        state = encounter(weapon=weapon, proficient=proficient, masters=masters, hands=hands)
     else:
         # A caller that built its own state — for cover, light, conditions — still has to put
         # the weapon in the actor's hand, because that is where the resolver reads it from.
@@ -756,6 +761,7 @@ def _propose_with(
             hands=2,
             equipment=(Carried(weapon, Carriage.HELD, hands=hands),),
             weapon_proficiencies=frozenset({weapon.id}) if proficient else frozenset(),
+            mastery_weapons=frozenset({weapon.id}) if masters else frozenset(),
         )
         state = dataclasses.replace(
             state,
@@ -867,6 +873,91 @@ def test_graze_deals_the_ability_modifier_on_a_miss() -> None:
 def test_a_weapon_without_graze_misses_for_nothing() -> None:
     plain = Weapon(id="club", damage_dice=1, damage_sides=4)
     assert _propose_with(plain).on_failure == ()
+
+
+def test_graze_is_refused_to_a_wielder_with_no_feature_unlocking_it() -> None:
+    """p. 90, opening the Mastery Properties section: a mastery property is "usable only by a
+    character who has a feature, such as Weapon Mastery, **that unlocks the property for the
+    character**". p. 89 says it again in the Weapons table's column list.
+
+    Graze shipped ungated (#317, 0047), which is the permissive direction — the same weapon in
+    the same hands, and the only difference is a permission the rules require and nothing
+    asked for. `mastery_weapons` is empty by default, so this is what every creature a ruleset
+    says nothing about now gets.
+    """
+    greataxe = Weapon(
+        id="greataxe", damage_dice=1, damage_sides=12, graze=True, damage_type=DamageType.SLASHING
+    )
+
+    assert _propose_with(greataxe).on_failure, "granted the mastery, Graze fires"
+    assert _propose_with(greataxe, masters=False).on_failure == ()
+
+
+def test_a_creature_nobody_granted_a_mastery_to_has_none() -> None:
+    """0047 clause 3, asserted against the **default** rather than against a fixture flag.
+
+    The tests either side of this one pass `masters=` explicitly, so neither exercises what a
+    creature gets when a ruleset says nothing — and that is the case every monster in the
+    bestiary is in. p. 89 gives proficiency an explicit monster rule ("A monster is proficient
+    with any weapon in its stat block"); p. 90 gives mastery none and says "a **character**".
+    Defaulting the other way would hand the bestiary a mastery property on the engine's own
+    authority.
+
+    Written after the corruption proof for this clause came back green: seeding the field's
+    default with a weapon id changed nothing, because every test then reaching Graze set the
+    field by hand. The assertion existed and the default did not have one.
+    """
+    greataxe = Weapon(id="greataxe", damage_dice=1, damage_sides=12, graze=True)
+    unstated = Combatant(
+        id="orc",
+        name="Orc",
+        hit_points=15,
+        max_hit_points=15,
+        armour_class=13,
+        abilities={"str": 16, "dex": 12},
+        proficiency_bonus=2,
+        hands=2,
+        equipment=(Carried(greataxe, Carriage.HELD),),
+        weapon_proficiencies=frozenset({greataxe.id}),
+    )
+
+    assert unstated.mastery_weapons == frozenset()
+
+    state = EncounterState.new([unstated, encounter().combatant("boar")])
+    proposal = attack_resolver()(
+        state=state,
+        declaration=Declaration(
+            actor_id="orc",
+            intent=Intent(action_key=attack_key(greataxe.id, "boar")),
+            rule_id="attack",
+        ),
+        facts={},
+    )
+    assert proposal.on_failure == (), "a monster the ruleset said nothing about gets no Graze"
+
+
+def test_mastery_is_not_derived_from_proficiency() -> None:
+    """The two relations are separate, and neither implies the other (0047 clause 2).
+
+    p. 54, p. 59 and p. 62 grant mastery over weapons "with which you have proficiency"; p. 29
+    and p. 48 grant it over weapons "of your choice" with no such clause. Deriving mastery
+    from proficiency would be right for three classes and invented for two — and it is the
+    smaller set in every case, since a Fighter is proficient with far more weapons than the
+    three whose mastery it may use.
+    """
+    greataxe = Weapon(
+        id="greataxe", damage_dice=1, damage_sides=12, graze=True, damage_type=DamageType.SLASHING
+    )
+
+    # Proficient and not a master: the Proficiency Bonus applies, Graze does not.
+    proficient_only = _propose_with(greataxe, masters=False)
+    assert {m.source for m in d20(proficient_only).modifiers} >= {"proficiency"}
+    assert proficient_only.on_failure == ()
+
+    # A master who is not proficient: Graze fires, and no Proficiency Bonus is added.
+    master_only = _propose_with(greataxe, proficient=False)
+    assert "proficiency" not in {m.source for m in d20(master_only).modifiers}
+    assert master_only.on_failure, "p. 29 and p. 48 grant mastery without requiring proficiency"
 
 
 def test_graze_never_heals() -> None:

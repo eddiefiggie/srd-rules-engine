@@ -384,7 +384,12 @@ def attack_resolver() -> Resolver:
             # Graze (p. 90): "If your attack roll with this weapon misses a creature, you
             # can deal damage to that creature equal to the ability modifier you used to
             # make the attack roll." The same modifier, and the weapon's own damage type.
-            on_failure=_graze(weapon, target_id, ability),
+            #
+            # The actor is passed because the property is gated on the *wielder* (0047): p. 90
+            # makes every mastery property "usable only by a character who has a feature …
+            # that unlocks the property". Graze shipped ungated, which is the permissive
+            # direction — a mechanic handed to creatures the rules do not give it to.
+            on_failure=_graze(actor, weapon, target_id, ability),
             citations=(f"weapon:{weapon.id}",),
             may_claim=(f"that the attack on {target.name} resolved as the roll says",),
             may_not_claim=(
@@ -887,14 +892,21 @@ def _out_of_range(
     return not within(actor.position, target.position, weapon.normal_range)
 
 
-def _graze(weapon: Weapon, target_id: str, ability: int) -> tuple[Effect, ...]:
-    """A miss that still deals the ability modifier, if the weapon has Graze.
+def _graze(actor: Combatant, weapon: Weapon, target_id: str, ability: int) -> tuple[Effect, ...]:
+    """A miss that still deals the ability modifier, if the wielder may use Graze.
+
+    **Three conditions, and the wielder's permission is the one that was missing** (0047,
+    #317). p. 90 opens its Mastery Properties section by gating all eight — "usable only by a
+    character who has a feature, such as Weapon Mastery, that unlocks the property for the
+    character" — and this fired on `weapon.graze` alone, so any creature handed a Graze weapon
+    got Graze. `mastery_weapons` is empty by default, which is also the right answer for every
+    monster: p. 89 gives proficiency an explicit monster rule and p. 90 gives mastery none.
 
     Clamped at zero because a negative modifier would be negative damage, and the document
     gives no rule for a miss that heals. "The damage can be increased only by increasing
     the ability modifier", so nothing else may be folded in here.
     """
-    if not weapon.graze or ability <= 0:
+    if not weapon.graze or weapon.id not in actor.mastery_weapons or ability <= 0:
         return ()
     return (
         Effect(
