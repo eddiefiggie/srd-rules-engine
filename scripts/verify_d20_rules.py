@@ -1315,6 +1315,56 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "beyond that - the half of 0041 that is fully printed (clause 6)",
         r"interactions with objects are limited: one free interaction per turn",
     ),
+    # --- 0042: equipping rides on the attack that permits it ----------------------------
+    (
+        177,
+        "the swap is licensed by making an attack, which is why it is not an action of its "
+        "own (0042 clause 1)",
+        r"You can either equip or unequip one weapon when you make an attack as part of this "
+        r"action",
+    ),
+    (
+        177,
+        "and 'before or after' decides one thing only - whether the newly equipped weapon is "
+        "available to THIS attack, which the next sentence then makes optional (0042 clause 2)",
+        r"You do so either before or after the attack\. If you equip a weapon before an "
+        r"attack, you don.t need to use it for that attack",
+    ),
+    (
+        177,
+        "and both directions name the ground, which is why 0041's detachment is what a "
+        "drop and a pick-up route through (0042 clause 4)",
+        r"Equipping a weapon includes drawing it from a sheath or picking it up\. Unequipping "
+        r"a weapon includes sheathing, stowing, or dropping it",
+    ),
+    (
+        13,
+        "the OTHER budget, stated per turn rather than per attack - the second half of the "
+        "pair 0042 clause 6 declines to compose",
+        r"You can interact with one object or feature of the environment for free, during "
+        r"either your move or action",
+    ),
+    (
+        13,
+        "and a second object needs the Utilize action, which is the sentence that makes the "
+        "budget a budget rather than a suggestion",
+        r"If you want to interact with a second object, you need to take the Utilize action",
+    ),
+    (
+        191,
+        "and p. 191 puts the two in one sentence WITHOUT composing them: drawing a sword in "
+        "the Attack action is an example of interacting 'while doing something else', and "
+        "the entry never says the free interaction is thereby spent (0042 clause 6)",
+        r"You normally interact with an object while doing something else, such as when you "
+        r"draw a sword as part of the Attack action",
+    ),
+    (
+        177,
+        "and the Attack action grants ONE attack roll, which is why the two readings cannot "
+        "diverge yet - the reachability argument clause 6 rests on",
+        r"When you take the Attack action, you can make one attack roll with a weapon or an "
+        r"Unarmed Strike",
+    ),
 )
 
 #: Clauses about the document as a whole rather than about one page, as
