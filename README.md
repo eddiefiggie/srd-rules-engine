@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08292026.6` — **two records claimed work was outstanding that had shipped.** [#291](https://github.com/eddiefiggie/srd-rules-engine/issues/291): an audit of every "not built" row against live issue state — 22 rows across 42 records — found **two stale**, and they went stale by different routes. 0039 clause 5 read "Decided, not built" citing a **closed** #258 from the day #258 merged; 0026 clause 4 read "Not built" citing a closed #159 that [#213](https://github.com/eddiefiggie/srd-rules-engine/issues/213) had resolved as **already-correct** — the replay gap never opened, because `replay_entry` takes no `EncounterState` and so nothing can hand it terrain even by accident. **The second is the easier one to miss**, and it is the case `AGENTS.md` explicitly names: an issue resolved as already-correct still gets closed with the evidence, and the evidence landed on the issue while the record's row never moved — no diff touches a record when nothing was built. Both corrected by appending a dated note rather than rewriting, which is what **Status of implementation** being the one movable section means. **A constraint on the future guard came out of the audit too**: 0027 carries a dated append *narrating* "Decided, not built" and correctly citing closed issues, so a guard keyed on the phrase flags it forever — it has to key on table rows. 0041 and 0042's counterparts, filed during this session, are why the audit ran at all. **97 of 209, unmoved.** 207 clauses. 1525 tests.
+**Current build:** `08292026.7` — **p. 177's one equip or unequip, ridden on the attack that permits it.** [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) completes 0041 and builds 0042 clauses 1-5: a swap is offered per (attack, item), rides in `Proposal.always` so it applies whether or not the attack lands, and resolves **before** the attack when it is an equip and after when it is an unequip — derived, because p. 177 makes the alternatives indistinguishable. **Two things the record did not settle and the build had to.** The **key encoding**: `attack_declared` parses from the right because a weapon id may contain colons while a combatant id is one segment, which works for exactly one multi-segment field — and a swap key carries two item ids. Segments are percent-escaped rather than forbidding a character in `Item.id`, which would be this engine's encoding leaking into a ruleset's vocabulary. And **clause 2's enumeration could not produce clause 2's own case**: swaps were enumerated against weapons already *held*, so the equal pair the clause says carries the before/after distinction never occurred — the encoding was right and nothing could reach it. **Three prefixes, not two**, because p. 177's sheathing and dropping are different shapes and collapsing them gave two offers one key. **A proof caught a broken assertion of mine**: `len(offered) == len(set(offered))` over a set can never fail, so the duplicate-key test was inspecting nothing until the corruption run pointed at the wrong test. 0042 clause 6's silence is disclosed as `free-object-interaction-unmodelled`. **97 of 209, unmoved** — [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) and #289 are the shapes that would move it here. 207 clauses. 1540 tests.
 
 ---
 
@@ -224,12 +224,12 @@ one, and the plan is amended to match:
   payload derives `compat` from its own schema version
   (closed [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106))
 
-**Next up:** [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) — now that [0042](docs/decisions/0042-equipping-rides-on-the-attack-that-permits-it.md)
-has settled its shape: equip and unequip enumerated per (attack, item), dropping routed
-through [#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280)'s detachment, and an unplaced object simply not offered. That
-completes 0041, whose remaining clause it is. The two shapes 0042 defers to are
-[#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) and [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289), and whichever lands first owes an answer to a
-question the document does not settle.
+**Next up:** [#284](https://github.com/eddiefiggie/srd-rules-engine/issues/284) — Thrown's arithmetic, whose destination stays refused, now
+that the equip half it shares with p. 177 is built. Then [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) or
+[#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289), whichever is wanted first: each makes
+[0042](docs/decisions/0042-equipping-rides-on-the-attack-that-permits-it.md) clause 6's
+question reachable, and owes it an answer rather than inheriting the deferral. **0041 and
+0042 are now fully built.**
 
 ## Development
 
@@ -279,4 +279,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-29 — build `08292026.6`._
+_Last updated: 2026-08-29 — build `08292026.7`._

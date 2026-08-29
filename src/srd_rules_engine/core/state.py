@@ -1838,6 +1838,62 @@ class EncounterState:
             detached_objects=(*self.detached_objects, DetachedObject(detached)),
         )
 
+    def with_carriage_changed(
+        self, combatant_id: str, item_id: str, carriage: Carriage
+    ) -> EncounterState:
+        """Move one item between the carriages the creature already has it in (p. 177).
+
+        "Equipping a weapon includes **drawing it from a sheath**… Unequipping a weapon
+        includes **sheathing, stowing**" — both are the item staying with the creature and
+        changing how it is kept, which is exactly what `Carriage` models (0039 clause 3).
+
+        Dropping and picking up are not this: they cross the creature's boundary and are
+        `with_object_detached` and `with_object_picked_up`.
+
+        The grip is cleared on the way out of `HELD`, because `Carried.__post_init__`
+        refuses one on an item that commits no hands — a stowed weapon has no grip to keep.
+        """
+        target = self.combatant(combatant_id)
+        if not any(c.item.id == item_id for c in target.equipment):
+            raise ValueError(
+                f"{combatant_id} has no item {item_id!r} to move. Changing the carriage of "
+                "one it does not have would conjure the item as a side effect"
+            )
+        moved = tuple(
+            replace(c, carriage=carriage, hands=c.hands if carriage is Carriage.HELD else None)
+            if c.item.id == item_id
+            else c
+            for c in target.equipment
+        )
+        return self._evolve(combatants=self._replacing(replace(target, equipment=moved)))
+
+    def with_object_picked_up(self, combatant_id: str, item_id: str) -> EncounterState:
+        """Take one detached object into a creature's hands (p. 177, 0042 clause 4).
+
+        "Equipping a weapon includes … **picking it up**", which is `with_object_detached`
+        run backwards: the object leaves `detached_objects` and arrives `HELD`.
+
+        **Reach is not checked here.** Whether the creature can get to it is a question about
+        two positions, and the read surface answers it while building the offer
+        (`reachable_objects`) — an object no rule placed is never offered, which is 0041
+        clause 4's accepted cost arriving where a player meets it. What this refuses is an
+        object that is not there at all.
+        """
+        target = self.combatant(combatant_id)
+        remaining = tuple(o for o in self.detached_objects if o.item.id != item_id)
+        if len(remaining) == len(self.detached_objects):
+            raise ValueError(
+                f"no detached object {item_id!r} to pick up. Picking up one that is not "
+                "there would create an item from a name"
+            )
+        taken = next(o for o in self.detached_objects if o.item.id == item_id)
+        return self._evolve(
+            combatants=self._replacing(
+                replace(target, equipment=(*target.equipment, Carried(taken.item, Carriage.HELD)))
+            ),
+            detached_objects=remaining,
+        )
+
     def with_time_passed(self, minutes: int) -> EncounterState:
         """Advance campaign time and apply what elapsing it decided (decision 0020).
 

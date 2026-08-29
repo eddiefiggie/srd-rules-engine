@@ -207,18 +207,33 @@ In the tree:
 
 ## Status of implementation
 
-**Nothing here is built.** This record decides the shape;
-[#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) builds clauses 1 to 5 and
-**remains open**, and clause 6's revisit condition is held by the two shapes that would trigger
-it.
+**Clauses 1 to 5 are built** by [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283). Clause 6 is decided, disclosed, and its
+revisit condition is held by the two shapes that would trigger it.
+
+**Two things the build found that this record did not.**
+
+**The key encoding was not a settled question, and the record treated it as one.** Clause 3
+says "one `LegalAction` per (attack, item)" and says nothing about how a key carries two item
+ids. It cannot, as the keys were written: `attack_declared` parses from the right because a
+weapon id may contain colons while a combatant id is one segment, which works for exactly
+**one** multi-segment field. Swap keys percent-escape each segment instead — chosen over
+forbidding a character in `Item.id`, which would be this engine's encoding leaking into a
+ruleset's vocabulary.
+
+**Clause 2's enumeration could not produce clause 2's own case.** The clause says the pair
+`(attack weapon, equipped item)` carries the before/after distinction and is equal when the
+weapon was equipped and used. The first implementation enumerated swaps against weapons the
+creature was *already holding*, so the equal pair never occurred — the encoding was right and
+nothing could reach it. p. 177's "you **don't need to** use it for that attack" is the sentence
+that makes using it permitted, and `_draw_and_use` is the enumeration it requires.
 
 | Clause | State |
 |---|---|
-| 1 — the equip is part of the attack, not an action beside it | **Decided, not built.** [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) |
-| 2 — "before or after" is enumerated by which weapon the attack names | **Decided, not built.** [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283), the clause this record exists for |
-| 3 — offered, not checked afterwards | **Decided, not built.** [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) |
-| 4 — unequipping to the ground is #280's detachment, and equipping from it the reverse | **Decided, not built.** [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) |
-| 5 — an unplaced object is not offered, and the refusal is legible | **Decided, not built.** [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) |
-| 6 — p. 13's free interaction is unmodelled and its relationship unstated | **Decided.** Nothing to build here, and the revisit condition is held rather than promised: [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) (`utilize`) and [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289) (`multiattack`) each carry it, and each says the question must be answered rather than inherited. Disclosed in `core.read_surface` when clause 3 lands |
+| 1 — the equip is part of the attack, not an action beside it | **Built.** The swap rides in `Proposal.always` beside the action charge, so it applies whether or not the attack lands — p. 177 licenses it by *making* an attack ([#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283)) |
+| 2 — "before or after" is enumerated by which weapon the attack names | **Built, and the clause gained a finding.** Equips resolve before the attack and unequips after, derived rather than declared. The equal pair needed its own enumeration (`_draw_and_use`) that the first implementation omitted ([#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283)) |
+| 3 — offered, not checked afterwards | **Built** as `attack-equip` / `attack-stow` / `attack-drop` keys — three prefixes for p. 177's three destinations, because collapsing sheathing and dropping gave two offers one key ([#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283)) |
+| 4 — unequipping to the ground is #280's detachment, and equipping from it the reverse | **Built.** `CARRIAGE_CHANGED` for sheathing and drawing, `OBJECT_DETACHED` for dropping, `OBJECT_PICKED_UP` for the reverse ([#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283)) |
+| 5 — an unplaced object is not offered, and the refusal is legible | **Built.** Absent from the menu, named in `unplaced_objects` ([#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283)) |
+| 6 — p. 13's free interaction is unmodelled and its relationship unstated | **Decided and disclosed** as `free-object-interaction-unmodelled` in `Situation.unenforced_clauses`. Nothing to build here, and the revisit condition is held rather than promised: [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) (`utilize`) and [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289) (`multiattack`) each carry it, and each says the question must be answered rather than inherited. |
 
 _Written 2026-08-29 against SRD v5.2.1._

@@ -46,7 +46,13 @@ from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.canonical import CanonicalizationError, digest
 from srd_rules_engine.core.conditions import Condition
 from srd_rules_engine.core.d20 import Advantage
-from srd_rules_engine.core.equipment import Weapon, reachable_objects, unplaced_objects
+from srd_rules_engine.core.equipment import (
+    Carriage,
+    Item,
+    Weapon,
+    reachable_objects,
+    unplaced_objects,
+)
 from srd_rules_engine.core.position import MovementMode, distance_feet
 from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.sight import LightLevel, Senses
@@ -88,6 +94,81 @@ def attack_key(weapon_id: str, target_id: str) -> str:
     and became something the creature holds.
     """
     return f"{ATTACK}:{weapon_id}:{target_id}"
+
+
+#: p. 13's one free object interaction per turn, which this engine does not model, and whose
+#: relationship to p. 177's per-attack swap the document never states (0042 clause 6).
+FREE_OBJECT_INTERACTION: Final = "free-object-interaction-unmodelled"
+
+#: An attack that also equips or unequips one weapon (p. 177, 0042 clauses 1-3).
+#:
+#: **Three prefixes for p. 177's three destinations**, not two. "Equipping a weapon includes
+#: drawing it from a sheath or picking it up. Unequipping a weapon includes sheathing,
+#: stowing, or dropping it." Sheathing and stowing are one shape — the item stays with the
+#: creature and changes carriage — while dropping crosses the creature's boundary and is
+#: 0041's detachment. Collapsing the last two would give two offers one key.
+ATTACK_EQUIP: Final = "attack-equip"
+ATTACK_STOW: Final = "attack-stow"
+ATTACK_DROP: Final = "attack-drop"
+
+#: The prefix for each destination, and the destination for each prefix.
+SWAP_PREFIXES: Final = (ATTACK_EQUIP, ATTACK_STOW, ATTACK_DROP)
+
+
+def _escape(segment: str) -> str:
+    """Make one id safe to sit in a colon-delimited key.
+
+    `attack_declared` parses from the right because a weapon id may itself contain colons
+    while a combatant id is one segment — which works for exactly one multi-segment field.
+    A swap key carries **two** item ids, so the position of the boundary stops being
+    recoverable and the parse has to stop guessing at it.
+
+    Percent-escaping is used rather than forbidding a character in `Item.id`, because a
+    constraint on ruleset ids would be this engine's encoding leaking into a ruleset's
+    vocabulary — and 0039 clause 2 keeps `Item` to facts the document states. `%` first, or
+    unescaping an id that legitimately contains `%3A` would produce a colon nobody wrote.
+    """
+    return segment.replace("%", "%25").replace(":", "%3A")
+
+
+def _unescape(segment: str) -> str:
+    """Invert `_escape`. `%25` last, for the reason `%` is escaped first."""
+    return segment.replace("%3A", ":").replace("%25", "%")
+
+
+def attack_swap_key(weapon_id: str, target_id: str, item_id: str, *, swap: str) -> str:
+    """The key for an attack that also swaps one weapon (0042 clause 3).
+
+    One offer per (attack, item), enumerated the way 0038 clause 4 enumerates a spell's
+    payable slot levels — so the swap is chosen from a menu the engine computed rather than
+    named in a declaration the engine validates afterwards.
+
+    **No ordering segment**, and that is 0042 clause 2: p. 177's "before or after" decides
+    only whether the newly equipped weapon is available to *this* attack, and the pair
+    `(weapon_id, item_id)` already says so — they are equal when it was equipped and used.
+    """
+    if swap not in SWAP_PREFIXES:
+        raise ValueError(f"{swap!r} is not one of p. 177's three destinations: {SWAP_PREFIXES}")
+    return f"{swap}:{_escape(weapon_id)}:{_escape(target_id)}:{_escape(item_id)}"
+
+
+def attack_swap_declared(action_key: str | None) -> tuple[str, str, str, str] | None:
+    """`(weapon_id, target_id, item_id, swap)` a swap key names, or `None`.
+
+    Every segment is escaped, so this splits on colons without guessing where an id ends —
+    the ambiguity that made the plain attack key's right-partition parse unextendable.
+    """
+    if action_key is None:
+        return None
+    for prefix in SWAP_PREFIXES:
+        if not action_key.startswith(f"{prefix}:"):
+            continue
+        parts = action_key[len(prefix) + 1 :].split(":")
+        if len(parts) != 3 or not all(parts):
+            return None
+        weapon_id, target_id, item_id = (_unescape(part) for part in parts)
+        return weapon_id, target_id, item_id, prefix
+    return None
 
 
 BONUS_ATTACK: Final = "bonus-attack"
@@ -573,6 +654,142 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
                     detail=_attack_detail(actor, weapon, target),
                 )
             )
+            offered.extend(_swaps(state, actor, weapon, target))
+
+    offered.extend(_draw_and_use(state, actor))
+
+    return tuple(offered)
+
+
+def _draw_and_use(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...]:
+    """Equip a weapon and attack with **that** weapon — p. 177's "before", used.
+
+    > If you equip a weapon before an attack, you **don't need to use it** for that attack.
+
+    "Don't need to" is the sentence that makes using it optional, and therefore permitted.
+    0042 clause 2 says the pair `(attack weapon, equipped item)` carries the whole before/after
+    distinction, and it is **equal** in exactly this case — so an enumeration that never
+    produces the equal pair cannot express the ordering the record says it encodes. Every
+    other offer here attacks with something already in hand.
+
+    **Only weapons.** A creature may pick up a rock and swing it, and p. 183 makes that an
+    improvised weapon with a damage type "the GM thinks is appropriate" — a person's
+    judgement this engine may not invent ([#264](https://github.com/eddiefiggie/srd-rules-engine/issues/264)).
+    So a non-weapon object is equippable beside an attack and is not attackable *with*.
+
+    Range is measured for the weapon being drawn, not the one in hand: a creature holding a
+    dagger and reaching for a bow is asking about the bow's range.
+    """
+    offered: list[LegalAction] = []
+    equippable: list[tuple[Item, str]] = [
+        (c.item, str(Carriage.STOWED)) for c in actor.equipment if c.carriage is Carriage.STOWED
+    ]
+    reachable = reachable_objects(state.detached_objects, actor.position, actor.reach)
+    equippable.extend((obj.item, "detached") for obj in reachable or ())
+
+    for item, source in equippable:
+        if not isinstance(item, Weapon):
+            continue
+        for target in state.combatants:
+            if target.id == actor.id or target.is_down:
+                continue
+            if not _within_weapon_range(actor, item, target):
+                continue
+            offered.append(
+                LegalAction(
+                    key=attack_swap_key(item.id, target.id, item.id, swap=ATTACK_EQUIP),
+                    label=f"Draw {item.id} and attack {target.name} with it",
+                    detail={
+                        **_attack_detail(actor, item, target),
+                        "equip": item.id,
+                        "from": source,
+                        "used_for_this_attack": True,
+                    },
+                )
+            )
+    return tuple(offered)
+
+
+def _swaps(
+    state: EncounterState, actor: Combatant, weapon: Weapon, target: Combatant
+) -> tuple[LegalAction, ...]:
+    """p. 177's one equip or unequip, offered against the attack that permits it.
+
+    > You can either equip or unequip **one** weapon when you make an attack as part of this
+    > action. You do so either before or after the attack. If you equip a weapon before an
+    > attack, you don't need to use it for that attack.
+
+    **Enumerated rather than checked afterwards** (0042 clause 3), and the multiplier is
+    `stowed + held + reachable detached objects` per attack — bounded by what the creature
+    carries and can reach, not a product with an ordering flag.
+
+    **No ordering is offered, and that is 0042 clause 2.** "Before or after" decides one thing
+    — whether the newly equipped weapon is available to *this* attack — and the pair already
+    says so: an offer whose equipped item **is** the attack weapon is the "before, and used"
+    case. Every other pairing is indistinguishable between before-and-unused and after, which
+    p. 177's own next sentence is what makes true.
+
+    **An unplaced object is absent from here** (0041 clause 4, 0042 clause 5). `Situation`
+    reports it under `unplaced_objects`, so the gap reads as *nobody said where it fell*
+    rather than as an empty menu (#267).
+    """
+    offered: list[LegalAction] = []
+
+    for carried in actor.equipment:
+        if carried.carriage is Carriage.STOWED:
+            offered.append(
+                LegalAction(
+                    key=attack_swap_key(weapon.id, target.id, carried.item.id, swap=ATTACK_EQUIP),
+                    label=f"Draw {carried.item.id}, then attack {target.name} with {weapon.id}",
+                    detail={
+                        **_attack_detail(actor, weapon, target),
+                        "equip": carried.item.id,
+                        "from": str(Carriage.STOWED),
+                        # p. 177: equipped before, and used, exactly when the attack names it.
+                        "used_for_this_attack": carried.item.id == weapon.id,
+                    },
+                )
+            )
+        elif carried.carriage is Carriage.HELD:
+            offered.append(
+                LegalAction(
+                    key=attack_swap_key(weapon.id, target.id, carried.item.id, swap=ATTACK_STOW),
+                    label=f"Attack {target.name} with {weapon.id}, then stow {carried.item.id}",
+                    detail={
+                        **_attack_detail(actor, weapon, target),
+                        "unequip": carried.item.id,
+                        "to": str(Carriage.STOWED),
+                    },
+                )
+            )
+            offered.append(
+                LegalAction(
+                    key=attack_swap_key(weapon.id, target.id, carried.item.id, swap=ATTACK_DROP),
+                    label=f"Attack {target.name} with {weapon.id}, then drop {carried.item.id}",
+                    detail={
+                        **_attack_detail(actor, weapon, target),
+                        "unequip": carried.item.id,
+                        # Dropping leaves the creature entirely (0041 clause 2), and the
+                        # object arrives unplaced because p. 177 does not say where.
+                        "to": "dropped",
+                    },
+                )
+            )
+
+    reachable = reachable_objects(state.detached_objects, actor.position, actor.reach)
+    for obj in reachable or ():
+        offered.append(
+            LegalAction(
+                key=attack_swap_key(weapon.id, target.id, obj.item.id, swap=ATTACK_EQUIP),
+                label=f"Pick up {obj.item.id}, then attack {target.name} with {weapon.id}",
+                detail={
+                    **_attack_detail(actor, weapon, target),
+                    "equip": obj.item.id,
+                    "from": "detached",
+                    "used_for_this_attack": obj.item.id == weapon.id,
+                },
+            )
+        )
 
     return tuple(offered)
 
@@ -698,6 +915,16 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
     # that no reaction has ever been offered.
     if actor.actions.available(ActionKind.REACTION, conditions):
         unenforced.append(SIGHT_QUALIFIER)
+    # p. 13 grants "one object or feature of the environment for free, during either your
+    # move or action", and a second needs the Utilize action. p. 177 separately grants one
+    # weapon swap per attack made as part of the Attack action. **The document never states
+    # their relationship**, and 0042 clause 6 records that rather than resolving it: the
+    # engine tracks p. 177's allowance and claims nothing about the other, which is honest
+    # only while nothing else can spend an object interaction. #288 (`utilize`) and #289
+    # (`multiattack`) are the two shapes that would make the readings diverge, and each
+    # carries the clause. Disclosed here because an agent reading a swap offer would
+    # otherwise reasonably infer the free interaction had been spent, or preserved.
+    unenforced.append(FREE_OBJECT_INTERACTION)
 
     return Situation(
         hit_points=actor.hit_points,
