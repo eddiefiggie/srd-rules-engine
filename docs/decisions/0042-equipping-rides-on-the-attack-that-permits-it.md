@@ -237,3 +237,14 @@ that makes using it permitted, and `_draw_and_use` is the enumeration it require
 | 6 — p. 13's free interaction is unmodelled and its relationship unstated | **Decided and disclosed** as `free-object-interaction-unmodelled` in `Situation.unenforced_clauses`. Nothing to build here, and the revisit condition is held rather than promised: [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) (`utilize`) and [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289) (`multiattack`) each carry it, and each says the question must be answered rather than inherited. |
 
 _Written 2026-08-29 against SRD v5.2.1._
+
+_Updated 2026-08-29. **Clause 6 is half-answered by
+[0043](0043-one-action-several-attacks-and-one-swap.md) clause 3**, which arrived by the route
+this record predicted: [#289](https://github.com/eddiefiggie/srd-rules-engine/issues/289) made the silence reachable, and p. 257 is what made it
+bite — Multiattack is the Attack action buying several rolls, so p. 177 offers a creature with
+three attacks three occasions to swap. 0043 takes the **intersection** of the two readings
+rather than choosing between them: one swap is legal under both, two under only one, so the
+engine offers one and discloses the cap as its own. What remains open is narrower than what
+was deferred — not "how do these compose" but "does the one swap this engine permits also spend
+p. 13's free interaction", which [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) still carries._
+
