@@ -25,6 +25,7 @@ from srd_rules_engine.core.equipment import (
     Carried,
     DetachedObject,
     Item,
+    Weapon,
     carried_weight,
     free_hands,
     items_in,
@@ -425,6 +426,28 @@ def test_reach_distinguishes_in_reach_from_out_of_reach() -> None:
     reachable = reachable_objects((near, far), Position(0, 0, 0), 5)
     assert reachable == (near,)
     assert unplaced_objects((near, far)) == ()
+
+
+def test_letting_go_of_an_item_adds_no_type_to_the_item_hierarchy() -> None:
+    """0041 clause 1, which is a decision **not** to add a type — so only a guard records it.
+
+    p. 191: "A weapon is an object that is in the Simple or Martial weapon category." p. 12
+    lists a *sword* among its examples of an object, and p. 185 defines one as "a nonliving,
+    distinct thing". The `Item` that was held is the `Item` on the floor. What changed when
+    the creature let go is a **relation**, and a `GroundItem` or `DroppedWeapon` subtype would
+    make `isinstance` answer a question about a relation rather than about a kind.
+
+    That subtype is the obvious shape for a reader who finds an item no longer in
+    `Combatant.equipment`, which is exactly why the absence needs asserting: nothing else in
+    the tree says "do not add one here", and a decision not to build something leaves no code
+    behind to read.
+
+    `Weapon` is the one legitimate subtype (0040 clause 1) — it *is* an item with more rules
+    attached. `DetachedObject` composes instead, because it is not a kind of item at all.
+    """
+    assert [subtype.__name__ for subtype in Item.__subclasses__()] == [Weapon.__name__]
+    assert not issubclass(DetachedObject, Item)
+    assert DetachedObject(SWORD).item is SWORD
 
 
 def test_carriage_stays_at_three_because_every_member_is_a_way_of_being_carried() -> None:
