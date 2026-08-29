@@ -1356,7 +1356,7 @@
    "tag": null,
    "reference": "Equipment, p. 90 (Loading)",
    "kind": "weapon-property",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "weapon-range",

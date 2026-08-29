@@ -691,6 +691,12 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
         # and no list (0043 clause 2).
         if actor.multiattack is not None and not actor.multiattack.allows(weapon.id):
             continue
+        # p. 90's Loading cap, "regardless of the number of attacks you can normally make".
+        # An attack made as part of the Attack action spends the Action — including a
+        # Multiattack's second and third rolls, which spend no action of their *own* but were
+        # bought by that one — so one shot is all this weapon offers here (#271).
+        if weapon.loading and state.has_fired_loading(actor.id, str(ActionKind.ACTION)):
+            continue
         for target in state.combatants:
             if target.id == actor.id or target.is_down:
                 continue
@@ -929,6 +935,11 @@ def _light_bonus_attacks(state: EncounterState, actor: Combatant) -> tuple[Legal
     offered: list[LegalAction] = []
     for weapon in actor.weapons_held:
         if not weapon.light or weapon.id in used:
+            continue
+        # p. 90 caps the Loading shot per **action used**, and this one spends the Bonus
+        # Action — a separate charge from the Attack action's, so a creature may fire once
+        # with each. Keying the cap per turn would refuse a shot the document allows (#271).
+        if weapon.loading and state.has_fired_loading(actor.id, str(ActionKind.BONUS_ACTION)):
             continue
         for target in state.combatants:
             if target.id == actor.id or target.is_down:
