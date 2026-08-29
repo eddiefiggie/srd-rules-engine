@@ -1277,6 +1277,44 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"A saving throw.also called a save.represents an attempt to avoid or resist a "
         r"threat",
     ),
+    # --- 0041: an item that leaves a creature ------------------------------------------
+    (
+        191,
+        "a weapon IS an object, so letting go of one is not a change of type (0041 clause 1)",
+        r"A weapon is an object that is in the Simple or Martial weapon category",
+    ),
+    (
+        177,
+        "the Attack action's unequip clause, which is one of the five rules that detach an "
+        "item and state no destination (0041 clause 4)",
+        r"Unequipping a weapon includes sheathing, stowing, or dropping it",
+    ),
+    (
+        191,
+        "and Unconscious detaches without a destination too, which is why 0041 is a "
+        "vocabulary decision rather than a weapon-property one",
+        r"You have the Incapacitated and Prone conditions, and you drop whatever you.re "
+        r"holding",
+    ),
+    (
+        190,
+        "teleportation moves what is worn and carried - the rule that makes a fourth "
+        "`Carriage` member a dropped sword that teleports away with its dropper (0041 "
+        "clause 2)",
+        r"all the equipment you.re wearing and carrying teleports with you",
+    ),
+    (
+        217,
+        "the Dancing Sword states its own destination, in its own entry, as a magic item - "
+        "the evidence that no general rule states one (0041 clause 4)",
+        r"the weapon falls to the ground in your space",
+    ),
+    (
+        12,
+        "picking an object back up is one free interaction per turn, and the Utilize action "
+        "beyond that - the half of 0041 that is fully printed (clause 6)",
+        r"interactions with objects are limited: one free interaction per turn",
+    ),
 )
 
 #: Clauses about the document as a whole rather than about one page, as
@@ -1311,6 +1349,24 @@ DOCUMENT_CLAUSES: tuple[tuple[str, str, str, int], ...] = (
         r"spell attack",
         "at least",
         20,
+    ),
+    # --- The absence 0041 rests on ------------------------------------------------------
+    (
+        "no general rule says where a released object lands. 'falls to the ground' occurs "
+        "five times and every one is an effect stating its own outcome - pp. 133, 171, 209 "
+        "and 217 twice - so a sixth occurrence means the document grew a sentence 0041 "
+        "clause 4 assumed was absent, and the `Position | None` refusal would become an "
+        "invention of the opposite kind: refusing a value the document now supplies",
+        r"falls to the ground",
+        "exactly",
+        5,
+    ),
+    (
+        "and the return trip is named exactly once, on p. 177, which is why 0041 clause 6 "
+        "cites the Attack action rather than a general pick-up rule",
+        r"picking it up",
+        "exactly",
+        1,
     ),
 )
 
