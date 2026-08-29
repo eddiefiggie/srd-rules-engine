@@ -705,14 +705,44 @@ def test_detaching_an_item_a_creature_does_not_have_is_refused() -> None:
         encounter().with_object_detached("pc", "fixture-nonexistent")
 
 
-def test_an_object_detached_effect_names_the_item_and_no_other_kind_may() -> None:
-    with pytest.raises(ValueError, match="names the item that left"):
-        Effect(kind=EffectKind.OBJECT_DETACHED, target_id="pc", amount=0, description="x")
-    with pytest.raises(ValueError, match="names the item that left"):
+def test_an_item_effect_names_the_item_and_no_other_kind_may() -> None:
+    """Widened by #283 from one item kind to three — detach, carriage change, pick up — so
+    the rule is now `ITEM_KINDS` rather than a single `is`. All three name an item; nothing
+    else may."""
+    for kind in (
+        EffectKind.OBJECT_DETACHED,
+        EffectKind.CARRIAGE_CHANGED,
+        EffectKind.OBJECT_PICKED_UP,
+    ):
+        with pytest.raises(ValueError, match="names the item it moves"):
+            Effect(kind=kind, target_id="pc", amount=0, description="x")
+    with pytest.raises(ValueError, match="names the item it moves"):
         Effect(
             kind=EffectKind.HEALING,
             target_id="pc",
             amount=1,
+            description="x",
+            item_id=GRIP.id,
+        )
+
+
+def test_only_a_carriage_change_names_where_the_item_went() -> None:
+    """Detaching has no carriage at all and picking up always arrives held, so a carriage on
+    either would describe a destination its transition ignores."""
+    with pytest.raises(ValueError, match="names where the item went"):
+        Effect(
+            kind=EffectKind.OBJECT_DETACHED,
+            target_id="pc",
+            amount=0,
+            description="x",
+            item_id=GRIP.id,
+            carriage=Carriage.STOWED,
+        )
+    with pytest.raises(ValueError, match="names where the item went"):
+        Effect(
+            kind=EffectKind.CARRIAGE_CHANGED,
+            target_id="pc",
+            amount=0,
             description="x",
             item_id=GRIP.id,
         )

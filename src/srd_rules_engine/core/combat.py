@@ -50,6 +50,9 @@ from srd_rules_engine.core.adjudicate import (
     Proposal,
     Resolver,
     action_spent,
+    carriage_changed,
+    object_detached,
+    object_picked_up,
 )
 from srd_rules_engine.core.d20 import (
     INITIATIVE_BAND,
@@ -66,12 +69,15 @@ from srd_rules_engine.core.equipment import Weapon as Weapon
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.obstructions import Cover, total_cover
 from srd_rules_engine.core.position import distance_feet, within
-from srd_rules_engine.core.read_surface import UNARMED_REACH_FEET as UNARMED_REACH_FEET
-from srd_rules_engine.core.read_surface import UNARMED_STRIKE_ID as UNARMED_STRIKE_ID
 from srd_rules_engine.core.read_surface import (
+    ATTACK_DROP,
+    ATTACK_EQUIP,
     attack_declared,
+    attack_swap_declared,
     bonus_attack_declared,
 )
+from srd_rules_engine.core.read_surface import UNARMED_REACH_FEET as UNARMED_REACH_FEET
+from srd_rules_engine.core.read_surface import UNARMED_STRIKE_ID as UNARMED_STRIKE_ID
 from srd_rules_engine.core.rules import (
     Rule,
     RuleProvenance,
@@ -146,7 +152,17 @@ def attack_resolver() -> Resolver:
         facts: Mapping[str, Resolution],
     ) -> Proposal:
         actor = state.combatant(declaration.actor_id)
-        wielded, target_id, is_bonus = _weapon_and_target(actor, declaration)
+        # p. 177's swap is settled before the weapon is looked up, because an equip may be
+        # what puts the weapon in hand: "If you equip a weapon before an attack, you don't
+        # need to use it for that attack" — but you may, and then the attack names something
+        # the creature is not yet holding. The lookup therefore runs against the creature as
+        # it **will be**, projected through the engine's own transitions rather than a second
+        # copy of their logic. The projected state is read and discarded; `_apply` performs
+        # the move for real, from the effects returned below.
+        before, after = _swap_effects(state, actor, declaration)
+        wielded, target_id, is_bonus = _weapon_and_target(
+            _after_equipping(state, before).combatant(declaration.actor_id), declaration
+        )
         assert isinstance(wielded.item, Weapon)
         weapon = wielded.item
         target = state.combatant(target_id)
@@ -202,7 +218,12 @@ def attack_resolver() -> Resolver:
             # part of the Attack action" (p. 177) would need the Action charged once for
             # several rolls. There is nothing to model it with today, and the day there is,
             # this is the line that has to change.
+            # p. 177's swap applies whether or not the attack lands — it is licensed by
+            # *making* an attack, not by hitting — so it rides in `always` beside the action
+            # charge. Equips precede the charge and unequips follow it, which is the derived
+            # ordering `_swap_effects` documents.
             always=(
+                *before,
                 action_spent(
                     declaration.actor_id,
                     ActionKind.BONUS_ACTION if is_bonus else ActionKind.ACTION,
@@ -216,6 +237,7 @@ def attack_resolver() -> Resolver:
                     # the record *buys*, not what it records.
                     weapon_id=None if is_bonus else weapon.id,
                 ),
+                *after,
             ),
             test=D20Test(
                 kind=TestKind.ATTACK,
@@ -392,6 +414,89 @@ def unarmed_strike_resolver() -> Resolver:
     return resolve
 
 
+def _after_equipping(state: EncounterState, before: tuple[Effect, ...]) -> EncounterState:
+    """`state` with p. 177's pre-attack equip already performed, for the weapon lookup only.
+
+    The transitions are the engine's own, so the projection cannot drift from what `_apply`
+    will do — a second implementation of "the item is now held" is exactly the kind of
+    duplicate that stays right until one of them is fixed.
+    """
+    for effect in before:
+        assert effect.item_id is not None  # only the item kinds reach here
+        if effect.kind is EffectKind.OBJECT_PICKED_UP:
+            state = state.with_object_picked_up(effect.target_id, effect.item_id)
+        elif effect.kind is EffectKind.CARRIAGE_CHANGED:
+            assert effect.carriage is not None
+            state = state.with_carriage_changed(effect.target_id, effect.item_id, effect.carriage)
+    return state
+
+
+def _swap_effects(
+    state: EncounterState, actor: Combatant, declaration: Declaration
+) -> tuple[tuple[Effect, ...], tuple[Effect, ...]]:
+    """p. 177's one equip or unequip, as `(before the attack, after it)`.
+
+    **The ordering is derived, not declared** — 0042 clause 2 one level down. An equip
+    resolves *before*, because the creature has to be holding the weapon for the attack to
+    name it; an unequip resolves *after*, because unequipping first would leave nothing to
+    swing. Neither is a choice the agent makes, and neither loses anything p. 177 permits:
+    "you don't need to use it for that attack" makes equip-before-and-unused identical to
+    equip-after, and an unequip before an attack with a *different* weapon reaches the same
+    end state as one after it.
+
+    Refusals are the same shape the weapon lookup uses: an item the creature does not have in
+    the place the swap assumes is an offer the read surface never made.
+    """
+    swap = attack_swap_declared(declaration.intent.action_key)
+    if swap is None:
+        return (), ()
+    _weapon_id, _target_id, item_id, kind = swap
+
+    if kind == ATTACK_EQUIP:
+        if any(o.item.id == item_id for o in state.detached_objects):
+            return (
+                object_picked_up(
+                    actor.id, item_id, description=f"{actor.name} picks up {item_id}: p. 177"
+                ),
+            ), ()
+        stowed = {c.item.id for c in actor.equipment if c.carriage is Carriage.STOWED}
+        if item_id not in stowed:
+            raise ValueError(
+                f"{item_id!r} is neither stowed nor on the ground, so there is nowhere for "
+                "p. 177's equip to draw it from. Equipping what is already held would be a "
+                "move the read surface never offered"
+            )
+        return (
+            carriage_changed(
+                actor.id,
+                item_id,
+                Carriage.HELD,
+                description=f"{actor.name} draws {item_id}: p. 177",
+            ),
+        ), ()
+
+    held = {c.item.id for c in actor.equipment if c.carriage is Carriage.HELD}
+    if item_id not in held:
+        raise ValueError(
+            f"{item_id!r} is not held, so there is nothing for p. 177's unequip to put away. "
+            "Sheathing, stowing and dropping all start from a hand"
+        )
+    if kind == ATTACK_DROP:
+        # p. 177's third destination leaves the creature entirely, and the object arrives
+        # unplaced because no rule says where it lands (0041 clause 4).
+        return (), (
+            object_detached(actor.id, item_id, description=f"{actor.name} drops {item_id}: p. 177"),
+        )
+    return (), (
+        carriage_changed(
+            actor.id,
+            item_id,
+            Carriage.STOWED,
+            description=f"{actor.name} stows {item_id}: p. 177",
+        ),
+    )
+
+
 def _weapon_and_target(actor: Combatant, declaration: Declaration) -> tuple[Carried, str, bool]:
     """Which weapon this attack swung, and at whom, read off the key the surface offered.
 
@@ -401,7 +506,11 @@ def _weapon_and_target(actor: Combatant, declaration: Declaration) -> tuple[Carr
     """
     key = declaration.intent.action_key
     bonus = bonus_attack_declared(key)
-    declared = bonus or attack_declared(key)
+    swap = attack_swap_declared(key)
+    # p. 177's swap keys name the same attack with one weapon moved, so the weapon and target
+    # are read from them the same way (0042 clauses 1 and 3). The move itself is the ruling's
+    # effect, built by `_swap_effects`.
+    declared = bonus or (swap[:2] if swap else None) or attack_declared(key)
     if declared is None:
         raise ValueError(
             "this declaration is not an attack: an attack names the weapon and the target "

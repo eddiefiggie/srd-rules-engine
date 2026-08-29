@@ -25,6 +25,8 @@ from srd_rules_engine.core.d20 import Advantage
 from srd_rules_engine.core.equipment import Carriage, Carried, DetachedObject, Item
 from srd_rules_engine.core.position import MovementMode, Position, Speeds
 from srd_rules_engine.core.read_surface import (
+    ATTACK_DROP,
+    ATTACK_STOW,
     DISENGAGE,
     DODGE,
     END_TURN,
@@ -33,6 +35,7 @@ from srd_rules_engine.core.read_surface import (
     LegalAction,
     Verdict,
     attack_key,
+    attack_swap_key,
     dash_key,
     issue_token,
     legal_actions,
@@ -157,6 +160,12 @@ def test_the_active_combatant_is_offered_actions() -> None:
         # with empty hands is still offered the strike.
         attack_key(UNARMED_STRIKE_ID, "boar"),
         attack_key(FIXTURE_BLADE.id, "boar"),
+        # p. 177's one equip or unequip, offered against the attack that permits it (#283,
+        # 0042 clause 3). The blade is held, so its two unequip destinations are offered and
+        # its equip is not — you cannot draw what is already in your hand. Nothing is stowed
+        # and nothing is on the ground, so those two sources contribute nothing here.
+        attack_swap_key(FIXTURE_BLADE.id, "boar", FIXTURE_BLADE.id, swap=ATTACK_STOW),
+        attack_swap_key(FIXTURE_BLADE.id, "boar", FIXTURE_BLADE.id, swap=ATTACK_DROP),
         dash_key(MovementMode.WALK),
         DODGE,
         DISENGAGE,

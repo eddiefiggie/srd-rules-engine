@@ -229,11 +229,30 @@ class EffectKind(StrEnum):
     #: repository ships no magic items (R31). A field nothing sets is the decay #228, #215
     #: and #252 each found, so the rule that needs one brings it.
     OBJECT_DETACHED = "object-detached"
+    #: An item moved between carriages the creature already keeps it in (p. 177, 0042
+    #: clause 4): "drawing it from a sheath", "sheathing, stowing". `item_id` names which and
+    #: `carriage` says where it went. The item never leaves the creature, which is what
+    #: separates it from `OBJECT_DETACHED`.
+    CARRIAGE_CHANGED = "carriage-changed"
+    #: A detached object taken into a creature's hands (p. 177, 0042 clause 4) — "picking it
+    #: up", which is `OBJECT_DETACHED` run backwards. It arrives `HELD`, because p. 177 puts
+    #: this in a sentence about *equipping* a weapon.
+    OBJECT_PICKED_UP = "object-picked-up"
 
 
 #: The kinds that carry a condition rather than a number. Named because three places have
 #: to agree on the split, and a membership test repeated at each of them is one that drifts.
 CONDITION_KINDS: Final = frozenset({EffectKind.CONDITION_APPLIED, EffectKind.CONDITION_ENDED})
+
+#: The kinds that name an item rather than a number. Named for `CONDITION_KINDS`' reason:
+#: three places agree on the split, and a membership test repeated at each drifts.
+ITEM_KINDS: Final = frozenset(
+    {
+        EffectKind.OBJECT_DETACHED,
+        EffectKind.CARRIAGE_CHANGED,
+        EffectKind.OBJECT_PICKED_UP,
+    }
+)
 
 
 class When(StrEnum):
@@ -323,10 +342,13 @@ class Effect:
     #: `None` for every other action, and for an attack whose weapon does not matter to any
     #: rule the engine holds.
     weapon_id: str | None = None
-    #: `OBJECT_DETACHED` only: which item left the creature (0041 clause 7). By id, because
-    #: that is what a declaration names and what the ledger records — the same identity
-    #: `Item.id` carries everywhere else.
+    #: The three item kinds only: which item moved (0041 clause 7, 0042 clause 4). By id,
+    #: because that is what a declaration names and what the ledger records — the same
+    #: identity `Item.id` carries everywhere else.
     item_id: str | None = None
+    #: `CARRIAGE_CHANGED` only: where the item went. The other two say it by their kind —
+    #: detaching has no carriage at all, and picking up always arrives `HELD`.
+    carriage: Carriage | None = None
     #: 0032 clauses 1-3. When set, this effect applies only if the predicate holds against
     #: what a **sibling** effect in the same branch settled to — and `_apply` is the only
     #: place that can ask, because it is the only place the settled number exists.
@@ -366,11 +388,17 @@ class Effect:
                 "weapon the Attack *action* was spent on, so the weapon travels with the "
                 "action and nowhere else"
             )
-        if (self.kind is EffectKind.OBJECT_DETACHED) != (self.item_id is not None):
+        if (self.kind in ITEM_KINDS) != (self.item_id is not None):
             raise ValueError(
-                "an object-detached effect names the item that left, and no other kind "
-                "carries one. An unnamed detachment could not be applied, and an item id "
-                "riding on another kind would be a change no transition performs"
+                f"a {self.kind} effect names the item it moves, and only the item kinds "
+                "carry one. An unnamed move could not be applied, and an item id riding on "
+                "another kind would be a change no transition performs"
+            )
+        if (self.kind is EffectKind.CARRIAGE_CHANGED) != (self.carriage is not None):
+            raise ValueError(
+                "a carriage-changed effect names where the item went, and no other kind "
+                "does. Detaching has no carriage at all and picking up always arrives held, "
+                "so a carriage on either would describe a destination its transition ignores"
             )
         if (self.kind is EffectKind.ACTION_SPENT) != (self.action is not None):
             raise ValueError(
@@ -449,6 +477,31 @@ def object_detached(target_id: str, item_id: str, *, description: str) -> Effect
     """
     return Effect(
         kind=EffectKind.OBJECT_DETACHED,
+        target_id=target_id,
+        amount=0,
+        description=description,
+        item_id=item_id,
+    )
+
+
+def carriage_changed(
+    target_id: str, item_id: str, carriage: Carriage, *, description: str
+) -> Effect:
+    """An item sheathed, stowed or drawn (p. 177, 0042 clause 4)."""
+    return Effect(
+        kind=EffectKind.CARRIAGE_CHANGED,
+        target_id=target_id,
+        amount=0,
+        description=description,
+        item_id=item_id,
+        carriage=carriage,
+    )
+
+
+def object_picked_up(target_id: str, item_id: str, *, description: str) -> Effect:
+    """A detached object taken into a creature's hands (p. 177, 0042 clause 4)."""
+    return Effect(
+        kind=EffectKind.OBJECT_PICKED_UP,
         target_id=target_id,
         amount=0,
         description=description,
@@ -1423,6 +1476,12 @@ def _apply(
         elif effect.kind is EffectKind.OBJECT_DETACHED:
             assert effect.item_id is not None  # __post_init__ refuses one without
             state = state.with_object_detached(effect.target_id, effect.item_id)
+        elif effect.kind is EffectKind.CARRIAGE_CHANGED:
+            assert effect.item_id is not None and effect.carriage is not None
+            state = state.with_carriage_changed(effect.target_id, effect.item_id, effect.carriage)
+        elif effect.kind is EffectKind.OBJECT_PICKED_UP:
+            assert effect.item_id is not None
+            state = state.with_object_picked_up(effect.target_id, effect.item_id)
         elif effect.kind is EffectKind.EXHAUSTION_GAINED:
             # 0028 clause 1: the level carries the rule that caused it, and the ruling's
             # own rule is that rule. Taking it from here rather than from the effect keeps
