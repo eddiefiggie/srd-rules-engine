@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08292026.14` — **p. 89-90's nine weapon properties are complete.** [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273) builds [0044](docs/decisions/0044-a-quantity-is-a-fact-about-the-creature.md): a count rides on `Carried` rather than on `Item` or a subtype, because two creatures may hold different numbers of the same thing — the third time a fact about the creature was found sitting on the item, after `proficient` and the grip. **So 0040's watch on the `isinstance` chain closes without the chain forming.** Having ammunition is a *condition of the attack*, so the shot is not offered rather than refused afterwards, and the rolls a Multiattack bought stay on the menu while the quiver empties. The piece is spent on a miss too — p. 89 does not return the arrow. **An unstated hand count does not block the load**, following the direction `Combatant.__post_init__` already set for Two-Handed: an unstated count cannot be exceeded. The used-tally is the **first per-encounter structure** on `EncounterState` — six beside it clear with the turn and this one does not, because p. 89 recovers half of what was *used* and that is not derivable from what remains. Nothing reads it yet ([#301](https://github.com/eddiefiggie/srd-rules-engine/issues/301)), and it is recorded now because a tally started later cannot recover what it did not see. **100 of 209 -> 101 of 209**, and weapon properties reach **9 of 9**. 218 clauses. 1583 tests.
+**Current build:** `08292026.15` — **0042 was right to disclose and this record is right not to, and the difference is what the engine can now be caught doing.** [0045](docs/decisions/0045-one-object-interaction-a-turn-and-the-action-buys-more.md) settles [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288)'s design and closes the remaining half of 0042 clause 6. Same silence, same two readings — p. 13 grants one object interaction a turn, p. 177 one swap per attack, and nothing composes them — but **building the second route turns a question nobody could observe into one a player can**, and a disclosure the engine can be caught contradicting is a way of not deciding. So one allowance: p. 177's swap **is** p. 13's free interaction, which is 0043 clause 3's intersection applied a second time, and Utilize spends the Action for another. **That is a property of the pair — rule, and what the engine can do — rather than of the rule**, which is the instinct worth correcting. Also: 0042's accepted cost that a creature cannot sheathe a sword on a quiet turn is lifted. **And the sweep was wrong twice before it was right** — `Utilize` is on 29 pages, not the handful the decision was written from, and three of them are mechanics rather than content: p. 14's GM escalation, p. 177's Breaking Objects, p. 139's Haste. Second record running whose Evidence section caught its own sweep. 218 clauses -> 220, one proved red. **101 of 209, unmoved** — this decides, [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) builds and stays open. 1583 tests.
 
 ---
 
@@ -224,10 +224,10 @@ one, and the plan is amended to match:
   payload derives `compat` from its own schema version
   (closed [#106](https://github.com/eddiefiggie/srd-rules-engine/issues/106))
 
-**Next up:** [#301](https://github.com/eddiefiggie/srd-rules-engine/issues/301) — p. 89's ammunition recovery, which needs a route for
-encounter-scoped narrative facts. p. 14 *does* say when combat ends, and three of its five
-conditions are judgements about the fiction, so the engine may evaluate none of it. Then
-[#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288), which inherits a narrower question than it was filed with.
+**Next up:** [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) — building what 0045 settled: one object interaction a turn
+with p. 177's swap counting as it, the four moves offered standalone, and Utilize spending
+the Action for another. It lifts 0042's accepted cost and retires two disclosed clauses
+together. Then [#301](https://github.com/eddiefiggie/srd-rules-engine/issues/301), which needs a route for encounter-scoped narrative facts.
 
 ## Development
 
@@ -277,4 +277,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-29 — build `08292026.14`._
+_Last updated: 2026-08-29 — build `08292026.15`._
