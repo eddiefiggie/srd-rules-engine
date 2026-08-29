@@ -183,10 +183,8 @@ In the tree:
 
 ## Status of implementation
 
-**Clauses 1-4 and 7 are built** by
-[#257](https://github.com/eddiefiggie/srd-rules-engine/issues/257); clauses 5 and 6 are
-decided and tracked by [#258](https://github.com/eddiefiggie/srd-rules-engine/issues/258) and
-[#259](https://github.com/eddiefiggie/srd-rules-engine/issues/259).
+**Clauses 1-5 and 7 are built** — 1-4 and 7 by [#257](https://github.com/eddiefiggie/srd-rules-engine/issues/257), clause 5 by
+[#258](https://github.com/eddiefiggie/srd-rules-engine/issues/258). Clause 6 is decided and tracked by [#259](https://github.com/eddiefiggie/srd-rules-engine/issues/259).
 
 **What the build found that this record did not.** Clause 4 said hands are counted and did not
 say where the count comes from — and **no rule in SRD v5.2.1 states how many hands a creature
@@ -201,7 +199,7 @@ would have looked like common sense.
 | 2 — the engine holds weight, hands, and the two component flags | **Built.** `Item` has exactly those five fields, and a test pins the set so a sixth cannot arrive quietly |
 | 3 — worn, held or stowed, as one closed field | **Built** as `Carriage`, defaulting to stowed — the direction that cannot invent a free hand or armour nobody put on |
 | 4 — hands are counted, and one free hand serves both S and M | **Built, and the clause gained a finding.** The count is `int \| None` because **no SRD rule states how many hands a creature has** — the record assumed one could be held and did not say where the number comes from. p. 105's shared-hand sentence is now an asserted verifier clause. The check that reads it is still [#245](https://github.com/eddiefiggie/srd-rules-engine/issues/245) |
-| 5 — a weapon is equipment | **Decided, not built.** [#258](https://github.com/eddiefiggie/srd-rules-engine/issues/258) |
+| 5 — a weapon is equipment | **Built.** `Weapon` is a keyword-only subtype of `Item` and rides on `Combatant.equipment`; [0040](0040-a-weapon-is-an-item-and-proficiency-is-the-wielders.md) settled the shape and [#258](https://github.com/eddiefiggie/srd-rules-engine/issues/258) built it |
 | 6 — Size is the creature's, not the equipment's | **Decided, not built.** [#259](https://github.com/eddiefiggie/srd-rules-engine/issues/259), which is what `carrying-capacity` is actually blocked on |
 | 7 — what is still unchecked, disclosed | **Built.** `core.equipment`'s docstring names attunement, item charges, carrying capacity, weapons and armour training, each pointing at its issue; guarded |
 
@@ -209,3 +207,9 @@ would have looked like common sense.
 and #19 stays open as the umbrella.
 
 _Written 2026-08-28 against SRD v5.2.1._
+
+_Corrected 2026-08-29 ([#291](https://github.com/eddiefiggie/srd-rules-engine/issues/291)). Clause 5 read "**Decided, not built.** #258" from the
+day #258 merged until an audit compared every "not built" row against live issue state. The row
+cited a **closed** issue for work that had shipped — which reads as finished and as absent at
+the same time, and is the defect #291 exists to make mechanically detectable. Nothing about the
+decision changed; only this section, which is the one part of a record that moves._

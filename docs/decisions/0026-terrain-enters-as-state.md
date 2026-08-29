@@ -180,7 +180,7 @@ No spike. #151 asked for one check and it decided the record:
 | 1 — obstructions are state | Built. `EncounterState.obstructions`, and the composed question is `EncounterState.creatures_in(area)`. `core.areas` no longer has a `creatures_in` at all — the composition moved rather than gaining a parameter, so `Area.contains` stays pure volume |
 | 2 — the route follows what the input can become | Nothing to build; it is the reasoning clause 1 rests on |
 | 3 — one box, carried by both | Built. `core.position.Box` holds the corners, their normalisation and `contains`; `Obstruction` adds `blocks` and `LitVolume` adds `level`. Two guards: both are `Box` subclasses, and neither redefines the shared geometry — a shadowing `contains` would be the duplication back while the subclass check still passed |
-| 4 — replay is not an argument, and terrain reaches it via the entry | Not built, and deliberately not part of clause 1. [#159](https://github.com/eddiefiggie/srd-rules-engine/issues/159) |
+| 4 — replay is not an argument, and terrain reaches it via the entry | **Holds, and needed no code.** [#159](https://github.com/eddiefiggie/srd-rules-engine/issues/159) asked for it once anything read terrain into a roll; by the time it was checked something did, and the gap had not opened — `replay_entry` takes no `EncounterState`, so nothing can hand it terrain to record even by accident. Proved at one seed and held by a test ([#213](https://github.com/eddiefiggie/srd-rules-engine/issues/213)) |
 | 5 — supplying none still means none exist | Built as the field's default and its own test. An `EncounterState` with an empty tuple describes an open field |
 
 The route is a guard rather than a note: `test_no_area_query_lets_a_caller_supply_the_walls`
@@ -195,3 +195,9 @@ saying "Decided, not built", which was true for about an hour._
 
 **No effect shape is resolved by any of it.** Coverage stays at 76 of 211, and #138 stays open for
 the nine sight shapes it was already blocked on.
+
+_Corrected 2026-08-29 ([#291](https://github.com/eddiefiggie/srd-rules-engine/issues/291)). Clause 4 read "Not built" while citing a **closed**
+#159, which had been resolved as *already-correct* — the outcome `AGENTS.md` insists still gets
+recorded, because "no code change" is a result rather than the absence of one. The issue was
+closed with its evidence and the row was never updated, so the clause read as outstanding work
+for three days. Found by the same audit as 0039's clause 5._
