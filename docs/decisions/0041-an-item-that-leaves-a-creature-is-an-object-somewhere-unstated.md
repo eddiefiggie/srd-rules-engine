@@ -265,7 +265,7 @@ work** — the closing keyword and the tracking pointer cannot be the same numbe
 | 3 — detached objects ride on `EncounterState` | **Built.** `EncounterState.detached_objects`, beside `obstructions` and `lighting` ([#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279)) |
 | 4 — position is `Position \| None`, never defaulted | **Built.** `DetachedObject.position`, with `reachable_objects` returning `None` for a positionless actor and `unplaced_objects` naming what no rule placed ([#279](https://github.com/eddiefiggie/srd-rules-engine/issues/279)) |
 | 5 — dropping and throwing share a vocabulary and not a destination | **Decided.** Records why clause 4 refuses; nothing to build |
-| 6 — pick-up is p. 12's object interaction and p. 177's equip | **Decided, not built.** [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) — *not* #265, which this record closed |
+| 6 — pick-up is p. 12's object interaction and p. 177's equip | **Built** by [#283](https://github.com/eddiefiggie/srd-rules-engine/issues/283) — *not* #265, which this record closed. p. 13's standalone route followed in [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) |
 | 7 — detachment happens through a ruling | **Built.** `EffectKind.OBJECT_DETACHED` and `EncounterState.with_object_detached`; p. 191's drop is derived by the engine when Unconscious lands, and its `drops-what-it-holds` disclosure is retired ([#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280)) |
 
 **#265 and #272 are closed by this record**, and each was re-filed as the build it unblocks:

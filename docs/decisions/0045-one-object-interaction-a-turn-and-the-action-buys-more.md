@@ -184,17 +184,21 @@ In the tree:
 
 ## Status of implementation
 
-**Nothing here is built.** This record decides;
-[#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) builds clauses 1 to 6 and
-**remains open**.
+**Every clause is built** by [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288).
+
+_Corrected 2026-08-29 ([#291](https://github.com/eddiefiggie/srd-rules-engine/issues/291)). These rows said "Decided, not built" over a closed
+#288 from the moment that PR merged — one of twelve such rows across three records that
+`scripts/check_status_rows.py` found on its first run, all of them created the same day by
+builds whose records nobody went back to. That is the defect #291 was filed for, caught by the
+guard #291 asked for, on work that postdates the issue._
 
 | Clause | State |
 |---|---|
-| 1 — one object interaction a turn, and p. 177's swap is one | **Decided, not built.** [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288), the clause this record exists for |
-| 2 — the four moves are the same four | **Decided, not built.** [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) |
-| 3 — Utilize spends the Action for another | **Decided, not built.** [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) |
-| 4 — no Action, no Utilize | **Decided, not built.** [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) |
-| 5 — what Utilize does not reach is disclosed | **Decided, not built.** [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288) |
-| 6 — an unplaced object stays unreachable | **Decided, not built.** [#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288); 0041 clause 4 already holds the reasoning |
+| 1 — one object interaction a turn, and p. 177's swap is one | **Built.** `object_interactions_this_turn`, renamed from `swaps_this_turn` because the allowance now records either route ([#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288)) |
+| 2 — the four moves are the same four | **Built.** `_interaction_options` is shared by the attack route and the standalone one, so they cannot drift ([#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288)) |
+| 3 — Utilize spends the Action for another | **Built.** The same moves reappear under `utilize:` once the free one is gone ([#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288)) |
+| 4 — no Action, no Utilize | **Built** ([#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288)) |
+| 5 — what Utilize does not reach is disclosed | **Built** as `utilize-reaches-only-the-engines-object-moves` ([#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288)) |
+| 6 — an unplaced object stays unreachable | **Built**, and inherited rather than re-decided: `reachable_objects` already refused it ([#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288)) |
 
 _Written 2026-08-29 against SRD v5.2.1._

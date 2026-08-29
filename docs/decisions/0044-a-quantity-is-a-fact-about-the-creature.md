@@ -195,11 +195,17 @@ In the tree:
 
 | Clause | State |
 |---|---|
-| 1 — a quantity rides on `Carried` | **Decided, not built.** [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273), the clause this record exists for |
-| 2 — which ammunition a weapon needs is content, by id | **Decided, not built.** [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273) |
-| 3 — firing expends one, and firing without any is not offered | **Decided, not built.** [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273) |
-| 4 — the free hand is p. 105's question again | **Decided, not built.** [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273) |
+| 1 — a quantity rides on `Carried` | **Built** as `Carried.quantity`, the third fact about the creature found sitting on the item ([#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273)) |
+| 2 — which ammunition a weapon needs is content, by id | **Built** as `Weapon.ammunition_id` ([#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273)) |
+| 3 — firing expends one, and firing without any is not offered | **Built.** Legality (R18), so the shot leaves the menu while a Multiattack's rolls remain ([#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273)) |
+| 4 — the free hand is p. 105's question again | **Built.** A known zero blocks a one-handed weapon; an unstated count does not (R31) ([#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273)) |
 | 5 — p. 14's test is stated, and the engine may evaluate none of it | **Built.** `ammunition_recovery_resolver` accepts the claim that the fight ended and says in its narration bounds that it did not check — refusing on p. 14's two observable conditions would overrule the agent on the three it cannot see ([#301](https://github.com/eddiefiggie/srd-rules-engine/issues/301)) |
-| 6 — the used-tally is the first per-encounter structure | **Decided, not built.** [#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273) |
+| 6 — the used-tally is the first per-encounter structure | **Built** as `ammunition_used`, which does not clear when the turn advances ([#273](https://github.com/eddiefiggie/srd-rules-engine/issues/273)) |
 
 _Written 2026-08-29 against SRD v5.2.1._
+
+_Corrected 2026-08-29 ([#291](https://github.com/eddiefiggie/srd-rules-engine/issues/291)). Clauses 1-4 and 6 read "Decided, not built" over a
+closed #273 from the moment that PR merged. Found by `scripts/check_status_rows.py` on its
+first run, along with eleven more across 0041 and 0045 — every one created the same day, by a
+build whose record nobody went back to._
+

@@ -63,6 +63,24 @@ nothing was built over an engine that had shipped
 author's job, and the issue number is what makes the claim checkable by someone who was not
 there.
 
+**One half of that truth is now machine-checked.** The **Status rows cite open issues** CI job
+runs `scripts/check_status_rows.py`, which fails when a table row says a clause is `not built`
+while the issue holding it is **closed** — the state `AGENTS.md` calls worse than unfiled,
+because it reads as finished work and as absent work at once. It also fails on an issue number
+that does not exist, which is otherwise a dead link nobody follows.
+
+It keys on `|`-delimited **table rows**, not on the phrase. 0027's section ends with a dated
+append narrating *"This record shipped saying 'Decided, not built'"* and correctly citing
+closed issues; a guard keyed on the phrase would flag it forever, and loosening the phrase to
+suppress it would blind the guard to real rows. Both directions are asserted in
+`tests/test_status_rows.py`, which is hermetic — the network half lives in the script.
+
+**The mirror is still yours.** An *open* issue sitting over work that shipped reads as
+outstanding, and no guard can catch it: "is this clause built" is the judgement the presence
+test deliberately declines to make. That direction was met by hand four times in one day
+([#277](https://github.com/eddiefiggie/srd-rules-engine/issues/277)/[#278](https://github.com/eddiefiggie/srd-rules-engine/issues/278), the 0039 and 0026 audit, and [#263](https://github.com/eddiefiggie/srd-rules-engine/issues/263)), which is the
+measure of what it costs.
+
 Two exceptions, both meaning **do not file**:
 
 - **A note recorded specifically so a later audit does not re-raise it.** Filing it re-raises
