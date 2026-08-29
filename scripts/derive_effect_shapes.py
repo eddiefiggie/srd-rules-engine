@@ -288,6 +288,7 @@ IMPLEMENTED_SECTION_SHAPES: frozenset[str] = frozenset(
         "weapon-two-handed",
         "weapon-versatile",
         "mastery-graze",
+        "mastery-nick",
         "split-movement",
         "weapon-range",
         "spell-slot",

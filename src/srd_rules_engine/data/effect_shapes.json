@@ -1420,7 +1420,7 @@
    "tag": null,
    "reference": "Equipment, p. 90 (Nick)",
    "kind": "weapon-mastery",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "mastery-push",

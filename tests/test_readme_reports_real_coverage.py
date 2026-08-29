@@ -66,6 +66,9 @@ NAMED_SLICES: dict[str, tuple[str, ...] | None] = {
     # because the row's job is to say which slices moved and this is the one that did. It was
     # "nine" until #316 found that the document defines ten and the inventory carried nine.
     "weapon properties": ("weapon-property",),
+    # p. 90's eight mastery properties (#320). Named once a second one landed and the row had
+    # a figure to state — Graze alone was not a slice anyone was tracking.
+    "weapon masteries": ("weapon-mastery",),
 }
 
 

@@ -54,6 +54,7 @@ from srd_rules_engine.core.adjudicate import (
     ammunition_spent,
     attack_made,
     carriage_changed,
+    extra_attack_made,
     loading_fired,
     object_detached,
     object_interacted,
@@ -85,6 +86,7 @@ from srd_rules_engine.core.read_surface import (
     attack_throw_declared,
     bonus_attack_declared,
     interaction_declared,
+    nick_attack_declared,
 )
 from srd_rules_engine.core.read_surface import UNARMED_REACH_FEET as UNARMED_REACH_FEET
 from srd_rules_engine.core.read_surface import UNARMED_STRIKE_ID as UNARMED_STRIKE_ID
@@ -170,11 +172,16 @@ def attack_resolver() -> Resolver:
         # copy of their logic. The projected state is read and discarded; `_apply` performs
         # the move for real, from the effects returned below.
         before, after = _swap_effects(state, actor, declaration)
-        wielded, target_id, is_bonus, is_thrown = _weapon_and_target(
+        wielded, target_id, is_bonus, is_nick, is_thrown = _weapon_and_target(
             _after_equipping(state, before).combatant(declaration.actor_id), declaration
         )
         assert isinstance(wielded.item, Weapon)
         weapon = wielded.item
+        # p. 89's extra attack, by whichever route. Every rule that asks "is this the extra
+        # attack" — its damage exception, and its exclusion from the Multiattack tally — is
+        # about p. 89 and not about the action carrying it, so p. 90's Nick answers yes to
+        # all of them and differs only in what it costs (#320).
+        is_extra = is_bonus or is_nick
         target = state.combatant(target_id)
         ability = actor.modifier(weapon.ability)
 
@@ -272,17 +279,25 @@ def attack_resolver() -> Resolver:
                             declaration.actor_id,
                             ActionKind.BONUS_ACTION if is_bonus else ActionKind.ACTION,
                             description=f"p. 90's one shot from {weapon.id}",
+                            # `is_bonus`, not `is_extra`: a Nick attack is made as part of the
+                            # **Action**, so its shot is charged there. No weapon in p. 91's
+                            # table has both Loading and Nick, so this is unreachable with SRD
+                            # content — and treating that as licence to skip the rule is how a
+                            # wrong one ships.
                         ),
                     )
                     if weapon.loading
                     else ()
                 ),
                 # p. 257 counts the rolls the *Attack action* bought. p. 89's extra attack is
-                # a **Bonus Action** — a separate action, which #271 verified against the tree
-                # — so it is an attack roll and not one of them.
+                # not one of them: by the Bonus Action route it is a separate action, which
+                # #271 verified against the tree, and by p. 90's Nick it is made "as part of"
+                # the Attack action without being bought by it — an **extra** attack either
+                # way. Counting the Nick route would quietly cost a Multiattack creature one
+                # of its rolls (#320).
                 *(
                     ()
-                    if is_bonus
+                    if is_extra
                     else (
                         attack_made(
                             declaration.actor_id,
@@ -294,6 +309,16 @@ def attack_resolver() -> Resolver:
                 # Attack action**", so the Action is spent once and buys them all. Charging it
                 # per roll is what `attack_resolver` has carried a comment about since the
                 # economy landed, naming this exact feature (0043 clause 1).
+                #
+                # **This clause is also what makes p. 90's Nick free**, and no separate
+                # `is_nick` test belongs here (#320). Nick puts the extra attack "as part of
+                # the Attack action", and an attack can only *be* part of an Attack action
+                # that was already taken — p. 89 requires one, and taking it emits the
+                # `ATTACK_MADE` this reads. So a Nick attack always arrives with the tally
+                # non-zero and the Action already charged. Adding `is_nick` here read as
+                # load-bearing and was unreachable: the corruption proof for it came back
+                # green, because the condition beside it was true in every case that reaches
+                # this line.
                 *(
                     ()
                     if not is_bonus and state.attacks_this_turn.get(declaration.actor_id, 0)
@@ -313,6 +338,26 @@ def attack_resolver() -> Resolver:
                             weapon_id=None if is_bonus else weapon.id,
                         ),
                     )
+                ),
+                # p. 89 grants **one** extra attack, and p. 90 re-routes that same one rather
+                # than adding a second. The Bonus Action spend used to enforce that by itself;
+                # a Nick attack spends nothing, so the allowance is recorded explicitly (#320).
+                *(
+                    (
+                        extra_attack_made(
+                            declaration.actor_id,
+                            description=(
+                                f"p. 89's one extra Light attack with {weapon.id}, made "
+                                + (
+                                    "as part of the Attack action (p. 90, Nick)"
+                                    if is_nick
+                                    else "as a Bonus Action"
+                                )
+                            ),
+                        ),
+                    )
+                    if is_extra
+                    else ()
                 ),
                 *after,
                 # p. 90: the weapon is *thrown*, so it ends the attack out of the creature's
@@ -377,7 +422,7 @@ def attack_resolver() -> Resolver:
                     # dropped and a negative one is kept — an implementation that simply
                     # dropped it would be wrong for every creature with a penalty, and wrong
                     # in the direction that helps them. The *attack roll* keeps it either way.
-                    modifier=(min(0, ability) if is_bonus else ability) + weapon.bonus,
+                    modifier=(min(0, ability) if is_extra else ability) + weapon.bonus,
                     source=weapon.id,
                 ),
             ),
@@ -771,7 +816,7 @@ def _swap_effects(
 
 def _weapon_and_target(
     actor: Combatant, declaration: Declaration
-) -> tuple[Carried, str, bool, bool]:
+) -> tuple[Carried, str, bool, bool, bool]:
     """Which weapon this attack swung, and at whom, read off the key the surface offered.
 
     The key names both since #258, and the weapon is looked up in what the creature is
@@ -780,12 +825,16 @@ def _weapon_and_target(
     """
     key = declaration.intent.action_key
     bonus = bonus_attack_declared(key)
+    # p. 90's Nick: the same extra attack of p. 89, carried by the Attack action instead of
+    # the Bonus Action (#320). It is `extra` for every rule that asks "is this p. 89's extra
+    # attack" — the damage exception, the Multiattack tally — and differs only in the cost.
+    nick = nick_attack_declared(key)
     thrown = attack_throw_declared(key)
     swap = attack_swap_declared(key)
     # p. 177's swap keys name the same attack with one weapon moved, so the weapon and target
     # are read from them the same way (0042 clauses 1 and 3). The move itself is the ruling's
     # effect, built by `_swap_effects`.
-    declared = bonus or thrown or (swap[:2] if swap else None) or attack_declared(key)
+    declared = bonus or nick or thrown or (swap[:2] if swap else None) or attack_declared(key)
     if declared is None:
         raise ValueError(
             "this declaration is not an attack: an attack names the weapon and the target "
@@ -800,11 +849,18 @@ def _weapon_and_target(
     for carried in actor.equipment:
         if carried.carriage in allowed and carried.item.id == weapon_id:
             assert isinstance(carried.item, Weapon)
-            if bonus and not carried.item.light:
+            if (bonus or nick) and not carried.item.light:
                 raise ValueError(
                     f"{weapon_id!r} is not a Light weapon, and p. 89's extra attack is bought "
                     "by one and made with another. A bonus attack with anything else is an "
                     "attack the read surface never offered"
+                )
+            if nick and not (carried.item.nick and weapon_id in actor.mastery_weapons):
+                raise ValueError(
+                    f"{weapon_id!r} does not carry p. 90's Nick for this wielder, and Nick is "
+                    "what puts p. 89's extra attack inside the Attack action. Without it the "
+                    "extra attack costs the Bonus Action — a mastery property is usable only "
+                    "by a character who has a feature that unlocks it (p. 90, 0047)"
                 )
             if thrown is not None and not carried.item.thrown:
                 # p. 183: throwing a Melee weapon that lacks Thrown makes it an improvised
@@ -816,7 +872,7 @@ def _weapon_and_target(
                     "throwing one an improvised weapon whose damage type is the GM's to "
                     "choose. The engine has no way to supply that, so no throw is offered"
                 )
-            return carried, target_id, bonus is not None, thrown is not None
+            return carried, target_id, bonus is not None, nick is not None, thrown is not None
     raise ValueError(
         f"{actor.name} is not holding {weapon_id!r}. p. 177 attacks "
         '"with a weapon or an Unarmed Strike", and the read surface offers only weapons in '

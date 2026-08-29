@@ -726,6 +726,20 @@ class EncounterState:
     #: Action bought are left" and a set of actors cannot answer it — which is what separates
     #: this from the three structures above.
     attacks_this_turn: Mapping[str, int] = field(default_factory=dict)
+    #: Who has already made p. 89's one extra Light attack this turn, by either route (#320).
+    #:
+    #: **A fourth per-turn structure, and it exists because Nick removed the third's stand-in.**
+    #: Until p. 90's Nick, the Bonus Action spend *was* this record: a second extra attack was
+    #: refused because no Bonus Action remained. A Nick attack is made "as part of the Attack
+    #: action **instead of** as a Bonus Action" and spends nothing, so the old bookkeeping
+    #: stopped bookkeeping — nothing prevented a creature taking one extra attack by each
+    #: route. p. 89 grants "**one** extra attack" however it is made.
+    #:
+    #: Distinct from `light_attacks_this_turn`, which records the Attack-action attacks that
+    #: *bought* the extra one and with which weapon. This records that the extra one is spent.
+    #: 0036 clause 3 a fourth time: mechanisms agreeing about *when* are still different
+    #: mechanisms.
+    extra_attacks_this_turn: frozenset[str] = frozenset()
     #: Who has already spent this turn's one object interaction (0045 clause 1).
     #:
     #: **One allowance, two routes.** p. 13 grants "one object or feature of the environment
@@ -2019,6 +2033,18 @@ class EncounterState:
             object_interactions_this_turn=self.object_interactions_this_turn | {combatant_id}
         )
 
+    def with_extra_attack(self, combatant_id: str) -> EncounterState:
+        """Record p. 89's one extra Light attack as taken (#320).
+
+        Either route spends it — the Bonus Action one or p. 90's Nick — because p. 89 grants
+        one extra attack and p. 90 re-routes that same attack rather than adding another.
+        """
+        return self._evolve(extra_attacks_this_turn=self.extra_attacks_this_turn | {combatant_id})
+
+    def has_taken_extra_attack(self, combatant_id: str) -> bool:
+        """Whether p. 89's extra attack is already spent this turn (#320)."""
+        return combatant_id in self.extra_attacks_this_turn
+
     def attacks_remaining(self, combatant_id: str) -> int:
         """How many attack rolls this creature's Attack action still buys (p. 257).
 
@@ -2276,6 +2302,7 @@ class EncounterState:
                 discharged=frozenset(),
                 slots_expended_this_turn=frozenset(),
                 light_attacks_this_turn=frozenset(),
+                extra_attacks_this_turn=frozenset(),
                 attacks_this_turn={},
                 object_interactions_this_turn=frozenset(),
                 loading_shots_this_turn=frozenset(),
@@ -2287,6 +2314,7 @@ class EncounterState:
             discharged=frozenset(),
             slots_expended_this_turn=frozenset(),
             light_attacks_this_turn=frozenset(),
+            extra_attacks_this_turn=frozenset(),
             attacks_this_turn={},
             object_interactions_this_turn=frozenset(),
             loading_shots_this_turn=frozenset(),

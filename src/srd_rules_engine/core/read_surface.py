@@ -252,6 +252,33 @@ def bonus_attack_declared(action_key: str | None) -> tuple[str, str] | None:
     return weapon_id, target_id
 
 
+#: p. 90's Nick: the same extra attack, taken as part of the Attack action (#320).
+NICK_ATTACK: Final = "nick-attack"
+
+
+def nick_attack_key(weapon_id: str, target_id: str) -> str:
+    """The key p. 89's extra attack is offered under when Nick re-routes it (p. 90).
+
+    Its own prefix for the reason `bonus_attack_key` has one: the two differ in **what they
+    cost**. This one spends no action at all — p. 90 puts it "as part of the Attack action",
+    which was already spent buying the attack that triggered it — while the Bonus Action
+    route spends the Bonus Action. They deal the same damage under the same p. 89 exception,
+    and a resolver recovering which was chosen from the action economy afterwards would be
+    reading a consequence to recover a choice the engine already made.
+    """
+    return f"{NICK_ATTACK}:{weapon_id}:{target_id}"
+
+
+def nick_attack_declared(action_key: str | None) -> tuple[str, str] | None:
+    """The weapon and target a Nick-attack key names, or `None` if it is not one."""
+    if action_key is None or not action_key.startswith(f"{NICK_ATTACK}:"):
+        return None
+    weapon_id, _, target_id = action_key[len(NICK_ATTACK) + 1 :].rpartition(":")
+    if not weapon_id or not target_id:
+        return None
+    return weapon_id, target_id
+
+
 def attack_declared(action_key: str | None) -> tuple[str, str] | None:
     """The weapon and the target an attack key names, or `None` if it is not an attack.
 
@@ -1067,35 +1094,62 @@ def _light_bonus_attacks(state: EncounterState, actor: Combatant) -> tuple[Legal
     used = {weapon for who, weapon in state.light_attacks_this_turn if who == actor.id}
     if not used:
         return ()
-    if not actor.actions.available(ActionKind.BONUS_ACTION, actor.conditions):
+    # p. 89 grants "**one** extra attack", and p. 90's Nick re-routes that same attack rather
+    # than adding another — "as part of the Attack action **instead of** as a Bonus Action".
+    # Until Nick, the Bonus Action spend enforced this on its own (#320).
+    if state.has_taken_extra_attack(actor.id):
         return ()
+
+    has_bonus = actor.actions.available(ActionKind.BONUS_ACTION, actor.conditions)
 
     offered: list[LegalAction] = []
     for weapon in actor.weapons_held:
         if not weapon.light or weapon.id in used:
             continue
-        # p. 90 caps the Loading shot per **action used**, and this one spends the Bonus
-        # Action — a separate charge from the Attack action's, so a creature may fire once
-        # with each. Keying the cap per turn would refuse a shot the document allows (#271).
-        if weapon.loading and state.has_fired_loading(actor.id, str(ActionKind.BONUS_ACTION)):
+        # p. 90 makes every mastery property "usable only by a character who has a feature …
+        # that unlocks the property for the character" (0047 clause 6). Checked next to the
+        # property's own flag, which is where that clause puts it.
+        by_nick = weapon.nick and weapon.id in actor.mastery_weapons
+        if not has_bonus and not by_nick:
             continue
         for target in state.combatants:
             if target.id == actor.id or target.is_down:
                 continue
             if not _within_weapon_range(actor, weapon, target):
                 continue
-            offered.append(
-                LegalAction(
-                    key=bonus_attack_key(weapon.id, target.id),
-                    label=f"Bonus attack on {target.name} with {weapon.id}",
-                    detail={
-                        **_attack_detail(actor, weapon, target),
-                        # p. 89 drops the ability modifier from this attack's damage unless it
-                        # is negative, which an agent weighing the extra attack needs to know.
-                        "ability_modifier_on_damage": min(0, actor.modifier(weapon.ability)),
-                    },
+            detail = {
+                **_attack_detail(actor, weapon, target),
+                # p. 89 drops the ability modifier from this attack's damage unless it is
+                # negative, which an agent weighing the extra attack needs to know. The
+                # exception is p. 89's and applies whichever action carries the attack.
+                "ability_modifier_on_damage": min(0, actor.modifier(weapon.ability)),
+            }
+            # p. 90 caps the Loading shot per **action used**, so the two routes are charged
+            # against different actions: the Bonus Action one against the Bonus Action, and
+            # Nick's against the Action it is made as part of. Keying either per turn would
+            # refuse a shot the document allows (#271). No weapon in p. 91's table carries
+            # both Loading and Nick, so the second half is unreachable with SRD content — and
+            # inferring that it therefore needs no rule is how a wrong one ships.
+            if by_nick and not (
+                weapon.loading and state.has_fired_loading(actor.id, str(ActionKind.ACTION))
+            ):
+                offered.append(
+                    LegalAction(
+                        key=nick_attack_key(weapon.id, target.id),
+                        label=f"Extra attack on {target.name} with {weapon.id} (Nick)",
+                        detail={**detail, "costs": "nothing: part of the Attack action"},
+                    )
                 )
-            )
+            if has_bonus and not (
+                weapon.loading and state.has_fired_loading(actor.id, str(ActionKind.BONUS_ACTION))
+            ):
+                offered.append(
+                    LegalAction(
+                        key=bonus_attack_key(weapon.id, target.id),
+                        label=f"Bonus attack on {target.name} with {weapon.id}",
+                        detail={**detail, "costs": str(ActionKind.BONUS_ACTION)},
+                    )
+                )
     return tuple(offered)
 
 

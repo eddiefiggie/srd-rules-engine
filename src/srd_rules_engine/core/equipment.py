@@ -312,6 +312,25 @@ class Weapon(Item):
     reach: bool = False
     #: Graze (p. 90), a mastery property: damage on a miss equal to the ability modifier.
     graze: bool = False
+    #: Nick (p. 90), a mastery property: "When you make the extra attack of the Light
+    #: property, you can make it as part of the Attack action instead of as a Bonus Action.
+    #: You can make this extra attack only once per turn."
+    #:
+    #: **It belongs to the weapon making the extra attack**, not to the one that bought it.
+    #: Every mastery property in the section describes what happens when you attack *with
+    #: that weapon*, and p. 89's extra attack "must be made with a **different** Light
+    #: weapon" — so the weapon in question is that different one. p. 91's table corroborates
+    #: it: all four weapons carrying Nick — Dagger, Light Hammer, Sickle, Scimitar — are
+    #: **Light**, and no weapon that is not Light has it. On anything else the property would
+    #: describe an attack the wielder could not make with it.
+    #:
+    #: **No invariant ties this to a Light weapon**, for the reason `reach` and `loading`
+    #: carry no invariant either: p. 90 never says the property requires one, and asserting
+    #: it would be the inferred rule value #284 found already shipped in `Range`'s own check
+    #: (R31). It is simply unreachable on a weapon the extra attack cannot be made with.
+    #:
+    #: Usable only by a wielder whose `mastery_weapons` holds this weapon (p. 90, 0047).
+    nick: bool = False
     #: Ammunition (p. 89): the **id of the item this weapon fires**, or `None` for a weapon
     #: without the property. "You can use a weapon that has the Ammunition property to make a
     #: ranged attack **only if you have ammunition to fire from it**."
