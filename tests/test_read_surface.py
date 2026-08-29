@@ -22,7 +22,7 @@ from fixtures.ruleset import FIXTURE_BLADE
 from srd_rules_engine.core.actions import ActionBudget, ActionKind
 from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.d20 import Advantage
-from srd_rules_engine.core.equipment import Carriage, Carried
+from srd_rules_engine.core.equipment import Carriage, Carried, DetachedObject, Item
 from srd_rules_engine.core.position import MovementMode, Position, Speeds
 from srd_rules_engine.core.read_surface import (
     DISENGAGE,
@@ -37,6 +37,7 @@ from srd_rules_engine.core.read_surface import (
     issue_token,
     legal_actions,
     read,
+    situation,
     verify,
 )
 from srd_rules_engine.core.spellcasting import Concentration, SpellSlots
@@ -604,3 +605,66 @@ def test_the_surface_reports_no_concentration_once_a_condition_has_broken_it() -
     assert result.situation.concentrating_on is None, (
         "Stunned implies Incapacitated (R14), which p. 179 says ends Concentration"
     )
+
+
+# --- 0041: detached objects on the read surface (#279) ----------------------------------
+
+
+ORIGIN = Position(0, 0, 0)
+
+
+def _with_objects(*objects: DetachedObject, position: Position | None = ORIGIN) -> EncounterState:
+    actor = Combatant(
+        id="pc",
+        name="PC",
+        hit_points=10,
+        max_hit_points=10,
+        armour_class=12,
+        abilities={"str": 10, "dex": 10, "con": 10, "int": 10, "wis": 10, "cha": 10},
+        proficiency_bonus=2,
+        position=position,
+    )
+    return EncounterState(generation=1, combatants=(actor,), detached_objects=objects)
+
+
+def test_the_surface_refuses_reach_rather_than_reporting_none_in_reach() -> None:
+    """0041 clause 4. A creature with no position gets `None`, not an empty tuple.
+
+    The distinction is the whole discipline: an encounter that tracks no positions **cannot
+    answer**, and an empty list would report that it had computed distances and found
+    nothing. Same shape as `free_hands`, and for the same reason.
+    """
+    state = _with_objects(DetachedObject(Item(id="dagger"), Position(0, 0, 0)), position=None)
+    assert situation(state, "pc").reachable_objects is None
+
+
+def test_the_surface_names_the_objects_no_rule_has_placed() -> None:
+    """R32. "Out of reach" and "nobody said where it fell" are different answers, and one
+    empty list would render them identical — so the second is disclosed rather than left to
+    be inferred from an absence."""
+    situ = situation(_with_objects(DetachedObject(Item(id="lost-sword"))), "pc")
+    assert situ.reachable_objects == ()
+    assert situ.unplaced_objects == ("lost-sword",)
+
+
+def test_a_placed_object_within_reach_is_offered_as_a_fact() -> None:
+    """The fact, not the action. p. 177's equip and p. 12's object interaction are clause 6
+    and are #283 — this reports what is reachable and stops there."""
+    situ = situation(
+        _with_objects(
+            DetachedObject(Item(id="dagger"), Position(5, 0, 0)),
+            DetachedObject(Item(id="halberd"), Position(30, 0, 0)),
+        ),
+        "pc",
+    )
+    assert situ.reachable_objects == ("dagger",)
+    assert situ.unplaced_objects == ()
+
+
+def test_an_encounter_where_nobody_dropped_anything_reports_empty_rather_than_unknown() -> None:
+    """0026 clause 5's reading, carried over: an empty tuple means nobody has dropped
+    anything, which is the right answer for a scene where nobody has."""
+    assert EncounterState(generation=1, combatants=()).detached_objects == ()
+    situ = situation(_with_objects(), "pc")
+    assert situ.reachable_objects == ()
+    assert situ.unplaced_objects == ()

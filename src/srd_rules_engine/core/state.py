@@ -57,6 +57,7 @@ from srd_rules_engine.core.duration import (
 from srd_rules_engine.core.equipment import (
     Carriage,
     Carried,
+    DetachedObject,
     Item,
     Weapon,
     carried_weight,
@@ -597,6 +598,20 @@ class EncounterState:
     #: wrong one for a dungeon. The engine cannot tell those apart and does not pretend to;
     #: what 0026 changed is only *who* may say so, and when.
     obstructions: tuple[Obstruction, ...] = ()
+    #: Objects no creature has — dropped, thrown, or let go of by a rule (0041 clause 3).
+    #: State rather than an argument, for the reason `obstructions` and `lighting` are: an
+    #: input a caller hands over at the moment an outcome is computed is an input the caller
+    #: *chooses*, and choosing which objects are within reach is choosing whether a disarmed
+    #: creature can re-arm itself (0026 clause 1).
+    #:
+    #: **An empty tuple means nobody has dropped anything**, which is the right answer for a
+    #: scene where nobody has — the same reading `obstructions` carries under 0026 clause 5.
+    #:
+    #: Each object's `position` is `Position | None` and is never defaulted, because five
+    #: printed rules detach an item and not one says where it lands (0041 clause 4). Nothing
+    #: here puts an item into this tuple yet: detachment is an outcome and belongs to a
+    #: ruling, which is #280.
+    detached_objects: tuple[DetachedObject, ...] = ()
     #: Obligations already discharged during the current turn, as `(actor_id, rule_id)`
     #: (0023 clause 6, #110). Cleared by `advanced_turn`, because an obligation is owed
     #: once per turn rather than once per encounter.

@@ -188,6 +188,15 @@ def situation_payload(situation: object) -> dict[str, Any] | None:
         # ruleset that did not say leaves the question unanswerable rather than answered zero.
         "free_hands",
         "carried_weight",
+        # 0041 clauses 3 and 4. Both JSON-safe as they stand — tuples of item ids, and the
+        # first is `tuple[str, ...] | None` where the `None` is load-bearing in the same way
+        # `free_hands` above is: a creature with no position cannot be told what is within
+        # its reach, and an empty list would say nothing was.
+        "reachable_objects",
+        # R32. The objects no rule has placed, named rather than left to be inferred from
+        # their absence above — "out of reach" and "nobody said where it fell" are different
+        # answers that one empty list would render identical.
+        "unplaced_objects",
     )
     out: dict[str, Any] = {name: getattr(situation, name) for name in fields}
     # p. 188, #206: one shared spend, a different allowance per mode. A mode the creature

@@ -23,11 +23,15 @@ from srd_rules_engine.core import Combatant, EncounterState, read
 from srd_rules_engine.core.equipment import (
     Carriage,
     Carried,
+    DetachedObject,
     Item,
     carried_weight,
     free_hands,
     items_in,
+    reachable_objects,
+    unplaced_objects,
 )
+from srd_rules_engine.core.position import Position
 
 SWORD = Item(id="fixture:sword", weight=3.0, hands_when_held=1)
 GREATAXE = Item(id="fixture:greataxe", weight=7.0, hands_when_held=2)
@@ -360,3 +364,84 @@ def test_an_ordinary_item_is_not_a_weapon() -> None:
     """The discriminator is the subtype, not a flag — so a rope in hand offers no attack."""
     roped = creature(hands=2, equipment=(Carried(Item(id="fixture:rope"), Carriage.HELD),))
     assert roped.weapons_held == ()
+
+
+# --- 0041: an object no creature has (#279) ---------------------------------------------
+
+
+def test_a_detached_object_has_no_position_until_something_states_one() -> None:
+    """0041 clause 4. Five printed rules detach an item and **none says where it lands**.
+
+    p. 177's Attack action, p. 191's Unconscious, p. 90's Thrown, and the *Command* and
+    *Fear* spells on pp. 116 and 130. `None` is therefore the honest default and means
+    *nobody has said* — the reading `Combatant.position` and `Combatant.hands` already carry.
+    """
+    assert DetachedObject(Item(id="dagger")).position is None
+
+
+def test_nothing_defaults_a_dropped_object_to_its_holders_space() -> None:
+    """The default 0041 clause 5 exists to refuse, asserted rather than trusted.
+
+    "A dropped item is in your space" is the most plausible sentence in this area and is not
+    in the document: p. 217's Dancing Sword spends a clause saying "falls to the ground in
+    your space", which a general rule would make unnecessary. It is also wrong for the other
+    half of the vocabulary — p. 90 gives a thrown weapon a range in feet, so the thrower's
+    position is the one place the javelin certainly is not.
+
+    A future implementer wiring detachment (#280) has to state a position or leave it `None`;
+    this fails if a default is ever wired in behind them.
+    """
+    holder = Position(15, 15, 0)
+    detached = DetachedObject(Item(id="javelin"))
+    assert detached.position is None
+    assert detached.position != holder
+
+
+def test_reach_is_unanswerable_for_a_creature_with_no_position() -> None:
+    """`None`, not an empty tuple. An encounter that tracks no positions cannot answer the
+    question, and an empty tuple would claim it had and found nothing."""
+    objects = (DetachedObject(Item(id="dagger"), Position(0, 0, 0)),)
+    assert reachable_objects(objects, None, 5) is None
+
+
+def test_an_object_nobody_placed_is_never_reachable_and_never_silently_dropped() -> None:
+    """The two halves of 0041 clause 4 in one assertion.
+
+    Returning it as reachable would invent the coordinate the type exists to refuse.
+    Omitting it without a word would show an empty menu whose emptiness a reader has to
+    interpret, which is the narrowing #267 caught in 0040 clause 3. So it is absent from one
+    list and named in the other.
+    """
+    unplaced = DetachedObject(Item(id="lost-sword"))
+    objects = (unplaced,)
+    assert reachable_objects(objects, Position(0, 0, 0), 5) == ()
+    assert unplaced_objects(objects) == (unplaced,)
+
+
+def test_reach_distinguishes_in_reach_from_out_of_reach() -> None:
+    """p. 186: "A creature has a reach of 5 feet unless a rule says otherwise.\""""
+    near = DetachedObject(Item(id="dagger"), Position(5, 0, 0))
+    far = DetachedObject(Item(id="halberd"), Position(30, 0, 0))
+    reachable = reachable_objects((near, far), Position(0, 0, 0), 5)
+    assert reachable == (near,)
+    assert unplaced_objects((near, far)) == ()
+
+
+def test_carriage_stays_at_three_because_every_member_is_a_way_of_being_carried() -> None:
+    """0041 clause 2, pinned so a fourth member cannot arrive quietly.
+
+    p. 190: "When you teleport, all the equipment you're **wearing and carrying** teleports
+    with you." Every `Carriage` member is a way of being carried, so that rule reads the whole
+    enum. A fourth member for a dropped or thrown object would put it inside `equipment` and
+    teleport it away with the creature who let go of it — and the repair would be a special
+    case inside a closed vocabulary, which is the failure 0019 exists to refuse.
+
+    The cost of the fourth member is not the member. It is that every existing reader of
+    "wearing and carrying" quietly acquires a bug, and this engine does not implement
+    Teleportation yet — so the bug would ship well ahead of the rule that reveals it.
+
+    A detached object is `DetachedObject` on `EncounterState` instead, holding no `Carriage`
+    at all.
+    """
+    assert {c.value for c in Carriage} == {"worn", "held", "stowed"}
+    assert not hasattr(DetachedObject(Item(id="dagger")), "carriage")
