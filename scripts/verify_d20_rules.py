@@ -1399,6 +1399,20 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"A thrown weapon or piece of ammunition returns to normal size imme-?\s*diately "
         r"after it hits or misses a target",
     ),
+    # --- 0045 / #288: Utilize ----------------------------------------------------------
+    (
+        13,
+        "a second object needs the Utilize action, which is what the action DOES here - one "
+        "more of the four moves the engine models (0045 clause 3)",
+        r"If you want to interact with a second object, you need to take the Utilize action",
+    ),
+    (
+        14,
+        "and the GM may escalate an otherwise-free interaction to an action - a person's "
+        "judgement the engine may not make, and may not conclude away from (0045 clause 5)",
+        r"the GM might require you to take the Utilize action to open a stuck door or turn a "
+        r"crank to lower a drawbridge",
+    ),
     # --- 0044 / #273: Ammunition -------------------------------------------------------
     (
         89,
