@@ -59,6 +59,7 @@ from srd_rules_engine.core.equipment import (
     Carried,
     DetachedObject,
     Item,
+    Multiattack,
     Weapon,
     carried_weight,
     free_hands,
@@ -278,6 +279,13 @@ class Combatant:
     #: creature, for the reason `spells` is below: legality is a fact about the creature and
     #: `legal_actions(state, actor_id)` may not take a second argument (0026 clause 1).
     equipment: tuple[Carried, ...] = ()
+    #: How many attack rolls the Attack action buys, or `None` for a creature that gets one
+    #: (p. 257, 0043 clauses 1-2). Ruleset data on the creature, for the reason `equipment`
+    #: and `spells` are: `legal_actions(state, actor_id)` may not take a second argument.
+    #:
+    #: `None` is the ordinary creature and the pre-existing behaviour — one Action, one attack
+    #: roll — so a ruleset that says nothing keeps exactly what it had.
+    multiattack: Multiattack | None = None
     #: Which weapons this creature is proficient with, by item id (p. 89, 0040 clause 2).
     #:
     #: "Anyone can wield a weapon, but **you** must have proficiency with it to add your
@@ -669,6 +677,23 @@ class EncounterState:
     #: and with what**. They clear together and mean different things, which is 0036 clause 3
     #: applied a third time: two mechanisms that agree about *when* are still two mechanisms.
     light_attacks_this_turn: frozenset[tuple[str, str]] = frozenset()
+    #: How many attack rolls each creature has made this turn (p. 257, 0043 clause 4). A
+    #: **count**, because the question a Multiattack asks is "how many of the rolls this
+    #: Action bought are left" and a set of actors cannot answer it — which is what separates
+    #: this from the three structures above.
+    attacks_this_turn: Mapping[str, int] = field(default_factory=dict)
+    #: Who has already drawn on p. 177's one weapon swap this turn (0043 clause 3).
+    #:
+    #: **A set, and 0043 clause 4 argued for a count.** The clause was reasoning about the
+    #: attack tally beside it and carried the swap along; the swap's cap is *one*, so the only
+    #: question is whether this creature has taken it, and a set answers exactly that. A count
+    #: here would carry a number nothing may read past 1.
+    #:
+    #: The cap is the **engine's**, not the document's: p. 177 grants one swap per attack and
+    #: p. 13 one object interaction per turn, and nothing composes them. One swap is legal
+    #: under both readings and two under only one, so the engine offers the intersection and
+    #: says so (0043 clause 3).
+    swaps_this_turn: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
         """Retire every effect whose sustaining Concentration is gone (p. 179, 0037 clause 3).
@@ -1806,6 +1831,26 @@ class EncounterState:
         remaining = target.conditions.without(frozenset({condition}))
         return self._evolve(combatants=self._replacing(replace(target, conditions=remaining)))
 
+    def with_attack_made(self, combatant_id: str) -> EncounterState:
+        """Count one attack roll against this turn's Multiattack allowance (0043 clause 4)."""
+        tally = dict(self.attacks_this_turn)
+        tally[combatant_id] = tally.get(combatant_id, 0) + 1
+        return self._evolve(attacks_this_turn=tally)
+
+    def with_weapon_swapped(self, combatant_id: str) -> EncounterState:
+        """Record that p. 177's one swap has been drawn on this turn (0043 clause 3)."""
+        return self._evolve(swaps_this_turn=self.swaps_this_turn | {combatant_id})
+
+    def attacks_remaining(self, combatant_id: str) -> int:
+        """How many attack rolls this creature's Attack action still buys (p. 257).
+
+        One for a creature with no Multiattack, which is the pre-existing behaviour and the
+        reason a ruleset that says nothing keeps exactly what it had. Never negative.
+        """
+        target = self.combatant(combatant_id)
+        bought = target.multiattack.attacks if target.multiattack is not None else 1
+        return max(0, bought - self.attacks_this_turn.get(combatant_id, 0))
+
     def with_object_detached(self, combatant_id: str, item_id: str) -> EncounterState:
         """Take one item off a creature and leave it in the encounter (0041 clause 7, #280).
 
@@ -2053,6 +2098,8 @@ class EncounterState:
                 discharged=frozenset(),
                 slots_expended_this_turn=frozenset(),
                 light_attacks_this_turn=frozenset(),
+                attacks_this_turn={},
+                swaps_this_turn=frozenset(),
             )
         return ended._evolve(
             turn_index=0,
@@ -2061,6 +2108,8 @@ class EncounterState:
             discharged=frozenset(),
             slots_expended_this_turn=frozenset(),
             light_attacks_this_turn=frozenset(),
+            attacks_this_turn={},
+            swaps_this_turn=frozenset(),
         )
 
     def _retired(self, actor_id: str) -> EncounterState:

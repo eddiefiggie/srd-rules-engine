@@ -238,6 +238,14 @@ class EffectKind(StrEnum):
     #: up", which is `OBJECT_DETACHED` run backwards. It arrives `HELD`, because p. 177 puts
     #: this in a sentence about *equipping* a weapon.
     OBJECT_PICKED_UP = "object-picked-up"
+    #: One attack roll made, counted against this turn's Multiattack allowance (p. 257, 0043
+    #: clause 4). Its own kind rather than a field on `ACTION_SPENT`, because a Multiattack's
+    #: second and third rolls spend **no** action — the Action was spent buying all of them.
+    ATTACK_MADE = "attack-made"
+    #: p. 177's one weapon swap, drawn on (0043 clause 3). Its own kind rather than inferred
+    #: from the carriage change beside it, because p. 191's Unconscious also detaches an item
+    #: and must not spend an allowance the creature never chose to use.
+    WEAPON_SWAPPED = "weapon-swapped"
 
 
 #: The kinds that carry a condition rather than a number. Named because three places have
@@ -481,6 +489,20 @@ def object_detached(target_id: str, item_id: str, *, description: str) -> Effect
         amount=0,
         description=description,
         item_id=item_id,
+    )
+
+
+def attack_made(target_id: str, *, description: str) -> Effect:
+    """One attack roll, counted against the Multiattack allowance (p. 257)."""
+    return Effect(
+        kind=EffectKind.ATTACK_MADE, target_id=target_id, amount=0, description=description
+    )
+
+
+def weapon_swapped(target_id: str, *, description: str) -> Effect:
+    """p. 177's one swap, drawn on for this turn (0043 clause 3)."""
+    return Effect(
+        kind=EffectKind.WEAPON_SWAPPED, target_id=target_id, amount=0, description=description
     )
 
 
@@ -1482,6 +1504,10 @@ def _apply(
         elif effect.kind is EffectKind.OBJECT_PICKED_UP:
             assert effect.item_id is not None
             state = state.with_object_picked_up(effect.target_id, effect.item_id)
+        elif effect.kind is EffectKind.ATTACK_MADE:
+            state = state.with_attack_made(effect.target_id)
+        elif effect.kind is EffectKind.WEAPON_SWAPPED:
+            state = state.with_weapon_swapped(effect.target_id)
         elif effect.kind is EffectKind.EXHAUSTION_GAINED:
             # 0028 clause 1: the level carries the rule that caused it, and the ruling's
             # own rule is that rule. Taking it from here rather than from the effect keeps

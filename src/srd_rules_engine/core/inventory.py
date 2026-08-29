@@ -175,6 +175,8 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # reach, the melee ability modifier survives the throw, and the weapon detaches
         # unplaced whether it hits or misses.
         "weapon-thrown": "core.read_surface._throwable",
+        # p. 257, #289. One Action buys several rolls; the composition is the ruleset's.
+        "multiattack": "core.state.EncounterState.attacks_remaining",
         "mastery-graze": "core.combat.Weapon.graze",
         # Position, movement and range in feet (#17, #20).
         "speed": "core.position.Speeds.walk",

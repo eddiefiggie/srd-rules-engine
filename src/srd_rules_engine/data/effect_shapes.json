@@ -1220,7 +1220,7 @@
    "tag": null,
    "reference": "Monsters, p. 258 (Aboleth)",
    "kind": "action",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "legendary-action",
