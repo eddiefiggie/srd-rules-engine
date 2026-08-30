@@ -363,6 +363,7 @@ def concentration_save(damage: int) -> D20Test:
     dc = concentration_save_dc(damage)
     return D20Test(
         kind=TestKind.SAVE,
+        ability="con",
         target=dc,
         target_basis=(
             f"Constitution save to maintain Concentration, DC {dc} — 10 or half of "

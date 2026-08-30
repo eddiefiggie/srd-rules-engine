@@ -145,6 +145,7 @@ def concentration_resolver() -> Resolver:
         # added here is the roll's modifier, which is the creature's.
         test = D20Test(
             kind=TestKind.SAVE,
+            ability=debt.ability,
             target=debt.dc,
             target_basis=debt.dc_basis,
             modifiers=(

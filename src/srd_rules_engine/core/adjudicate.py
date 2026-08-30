@@ -44,9 +44,11 @@ from srd_rules_engine.core.conditions import Condition, Grapple
 from srd_rules_engine.core.d20 import (
     DAMAGE_OFFSET,
     DIE_SIDES,
+    Advantage,
     Critical,
     D20Result,
     D20Test,
+    TestKind,
 )
 from srd_rules_engine.core.d20 import resolve as roll_d20
 from srd_rules_engine.core.d20 import roll as dice
@@ -68,7 +70,7 @@ from srd_rules_engine.core.position import SpeedReduction
 from srd_rules_engine.core.read_surface import LegalAction, Verdict, legal_actions, verify
 from srd_rules_engine.core.rules import Ruleset
 from srd_rules_engine.core.spellcasting import MAX_SPELL_LEVEL
-from srd_rules_engine.core.state import EncounterState, ForcedSave, grapples_released
+from srd_rules_engine.core.state import Combatant, EncounterState, ForcedSave, grapples_released
 from srd_rules_engine.core.triggers import Catalogue, MatchContext, Trigger, challenge_text
 
 #: A payload's schema version says *what shape it is*. Its `compat` floor says *which
@@ -1346,11 +1348,27 @@ class Adjudicator:
         proposal = self._resolvers[rule.id](
             state=state, declaration=declaration, facts={r.type_name: r for r in resolutions}
         )
+        # #344. What the creature's own state does to a saving throw, applied **here** rather
+        # than in each resolver. Six resolvers build a save today and none of them consulted
+        # the roller's conditions, which is the failure mode this engine names most often: a
+        # rule that every call site has to remember is a rule some call site will not.
+        proposal = _as_this_creature_saves(state, declaration.actor_id, proposal)
+        # pp. 186, 189, 191. The save fails and **is not rolled**, so the branch is selected
+        # here rather than by `_branch` and no die is drawn at all. Kept out of the proposal
+        # because an auto-failure with nothing in `on_failure` is a real case —
+        # `core.save_ends` has exactly that shape, since failing to shake a condition off
+        # simply leaves it — and a proposal rewritten to hold it would be one `Proposal`
+        # refuses to construct.
+        auto_failed = _save_fails_outright(state, declaration.actor_id, proposal)
         seed = _checked_seed(self._seed_source())
         # 0027 clause 6. A seed is drawn either way: a testless proposal still rolls its
         # damage from it, so the outcome stays the engine's (R4) and stays reproducible.
-        result = roll_d20(proposal.test, seed=seed) if proposal.test is not None else None
-        branch = _branch(proposal, result)
+        result = (
+            None if auto_failed or proposal.test is None else roll_d20(proposal.test, seed=seed)
+        )
+        branch = (
+            (*proposal.always, *proposal.on_failure) if auto_failed else _branch(proposal, result)
+        )
         effects = _roll_declared(
             branch, seed=seed, critical=result.critical if result is not None else Critical.NONE
         )
@@ -1581,6 +1599,97 @@ def _checked_seed(seed: int) -> int:
             "of the record, so a seed that cannot be written cannot be rolled with"
         )
     return seed
+
+
+def _as_this_creature_saves(state: EncounterState, actor_id: str, proposal: Proposal) -> Proposal:
+    """The proposal as the creature actually rolls it, once its own state is consulted (#344).
+
+    Three printed rules act on a saving throw because of what the roller is holding, and none
+    of them belongs to the rule that compelled the save:
+
+    * **Four conditions make it fail outright** (pp. 186, 189, 191) — "You automatically fail
+      Strength and Dexterity saving throws."
+    * **Restrained hampers it** (p. 187) — "You have Disadvantage on Dexterity saving throws."
+    * **Dodge helps it** (p. 181) — "you make Dexterity saving throws with Advantage", and the
+      benefit is re-checked rather than remembered, because Incapacitated or a Speed of 0 ends
+      it.
+
+    **Central because the alternative is six copies and a seventh that forgets.** Every
+    resolver that builds a save gets these free, and a resolver written next year gets them
+    without knowing they exist. The rules themselves stay where they are described:
+    `Conditions` and `ActionBudget` answer, and this applies.
+
+    ## An automatic failure is not a roll, and is not a rolled failure
+
+    p. 186 says the save fails, not that it is rolled badly. So the test is **removed** and the
+    proposal resolves through 0027 clause 6's testless path, with `on_failure` becoming the
+    outcome — a `Ruling` with no `D20Result` at all. Rolling a die and discarding it would put
+    a number in the ledger that decided nothing, which reads exactly like a save that was
+    rolled and lost.
+
+    `always` survives untouched, because what the act cost does not depend on how it went
+    (0038 clause 6).
+
+    A proposal with no test, or a test that is not a save, or a save of no ability, is returned
+    unchanged. The last is p. 17's Death Saving Throw, which has no ability and which none of
+    these three rules reaches.
+    """
+    actor = _saving_creature(state, actor_id, proposal)
+    test = proposal.test
+    if actor is None or test is None:
+        return proposal
+    # No `test.ability is None` guard, deliberately. Every rule below keys on the ability and
+    # answers "nothing" for a save that has none, so a guard here would be a second place for
+    # the same fact — and a corruption proof showed it was carrying no weight: removing it
+    # left the assertion green, because `Conditions` was already refusing.
+    if actor.conditions.saves_fail_outright(test.ability):
+        # Handled by the caller, which selects the failure branch without rolling. Returned
+        # unchanged here so the advantage below is never computed for a save that will not
+        # happen — an automatic failure is not a roll at Disadvantage.
+        return proposal
+
+    from_conditions = actor.conditions.save_advantage(test.ability)
+    # p. 181's Dodge, through `is_dodging` rather than the raw flag: the benefit is lost to
+    # Incapacitated or a Speed of 0, and `still_dodging` is what asks.
+    dodging = actor.is_dodging and test.ability == "dex"
+    advantage = from_conditions is Advantage.ADVANTAGE or dodging
+    disadvantage = from_conditions is Advantage.DISADVANTAGE
+    if not advantage and not disadvantage:
+        return proposal
+    # Accumulated onto whatever the rule itself granted, never replacing it — p. 8 cancels
+    # sources on opposite sides, and cancellation needs both to arrive.
+    return replace(
+        proposal,
+        test=replace(
+            test,
+            has_advantage=test.has_advantage or advantage,
+            has_disadvantage=test.has_disadvantage or disadvantage,
+        ),
+    )
+
+
+def _saving_creature(state: EncounterState, actor_id: str, proposal: Proposal) -> Combatant | None:
+    """The creature rolling this proposal's saving throw, or `None` if it is not one.
+
+    `None` covers a proposal with no test, a test that is not a save, and an actor the
+    encounter no longer holds. A save of no ability still returns the creature, because the
+    caller distinguishes "not a save" from "a save this cannot key on" — p. 17's Death Saving
+    Throw is the second, and it is a save.
+    """
+    test = proposal.test
+    if test is None or test.kind is not TestKind.SAVE:
+        return None
+    if not state.has(actor_id):
+        return None
+    return state.combatant(actor_id)
+
+
+def _save_fails_outright(state: EncounterState, actor_id: str, proposal: Proposal) -> bool:
+    """Whether this saving throw fails without being rolled (pp. 186, 189, 191, #344)."""
+    actor = _saving_creature(state, actor_id, proposal)
+    if actor is None or proposal.test is None:
+        return False
+    return actor.conditions.saves_fail_outright(proposal.test.ability)
 
 
 def _branch(proposal: Proposal, result: D20Result | None) -> Sequence[Declared]:

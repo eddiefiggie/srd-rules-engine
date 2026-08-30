@@ -144,6 +144,11 @@ def death_save_resolver() -> Resolver:
         return Proposal(
             test=D20Test(
                 kind=TestKind.SAVE,
+                # **No ability, deliberately.** p. 17 calls it "a special saving throw" and
+                # ties it to no ability score, so the rules keyed on one must not reach it —
+                # an Unconscious creature auto-fails Strength and Dexterity saves and still
+                # rolls these, which is the whole of how a downed character survives (#344).
+                ability=None,
                 target=DEATH_SAVE_DC,
                 target_basis=(
                     "death saving throw, DC 10 — tied to no ability score, so no modifier "

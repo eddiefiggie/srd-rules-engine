@@ -313,6 +313,7 @@ def _save_resolver(rule_id: str, condition: Condition, *, what: str) -> Resolver
         return Proposal(
             test=D20Test(
                 kind=TestKind.SAVE,
+                ability=debt.ability,
                 target=debt.dc,
                 target_basis=debt.dc_basis,
                 modifiers=(

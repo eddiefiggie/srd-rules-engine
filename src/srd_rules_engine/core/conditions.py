@@ -162,6 +162,13 @@ class ConditionEffects:
 #: ruleset has sized and cannot answer at all for the rest.
 MOVABLE_UNENFORCED: Final = "grappled-creature-is-movable-by-the-grappler"
 
+#: The two abilities every "automatically fail" sentence names, and the only two.
+#:
+#: A frozen pair rather than a check against `"str"` and `"dex"` at the call site, because the
+#: sentence is the same in all four conditions and the set is the rule rather than an
+#: implementation detail.
+_AUTO_FAILED_ABILITIES: Final[frozenset[str]] = frozenset({"str", "dex"})
+
 #: Each condition's effects, transcribed field by field from its glossary entry.
 EFFECTS: Final[dict[Condition, ConditionEffects]] = {
     Condition.BLINDED: ConditionEffects(
@@ -564,6 +571,40 @@ class Conditions:
                 pass
 
         return _combine(advantage, disadvantage)
+
+    def saves_fail_outright(self, ability: str | None) -> bool:
+        """Whether a save of this ability fails without a roll (pp. 186, 189, 191).
+
+        > **Saving Throws Affected.** You automatically fail Strength and Dexterity saving
+        > throws.
+
+        Four conditions say it in those words — Paralyzed, Petrified, Stunned and Unconscious —
+        and all four name **Strength and Dexterity** and no other ability. So a Paralyzed
+        creature still rolls its Constitution saves, which is why this asks the ability rather
+        than answering for every save a stunned creature owes.
+
+        `ability=None` is `False`, and that is p. 17's Death Saving Throw: "a special saving
+        throw" of no ability at all, which none of these four sentences reaches. An Unconscious
+        creature makes death saves, and a rule that failed them automatically would kill every
+        creature that ever dropped.
+        """
+        if ability not in _AUTO_FAILED_ABILITIES:
+            return False
+        return any(effects.auto_fail_strength_and_dexterity_saves for effects in self.effects)
+
+    def save_advantage(self, ability: str | None) -> Advantage:
+        """What a save of this ability has from the conditions held (p. 187).
+
+        Restrained is the only condition that *hampers* a save without failing it outright:
+        "You have Disadvantage on Dexterity saving throws." The four above do not appear here,
+        because an automatic failure is not a roll at Disadvantage — it is not a roll.
+        """
+        if ability != "dex":
+            return Advantage.NONE
+        return _combine(
+            any(effects.dexterity_saves is Advantage.ADVANTAGE for effects in self.effects),
+            any(effects.dexterity_saves is Advantage.DISADVANTAGE for effects in self.effects),
+        )
 
     def own_attack_rolls(
         self,

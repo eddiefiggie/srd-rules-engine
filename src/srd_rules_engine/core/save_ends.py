@@ -131,6 +131,7 @@ def save_ends_resolver(condition: Condition) -> Resolver:
         return Proposal(
             test=D20Test(
                 kind=TestKind.SAVE,
+                ability=save.ability,
                 target=save.dc,
                 target_basis=(
                     f"DC {save.dc} {save.ability} save, stated by the effect that imposed "

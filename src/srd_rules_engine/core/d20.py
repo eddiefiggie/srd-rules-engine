@@ -358,6 +358,19 @@ class D20Test:
     # cancellation is what resolves that. A single enum cannot express the input.
     has_advantage: bool = False
     has_disadvantage: bool = False
+    #: Which ability this test is of — `"dex"`, `"con"` — or `None` when it is not of one.
+    #:
+    #: **First-class because two rules key on it and neither can read a modifier list.**
+    #: p. 187's Restrained gives Disadvantage on *Dexterity* saving throws, and four
+    #: conditions make *Strength and Dexterity* saving throws fail outright. Both need to know
+    #: which ability is being rolled before the dice are touched, and the ability was
+    #: previously recoverable only by parsing `Modifier.source` for an `"ability:"` prefix —
+    #: a string convention nothing enforced and a new resolver would not know to follow.
+    #:
+    #: `None` is a genuine value rather than an omission: p. 17's Death Saving Throw is "a
+    #: special saving throw" rolled with no ability at all, so a rule keyed on one must not
+    #: reach it (#344).
+    ability: str | None = None
 
     def __post_init__(self) -> None:
         if not self.target_basis:
