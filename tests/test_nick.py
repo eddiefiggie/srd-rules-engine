@@ -342,9 +342,14 @@ def test_the_nick_attack_keeps_p89s_damage_exception(tmp_path: Path) -> None:
     resolver does — which the corruption proof for this clause demonstrated by staying green
     while `is_extra` was swapped back to `is_bonus`.
     """
+    fresh = encounter(duellist())
     after = opened(tmp_path)
 
-    assert _damage(_propose(after, attack_key(SHORTSWORD.id, "boar")).on_success).modifier == 3
+    # The ordinary attack is read off the state where it is still legal: #376 made the
+    # resolver ask p. 257's roll count, and `opened` has already spent the one this creature's
+    # Attack action buys. The old fixture declared it anyway, which is the class of defect
+    # that change is about — a test exercising a declaration the menu would never offer.
+    assert _damage(_propose(fresh, attack_key(SHORTSWORD.id, "boar")).on_success).modifier == 3
     assert _damage(_propose(after, nick_attack_key(DAGGER.id, "boar")).on_success).modifier == 0
     assert _damage(_propose(after, bonus_attack_key(DAGGER.id, "boar")).on_success).modifier == 0
 

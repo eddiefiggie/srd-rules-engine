@@ -2708,6 +2708,37 @@ class EncounterState:
         remaining = [token for token in self.pending_advantage if token not in spent]
         return self._evolve(pending_advantage=tuple(remaining))
 
+    def can_fire(self, combatant_id: str, weapon: Weapon) -> bool:
+        """Whether p. 89's Ammunition property permits this shot (#273).
+
+        > You can use a weapon that has the Ammunition property to make a ranged attack
+        > **only if you have ammunition to fire from it**… Drawing the ammunition is part of
+        > the attack (you need a free hand to load a one-handed weapon).
+
+        Both halves are conditions of the attack, so they are **legality** rather than a
+        refusal after the fact (R18) — the shot is not offered. The resolver asks the same
+        question, because a caller reaching adjudication directly must not escape it (#376).
+
+        **Here rather than in `core.read_surface`**, where it lived until #376. The read
+        surface is imported *by* the attack resolver and cannot import it back, so a predicate
+        both need has to live where the state does — which is also where 0056 put a movement
+        refusal, for the same reason.
+
+        **An unknown hand count does not refuse it.** `Combatant.__post_init__` already
+        settles this direction for p. 90's Two-Handed: "no SRD rule states how many hands a
+        creature has, so an unstated count cannot be exceeded (R31)." Only a *known* zero
+        blocks the load, and refusing on `None` would assert the count the engine declines to
+        assume (0039 clause 4).
+        """
+        if weapon.ammunition_id is None:
+            return True
+        actor = self.combatant(combatant_id)
+        if not self.ammunition_for(combatant_id, weapon.ammunition_id):
+            return False
+        # `== 0` and not `not ...`: `free_hands` is `int | None`, and `None` means the count
+        # is unstated rather than exhausted.
+        return not (weapon.hands_when_held == 1 and actor.free_hands == 0)
+
     def attacks_remaining(self, combatant_id: str) -> int:
         """How many attack rolls this creature's Attack action still buys (p. 257).
 

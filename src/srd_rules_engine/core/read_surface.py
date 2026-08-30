@@ -1171,7 +1171,7 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
         # bought by that one — so one shot is all this weapon offers here (#271).
         if weapon.loading and state.has_fired_loading(actor.id, str(ActionKind.ACTION)):
             continue
-        if not _can_fire(state, actor, weapon):
+        if not state.can_fire(actor.id, weapon):
             continue
         for target in state.combatants:
             if target.id == actor.id or target.is_down:
@@ -1646,30 +1646,6 @@ def _within(actor: Combatant, target: Combatant, feet: int) -> bool:
     if actor.position is None or target.position is None:
         return True
     return bool(distance_feet(actor.position, target.position) <= feet)
-
-
-def _can_fire(state: EncounterState, actor: Combatant, weapon: Weapon) -> bool:
-    """Whether p. 89's Ammunition property permits this shot (#273).
-
-    > You can use a weapon that has the Ammunition property to make a ranged attack **only if
-    > you have ammunition to fire from it**… Drawing the ammunition is part of the attack (you
-    > need a free hand to load a one-handed weapon).
-
-    Both halves are conditions of the attack, so they are **legality** rather than a refusal
-    after the fact (R18) — the shot is not offered.
-
-    **An unknown hand count does not refuse it.** `Combatant.__post_init__` already settles
-    this direction for p. 90's Two-Handed: "no SRD rule states how many hands a creature has,
-    so an unstated count cannot be exceeded (R31)." Only a *known* zero blocks the load, and
-    refusing on `None` would assert the count the engine declines to assume (0039 clause 4).
-    """
-    if weapon.ammunition_id is None:
-        return True
-    if not state.ammunition_for(actor.id, weapon.ammunition_id):
-        return False
-    # `== 0` and not `not ...`: `free_hands` is `int | None`, and `None` means the count is
-    # unstated rather than exhausted.
-    return not (weapon.hands_when_held == 1 and actor.free_hands == 0)
 
 
 def _within_weapon_range(

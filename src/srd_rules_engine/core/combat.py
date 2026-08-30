@@ -260,6 +260,14 @@ def attack_resolver() -> Resolver:
         target = state.combatant(target_id)
         ability = actor.modifier(weapon.ability)
 
+        _refuse_what_the_menu_would_not_offer(
+            state,
+            actor,
+            weapon,
+            is_p89_extra=is_p89_extra,
+            is_cleave=is_cleave,
+            is_bonus=is_bonus,
+        )
         _refuse_if_behind_total_cover(state, actor, target)
         beyond_normal = _out_of_range(weapon, actor, target, thrown=is_thrown)
         # p. 184's exception to Invisible, asked in both directions (#193). Each needs
@@ -1065,6 +1073,96 @@ def _weapon_and_target(
         '"with a weapon or an Unarmed Strike", and the read surface offers only weapons in '
         "hand — so one that reaches here is a weapon the engine never offered"
     )
+
+
+def _refuse_what_the_menu_would_not_offer(
+    state: EncounterState,
+    actor: Combatant,
+    weapon: Weapon,
+    *,
+    is_p89_extra: bool,
+    is_cleave: bool,
+    is_bonus: bool,
+) -> None:
+    """Six attack-legality rules the menu asked and nothing else did (#376, 0069).
+
+    [0068](../../../docs/decisions/0068-a-rule-the-menu-asks-and-nothing-else-does.md)'s guard
+    found them on its first run: `Multiattack.allows`, `attacks_remaining`,
+    `has_taken_extra_attack`, `has_cleaved`, `cleave_openings`, and the Ammunition pair behind
+    `can_fire`. Each was computed once, consumed by `legal_actions`, and absent from the path
+    that produces outcomes — so a caller reaching adjudication directly could attack five
+    times with an Extra Attack of two and fire a crossbow twice with an empty quiver.
+
+    **This asks the rules, not the menu.** Calling `legal_actions` here and refusing anything
+    absent from it would be one line, and it would make the menu a promise —
+    [0062](../../../docs/decisions/0062-the-menu-is-not-a-promise.md) refused exactly that.
+    The menu answers *what may I do* and the resolver answers *may I do this*; deriving the
+    second from the first turns every menu defect into an outcome defect and couples the two
+    so neither can be simplified. So each rule is asked here directly, against the same state,
+    the way 0062's own components check is.
+
+    R18 keeps the menu check, and this is not defence in depth: legality has to be
+    **computable** before a caller declares, and this is the floor under that rather than a
+    replacement for it.
+    """
+    # p. 257: the entry "details the attacks a creature can make", so a Multiattack naming a
+    # set restricts which weapons may fill its rolls (0043 clause 2).
+    if actor.multiattack is not None and not actor.multiattack.allows(weapon.id):
+        raise ValueError(
+            f"{actor.name}'s Multiattack does not name {weapon.id}, so p. 257's entry grants "
+            "no attack with it. A stat block that lists its weapons has listed them"
+        )
+
+    # p. 257: the Attack action buys a stated number of rolls, and a creature with no
+    # Multiattack buys exactly one. An extra attack is bought by a different sentence and is
+    # deliberately not counted here — p. 90's Nick and Cleave each have their own cap below.
+    if not (is_p89_extra or is_cleave) and not state.attacks_remaining(actor.id):
+        raise ValueError(
+            f"{actor.name} has no attacks left from its Attack action this turn (p. 257). An "
+            "attack the action did not buy is not a slower attack, it is one the rules do "
+            "not allow"
+        )
+
+    # p. 89 grants "**one** extra attack", and p. 90's Nick re-routes that same attack rather
+    # than adding a second (#320).
+    if is_p89_extra and state.has_taken_extra_attack(actor.id):
+        raise ValueError(
+            f"{actor.name} has already taken p. 89's one extra attack this turn. The Light "
+            "property grants one, and Nick moves it rather than adding another"
+        )
+
+    # p. 90's Cleave has its own once-per-turn cap in its own sentence, which is why a Cleave
+    # does not spend the Light allowance above (#323).
+    if is_cleave:
+        if state.has_cleaved(actor.id):
+            raise ValueError(
+                f"{actor.name} has already cleaved this turn (p. 90). The property grants one "
+                "swing, and a second is not a smaller one"
+            )
+        if not any(opening == weapon.id for opening, _ in state.cleave_openings(actor.id)):
+            raise ValueError(
+                f"no hit with {weapon.id} has opened a Cleave for {actor.name} this turn. "
+                "p. 90 hangs the extra swing on a hit that landed, so a Cleave with nothing "
+                "behind it is an attack the rules never granted"
+            )
+
+    # p. 90's Loading, capped per **action used** rather than per turn: the Bonus Action route
+    # is charged against the Bonus Action and Nick's against the Action it is part of (#271).
+    spent = ActionKind.BONUS_ACTION if is_bonus else ActionKind.ACTION
+    if weapon.loading and state.has_fired_loading(actor.id, str(spent)):
+        raise ValueError(
+            f"{actor.name} has already fired {weapon.id} with its {spent.value} this turn. "
+            'p. 90: "you can fire only one piece of ammunition... no matter how many attacks '
+            'you can normally make"'
+        )
+
+    # p. 89's Ammunition, both halves, asked through the same predicate the menu asks.
+    if not state.can_fire(actor.id, weapon):
+        raise ValueError(
+            f"{actor.name} cannot fire {weapon.id}: p. 89 permits a ranged attack with an "
+            'Ammunition weapon "only if you have ammunition to fire from it", and drawing it '
+            "needs a free hand for a one-handed weapon"
+        )
 
 
 def _refuse_if_behind_total_cover(

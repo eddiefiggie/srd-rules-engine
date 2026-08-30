@@ -68,29 +68,11 @@ GATES_ASKED_ONLY_BY_THE_MENU: Final[dict[str, str]] = {
         "offers (0055). The bound itself is `PUSH_MASTERY_FEET`, and the resolver checks it."
     ),
     # --- Rules the path that produces outcomes does not ask --------------------------------
-    # All six are per-turn caps or resource checks on the attack path, which is one family and
-    # probably one change: the attack resolver asking what `_attackable` asks, of the same
-    # state. Filed together as #376.
-    "attacks_remaining": (
-        "#376: p. 89's Extra Attack — how many attacks the Attack action buys. A direct "
-        "caller declares as many as it likes."
-    ),
-    "has_taken_extra_attack": (
-        "#376: p. 89's **one** extra Light attack. A second is offered nowhere and refused "
-        "nowhere, which are different things."
-    ),
-    "has_cleaved": "#376: p. 89's Cleave is once per turn, and only the menu counts.",
-    "cleave_openings": "#376: which opening a Cleave answers, asked by the menu alone.",
-    "has_fired_loading": (
-        "#376: p. 90's Loading — \"you can fire only one piece of ammunition… no matter how "
-        'many attacks you can normally make."'
-    ),
-    "ammunition_for": "#376: p. 90's Ammunition. A direct caller shoots with an empty quiver.",
-    "allows": (
-        "#376: a stat block's Multiattack names which weapons it grants, and only the menu "
-        "reads that. This entry was written 'REPORTED for now' and the verdict check below "
-        "refused it, which is the file catching its own author fence-sitting."
-    ),
+    # Empty, and it did not start that way. The seven entries here on the day this file was
+    # written were p. 89's Extra Attack limit and Cleave, p. 90's Loading and Ammunition, and a
+    # stat block's Multiattack — every one of them asked by the menu and by nothing else.
+    # #376 gave each its second call site in `core.combat`, and they left this list through the
+    # test below rather than by anybody remembering to take them off (0069).
 }
 
 #: An entry is a published value or a filed rule. Nothing else is an answer.
@@ -149,7 +131,7 @@ def test_the_walk_finds_something_at_all() -> None:
     """
     found = menu_only_names()
     assert len(found) > 5, "the walk collapsed; it is inspecting nothing"
-    assert found["attacks_remaining"] == "state"
+    assert found["movement_remaining"] == "state"
 
 
 def test_every_name_the_walk_finds_carries_a_verdict() -> None:

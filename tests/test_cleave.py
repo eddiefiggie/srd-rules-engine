@@ -295,7 +295,11 @@ def test_the_cleave_swing_drops_a_positive_ability_modifier() -> None:
     swing and nothing on the Cleave."""
     state = opened(encounter())
 
-    ordinary = _damage(propose(state, GREATAXE, attack_key(GREATAXE.id, "boar")).on_success)
+    # The ordinary swing is read off a fresh state: #376 made the resolver ask p. 257's roll
+    # count, and `opened` has already spent the one this creature's Attack action buys. The
+    # Cleave is not one of those rolls and is read off the opened state, which is the whole
+    # point of the property.
+    ordinary = _damage(propose(encounter(), GREATAXE, attack_key(GREATAXE.id, "boar")).on_success)
     cleaved = _damage(propose(state, GREATAXE, cleave_attack_key(GREATAXE.id, "ogre")).on_success)
 
     assert ordinary.modifier == 3
