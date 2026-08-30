@@ -269,6 +269,12 @@ def test_an_item_carries_no_price_and_no_name() -> None:
         # is a person's ruling about what happens when it is swung, arriving through the same
         # channel `Weapon.damage_type` already uses.
         "improvised_damage_type",
+        # #393. p. 92's table gives each armour a **base AC calculation** and a Shield a
+        # bonus, and p. 177 makes those different kinds of thing — a base is chosen between,
+        # a bonus is added on top. Both pass 0039 clause 2: `effective_armour_class` reads
+        # them, and the *numbers* are still content the ruleset supplies (0077).
+        "armour_class_base",
+        "armour_class_bonus",
     }
 
 

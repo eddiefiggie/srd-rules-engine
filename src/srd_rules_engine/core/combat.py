@@ -568,8 +568,8 @@ def attack_resolver() -> Resolver:
             ),
             test=D20Test(
                 kind=TestKind.ATTACK,
-                target=target.armour_class,
-                target_basis=f"armour class {target.armour_class}, worn by {target.name}",
+                target=target.effective_armour_class,
+                target_basis=f"armour class {target.effective_armour_class}, worn by {target.name}",
                 # p. 89 lets a Finesse wielder choose, and `weapon.ability` is what the
                 # attack actually used — which is what p. 177's untrained-armour clause keys
                 # on ("any D20 Test that involves Strength or Dexterity").
@@ -930,8 +930,8 @@ def unarmed_strike_resolver() -> Resolver:
             ),
             test=D20Test(
                 kind=TestKind.ATTACK,
-                target=target.armour_class,
-                target_basis=f"armour class {target.armour_class}, worn by {target.name}",
+                target=target.effective_armour_class,
+                target_basis=f"armour class {target.effective_armour_class}, worn by {target.name}",
                 # p. 190's Unarmed Strike is Strength, always — there is no weapon to choose.
                 ability="str",
                 critical_on_hit=_hit_is_automatically_critical(actor, target),
@@ -1061,8 +1061,8 @@ def improvised_attack_resolver() -> Resolver:
             ),
             test=D20Test(
                 kind=TestKind.ATTACK,
-                target=target.armour_class,
-                target_basis=f"armour class {target.armour_class}, worn by {target.name}",
+                target=target.effective_armour_class,
+                target_basis=f"armour class {target.effective_armour_class}, worn by {target.name}",
                 ability="str",
                 critical_on_hit=_hit_is_automatically_critical(actor, target),
                 # p. 183: "**Don't add your Proficiency Bonus** to attack rolls with an

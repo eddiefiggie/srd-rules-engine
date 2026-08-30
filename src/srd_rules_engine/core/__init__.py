@@ -128,7 +128,13 @@ from srd_rules_engine.core.duration import (
     StatedSpan,
     rounds_in_minutes,
 )
-from srd_rules_engine.core.equipment import Carriage, Carried, Item
+from srd_rules_engine.core.equipment import (
+    UNARMOURED,
+    ArmourClassBase,
+    Carriage,
+    Carried,
+    Item,
+)
 from srd_rules_engine.core.grappling import (
     ESCAPE_SKILLS,
     can_be_escaped,
@@ -383,9 +389,11 @@ __all__ = [
     "TURN_ACTION_VERIFICATION",
     "UNARMED_STRIKE_ID",
     "UNARMED_STRIKE_VERIFICATION",
+    "UNARMOURED",
     "Adjudicator",
     "Adjustment",
     "Advantage",
+    "ArmourClassBase",
     "CanonicalizationError",
     "Carriage",
     "Carried",

@@ -54,6 +54,7 @@ from srd_rules_engine.core.equipment import (
     reachable_objects,
     unplaced_objects,
     untrained_armour,
+    untrained_shields,
 )
 from srd_rules_engine.core.forced_movement import push_distances
 from srd_rules_engine.core.position import MovementMode, distance_feet, within
@@ -141,8 +142,16 @@ RELEASE_ONLY_ON_YOUR_TURN: Final = "grapple-release-offered-only-on-the-grappler
 
 
 #: p. 177: "If you use a Shield and lack training with it, you don't gain its AC bonus"
-#: (#367). **The design is settled** — 0077, closing #380's gate — and what is missing is the
-#: derivation being *built*: [#393](https://github.com/eddiefiggie/srd-rules-engine/issues/393).
+#: (#367). **The derivation exists since #393** — `Combatant.effective_armour_class`, with a
+#: Shield's `+2` riding on top of whichever base won (p. 92, p. 177, 0077). So there is a
+#: contribution to withhold, and this clause is now about the *withholding* rather than about
+#: the absence of anything to withhold.
+#:
+#: Its stated reason was wrong twice over. It said the bonus "needs a derivation over what is
+#: worn, which nothing models" — first the design was undecided rather than impossible (0077),
+#: and now it is built. What remains is p. 92's one sentence: "You gain the Armor Class
+#: benefit of a Shield only if you have training with it." Training is already held by item id
+#: (0040 clause 2), so this never needed the armour *category* it appeared to.
 #: p. 92 makes a Shield a `+2` **bonus** rather than a base calculation, so there is a
 #: contribution to withhold as soon as AC is derived — and training is already held by item
 #: id (0040 clause 2), so this never needed the armour *category* it appeared to.
@@ -1221,7 +1230,7 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
                 detail={
                     "target": target.id,
                     "weapon": UNARMED_STRIKE_ID,
-                    "armour_class": target.armour_class,
+                    "armour_class": target.effective_armour_class,
                 },
             )
         )
@@ -1365,7 +1374,7 @@ def reaction_options(
                 detail={
                     "target": mover.id,
                     "weapon": UNARMED_STRIKE_ID,
-                    "armour_class": mover.armour_class,
+                    "armour_class": mover.effective_armour_class,
                 },
             )
         )
@@ -1457,7 +1466,7 @@ def improvised_attacks(state: EncounterState, actor: Combatant) -> tuple[LegalAc
                     detail={
                         "target": target.id,
                         "object": carried.id,
-                        "armour_class": target.armour_class,
+                        "armour_class": target.effective_armour_class,
                         "damage": f"{IMPROVISED_DAMAGE_DICE}d{IMPROVISED_DAMAGE_SIDES}",
                         "damage_type": str(damage_type),
                         # p. 183: "Don't add your Proficiency Bonus to attack rolls with an
@@ -1952,7 +1961,7 @@ def _attack_detail(actor: Combatant, weapon: Weapon, target: Combatant) -> dict[
     detail: dict[str, object] = {
         "target": target.id,
         "weapon": weapon.id,
-        "armour_class": target.armour_class,
+        "armour_class": target.effective_armour_class,
     }
     if actor.position is not None and target.position is not None:
         distance = distance_feet(actor.position, target.position)
@@ -2038,9 +2047,14 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
         unenforced.append(OBJECT_INTERACTION_CAP)
     if any(held.conditions.grappler_id == actor.id for held in state.combatants):
         unenforced.append(RELEASE_ONLY_ON_YOUR_TURN)
-    # Disclosed only to a creature actually wearing untrained armour, which is the only one
-    # either clause can bite (#367).
-    if untrained_armour(actor.equipment, actor.armour_training):
+    # Disclosed only to a creature actually **holding** an untrained Shield, which is the only
+    # one this clause can bite (#367, #393).
+    #
+    # **It was gated on `untrained_armour` and could never fire**, because that function reads
+    # worn items and p. 92's Shield is held. The clause existed, was pinned, and was
+    # unreachable by the case it names — the vacuous shape `AGENTS.md` describes, found by
+    # writing the first test that tried to observe it.
+    if untrained_shields(actor.equipment, actor.armour_training):
         unenforced.append(UNTRAINED_SHIELD_STILL_GRANTS_AC)
     if any(a.key.startswith(f"{PUSH_ATTACK}:") for a in legal_actions(state, actor_id)):
         unenforced.append(PUSH_DISTANCES_IN_STEPS)
