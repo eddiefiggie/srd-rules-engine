@@ -186,7 +186,9 @@ EFFECTS: Final[dict[Condition, ConditionEffects]] = {
         own_ability_checks=Advantage.DISADVANTAGE,
         # `line-of-sight-qualifier` left this list in #192, when the source of fear
         # became state and `own_attack_rolls` could be told whether it is visible.
-        unenforced_clauses=("cannot-willingly-approach-the-source",),
+        # `cannot-willingly-approach-the-source` left it in #350, when
+        # `EncounterState.with_movement` began refusing a move that closes on one — the
+        # comparison needed no direction, only two distances (0056).
     ),
     Condition.GRAPPLED: ConditionEffects(
         speed_zero=True,

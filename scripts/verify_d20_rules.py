@@ -1789,6 +1789,21 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "creature reeled past it would be somewhere no rule put it",
         r"The roper pulls each creature Grappled by it up to 30 feet straight toward it",
     ),
+    # --- 0056: a move is refused where it is made ------------------------------------------
+    (
+        182,
+        "Frightened forbids moving CLOSER and forbids it WILLINGLY - one word decides that a "
+        "push is exempt, and the other that circling at a constant distance is permitted",
+        r"Can.t Approach\. You can.t willingly move closer to the source of fear",
+    ),
+    (
+        186,
+        "Prone's two movement options are one rule, which is why the restriction waits for "
+        "the way out of it (#353)",
+        r"Restricted Movement\. Your only movement options are to crawl or to spend an amount "
+        r"of movement equal to half your Speed \(round down\) to right yourself and thereby end "
+        r"the condition",
+    ),
 )
 
 #: Clauses about the document as a whole rather than about one page, as

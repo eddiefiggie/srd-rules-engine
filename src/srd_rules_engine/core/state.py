@@ -77,6 +77,7 @@ from srd_rules_engine.core.position import (
     distance_feet,
     movement_cost,
     slow_feet_taken,
+    squared_distance,
 )
 from srd_rules_engine.core.sight import (
     Lighting,
@@ -2733,8 +2734,45 @@ class EncounterState:
                 f"that move costs {cost}"
             )
 
+        approached = self._fear_approached(target, to)
+        if approached is not None:
+            raise ValueError(
+                f"{target.name} is Frightened of {approached.name} and that move is closer to "
+                'it. p. 182: "You can\'t willingly move closer to the source of fear" — and a '
+                "move a creature declares is one it makes willingly"
+            )
+
         moved = replace(target, position=to, movement_used=target.movement_used + cost)
         return self._evolve(combatants=self._replacing(moved))
+
+    def _fear_approached(self, target: Combatant, to: Position) -> Combatant | None:
+        """The source of fear this move would close on, or `None` (p. 182, #350).
+
+        > **Can't Approach.** You can't willingly move closer to the source of fear.
+
+        **A comparison of two distances, and nothing more.** "Closer" needs no direction and no
+        ray — `squared_distance` answers it exactly, without a square root, and the source has
+        been recorded on the condition since #192. Two open issues said this waited on the
+        forced-movement primitive 0055 built; it never did.
+
+        **A source whose distance cannot be measured is not approached.** One that has left the
+        encounter, or that nobody placed, leaves the question unanswerable — and refusing a move
+        on a distance the engine could not measure would forbid something the rules may permit.
+        That is the direction `_within` already takes at the read surface for the same reason.
+        """
+        if target.position is None:
+            return None
+        for source_id in sorted(target.conditions.sources_of(Condition.FRIGHTENED)):
+            if not self.has(source_id):
+                continue
+            source = self.combatant(source_id)
+            if source.position is None:
+                continue
+            if squared_distance(to, source.position) < squared_distance(
+                target.position, source.position
+            ):
+                return source
+        return None
 
     def with_initiative(self, rolls: Mapping[str, int]) -> EncounterState:
         """Order the combatants and begin round 1. Ties break by the order given."""

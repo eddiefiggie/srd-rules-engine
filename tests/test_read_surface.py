@@ -487,10 +487,19 @@ def test_a_creature_with_no_spellcasting_reports_no_slots() -> None:
 def test_unenforced_clauses_reach_the_agent() -> None:
     """A rule the engine holds but does not apply is something the agent needs to know, or
     it will assume the engine handled it."""
-    frightened = Conditions(held=frozenset({Condition.FRIGHTENED}))
-    result = read(_rich(conditions=frightened), "pc")
+    charmed = Conditions(held=frozenset({Condition.CHARMED}))
+    result = read(_rich(conditions=charmed), "pc")
     assert result.situation is not None
-    assert "cannot-willingly-approach-the-source" in result.situation.unenforced_clauses
+    assert "cannot-attack-or-target-the-charmer" in result.situation.unenforced_clauses
+
+    # Frightened was the example here until #350 enforced its last clause. It now contributes
+    # nothing of its own, which is the state every condition is meant to reach — the clauses
+    # still present belong to the action economy and the read surface, not to the condition.
+    frightened = Conditions(held=frozenset({Condition.FRIGHTENED}))
+    afraid = read(_rich(conditions=frightened), "pc")
+    assert afraid.situation is not None
+    assert not any("fear" in c or "approach" in c for c in afraid.situation.unenforced_clauses)
+    assert frightened.unenforced_clauses() == ()
 
 
 # --- What the economy now puts on the menu -------------------------------------------
