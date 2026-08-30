@@ -233,6 +233,12 @@ from srd_rules_engine.core.save_ends import (
     save_ends_rule_id,
     save_ends_rules,
 )
+from srd_rules_engine.core.size import (
+    CarryingCapacity,
+    Size,
+    carrying_capacity,
+    one_size_larger_for_carrying,
+)
 from srd_rules_engine.core.skills import (
     SKILL_ABILITY,
     SKILLS_VERIFICATION,
@@ -327,6 +333,7 @@ __all__ = [
     "CanonicalizationError",
     "Carriage",
     "Carried",
+    "CarryingCapacity",
     "Catalogue",
     "Clock",
     "Combatant",
@@ -389,6 +396,7 @@ __all__ = [
     "SaveEnds",
     "SessionReport",
     "Shape",
+    "Size",
     "Skill",
     "SpanUnit",
     "StatedSpan",
@@ -415,6 +423,7 @@ __all__ = [
     "burning_resolver",
     "burning_rule",
     "canonicalize",
+    "carrying_capacity",
     "cast_declared",
     "cast_key",
     "check_storable",
@@ -446,6 +455,7 @@ __all__ = [
     "load_fixture_ruleset",
     "load_inventory",
     "load_ruleset",
+    "one_size_larger_for_carrying",
     "override_to_success",
     "perception_resolver",
     "perception_rule",

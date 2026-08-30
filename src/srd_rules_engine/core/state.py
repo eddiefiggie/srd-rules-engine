@@ -86,6 +86,12 @@ from srd_rules_engine.core.sight import (
     Visibility,
     obscurement_at,
 )
+from srd_rules_engine.core.size import (
+    CarryingCapacity,
+    Size,
+    carrying_capacity,
+    one_size_larger_for_carrying,
+)
 from srd_rules_engine.core.skills import SKILL_ABILITY, PerceptionCheck, Skill
 from srd_rules_engine.core.spellcasting import (
     CONCENTRATION_RULE_ID,
@@ -435,6 +441,41 @@ class Combatant:
     #: declines rather than guessing — the same distinction `slots` draws between a creature
     #: with no spell slots and one with none left.
     hands: int | None = None
+    #: p. 188's size category, or `None` because **no ruleset said**.
+    #:
+    #: `hands` above gives the argument and this is the same one a step further on. p. 188 is
+    #: emphatic that every creature has a size — "A creature or an object **belongs to** a
+    #: size category" — so `None` is not a claim that this one has none. It is the claim that
+    #: nobody stated which, and p. 14 says where the answer would have come from: "A
+    #: character's size is determined by **species**, and a monster's size is specified in the
+    #: monster's **stat block**." Both are content this repository does not ship (R31).
+    #:
+    #: **Medium is the tempting default and it is the one R31 forbids.** It is what almost
+    #: every player character is, and the SRD states it as a default for nothing — it is a
+    #: species' answer, not the game's. Taking it would be silent and wrong in the direction
+    #: that matters: p. 178's table read at Medium gives an Ancient Red Dragon a carrying
+    #: capacity of 450 lb against its true 3,600, and p. 190 would let a Halfling grapple a
+    #: Kraken. A wrong number is indistinguishable from a right one once it is inside a
+    #: finished ruling; a refusal is not.
+    #:
+    #: So every rule keyed on size answers `None` for a creature nobody sized, and #259 is
+    #: closed by the engine being able to say "I was not told" rather than by it guessing.
+    size: Size | None = None
+    #: Whether this creature reads p. 178's table one row up (p. 86, p. 357).
+    #:
+    #: p. 86, *Powerful Build*: "You also count as one size larger when determining your
+    #: carrying capacity." p. 357, *Beast of Burden*: "The mule counts as one size larger for
+    #: the purpose of determining its carrying capacity." Two printings of one rule, so one
+    #: flag rather than two (0035).
+    #:
+    #: **Scoped to carrying capacity by both sentences**, which is why it is not a general
+    #: "counts as larger". Powerful Build's *other* half — Advantage on checks to end the
+    #: Grappled condition — is a separate mechanic and is not this flag.
+    #:
+    #: A resolved permission the ruleset supplies, for the reason `mastery_weapons` and
+    #: `may_substitute_focus` are: the trait belongs to a species and a stat block, and
+    #: neither ships here.
+    carries_as_one_size_larger: bool = False
     #: What this creature can cast — **ruleset data, carried by the caster** (0038 clause 1).
     #:
     #: It rides here rather than being handed to `legal_actions`, and that is 0026 clause 1
@@ -526,6 +567,51 @@ class Combatant:
     def carried_weight(self) -> float:
         """Everything worn, held and stowed, in pounds (p. 178)."""
         return carried_weight(self.equipment)
+
+    @property
+    def carrying_size(self) -> Size | None:
+        """The size p. 178's table is read at, which is not always this creature's.
+
+        p. 86 and p. 357 both move a creature one row up **for this table only**, so the
+        effective size is computed here and the creature's own `size` is left alone.
+        """
+        if self.size is None:
+            return None
+        return (
+            one_size_larger_for_carrying(self.size)
+            if self.carries_as_one_size_larger
+            else self.size
+        )
+
+    @property
+    def carrying_capacity(self) -> CarryingCapacity | None:
+        """p. 178's two bounds, or `None` for a creature nobody sized.
+
+        `None` is a refusal and not a capacity of zero. p. 178's table is keyed on a size,
+        and an engine that has not been told one cannot read a row without choosing it — see
+        `size` for why choosing it is the failure R31 names.
+        """
+        size = self.carrying_size
+        if size is None:
+            return None
+        return carrying_capacity(size, self.abilities.get("str", 10))
+
+    @property
+    def over_carrying_capacity(self) -> bool | None:
+        """Whether what this creature has exceeds p. 178's Carry column, or `None` if unsized.
+
+        Arithmetic, not a ruling: p. 178 calls Carry "the maximum weight in pounds that you
+        can carry", so a total above it is over that maximum and nothing more is claimed. What
+        p. 178 says *follows* — "your Speed can be no more than 5 feet" — is not applied, and
+        the read surface discloses that rather than leaving it to be discovered. It turns on
+        whether the creature is dragging, lifting or pushing, which is a narrative fact this
+        engine does not hold, and p. 12 leaves the whole subsystem to a person: "the GM
+        **might** require you to abide by the rules for carrying capacity."
+        """
+        capacity = self.carrying_capacity
+        if capacity is None:
+            return None
+        return self.carried_weight > capacity.carry
 
     @property
     def weapons_held(self) -> tuple[Weapon, ...]:

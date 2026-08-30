@@ -33,6 +33,7 @@ from srd_rules_engine.core.equipment import (
     unplaced_objects,
 )
 from srd_rules_engine.core.position import Position
+from srd_rules_engine.core.size import Size
 
 SWORD = Item(id="fixture:sword", weight=3.0, hands_when_held=1)
 GREATAXE = Item(id="fixture:greataxe", weight=7.0, hands_when_held=2)
@@ -190,12 +191,22 @@ def test_worn_and_held_and_stowed_all_count_as_carried() -> None:
     assert laden.carried_weight == pytest.approx(60.0)
 
 
-def test_nothing_here_says_whether_it_is_too_much() -> None:
-    """p. 178's capacity is a table keyed on **Size**, which this engine does not have (#259).
-    So the weight is reported and no verdict is, which is the disclosed gap rather than a
-    guess at a threshold."""
-    assert not hasattr(creature(), "carrying_capacity")
-    assert not hasattr(creature(), "is_encumbered")
+def test_whether_it_is_too_much_needs_a_size_and_still_refuses_without_one() -> None:
+    """The assertion this replaces said the engine could not answer at all, because p. 178's
+    table is keyed on a `Size` nothing had (#259). It has one now — and the refusal survives
+    for a creature nobody sized, which is the half worth keeping.
+
+    Retired and rebuilt in one change, because a removed absence-assertion that nothing
+    replaces is how a gap closes with no test covering the rule that closed it.
+    """
+    unsized = creature(equipment=(Carried(MAIL, Carriage.WORN),))
+    assert unsized.size is None
+    assert unsized.carrying_capacity is None, "no row to read without a size"
+    assert unsized.over_carrying_capacity is None, "and no verdict either — not False"
+
+    sized = replace(unsized, size=Size.MEDIUM)
+    assert sized.carrying_capacity is not None
+    assert sized.over_carrying_capacity is False
 
 
 def test_a_weight_may_be_fractional() -> None:
@@ -300,7 +311,10 @@ def test_the_module_discloses_what_it_does_not_model() -> None:
     ).read_text()
 
     assert "What this does not model" in module
-    for issue in ("#245", "#247", "#258", "#259"):
+    # #259 was here until 0051 closed it. #336 replaces it: the bound is built and the Speed
+    # consequence is not, so what the module owes a reader is a pointer at the half that is
+    # still missing rather than at the issue that closed.
+    for issue in ("#245", "#247", "#258", "#336"):
         assert issue in module, f"the disclosure no longer points at {issue}"
 
 

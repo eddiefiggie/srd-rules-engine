@@ -13,13 +13,14 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
+import json
 import tempfile
 from pathlib import Path
 from typing import get_args
 
 import pytest
 
-from fixtures.encounter import build_adjudicator, needs_nerve, opening_state
+from fixtures.encounter import build_adjudicator, character, needs_nerve, opening_state
 from fixtures.ruleset import LOOSE_SCREE
 from srd_rules_engine.adapters import (
     AwaitingDeclaration,
@@ -45,7 +46,7 @@ from srd_rules_engine.adapters.mcp import (
     render,
     tool_definitions,
 )
-from srd_rules_engine.core import Declaration, Intent
+from srd_rules_engine.core import Declaration, EncounterState, Intent, Size
 from srd_rules_engine.core.read_surface import Situation, read
 from srd_rules_engine.loop import TurnLoop
 
@@ -216,6 +217,35 @@ def test_every_read_surface_field_reaches_a_transport() -> None:
         f"Situation fields no adapter renders: {missing}. Add them to situation_payload — "
         "an agent cannot decide from a field it is never sent."
     )
+
+
+def test_the_situation_payload_survives_the_transport_it_is_built_for() -> None:
+    """Present in the dict is not the same as sendable.
+
+    The guard above checks that every field has a **name** in the payload and says nothing
+    about its value, so a field rendered as the engine's own dataclass passes it and then
+    fails in the adapter at the moment an agent asks for a situation. 0051's
+    `carrying_capacity` is a `CarryingCapacity`, which is exactly that shape — the completeness
+    guard went green on it while `json.dumps` would not have.
+
+    HTTP and MCP both serialise this, so JSON is the transport rather than an arbitrary
+    stand-in for one.
+
+    **The creature is sized deliberately.** Written against `opening_state` alone this test
+    was vacuous: nothing in that fixture states a size, so `carrying_capacity` is `None`, the
+    dataclass never reaches the payload, and rendering it raw kept the assertion green. The
+    corruption proof caught it — which is the whole reason that rule exists — so the sized
+    creature is the case under test and the plain fixture is checked beside it.
+    """
+    json.dumps(surface_module.situation_payload(read(opening_state(seed=SEED), "pc").situation))
+
+    sized = EncounterState.new(
+        [dataclasses.replace(character(), size=Size.MEDIUM)]
+    ).with_initiative({"pc": 10})
+    situation = read(sized, "pc").situation
+    assert situation is not None
+    assert situation.carrying_capacity is not None, "otherwise this asserts nothing again"
+    json.dumps(surface_module.situation_payload(situation))
 
 
 def test_the_tools_are_exactly_what_is_declared() -> None:
