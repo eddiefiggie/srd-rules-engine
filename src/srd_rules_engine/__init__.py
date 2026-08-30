@@ -9,6 +9,6 @@ See README.md for the architecture and NOTICE.md for attribution.
 # Date-based build stamp: mmddyyyy.x. `tests/test_build_stamp.py` fails the build
 # when README.md's "Current build" line drifts from this value, so the README
 # cannot silently go stale behind the code.
-__version__ = "08302026.25"
+__version__ = "08302026.26"
 
 __all__ = ["__version__"]

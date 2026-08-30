@@ -49,7 +49,7 @@ says unverified, so a row cannot be added without the state moving with it.
 The three light levels, the two obscurement degrees and the four senses are named by the
 Rules Glossary's own entry headings, which `scripts/derive_effect_shapes.py` reads
 mechanically off the document rather than recalling. Enumerating them is not transcribing
-what they *do*, which is the part that waits for #150.
+what they *do*, which is the part #150 read off the nine pages.
 
 `Obscurement.NONE` is this engine's representation of the absence of obscurement, not a
 glossary term — `Cover.NONE` in `core.obstructions` is the same construction for the same
@@ -135,8 +135,9 @@ class Senses:
 
     `None` means the creature has no such sense, which is different from a range of 0 — the
     distinction `Speeds` draws between a creature that cannot fly and one whose Fly Speed is
-    zero. Nothing here says what any of them *does*; that is the table, and the table is
-    empty (#150).
+    zero. Nothing here says what any of them *does*; that is `SENSE_LIGHT_SHIFTS`, which
+    #150 filled — this said the table was empty until #381, four builds after it stopped
+    being true.
     """
 
     blindsight: int | None = None
