@@ -85,7 +85,13 @@ KINDS: dict[str, tuple[str, bool]] = {
     # by 0031 clause 3 — p. 236 and pp. 181/185 contradict each other about removing their
     # Exhaustion levels, and a contradiction states no rule.
     **{n: ("hazard", True) for n in ("Burning", "Falling", "Suffocation")},
-    **{n: ("hazard", False) for n in ("Dehydration", "Malnutrition")},
+    # p. 181's Dehydration is built (#315, 0080): a level at a day's end with no die, so a
+    # state transition rather than a resolver. p. 185's Malnutrition is not — it compels a
+    # DC 10 Constitution save, and the occasion that could produce a ruling on the campaign
+    # axis does not exist (#399). They stopped sharing a flag when they stopped sharing a
+    # blocker.
+    "Dehydration": ("hazard", True),
+    "Malnutrition": ("hazard", False),
     **{n: ("targeting", True) for n in ("Cone", "Cube", "Cylinder", "Emanation", "Line", "Sphere")},
     **{n: ("attitude", False) for n in ("Friendly", "Hostile", "Indifferent")},
     "Attack": ("action", True),

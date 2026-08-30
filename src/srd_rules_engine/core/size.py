@@ -41,8 +41,11 @@ column from the other would survive a revision that changed it.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from fractions import Fraction
+from types import MappingProxyType
 from typing import Final
 
 
@@ -186,6 +189,40 @@ def carrying_capacity(size: Size, strength_score: int) -> CarryingCapacity:
         size=size,
         strength_score=strength_score,
     )
+
+
+#: p. 181's *Water Needs per Day*, in gallons.
+#:
+#: **`Fraction`, not `float`.** Tiny needs a quarter of a gallon and the rule turns on *half*
+#: of what is required, so the comparison is against an eighth — and a binary float cannot
+#: hold either exactly. A hazard that fired on a rounding error would be indistinguishable
+#: from one that fired on the rule.
+#:
+#: **A size-keyed table this engine does ship**, unlike pp. 92-97's equipment. p. 178's
+#: carrying capacity is the precedent: a table printed inside a Rules Glossary mechanic is
+#: part of the mechanic, while a table of purchasable goods is content (R31).
+WATER_PER_DAY: Final[Mapping[Size, Fraction]] = MappingProxyType(
+    {
+        Size.TINY: Fraction(1, 4),
+        Size.SMALL: Fraction(1),
+        Size.MEDIUM: Fraction(1),
+        Size.LARGE: Fraction(4),
+        Size.HUGE: Fraction(16),
+        Size.GARGANTUAN: Fraction(64),
+    }
+)
+
+
+def dehydrated(size: Size, gallons_drunk: Fraction) -> bool:
+    """Whether p. 181 gives this creature an Exhaustion level at the day's end (#315).
+
+    > A creature that drinks **less than half** the required water for a day gains 1
+    > Exhaustion level at the day's end.
+
+    **Strictly less than half**, which is the whole of the comparison. Exactly half is enough,
+    and a `<=` here would inflict a level the document does not.
+    """
+    return bool(gallons_drunk < WATER_PER_DAY[size] / 2)
 
 
 #: p. 182, *Grappled*, *Movable*: "two or more sizes smaller than it".

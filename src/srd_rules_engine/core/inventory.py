@@ -225,6 +225,11 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # `unarmed-strike`: p. 190's three options are a separate entry and remain unbuilt,
         # and a flag over both would be 0046's defect again.
         "grappling": "core.grappling.escape_resolver",
+        # p. 181, #315, 0080. Dehydration is bookkeeping — a level at a day's end with no die
+        # — so it is a state transition rather than a resolver, and the named symbol says so.
+        # `malnutrition` is NOT here: p. 185 compels a DC 10 Constitution save and the
+        # occasion that could produce a ruling on the campaign axis does not exist (#399).
+        "dehydration": "core.state.EncounterState.with_day_ended",
         # p. 185, #382, 0072. The whole sentence: the trigger in `core.reactions`, the offer
         # and the Reaction spent in `loop.turn.TurnLoop.move`, the attack itself through the
         # one adjudication entry point.

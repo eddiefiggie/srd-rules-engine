@@ -128,12 +128,32 @@ from srd_rules_engine.core.rules import (
     VerificationMethod,
     VerificationState,
 )
+from srd_rules_engine.core.size import WATER_PER_DAY as WATER_PER_DAY
+from srd_rules_engine.core.size import dehydrated as dehydrated
 
 # Both re-exported: 0028 clause 1 makes a Suffocation level carry its rule id, so the ids
 # key state and had to move where state can reach them. This is where callers look.
 from srd_rules_engine.core.state import BURNING_RULE_ID as BURNING_RULE_ID
+from srd_rules_engine.core.state import DEHYDRATION_RULE_ID as DEHYDRATION_RULE_ID
+from srd_rules_engine.core.state import MALNUTRITION_RULE_ID as MALNUTRITION_RULE_ID
 from srd_rules_engine.core.state import SUFFOCATION_RULE_ID as SUFFOCATION_RULE_ID
 from srd_rules_engine.core.state import EncounterState
+
+#: R31. p. 181's Dehydration entry, asserted whole in `scripts/verify_d20_rules.py` — the
+#: table, the half-a-day's-water threshold, the level at the day's end, and the removal it
+#: locks (#315).
+DEHYDRATION_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference="SRD v5.2.1, Rules Glossary: Dehydration p. 181",
+    date="2026-08-30",
+    method=VerificationMethod.ASSERTED,
+)
+
+#: p. 181's water table and its rule live in `core.size`, beside p. 178's carrying capacity
+#: and for the same reason — both are size-keyed mechanics, and `core.state` must be able to
+#: reach this one without importing the module that imports it. Re-exported here because a
+#: reader looking for a hazard looks here (#315).
+
 
 #: p. 182: "1d6 Bludgeoning damage ... for every 10 feet it fell".
 FEET_PER_FALLING_DIE: Final = 10
