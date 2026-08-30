@@ -68,7 +68,7 @@ from srd_rules_engine.core.position import SpeedReduction
 from srd_rules_engine.core.read_surface import LegalAction, Verdict, legal_actions, verify
 from srd_rules_engine.core.rules import Ruleset
 from srd_rules_engine.core.spellcasting import MAX_SPELL_LEVEL
-from srd_rules_engine.core.state import EncounterState, ForcedSave
+from srd_rules_engine.core.state import EncounterState, ForcedSave, grapples_released
 from srd_rules_engine.core.triggers import Catalogue, MatchContext, Trigger, challenge_text
 
 #: A payload's schema version says *what shape it is*. Its `compat` floor says *which
@@ -1826,6 +1826,17 @@ def _apply(
                 "through a branch here or not at all — falling through to another kind's "
                 "transition is the quiet direction to be wrong in"
             )
+    # p. 182's grapple endings, asked after the effects have landed rather than before.
+    # They are *derived* — "the condition also ends if the grappler has the Incapacitated
+    # condition or if the distance ... exceeds the grapple's range" — so the moment to ask is
+    # the moment the state they read has settled. This ruling is what may have Incapacitated
+    # the grappler or moved either creature, and asking first would answer about the state
+    # that no longer holds.
+    #
+    # The same function the turn sweep calls, so an ending cannot be remembered in one place
+    # and forgotten in the other (0050 clause 3's rule, applied to a second pair of sites).
+    state = grapples_released(state)
+
     return state, tuple(landed), tuple(withheld)
 
 

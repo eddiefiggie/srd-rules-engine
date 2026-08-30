@@ -151,6 +151,17 @@ class ConditionEffects:
     unenforced_clauses: tuple[str, ...] = ()
 
 
+#: p. 182's third Grappled clause, held and not enforced.
+#:
+#: > **Movable.** The grappler can drag or carry you when it moves, but every foot of movement
+#: > costs it 1 extra foot unless you are Tiny or two or more sizes smaller than it.
+#:
+#: Two things are missing and the second is the larger. Nothing lets one creature's movement
+#: carry another — movement moves the mover. And the exemption is a **size comparison against
+#: the grappler**, which `Size.categories_above` can now answer (0051) for the creatures a
+#: ruleset has sized and cannot answer at all for the rest.
+MOVABLE_UNENFORCED: Final = "grappled-creature-is-movable-by-the-grappler"
+
 #: Each condition's effects, transcribed field by field from its glossary entry.
 EFFECTS: Final[dict[Condition, ConditionEffects]] = {
     Condition.BLINDED: ConditionEffects(
@@ -170,7 +181,15 @@ EFFECTS: Final[dict[Condition, ConditionEffects]] = {
         # became state and `own_attack_rolls` could be told whether it is visible.
         unenforced_clauses=("cannot-willingly-approach-the-source",),
     ),
-    Condition.GRAPPLED: ConditionEffects(speed_zero=True),
+    Condition.GRAPPLED: ConditionEffects(
+        speed_zero=True,
+        # p. 182's second clause — Disadvantage "on attack rolls against any target other than
+        # the grappler" — is **built** and is not here, because it is relational: it needs a
+        # target, so `own_attack_rolls(target_id=...)` answers it rather than a flat field.
+        #
+        # The third is not built. See `MOVABLE_UNENFORCED` above.
+        unenforced_clauses=(MOVABLE_UNENFORCED,),
+    ),
     Condition.INCAPACITATED: ConditionEffects(
         cannot_act=True,
         concentration_broken=True,
@@ -241,6 +260,40 @@ EFFECTS: Final[dict[Condition, ConditionEffects]] = {
 
 
 @dataclass(frozen=True)
+class Grapple:
+    """The terms of the grapple a creature is held in (p. 182, *Grappling*).
+
+    **Terms of the grapple, not of the grappler.** p. 182 says "the **grapple's** escape DC"
+    and "the **grapple's** range" — a creature grappled by a tentacle and a creature grappled
+    by a hand are held on different numbers, and a stat block states them per attack ("escape
+    DC 13", p. 259). Neither is derivable from the grappler.
+
+    **Who is grappling is deliberately not here.** That lives in `Conditions.sources`, which
+    already answers it for Frightened as well and is what `grappler_id` reads. Two homes for
+    one identity is how the two come to disagree.
+
+    Both fields are `int | None` and default to `None`, because a ruleset that stated a
+    grapple need not have stated either number and the engine may not invent one:
+
+    * **No escape DC** means p. 182's escape check has no target number, so it is not
+      offered. The other endings still work — a grapple with no stated DC is not a grapple
+      with no exit.
+    * **No range** means the distance ending cannot be evaluated. That refusal runs in the
+      direction 0030 clause 1 names: ending a grapple against an unstated bound would lift a
+      condition the rules did not lift, while declining leaves the state the engine was told.
+    """
+
+    escape_dc: int | None = None
+    range_feet: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.escape_dc is not None and self.escape_dc < 1:
+            raise ValueError(f"an escape DC is a positive target number, not {self.escape_dc}")
+        if self.range_feet is not None and self.range_feet < 0:
+            raise ValueError(f"a grapple's range is a distance in feet, not {self.range_feet}")
+
+
+@dataclass(frozen=True)
 class Conditions:
     """The conditions a creature holds, with implication already resolved.
 
@@ -277,6 +330,12 @@ class Conditions:
     #: sources — and Exhaustion, which p. 179 names as the exception to that rule, is why
     #: 0028 gave it levels instead.
     sources: Mapping[Condition, frozenset[str]] = field(default_factory=dict)
+    #: The terms of this creature's grapple (p. 182), or `None` when it is not Grappled.
+    #:
+    #: Separate from `sources` above because they answer different questions and one of them
+    #: is general: `sources` says *who* imposed a condition and serves Frightened too, while
+    #: this is the pair of numbers p. 182 attaches to a grapple and to nothing else.
+    grapple: Grapple | None = None
     #: How long each **applied** condition lasts (#18). Keyed by condition, and an implied
     #: one never appears here — it is held because its source is, so it lifts when that
     #: source does rather than carrying a span of its own. A condition absent from this map
@@ -311,6 +370,12 @@ class Conditions:
         applied = (self.applied or self.held) - {Condition.EXHAUSTION}
         object.__setattr__(self, "applied", applied)
         object.__setattr__(self, "held", _closure(applied, len(self.exhaustion_levels)))
+        if self.grapple is not None and Condition.GRAPPLED not in self.held:
+            raise ValueError(
+                "grapple terms were given to a creature that is not Grappled. The escape DC "
+                "and range belong to a grapple, so terms with no grapple describe nothing — "
+                "the same refusal `durations` makes for a span nobody applied"
+            )
         unknown = set(self.durations) - set(self.applied)
         if unknown:
             raise ValueError(

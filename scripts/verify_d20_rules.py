@@ -1619,6 +1619,56 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"The mule counts as one size larger for the purpose of determining its carrying "
         r"capacity",
     ),
+    # --- 0052: Grappling, and the endings that come with it ------------------------------
+    (
+        182,
+        "the sentence that makes these rules independent of whatever imposed the grapple - "
+        "which is why they are built before any initiator",
+        r"However a grapple is initiated, it follows these rules",
+    ),
+    (
+        182,
+        "the escape check: an ACTION, either of two skills, against the grapple's own DC, "
+        "ending the condition only on a success",
+        r"A Grappled creature can use its action to make a Strength \(Athletics\) or "
+        r"Dexterity \(Acrobatics\) check against the grapple.s escape DC, ending the "
+        r"condition on itself on a success",
+    ),
+    (
+        182,
+        "the two endings nobody decides, and note the second is EXCEEDS rather than reaches",
+        r"The condition also ends if the grappler has the Incapacitated condition or if the "
+        r"distance between the Grappled target and the grappler exceeds the grapple.s range",
+    ),
+    (
+        182,
+        "the release, and that it costs nothing - which is why the offer is not gated on a "
+        "spare Action (#341 holds the timing this engine cannot yet reach)",
+        r"the grappler can release the target at any time \(no action required\)",
+    ),
+    (
+        182,
+        "Grappled's first clause, which is built",
+        r"Speed 0\. Your Speed is 0 and can.t increase",
+    ),
+    (
+        182,
+        "its second, which is built and is RELATIONAL - answered with a target rather than by "
+        "a flat field",
+        r"You have Disadvantage on attack rolls against any target other than the grappler",
+    ),
+    (
+        182,
+        "and its third, which is disclosed and not built (#340)",
+        r"The grappler can drag or carry you when it moves, but every foot of movement costs "
+        r"it 1 extra foot unless you are Tiny or two or more sizes smaller than it",
+    ),
+    (
+        259,
+        "a stat block states an escape DC outright, which is why the DC is stored with the "
+        "grapple rather than recomputed from the grappler",
+        r"the rug can give it the Grappled condition \(escape DC 13\)",
+    ),
 )
 
 #: Clauses about the document as a whole rather than about one page, as

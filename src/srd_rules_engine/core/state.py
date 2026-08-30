@@ -219,6 +219,73 @@ class DeathSaves:
 _SPEED_ONLY_MODES: Final = (MovementMode.FLY, MovementMode.BURROW)
 
 
+def ended_by_circumstance(state: EncounterState) -> tuple[str, ...]:
+    """Ids of creatures whose grapple has ended for a reason nobody decides (p. 182).
+
+    > The condition also ends if the grappler has the Incapacitated condition or if the
+    > distance between the Grappled target and the grappler exceeds the grapple's range.
+
+    **Derived, not swept.** 0050 put p. 90's Slow reduction on the creature and retired it on
+    a turn boundary, because the thing it modifies is read through a property that sees no
+    encounter. This is the opposite case in both halves: the question needs *two* creatures,
+    so it can only be asked where both are, and its answer does not wait for a turn boundary —
+    a creature whose grappler is knocked unconscious mid-turn is not grappled from that
+    moment. So it is asked wherever state settles rather than only when the turn advances.
+
+    Each of the three refusals below leaves the condition **held**, which is 0030 clause 1's
+    direction: lifting a grapple on a fact the engine had to guess would remove a condition
+    the rules did not remove, while declining leaves the state a ruleset stated.
+    """
+    ended: list[str] = []
+    for creature in state.combatants:
+        if Condition.GRAPPLED not in creature.conditions.held:
+            continue
+        grappler_id = creature.conditions.grappler_id
+        if grappler_id is None:
+            # Nobody said who is grappling, so neither ending can be evaluated: there is no
+            # creature to be Incapacitated and none to measure a distance to.
+            continue
+        grappler = next((c for c in state.combatants if c.id == grappler_id), None)
+        if grappler is None:
+            # The grappler has left the encounter. p. 182 does not say what becomes of the
+            # grapple, and inventing a release is inventing an outcome.
+            continue
+        if Condition.INCAPACITATED in grappler.conditions.held:
+            ended.append(creature.id)
+            continue
+        if _out_of_range(creature, grappler):
+            ended.append(creature.id)
+    return tuple(ended)
+
+
+def _out_of_range(creature: Combatant, grappler: Combatant) -> bool:
+    """Whether the two have been separated by more than the grapple's range (p. 182).
+
+    `False` whenever the question cannot be asked — an unstated range, or an encounter
+    tracking no positions. p. 182 measures a distance and an engine with no distance to
+    measure has not found the creatures close enough; it has found nothing.
+    """
+    grapple = creature.conditions.grapple
+    if grapple is None or grapple.range_feet is None:
+        return False
+    if creature.position is None or grappler.position is None:
+        return False
+    return distance_feet(creature.position, grappler.position) > grapple.range_feet
+
+
+def grapples_released(state: EncounterState) -> EncounterState:
+    """`state` with every grapple p. 182 has already ended lifted from it.
+
+    The one function both call sites share, for the reason 0050 gave for sharing one sweep:
+    two implementations of "has this grapple ended" is how one gets remembered and the other
+    forgotten.
+    """
+    ending = ended_by_circumstance(state)
+    for creature_id in ending:
+        state = state.with_condition_ended(creature_id, Condition.GRAPPLED)
+    return state
+
+
 def _swept(state: EncounterState) -> EncounterState:
     """Drop pending roll tokens the advanced turn has passed the expiry of (0049).
 
@@ -239,6 +306,12 @@ def _swept(state: EncounterState) -> EncounterState:
             order=order,
         )
 
+    # p. 182's grapple endings retire here as well, through the one function both call sites
+    # share (0050's rule read forwards). The turn boundary is not where they are *decided* —
+    # `grapples_released` is called wherever state settles — but a sweep that skipped them
+    # would leave the one state change nothing else triggers: a grappler who ended its turn
+    # Incapacitated by a condition that arrived with no ruling behind it.
+    state = grapples_released(state)
     live = tuple(token for token in state.pending_advantage if alive(token))
     # p. 90's Slow retires here too, through the **same** function (#322, 0050). Its liveness
     # is applied rather than derived — `Combatant.effective_speeds` sees no encounter — so the
