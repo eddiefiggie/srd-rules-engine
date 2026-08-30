@@ -46,6 +46,7 @@ from srd_rules_engine.core import (
 )
 from srd_rules_engine.core.actions import ActionBudget, ActionKind
 from srd_rules_engine.core.casting import spell_resolver
+from srd_rules_engine.core.equipment import Carriage, Carried, Item
 from srd_rules_engine.core.read_surface import cast_declared
 from srd_rules_engine.core.spellcasting import CastingTime, Spell, SpellSlots
 from srd_rules_engine.memory.store import JsonMemoryStore
@@ -537,3 +538,95 @@ def test_a_cantrip_is_not_exempt_from_being_prepared() -> None:
     assert not any(
         cantrip.rule_id in key for key in read(state, "mage").keys for cantrip in cantrips
     )
+
+
+# --- p. 105's components, refused where the spell is cast (#245, 0062) -------------------------
+
+
+MATERIAL_SPELL = Spell(
+    rule_id="fixture:sealed-scroll",
+    level=1,
+    casting_time=CastingTime.ACTION,
+    material=True,
+)
+TORCH = Item(id="fixture:torch", weight=1.0, hands_when_held=1)
+
+
+def encumbered(**overrides: object) -> Combatant:
+    """A caster holding something in each of its two hands."""
+    fields: dict[str, object] = {
+        "hands": 2,
+        "equipment": (Carried(TORCH, Carriage.HELD), Carried(TORCH, Carriage.HELD)),
+        "spells": (MATERIAL_SPELL,),
+        "prepared": frozenset({MATERIAL_SPELL.rule_id}),
+    }
+    fields.update(overrides)
+    return caster(**fields)
+
+
+def test_a_spell_whose_components_cannot_be_provided_is_not_offered() -> None:
+    """p. 105: "If the spellcaster can't provide one or more of a spell's components, the
+    spellcaster can't cast the spell." The menu half, which has been built since #257."""
+    full = encounter(encumbered())
+    assert not any(cast_declared(action.key) for action in read(full, "mage").actions), (
+        "both hands are full, so p. 105's Material component cannot be reached"
+    )
+
+
+def test_the_resolver_refuses_it_too(tmp_path: Path) -> None:
+    """The half that was missing (#245).
+
+    `component_refusal` gated the read surface and nothing else, so a caller that reached
+    adjudication without consulting the menu cast a spell it could not provide the components
+    for. The menu is a menu, not a promise — the same lesson p. 90's Push, p. 182's escape and
+    p. 186's righting each needed.
+
+    **The same function answers both**, so the offer and the refusal cannot disagree about
+    which hand is free.
+    """
+    full = encounter(encumbered())
+    declaration = Declaration(
+        actor_id="mage",
+        intent=Intent(action_key=cast_key(MATERIAL_SPELL.rule_id, 1)),
+        rule_id=MATERIAL_SPELL.rule_id,
+    )
+    with pytest.raises(ValueError, match="cannot provide"):
+        spell_resolver(MATERIAL_SPELL, effects_of)(state=full, declaration=declaration, facts={})
+
+
+def test_a_free_hand_is_all_it_takes() -> None:
+    """The negative case. With one hand free the same caster, the same spell and the same
+    resolver produce a proposal — so the refusal is about the hand and not about the fixture."""
+    handy = encumbered(equipment=(Carried(TORCH, Carriage.HELD),))
+    assert handy.free_hands == 1
+    state = encounter(handy)
+    declaration = Declaration(
+        actor_id="mage",
+        intent=Intent(action_key=cast_key(MATERIAL_SPELL.rule_id, 1)),
+        rule_id=MATERIAL_SPELL.rule_id,
+    )
+    proposal = spell_resolver(MATERIAL_SPELL, effects_of)(
+        state=state, declaration=declaration, facts={}
+    )
+    assert proposal.always, "the slot is still charged"
+
+
+def test_an_unprepared_spell_is_refused_by_the_resolver_too(tmp_path: Path) -> None:
+    """p. 104: "Before you can cast a spell, you must have the spell **prepared in your
+    mind**." The read surface has asked since #249 and the resolver had not (0062).
+
+    Found by reading the one function while fixing the components below it — the identical
+    half-enforcement, one line away, and the third and fourth instances of the pattern this
+    session after p. 90's Push, p. 182's escape and p. 186's righting.
+    """
+    unprepared = caster(prepared=frozenset())
+    state = encounter(unprepared)
+    assert not any(cast_declared(a.key) for a in read(state, "mage").actions), "not offered"
+
+    declaration = Declaration(
+        actor_id="mage",
+        intent=Intent(action_key=cast_key(BOLT.rule_id, 1)),
+        rule_id=BOLT.rule_id,
+    )
+    with pytest.raises(ValueError, match="does not have"):
+        spell_resolver(BOLT, effects_of)(state=state, declaration=declaration, facts={})
