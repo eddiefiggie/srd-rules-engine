@@ -76,6 +76,7 @@ from srd_rules_engine.core.d20 import (
     D20Test,
     Modifier,
     TestKind,
+    pick,
     roll,
 )
 from srd_rules_engine.core.damage import DamageType
@@ -135,6 +136,11 @@ from srd_rules_engine.core.topple import (
 
 INITIATIVE_DIE = 20
 
+#: Two, so a creature with Advantage or Disadvantage on Initiative has a second die
+#: to take (p. 184, #359). Drawn for every combatant, because a per-creature count
+#: would make one combatant's seed offset depend on another's conditions.
+DICE_PER_COMBATANT = 2
+
 #: R31. `HEAVY_SCORE_THRESHOLD` is a rule value, not machinery, so it carries what it was
 #: checked against. A bare 13 in this module would read exactly like a verified one, which
 #: is what `test_no_weapon_list_ships_in_this_module` exists to prevent.
@@ -182,15 +188,27 @@ def initiative_order(
     # band — with one die per combatant and no bound, so a large enough encounter aliased a
     # combatant's initiative onto a damage die of the same seed. Nothing records initiative
     # in the ledger, so moving it rewrites no history.
+    #
+    # **Two dice each, always** (#359). p. 184 gives Incapacitated Disadvantage on Initiative
+    # and Invisible Advantage, and either needs a second die. Drawing the pair only for the
+    # creatures that need one would make a combatant's seed offset depend on the *conditions*
+    # of the combatants before it — reproducible, and fragile in exactly the way #82 was, so
+    # the layout is uniform and the second die is simply unused where nothing modifies the
+    # roll. `roll` refuses a run that would leave the band, which puts the ceiling at 128
+    # combatants and says so rather than aliasing.
     faces = roll(
         seed,
-        count=len(state.combatants),
+        count=DICE_PER_COMBATANT * len(state.combatants),
         sides=INITIATIVE_DIE,
         offset=INITIATIVE_BAND.start,
     )
     return {
-        combatant.id: face + combatant.modifier(ability)
-        for combatant, face in zip(state.combatants, faces, strict=True)
+        combatant.id: pick(
+            faces[index * DICE_PER_COMBATANT : (index + 1) * DICE_PER_COMBATANT],
+            combatant.conditions.initiative_advantage,
+        )
+        + combatant.modifier(ability)
+        for index, combatant in enumerate(state.combatants)
     }
 
 

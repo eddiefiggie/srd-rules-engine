@@ -272,9 +272,15 @@ def test_the_same_seed_reruns_the_encounter_to_a_byte_identical_ledger(
 
 
 def test_a_different_seed_produces_a_different_encounter(tmp_path: Path) -> None:
-    """Otherwise byte-identity would be proving the harness ignores the seed."""
+    """Otherwise byte-identity would be proving the harness ignores the seed.
+
+    Seed 4 was the second one until #359 gave every combatant two initiative dice, which moved
+    the order it produces. `opening_state` refused it by name and said what to do, which is the
+    fixture's own guard doing what it was written for: a literal stops meaning what it says the
+    moment the derivation moves.
+    """
     first = run_encounter(tmp_path / "seed-a", seed=10)
-    second = run_encounter(tmp_path / "seed-b", seed=4)
+    second = run_encounter(tmp_path / "seed-b", seed=6)
     assert first.ledger.read_bytes() != second.ledger.read_bytes()
 
 

@@ -472,7 +472,7 @@ def resolve(test: D20Test, *, seed: int) -> D20Result:
     count = 1 if effective is Advantage.NONE else 2
     dice = tuple(die(seed, D20_BAND.at(index)) for index in range(count))
 
-    used = _pick(dice, effective)
+    used = pick(dice, effective)
 
     total = used + sum(modifier.value for modifier in test.modifiers)
     critical = _critical(test.kind, used)
@@ -573,8 +573,13 @@ def _cancel(has_advantage: bool, has_disadvantage: bool) -> Advantage:
     return Advantage.NONE
 
 
-def _pick(dice: tuple[int, ...], effective: Advantage) -> int:
-    """Which of the dice counts, given the effective state."""
+def pick(dice: tuple[int, ...], effective: Advantage) -> int:
+    """Which of the dice counts, given the effective state.
+
+    Public since #359, because initiative is a second roll that needs the same rule and does
+    not go through `D20Test`. Two copies of "higher for Advantage, lower for Disadvantage"
+    would be two chances to answer it differently — the reason `_cancel` was extracted.
+    """
     if effective is Advantage.ADVANTAGE:
         return max(dice)
     if effective is Advantage.DISADVANTAGE:
@@ -700,13 +705,13 @@ def replace_die(
     count = 1 if effective is Advantage.NONE else 2
     base = _replacement_index(generation, position)
     rolled = tuple(die(result.seed, REPLACEMENT_BAND.at(base + n)) for n in range(count))
-    value = _pick(rolled, effective)
+    value = pick(rolled, effective)
 
     dice = list(result.dice)
     original = dice[position]
     dice[position] = value
 
-    used = _pick(tuple(dice), result.effective)
+    used = pick(tuple(dice), result.effective)
     total = used + result.modifier_total
     critical = _critical(result.kind, used)
     return replace(
