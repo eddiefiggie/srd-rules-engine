@@ -99,6 +99,7 @@ from srd_rules_engine.core.spellcasting import (
     CONCENTRATION_RULE_ID,
     CONCENTRATION_SAVE_ABILITY,
     Concentration,
+    LongCast,
     Spell,
     SpellSlots,
     concentration_save,
@@ -582,6 +583,12 @@ class Combatant:
     #: a creature p. 104 forbids to cast *while wearing armour* — and one wearing none is
     #: unaffected, so the default costs nothing to a caster who dresses like one.
     armour_training: frozenset[str] = frozenset()
+    #: A casting of a minute or more, part-way through (p. 105, #250, 0065).
+    #:
+    #: `None` for a creature casting nothing long. The slot it will cost is **carried here and
+    #: not spent** — p. 105 refunds nothing on a broken Concentration because nothing was
+    #: expended, so the expenditure happens when the casting completes.
+    long_cast: LongCast | None = None
     #: How many hands this creature has, or `None` because **no SRD rule says**.
     #:
     #: Every printed rule about hands is relational — "a free hand" (pp. 89, 105, 182, 190),
@@ -1679,6 +1686,29 @@ class EncounterState:
             )
         spent = replace(target, movement_used=target.movement_used + feet)
         return self._evolve(combatants=self._replacing(spent))
+
+    def with_long_cast_begun(self, combatant_id: str, cast: LongCast) -> EncounterState:
+        """Record a casting of a minute or more as started (p. 105, 0065)."""
+        target = self.combatant(combatant_id)
+        return self._evolve(combatants=self._replacing(replace(target, long_cast=cast)))
+
+    def with_long_cast_continued(self, combatant_id: str) -> EncounterState:
+        """One Magic action later. Clears the casting when it completes (p. 105, 0065)."""
+        target = self.combatant(combatant_id)
+        if target.long_cast is None:
+            raise ValueError(
+                f"{target.name} is not part-way through a long casting, so there is nothing "
+                "to continue. p. 105's Magic action each turn belongs to a casting that has "
+                "begun"
+            )
+        return self._evolve(
+            combatants=self._replacing(replace(target, long_cast=target.long_cast.continued()))
+        )
+
+    def with_long_cast_abandoned(self, combatant_id: str) -> EncounterState:
+        """The casting fails and **nothing is refunded**, because nothing was spent (p. 105)."""
+        target = self.combatant(combatant_id)
+        return self._evolve(combatants=self._replacing(replace(target, long_cast=None)))
 
     def with_forced_movement(self, combatant_id: str, to: Position) -> EncounterState:
         """Put a creature somewhere it did not walk to (0055).

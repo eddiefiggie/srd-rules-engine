@@ -491,8 +491,25 @@ ACTION_FOR_CASTING: Final[Mapping[CastingTime, ActionKind]] = MappingProxyType(
         CastingTime.ACTION: ActionKind.ACTION,
         CastingTime.BONUS_ACTION: ActionKind.BONUS_ACTION,
         CastingTime.REACTION: ActionKind.REACTION,
+        # p. 105: "you must take the **Magic action** on each of your turns" — so a long
+        # casting costs the Action every turn it runs, the first included (#250).
+        CastingTime.MINUTES: ActionKind.ACTION,
     }
 )
+
+#: p. 105's continuation: the Magic action a casting in progress owes on each later turn.
+CONTINUE_CAST: Final = "continue-cast"
+
+
+def continue_cast_key(spell_id: str) -> str:
+    return f"{CONTINUE_CAST}:{spell_id}"
+
+
+def continue_cast_declared(action_key: str | None) -> str | None:
+    """Which spell a continuation names, or `None` if it is not one."""
+    prefix, _, spell_id = (action_key or "").partition(":")
+    return spell_id if prefix == CONTINUE_CAST and spell_id else None
+
 
 #: p. 190's Unarmed Strike, as both the rule id and the "weapon" segment of the action key —
 #: because p. 177 makes it one of the Attack action's two options rather than a separate act:
@@ -973,6 +990,25 @@ def _castable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...
     """
     offered: list[LegalAction] = []
     spent_a_slot = actor.id in state.slots_expended_this_turn
+
+    # p. 105: a casting of a minute or more owes the Magic action on **each** of the caster's
+    # turns, and until it finishes that is the only casting on offer — "to cast the spell
+    # again, you must start over", so beginning a second would abandon the first (#250, 0065).
+    if actor.long_cast is not None:
+        if not actor.actions.available(ActionKind.ACTION, actor.conditions):
+            return ()
+        return (
+            LegalAction(
+                key=continue_cast_key(actor.long_cast.spell_id),
+                label=f"Continue casting {actor.long_cast.spell_id}",
+                detail={
+                    "spell": actor.long_cast.spell_id,
+                    "slot_level": actor.long_cast.slot_level,
+                    "turns_remaining": actor.long_cast.turns_remaining,
+                    "finishes_now": actor.long_cast.finishes_now,
+                },
+            ),
+        )
 
     for spell in actor.spells:
         kind = ACTION_FOR_CASTING.get(spell.casting_time)

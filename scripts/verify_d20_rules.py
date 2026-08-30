@@ -452,6 +452,28 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"you can reach a distance equal to the height of the jump plus 1.{0,3}. times your "
         r"height",
     ),
+    # --- Longer casting times (#250, 0065) ----------------------------------------------
+    (
+        105,
+        "a casting time is one of four things, and the fourth is measured in time rather "
+        "than in a slice of a turn",
+        r"Most spells require the Magic action to cast, but some spells require a Bonus "
+        r"Action, a Reaction, or 1 minute or more",
+    ),
+    (
+        105,
+        "a casting of a minute or more owes the Magic action on EACH turn, and "
+        "Concentration throughout",
+        r"While you cast a spell with a casting time of 1 minute or more, you must take the "
+        r"Magic action on each of your turns, and you must maintain Concentration",
+    ),
+    (
+        105,
+        "and the clause that decides when the slot leaves the caster: a broken "
+        "Concentration expends none, so it cannot have been spent when the casting began",
+        r"If your Concentration is broken, the spell fails, but you don.t expend a spell "
+        r"slot\.\s*To cast the spell again, you must start over",
+    ),
     # --- What may be targeted at all (#20) ----------------------------------------------
     (
         105,

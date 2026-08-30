@@ -69,7 +69,7 @@ from srd_rules_engine.core.pending_rolls import PendingAdvantage
 from srd_rules_engine.core.position import Position, SpeedReduction
 from srd_rules_engine.core.read_surface import LegalAction, Verdict, legal_actions, verify
 from srd_rules_engine.core.rules import Ruleset
-from srd_rules_engine.core.spellcasting import MAX_SPELL_LEVEL
+from srd_rules_engine.core.spellcasting import MAX_SPELL_LEVEL, LongCast
 from srd_rules_engine.core.state import Combatant, EncounterState, ForcedSave, grapples_released
 from srd_rules_engine.core.triggers import Catalogue, MatchContext, Trigger, challenge_text
 
@@ -201,6 +201,14 @@ class EffectKind(StrEnum):
     #: covering any. p. 186 rights a Prone creature for "an amount of movement equal to half
     #: your Speed", and the creature ends up exactly where it started.
     MOVEMENT_SPENT = "movement-spent"
+    #: A casting of a minute or more begun or carried a turn further (p. 105, #250).
+    #:
+    #: Two kinds rather than one, because the two say different things to a reader of the
+    #: ledger: one records a casting that has **started and spent no slot**, the other a Magic
+    #: action paid toward it. The completion is neither — it is the ordinary
+    #: `SPELL_SLOT_EXPENDED` beside the spell's own effects, because that is what completing is.
+    LONG_CAST_BEGUN = "long-cast-begun"
+    LONG_CAST_CONTINUED = "long-cast-continued"
     #: The Disengage action taken (p. 181): movement does not provoke for the rest of the turn.
     DISENGAGED = "disengaged"
     #: A spell slot spent to cast a spell (p. 104, 0038 clause 6). `amount` is the **slot**
@@ -450,6 +458,8 @@ class Effect:
     grapple: Grapple | None = None
     #: Where a forced move put the creature (0055). Set only beside `MOVED_BY_FORCE`.
     position: Position | None = None
+    #: The casting a `LONG_CAST_BEGUN` records (p. 105, #250).
+    long_cast: LongCast | None = None
     #: `ACTION_SPENT` only: which of the three the act cost (p. 176-177).
     action: ActionKind | None = None
     #: `ACTION_SPENT` only, and only for an attack: which weapon the action was spent
@@ -903,6 +913,27 @@ def spell_slot_expended(caster_id: str, slot_level: int, *, description: str) ->
         kind=EffectKind.SPELL_SLOT_EXPENDED,
         target_id=caster_id,
         amount=slot_level,
+        description=description,
+    )
+
+
+def long_cast_begun(caster_id: str, cast: LongCast, *, description: str) -> Effect:
+    """A casting of a minute or more, started and unpaid for (p. 105, 0065)."""
+    return Effect(
+        kind=EffectKind.LONG_CAST_BEGUN,
+        target_id=caster_id,
+        amount=cast.turns_remaining,
+        description=description,
+        long_cast=cast,
+    )
+
+
+def long_cast_continued(caster_id: str, *, description: str) -> Effect:
+    """One more Magic action paid toward a casting in progress (p. 105, 0065)."""
+    return Effect(
+        kind=EffectKind.LONG_CAST_CONTINUED,
+        target_id=caster_id,
+        amount=0,
         description=description,
     )
 
@@ -1934,6 +1965,11 @@ def _apply(
             state = state.with_dash(effect.target_id, effect.amount)
         elif effect.kind is EffectKind.DODGING:
             state = state.with_dodge(effect.target_id)
+        elif effect.kind is EffectKind.LONG_CAST_BEGUN:
+            assert effect.long_cast is not None  # the constructor requires one
+            state = state.with_long_cast_begun(effect.target_id, effect.long_cast)
+        elif effect.kind is EffectKind.LONG_CAST_CONTINUED:
+            state = state.with_long_cast_continued(effect.target_id)
         elif effect.kind is EffectKind.MOVEMENT_SPENT:
             state = state.with_movement_spent(effect.target_id, effect.amount)
         elif effect.kind is EffectKind.MOVED_BY_FORCE:

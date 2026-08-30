@@ -55,8 +55,20 @@ engine can tell* rather than castable:
   training ([#247](https://github.com/eddiefiggie/srd-rules-engine/issues/247)). This is the
   one that matters most, because it is a **legality** rule: the read surface will offer
   casting to a creature the document forbids from casting.
-- **Longer casting times** (p. 105), which are absent from `CastingTime` rather than
-  approximated ([#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250)).
+Longer casting times are no longer in that list — #250 built them, and
+[0065](../../../docs/decisions/0065-a-long-cast-spends-its-slot-on-completion.md) is the
+reasoning. Two things about them are still not modelled, and both are named rather than left
+to be found:
+
+- **Hours are expressed in minutes.** p. 105 says "minutes or even hours" and the engine holds
+  one unit, so a two-hour casting is `casting_minutes=120`. The arithmetic is exact; what is
+  missing is a caller's ability to say "hours" and be understood. That is a vocabulary gap
+  rather than a rules gap, and it is disclosed because a reader who sees only `MINUTES` would
+  reasonably conclude the longer half is unsupported.
+- **A Ritual does not run through this.** p. 105's sentence is explicitly about rituals too —
+  "including a spell cast as a Ritual" — and `ritual_cast` computes p. 187's extra ten minutes
+  without ever becoming a `LongCast`. So a Ritual's turns are counted and nothing charges them
+  ([#371](https://github.com/eddiefiggie/srd-rules-engine/issues/371)).
 
 And two things this module *does* charge, which the rest of the engine does not:
 
@@ -77,20 +89,30 @@ clause 8 is why it refines one list rather than adding a second.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 
+from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.adjudicate import (
     Declaration,
     Proposal,
     Resolver,
     action_spent,
     concentration_begun,
+    long_cast_begun,
+    long_cast_continued,
     spell_slot_expended,
 )
 from srd_rules_engine.core.equipment import untrained_armour
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.read_surface import ACTION_FOR_CASTING as ACTION_FOR_CASTING
-from srd_rules_engine.core.read_surface import cast_declared
-from srd_rules_engine.core.spellcasting import Spell, component_refusal
+from srd_rules_engine.core.read_surface import cast_declared, continue_cast_declared
+from srd_rules_engine.core.spellcasting import (
+    CastingTime,
+    LongCast,
+    Spell,
+    component_refusal,
+    turns_to_cast,
+)
 from srd_rules_engine.core.state import EncounterState
 
 #: Re-exported, not restated (p. 105, p. 185). `core.read_surface` owns the map because it is
@@ -116,6 +138,14 @@ def spell_resolver(spell: Spell, effects: Resolver) -> Resolver:
     ) -> Proposal:
         caster_id = declaration.actor_id
         caster = state.combatant(caster_id)
+
+        # p. 105's continuation, answered before the slot level is read: a continuation names
+        # no level. The one the casting will spend was fixed when it began and rides on
+        # `Combatant.long_cast`, so re-reading it off the key would let ten turns of casting
+        # be redirected to a different slot on the last one.
+        if continue_cast_declared(declaration.intent.action_key) is not None:
+            return _continued(state, declaration, spell, effects)
+
         declared = cast_declared(declaration.intent.action_key)
         if declared is None or declared[0] != spell.rule_id:
             raise ValueError(
@@ -138,6 +168,57 @@ def spell_resolver(spell: Spell, effects: Resolver) -> Resolver:
                 ),
             )
         ]
+        long_cast = spell.casting_time is CastingTime.MINUTES
+        if long_cast and caster.long_cast is None:
+            # p. 105: the first Magic action of a casting that takes minutes. **No slot is
+            # expended** — the casting has not happened yet, and a broken Concentration
+            # refunds nothing because nothing was spent (#250, 0065 clause 2).
+            if caster.slots is None or slot_level not in caster.slots.payable_by(spell.level):
+                raise ValueError(
+                    f"{caster.name} cannot pay for {spell.rule_id!r} with a level "
+                    f"{slot_level} slot. The level is checked when the casting **starts** "
+                    "even though it is not spent until the casting finishes, because a "
+                    "caster who could never pay has nothing to spend ten turns on"
+                )
+            # `outcome` rather than `always`: 0027 clause 6 — a rule that resolves without
+            # a d20 states its effects there, and beginning a casting has no branch to be
+            # conditional on.
+            return Proposal(
+                outcome=(
+                    *costs,
+                    concentration_begun(
+                        caster_id,
+                        description=(
+                            f"{caster.name} begins concentrating for the "
+                            f"{spell.casting_minutes}-minute casting of {spell.rule_id} "
+                            "(p. 105)"
+                        ),
+                    ),
+                    long_cast_begun(
+                        caster_id,
+                        LongCast(
+                            spell_id=spell.rule_id,
+                            slot_level=slot_level,
+                            turns_remaining=turns_to_cast(spell),
+                        ),
+                        description=(
+                            f"{spell.rule_id} takes {spell.casting_minutes} minutes, so "
+                            f"{turns_to_cast(spell)} Magic actions of it — this is the first "
+                            "(p. 105)"
+                        ),
+                    ),
+                ),
+                citations=("srd:spells/casting-spells",),
+                may_claim=(
+                    f"that {caster.name} began a long casting and is still at it",
+                    "that nothing has been spent yet, because nothing has",
+                ),
+                may_not_claim=(
+                    "that the spell happened; p. 105 takes minutes and this is the start",
+                    "that a slot was expended — none is until the casting completes",
+                ),
+            )
+
         if spell.is_cantrip:
             # p. 178: "A cantrip is a level 0 spell, which is cast without a spell slot."
             if slot_level:
@@ -232,6 +313,92 @@ def spell_resolver(spell: Spell, effects: Resolver) -> Resolver:
         )
 
     return resolve
+
+
+def _continued(
+    state: EncounterState, declaration: Declaration, spell: Spell, effects: Resolver
+) -> Proposal:
+    """One more Magic action toward a casting of a minute or more (p. 105, 0065).
+
+    > While you cast a spell with a casting time of 1 minute or more, you must take the Magic
+    > action on each of your turns, and you must maintain Concentration while you do so.
+
+    **The last one is the casting**, and only there does the slot leave the caster. Everything
+    before it costs an Action and produces nothing, which is exactly what p. 105 describes and
+    is why a broken Concentration refunds nothing: there is nothing to refund.
+
+    Concentration is **not re-begun** on each turn. It began with the casting and p. 179's
+    replacement rule would otherwise end and restart it every turn, which is a mechanic the
+    document does not describe.
+    """
+    caster_id = declaration.actor_id
+    caster = state.combatant(caster_id)
+    in_progress = caster.long_cast
+    if in_progress is None:
+        raise ValueError(
+            f"{caster.name} is not part-way through a long casting, so p. 105 has no Magic "
+            "action to charge. A continuation names a casting that has begun"
+        )
+    if in_progress.spell_id != spell.rule_id:
+        raise ValueError(
+            f"{caster.name} is part-way through {in_progress.spell_id!r} and this continues "
+            f'{spell.rule_id!r}. p. 105: "To cast the spell again, you must start over" — '
+            "there is one casting at a time and this is not it"
+        )
+    if not caster.concentration.active:
+        raise ValueError(
+            f"{caster.name} is no longer concentrating, so the casting of {spell.rule_id!r} "
+            "has already failed (p. 105). Nothing is refunded, because nothing was spent"
+        )
+
+    spent = action_spent(
+        caster_id,
+        ActionKind.ACTION,
+        description=(
+            f"the Magic action p. 105 charges for this turn of casting {spell.rule_id} "
+            f"({in_progress.turns_remaining} owed, this one included)"
+        ),
+    )
+    if not in_progress.finishes_now:
+        return Proposal(
+            outcome=(
+                spent,
+                long_cast_continued(
+                    caster_id,
+                    description=(
+                        f"{in_progress.turns_remaining - 1} more Magic actions before "
+                        f"{spell.rule_id} is cast (p. 105)"
+                    ),
+                ),
+            ),
+            citations=("srd:spells/casting-spells",),
+            may_claim=(f"that {caster.name} is still casting {spell.rule_id}",),
+            may_not_claim=(
+                "that the spell happened; it has not, and no slot has been spent",
+                "that the casting is safe — losing Concentration ends it with nothing to show",
+            ),
+        )
+
+    # The last turn. The slot leaves the caster **now**, and the spell resolves.
+    proposal = effects(state=state, declaration=declaration, facts={})
+    return replace(
+        proposal,
+        always=(
+            spent,
+            long_cast_continued(
+                caster_id, description=f"the last Magic action {spell.rule_id} needed (p. 105)"
+            ),
+            spell_slot_expended(
+                caster_id,
+                in_progress.slot_level,
+                description=(
+                    f"a level {in_progress.slot_level} slot, expended as the casting of "
+                    f"{spell.rule_id} **completes** rather than when it began (p. 105)"
+                ),
+            ),
+            *proposal.always,
+        ),
+    )
 
 
 def spell_resolvers(spells: Mapping[Spell, Resolver]) -> dict[str, Resolver]:
