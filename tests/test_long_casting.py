@@ -182,7 +182,11 @@ def test_beginning_spends_the_action_and_no_slot(tmp_path: Path) -> None:
     assert mage.slots.remaining(2) == 2, "no slot has left the caster"
     assert not mage.actions.available(ActionKind.ACTION, mage.conditions), "the Action has"
     assert mage.concentration.active
-    assert mage.long_cast == LongCast(spell_id=RITE.rule_id, slot_level=2, turns_remaining=10)
+    # **Nine, not ten** (#371). `turns_remaining` counts the Magic actions still owed "this
+    # turn's included", and the opening one was charged by this very adjudication — so ten
+    # here counted it twice and a one-minute casting cost eleven turns. This assertion said
+    # ten from the day it shipped, and encoded the defect rather than catching it.
+    assert mage.long_cast == LongCast(spell_id=RITE.rule_id, slot_level=2, turns_remaining=9)
 
 
 def test_a_level_it_could_never_pay_is_refused_at_the_start(tmp_path: Path) -> None:
@@ -217,7 +221,7 @@ def test_the_menu_offers_the_continuation(tmp_path: Path) -> None:
     offered = {a.key: a for a in read(ready_to_continue(tmp_path), "mage").actions}
     key = continue_cast_key(RITE.rule_id)
     assert key in offered
-    assert offered[key].detail["turns_remaining"] == 10
+    assert offered[key].detail["turns_remaining"] == 9  # #371: this turn's is the tenth
     assert offered[key].detail["finishes_now"] is False
 
 
@@ -244,7 +248,7 @@ def test_each_turn_costs_the_action_and_still_no_slot(tmp_path: Path) -> None:
     mage = after.combatant("mage")
     assert ruling.status is Status.RULED
     assert mage.slots is not None and mage.slots.remaining(2) == 2, "still nothing spent"
-    assert mage.long_cast is not None and mage.long_cast.turns_remaining == 9
+    assert mage.long_cast is not None and mage.long_cast.turns_remaining == 8
     assert not any(e.kind is EffectKind.SPELL_SLOT_EXPENDED for e in ruling.effects)
 
 

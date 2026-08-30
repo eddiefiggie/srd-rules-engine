@@ -292,7 +292,14 @@ class LongCast:
     """
 
     spell_id: str
-    slot_level: int
+    #: The slot this casting will spend when it completes, or `None` for a Ritual — p. 187:
+    #: "It also doesn't expend a spell slot" (#371).
+    #:
+    #: **`None` is not level 0.** A cantrip is a level 0 spell cast without a slot; a Ritual
+    #: of a level 3 spell is a level 3 casting that spends nothing. Collapsing the two would
+    #: say a ritualised spell was a cantrip, which is a claim about the spell rather than
+    #: about how it was cast.
+    slot_level: int | None
     turns_remaining: int
 
     def __post_init__(self) -> None:
@@ -302,8 +309,13 @@ class LongCast:
                 f"{self.turns_remaining}. A casting with none owing has finished, and a "
                 "finished casting is not in progress"
             )
-        if self.slot_level < CANTRIP_LEVEL:
+        if self.slot_level is not None and self.slot_level < CANTRIP_LEVEL:
             raise ValueError(f"a slot level is {CANTRIP_LEVEL} or higher, not {self.slot_level}")
+
+    @property
+    def expends_slot(self) -> bool:
+        """Whether completing this casting costs a slot (p. 105, p. 187)."""
+        return self.slot_level is not None
 
     @property
     def finishes_now(self) -> bool:
@@ -339,6 +351,12 @@ class Spell:
     level, spends the action the casting time names, asks `spell_reaches` about the range,
     and starts Concentration when the spell requires it. Everything else about a spell —
     above all what it *does* — is the resolver the ruleset supplies.
+
+    **`ritual` is the tag, and it is the spell's own.** p. 187 gates a Ritual on "a spell
+    prepared that has the Ritual tag", and the tag comes from the ruleset — this engine ships
+    no spell list to look it up in (#21). It was an argument to `ritual_cast` and nothing
+    else until #371, which is why nothing could *offer* a ritual: the read surface asks the
+    spells a caster carries, and the tag was not on them.
 
     **No school.** p. 105: "Each spell belongs to a school of magic […] These categories help
     describe spells but **have no rules of their own**." A field for it would be a field
@@ -385,10 +403,23 @@ class Spell:
     #: leaves each spell to state its own, so an engine holding one number for all of them
     #: would be inventing a duration the document does not give.
     casting_minutes: int | None = None
+    #: p. 187's Ritual tag. The ruleset's to state — see the class docstring (#371).
+    ritual: bool = False
 
     def __post_init__(self) -> None:
         if not self.rule_id:
             raise ValueError("a spell is identified by the rule that resolves it")
+        if self.ritual and self.is_cantrip:
+            # p. 187 rituals a spell "prepared … that has the Ritual tag" and p. 104 puts
+            # cantrips outside preparation entirely — "you always have them prepared" is not
+            # a sentence this document carries, and a cantrip expends no slot to save. The
+            # combination is refused rather than resolved, because the honest answer to what
+            # a ritual cantrip costs is that the document does not describe one.
+            raise ValueError(
+                f"{self.rule_id!r} is a cantrip carrying the Ritual tag. p. 187's Ritual is "
+                "cast from a prepared spell and spends no slot; a cantrip already spends "
+                "none, and the document describes no ritual version of one"
+            )
         long_cast = self.casting_time is CastingTime.MINUTES
         if long_cast and (self.casting_minutes is None or self.casting_minutes < 1):
             raise ValueError(
@@ -530,6 +561,28 @@ def ritual_cast(
             "a higher slot, and there is no slot here to be higher"
         )
     return RitualCast(spell_id=spell_id)
+
+
+def ritual_turns_to_cast(spell: Spell) -> int:
+    """How many Magic actions a Ritual casting of this spell owes (p. 105, p. 187, #371).
+
+    p. 187: "The Ritual version of a spell takes 10 minutes longer to cast than normal."
+    p. 105: a spell cast as a Ritual is one of the castings that "require more time to cast",
+    and while casting one "you must take the Magic action on each of your turns".
+
+    **"Than normal" is the spell's own casting time, and only one of the four is measured in
+    minutes.** A spell whose casting time is an action, a Bonus Action or a Reaction adds its
+    ten minutes to a base this engine holds no minutes for, so the base contributes nothing
+    to the count and the total is ten minutes.
+
+    That is not a rounding the document was asked for and did not give. The normal casting
+    time of such a spell *is* one of the Magic actions p. 105 charges — the ritual takes the
+    Magic action on every turn regardless — so the action is **subsumed** by the count rather
+    than dropped from it. A spell that normally takes a minute or more adds its minutes to
+    the ten, which is arithmetic the document states outright.
+    """
+    base = spell.casting_minutes if spell.casting_time is CastingTime.MINUTES else 0
+    return ((base or 0) + RITUAL_EXTRA_MINUTES) * TURNS_PER_MINUTE
 
 
 class RangeForm(StrEnum):

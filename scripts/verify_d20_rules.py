@@ -462,6 +462,16 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         105,
+        "**a Ritual is one of the longer casting times**, which is the sentence that makes "
+        "p. 187's ten extra minutes a thing the turn loop charges rather than a number the "
+        "engine merely computes. Unasserted until #371, and the clause that whole issue "
+        "rests on — `core.casting` quoted it in a docstring while the verifier had never "
+        "read it",
+        r"Certain spells.{0,3}including a spell cast as a Ritual.{0,3}require more time to "
+        r"cast: minutes or even hours",
+    ),
+    (
+        105,
         "a casting of a minute or more owes the Magic action on EACH turn, and "
         "Concentration throughout",
         r"While you cast a spell with a casting time of 1 minute or more, you must take the "
