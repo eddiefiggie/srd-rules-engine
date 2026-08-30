@@ -67,19 +67,25 @@ CONDITION_DISCLOSURES: dict[Condition, tuple[str, ...]] = {
     # p. 178: cannot attack or target the charmer with a harmful effect, and the charmer has
     # Advantage on social checks — the second needs the Influence action (#143), the first
     # needs a target the engine can compare against the source.
-    # p. 178: which checks *require sight* is not tabulated by the document — it is decided
-    # per check by the situation — so the automatic failure has nothing to key on (#360).
-    Condition.BLINDED: ("checks-requiring-sight-not-identified",),
+    # p. 178's automatic failure is applied to the one check this engine knows requires sight
+    # — seeing a creature. What is not built is the general rule: no other check declares
+    # which sense it needs, and the document does not tabulate that either (#360).
+    Condition.BLINDED: ("only-seeing-declares-that-it-requires-sight",),
     Condition.CHARMED: ("cannot-attack-or-target-the-charmer", "charmer-social-advantage"),
-    # p. 180: the same gap for hearing (#360).
-    Condition.DEAFENED: ("checks-requiring-hearing-not-identified",),
+    # p. 180: not the same gap as Blinded's, and the difference is the point — **no check in
+    # this engine requires hearing at all**, so there is not even one consumer (#360).
+    Condition.DEAFENED: ("no-check-requires-hearing",),
     # p. 184: speech is not modelled at all (#360).
     #
     # **`initiative-disadvantage-not-applied` is deliberately absent** (#359), along with
     # Invisible's Advantage twin below. They were two strings rather than one because the pin
     # refuses a repeat, and that was right: sharing one would have made a single removal look
     # like both. `initiative_order` rolls two dice per combatant now.
-    Condition.INCAPACITATED: ("cannot-speak",),
+    # p. 184's "You can't speak", and the reason it stays is sharper than "speech is not
+    # modelled": its one mechanical consumer is p. 105's Verbal component, and Incapacitated is
+    # the only condition that sets the flag **while also setting `cannot_act`** — so the link
+    # would be unreachable code (#360).
+    Condition.INCAPACITATED: ("no-rule-consumes-speech",),
     # **`cannot-willingly-approach-the-source` is deliberately absent** (#350). It said
     # "movement has no notion of a direction relative to a creature", and that was the wrong
     # diagnosis twice over: "closer" is a comparison of two distances and needs no direction

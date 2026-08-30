@@ -1431,7 +1431,15 @@ class EncounterState:
                 ),
             )
 
-        if observer.conditions.has(Condition.BLINDED):
+        # Asked of the aggregate rather than of `Condition.BLINDED` (#360). The sentence
+        # quoted below is transcribed into `ConditionEffects.auto_fail_checks_requiring_sight`,
+        # and naming the condition here kept a second copy of one rule in a second module — so
+        # a condition that set the flag would have worked in the table and done nothing at the
+        # check.
+        #
+        # `can_see` above still names the condition, and correctly: that is p. 178's *other*
+        # clause — "You can't see" — which is about sight rather than about checks.
+        if observer.conditions.auto_fails_checks_requiring_sight:
             return PerceptionCheck(
                 advantage=Advantage.NONE,
                 because=(
