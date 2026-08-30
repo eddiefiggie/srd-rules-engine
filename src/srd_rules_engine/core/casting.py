@@ -89,7 +89,7 @@ from srd_rules_engine.core.adjudicate import (
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.read_surface import ACTION_FOR_CASTING as ACTION_FOR_CASTING
 from srd_rules_engine.core.read_surface import cast_declared
-from srd_rules_engine.core.spellcasting import Spell
+from srd_rules_engine.core.spellcasting import Spell, component_refusal
 from srd_rules_engine.core.state import EncounterState
 
 #: Re-exported, not restated (p. 105, p. 185). `core.read_surface` owns the map because it is
@@ -161,6 +161,34 @@ def spell_resolver(spell: Spell, effects: Resolver) -> Resolver:
                         f"{spell.level} spell (p. 104)"
                     ),
                 )
+            )
+
+        # p. 104: "Before you can cast a spell, you must have the spell **prepared in your
+        # mind** or have access to the spell from a magic item." The read surface has asked
+        # since #249 and this had not — the same half-enforcement the components below carried,
+        # found by reading the one function while fixing the other (0062).
+        if spell.rule_id not in caster.prepared:
+            raise ValueError(
+                f"{caster.name} does not have {spell.rule_id!r} prepared, and p. 104 casts "
+                "only a prepared spell. Carrying a spell is not preparing it — the read "
+                "surface offers only what is prepared, so one that reaches here was never "
+                "offered"
+            )
+
+        # p. 105: "If the spellcaster can't provide one or more of a spell's components, the
+        # spellcaster can't cast the spell." Asked **here** as well as at the read surface,
+        # because the menu is a menu and not a promise: `legal_actions` drops a spell whose
+        # components the caster cannot provide, and a caller that reaches adjudication without
+        # consulting it would otherwise cast one anyway (#245, 0062).
+        #
+        # The same function answers both, so the offer and the refusal cannot disagree about
+        # which hand is free.
+        refusal = component_refusal(spell, caster.equipment, caster.hands)
+        if refusal is not None:
+            raise ValueError(
+                f"{caster.name} cannot provide {spell.rule_id!r}'s components: {refusal} "
+                "(p. 105). The read surface drops a spell it cannot cast, so one that reaches "
+                "here is a declaration the engine never offered"
             )
 
         if spell.requires_concentration:
