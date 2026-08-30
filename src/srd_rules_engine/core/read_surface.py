@@ -52,6 +52,7 @@ from srd_rules_engine.core.equipment import (
     Weapon,
     reachable_objects,
     unplaced_objects,
+    untrained_armour,
 )
 from srd_rules_engine.core.forced_movement import push_distances
 from srd_rules_engine.core.position import MovementMode, distance_feet, within
@@ -143,6 +144,24 @@ CARRYING_CAPACITY_SPEED_CAP: Final = "carrying-capacity-speed-cap-is-not-applied
 #: what is missing is its timing. Disclosed only to a creature actually holding a grapple,
 #: since that is the only creature the clause can bite (#341).
 RELEASE_ONLY_ON_YOUR_TURN: Final = "grapple-release-offered-only-on-the-grapplers-turn"
+
+#: p. 177, *Armor Training*, states three drawbacks and 0063 builds one (#367).
+#:
+#: > If you wear Light, Medium, or Heavy armor and lack training with it, you have
+#: > **Disadvantage on any D20 Test that involves Strength or Dexterity**, and you can't cast
+#: > spells.
+#:
+#: The casting half is built. This one reaches attacks and checks as well as saves, and
+#: `D20Test.ability` is passed by the six save sites only — so a central rule would need the
+#: field threaded through every test-building site first.
+UNTRAINED_ARMOUR_DISADVANTAGE: Final = "untrained-armour-disadvantage-not-applied"
+
+#: p. 177: "If you use a Shield and lack training with it, you don't gain its AC bonus" (#367).
+#:
+#: `Item.is_armour` deliberately does not distinguish a Shield from worn armour — the category
+#: is content (0040 clause 2) — and the clause needs a shield's AC bonus to withhold, which
+#: nothing models: Armour Class is a stored number rather than a derivation over what is worn.
+UNTRAINED_SHIELD_STILL_GRANTS_AC: Final = "untrained-shield-still-grants-ac"
 
 #: A standalone object interaction — p. 13's free one — and the Utilize action that buys
 #: another (p. 13, p. 191, 0045 clauses 2-3).
@@ -977,6 +996,13 @@ def _castable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...
         if component_refusal(spell, actor.equipment, actor.hands) is not None:
             continue
 
+        # p. 104: "You must have training with any armor you are wearing to cast spells while
+        # wearing it." A **legality** rule rather than a modifier, so a caster in untrained
+        # armour is offered nothing at all — an engine that skipped it would be confidently
+        # wrong rather than incomplete (R18, #247).
+        if untrained_armour(actor.equipment, actor.armour_training):
+            break
+
         # p. 104: "Before you can cast a spell, you must have the spell **prepared in your
         # mind** or have access to the spell from a magic item." Enforced here since #249;
         # `ritual_cast` has enforced the same sentence since #19 — "a spell merely known is
@@ -1722,6 +1748,11 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
         unenforced.append(CARRYING_CAPACITY_SPEED_CAP)
     if any(held.conditions.grappler_id == actor.id for held in state.combatants):
         unenforced.append(RELEASE_ONLY_ON_YOUR_TURN)
+    # Disclosed only to a creature actually wearing untrained armour, which is the only one
+    # either clause can bite (#367).
+    if untrained_armour(actor.equipment, actor.armour_training):
+        unenforced.append(UNTRAINED_ARMOUR_DISADVANTAGE)
+        unenforced.append(UNTRAINED_SHIELD_STILL_GRANTS_AC)
     if any(a.key.startswith(f"{PUSH_ATTACK}:") for a in legal_actions(state, actor_id)):
         unenforced.append(PUSH_DISTANCES_IN_STEPS)
 

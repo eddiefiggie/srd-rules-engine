@@ -570,6 +570,18 @@ class Combatant:
     #: Defaults to `False`, which refuses a substitution nobody granted rather than inventing
     #: a feature. A Component Pouch needs no such permission and is unaffected.
     may_substitute_focus: bool = False
+    #: Which armour this creature is trained with, by item id (p. 19, p. 177, #247).
+    #:
+    #: **By id, because the categories are content**, which is 0040 clause 2's reasoning for
+    #: `weapon_proficiencies` unchanged: p. 19 says "your class might give you training with
+    #: certain **categories** of armor", the categories are described in Equipment, and
+    #: pp. 93-97 do not ship here (R31). The engine holds the resolved relation and a ruleset
+    #: that knows the table expands it into ids.
+    #:
+    #: **Empty by default, and that refuses rather than grants.** A creature nobody trained is
+    #: a creature p. 104 forbids to cast *while wearing armour* — and one wearing none is
+    #: unaffected, so the default costs nothing to a caster who dresses like one.
+    armour_training: frozenset[str] = frozenset()
     #: How many hands this creature has, or `None` because **no SRD rule says**.
     #:
     #: Every printed rule about hands is relational — "a free hand" (pp. 89, 105, 182, 190),

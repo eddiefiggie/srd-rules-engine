@@ -255,6 +255,11 @@ def test_an_item_carries_no_price_and_no_name() -> None:
         "hands_when_held",
         "is_spellcasting_focus",
         "is_component_pouch",
+        # #247. p. 104 forbids casting in armour you lack training with, so whether an item
+        # *is* armour is a fact the engine has a rule about — the test 0039 clause 2 sets.
+        # The **category** is not here, for the same clause's reason: p. 177 grants training
+        # by category and pp. 93-97 are the content this repository does not ship.
+        "is_armour",
     }
 
 

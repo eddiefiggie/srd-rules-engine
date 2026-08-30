@@ -93,7 +93,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Ally": ("vocabulary", False),
     "Area of Effect": ("targeting", True),
     "Armor Class": ("state", True),
-    "Armor Training": ("state", False),
+    "Armor Training": ("state", True),
     "Attack Roll": ("test", True),
     "Attitude": ("state", False),
     "Attunement": ("state", False),

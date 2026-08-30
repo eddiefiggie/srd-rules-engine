@@ -188,6 +188,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # p. 188, #245. A held focus provides Material components that are neither consumed
         # nor costed, and the caster needs the feature p. 106 requires.
         "spellcasting-focus": "core.spellcasting.component_refusal",
+        # p. 104, p. 177, #247, 0063. Training is held by item id because the categories are
+        # content (0040 clause 2), and p. 104's prohibition is asked at the offer and at the
+        # resolver. p. 177's other two drawbacks are disclosed (#367).
+        "armor-training": "core.equipment.untrained_armour",
         # p. 90, #316. The tenth weapon property, and the one that was folded into p. 186's
         # glossary entry on the reasoning that the Glossary already defines the term. The
         # term, yes; the mechanic, no — so the fold let `reach`'s implemented flag claim a
