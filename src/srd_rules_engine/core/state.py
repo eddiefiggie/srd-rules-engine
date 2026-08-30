@@ -2919,6 +2919,25 @@ class EncounterState:
                 "encounter that tracks no positions cannot answer a movement question"
             )
 
+        # **The engine's own `is_down` doctrine, applied where it was not** (0072). "At 0 hit
+        # points a combatant stops acting" is this engine's stated position, and
+        # `legal_actions` has enforced it since the read surface shipped — a creature at 0 is
+        # offered nothing. Movement never asked, so a creature could be dropped to 0 and walk
+        # away in the same breath, which is what an Opportunity Attack made visible: the
+        # attack lands, the mover reaches 0, and the move it provoked completes.
+        #
+        # A refusal rather than a result, so 0056 clause 1 covers it and R1 is untouched. It
+        # is the engine's existing rule reaching one more caller rather than a new rule read
+        # off the document — this repository does not model the 0-hit-point transition to
+        # Unconscious (p. 186's Speed 0 would otherwise be the SRD's own route), and stating
+        # that here is cheaper than a reader inferring it from a refusal.
+        if target.is_down:
+            raise ValueError(
+                f"{target.name} is at 0 hit points and does not move. This engine holds "
+                '"at 0 hit points a combatant stops acting" as `Combatant.is_down`, which '
+                "the read surface has always enforced and this method did not"
+            )
+
         speeds = target.effective_speeds
         if mode in _SPEED_ONLY_MODES and speeds.for_mode(mode) is None:
             raise ValueError(

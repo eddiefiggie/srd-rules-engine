@@ -65,6 +65,8 @@ from srd_rules_engine.loop.turn import (
     FactsSupplied,
     Narrated,
     NarrationRequest,
+    ReactionDeclined,
+    ReactionRequest,
     Request,
     Response,
     SaveAbilityChosen,
@@ -283,6 +285,11 @@ class SliceDriver:
             return Narrated(text)
         if isinstance(request, SaveAbilityRequest):
             return self._choose(request)
+        if isinstance(request, ReactionRequest):
+            # 0072. The slice does not exercise p. 185's offer, and declining is the answer
+            # that changes nothing — an unasserted reaction firing here would alter a ledger
+            # this fixture's tests read end to end.
+            return ReactionDeclined()
         return self._supply(request)
 
     def _declare(self, request: DeclarationRequest) -> Declaration:

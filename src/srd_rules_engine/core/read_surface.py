@@ -56,7 +56,6 @@ from srd_rules_engine.core.equipment import (
 )
 from srd_rules_engine.core.forced_movement import push_distances
 from srd_rules_engine.core.position import MovementMode, distance_feet, within
-from srd_rules_engine.core.reactions import OFFER_NEVER_MADE
 from srd_rules_engine.core.sight import LightLevel, Senses
 from srd_rules_engine.core.size import CarryingCapacity, Size
 from srd_rules_engine.core.skills import Skill
@@ -448,6 +447,29 @@ def nick_attack_declared(action_key: str | None) -> tuple[str, str] | None:
     if action_key is None or not action_key.startswith(f"{NICK_ATTACK}:"):
         return None
     weapon_id, _, target_id = action_key[len(NICK_ATTACK) + 1 :].rpartition(":")
+    if not weapon_id or not target_id:
+        return None
+    return weapon_id, target_id
+
+
+#: p. 185's Opportunity Attack, offered by `reaction_options` and made with a Reaction. Its
+#: own key rather than an ordinary `attack:`, because **what it costs differs** — an attack
+#: keyed the ordinary way charges the Action (p. 176-177), and a reactor has no Action to
+#: spend on somebody else's turn. The cost is the only difference, which is why the key is a
+#: prefix over the same `<weapon>:<target>` shape rather than a separate declaration form.
+OPPORTUNITY_ATTACK: Final = "opportunity-attack"
+
+
+def opportunity_attack_key(weapon_id: str, target_id: str) -> str:
+    """The key one Opportunity Attack option is offered under (p. 185, 0072 clause 5)."""
+    return f"{OPPORTUNITY_ATTACK}:{weapon_id}:{target_id}"
+
+
+def opportunity_attack_declared(action_key: str | None) -> tuple[str, str] | None:
+    """The weapon and target an Opportunity Attack key names, or `None` if it is not one."""
+    if action_key is None or not action_key.startswith(f"{OPPORTUNITY_ATTACK}:"):
+        return None
+    weapon_id, _, target_id = action_key[len(OPPORTUNITY_ATTACK) + 1 :].rpartition(":")
     if not weapon_id or not target_id:
         return None
     return weapon_id, target_id
@@ -1198,6 +1220,112 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
     return tuple(offered)
 
 
+#: p. 190's Grapple and Shove are options of an Unarmed Strike, and p. 185 grants "one melee
+#: attack". Whether that reaches an Unarmed Strike's *other two* options is a question the
+#: document does not answer, so `reaction_options` offers the damage option only (0072
+#: clause 5, R31). Offering them would invent a capability; omitting them omits one, and this
+#: module errs the way `core.reactions` does — an invention is indistinguishable from a rule.
+OPPORTUNITY_ATTACK_IS_DAMAGE_ONLY: Final = "opportunity-attack-offers-damage-only"
+
+
+def reaction_options(
+    state: EncounterState, reactor_id: str, mover_id: str
+) -> tuple[LegalAction, ...]:
+    """The melee attacks this creature may make as an Opportunity Attack (p. 185, 0072).
+
+    > take a Reaction to make one melee attack
+
+    **A second entry point on this surface, not a loosening of the first.** `legal_actions`
+    returns `()` for a creature that is not active, and correctly — those are the actions of
+    a turn. A reaction is legal precisely when it is *not* your turn, so the two enumerate
+    disjoint sets and neither needs to know about the other (0072 clause 5).
+
+    **Positions are read as the state holds them**, which is the mover at the point it is
+    leaving. `core.reactions.provocations` asks sight the same way and for the same reason:
+    the attack happens as the creature departs, and at its destination it has by definition
+    left the reach that provoked (0072 clause 2). That is also what filters the weapons —
+    `_within_weapon_range` against the origin offers the Glaive that still reaches and not
+    the Dagger that no longer does, with no reach logic of its own.
+
+    **Melee only**, which is the clause p. 185 states and the one a reused `_attackable`
+    would have dropped.
+
+    **No Multiattack restriction.** p. 257 restricts which weapons may fill *a Multiattack's*
+    rolls, and an Opportunity Attack is not one — it is bought with a Reaction rather than
+    with the Attack action (0043 clause 2 read as written).
+    """
+    if not state.has(reactor_id) or not state.has(mover_id):
+        raise KeyError("both the reactor and the mover must be in this encounter")
+
+    reactor = state.combatant(reactor_id)
+    mover = state.combatant(mover_id)
+    if reactor.is_down or mover.is_down:
+        return ()
+    # p. 184's Incapacitated reaches this through the budget's own check rather than being
+    # re-stated here, so the two cannot disagree.
+    if not reactor.actions.available(ActionKind.REACTION, reactor.conditions):
+        return ()
+
+    offered: list[LegalAction] = []
+
+    # p. 177: "one attack roll with a weapon **or an Unarmed Strike**", and p. 190 puts the
+    # strike at 5 feet by its own entry. The damage option only — see
+    # `OPPORTUNITY_ATTACK_IS_DAMAGE_ONLY`.
+    if _within(reactor, mover, UNARMED_REACH_FEET):
+        offered.append(
+            LegalAction(
+                key=opportunity_attack_key(UNARMED_STRIKE_ID, mover.id),
+                label=f"Opportunity Attack: Unarmed Strike against {mover.name}",
+                detail={
+                    "target": mover.id,
+                    "weapon": UNARMED_STRIKE_ID,
+                    "armour_class": mover.armour_class,
+                },
+            )
+        )
+
+    for weapon in reactor.weapons_held:
+        if not weapon.melee:
+            continue
+        if not _within_weapon_range(reactor, weapon, mover):
+            continue
+        offered.append(
+            LegalAction(
+                key=opportunity_attack_key(weapon.id, mover.id),
+                label=f"Opportunity Attack: {mover.name} with {weapon.id}",
+                detail=_attack_detail(reactor, weapon, mover),
+            )
+        )
+
+    return tuple(offered)
+
+
+def offered_actions(
+    state: EncounterState, actor_id: str, action_key: str | None
+) -> tuple[LegalAction, ...]:
+    """The menu a declaration is validated against — the same one it was offered from.
+
+    R18 has **one** derivation of what is legal, shared between the offer and the check.
+    That was `legal_actions` alone while every declaration belonged to a turn. p. 185's
+    Opportunity Attack does not: it is legal precisely when it is *not* your turn, and
+    `legal_actions` answers `()` for an inactive creature — correctly, since those are the
+    actions of a turn (0072 clause 5).
+
+    So the key selects the surface, and the mover is read from the key rather than passed
+    separately: an Opportunity Attack names its target, and its target is the creature whose
+    departure provoked it. A key naming a creature the encounter does not have offers
+    nothing, which refuses rather than raising — a declaration is the agent's artefact and a
+    bad one is rejected, not an error.
+    """
+    opportunity = opportunity_attack_declared(action_key)
+    if opportunity is None:
+        return legal_actions(state, actor_id)
+    _, mover_id = opportunity
+    if not state.has(mover_id):
+        return ()
+    return reaction_options(state, actor_id, mover_id)
+
+
 def _throwable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...]:
     """Every throw this creature may make right now (p. 90, #284).
 
@@ -1731,17 +1859,21 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
 
     unenforced = list(conditions.unenforced_clauses())
     unenforced.extend(c for c in actor.actions.unenforced_clauses() if c not in unenforced)
-    # A creature holding a Reaction is a creature that will never be offered one. The engine
-    # can now tell *when* p. 185 provokes — `core.reactions.provocations` consults `can_see`
-    # since #381 — and nothing calls it: no offer is made, no Reaction spent, no attack
-    # adjudicated out of turn. That half is #382, and this clause comes off with it.
+    # **`opportunity-attack-detected-but-never-offered` was appended here until #382**, and
+    # it is retired in the change that built the offer (0072). `TurnLoop.move` now asks every
+    # creature p. 185 provokes whether it spends its Reaction, so a creature holding one is no
+    # longer holding a mechanic nothing will ever reach.
     #
-    # **This said sight was the reason until #381**, and sight stopped being the reason when
-    # #150 landed on 2026-08-25. The disclosure was right that something was missing and
-    # wrong about what, which is the third instance of that shape (0056, 0060) and the reason
-    # the clause is named for the offer rather than for the qualifier.
-    if actor.actions.available(ActionKind.REACTION, conditions):
-        unenforced.append(OFFER_NEVER_MADE)
+    # Its predecessor named *sight* as the reason and stayed after #150 made that untrue —
+    # two names for one gap, retired one build apart (#381, #382).
+    #
+    # **The limit that remains is not a clause.** A consumer calling
+    # `EncounterState.with_movement` directly still provokes nothing, because the offer needs
+    # the agent seam and the seam lives in the loop (0072 clause 6). That is the same shape
+    # `AGENTS.md` already discloses for skips — "the skip guarantee holds only for callers the
+    # turn loop drives" — and it is a fact about which caller, not about which rule, so it is
+    # recorded there and in 0072 rather than reported per creature. #292's own reasoning
+    # applies: a disclosure about a rule that is built is noise.
     # p. 13 grants "one object or feature of the environment for free, during either your
     # move or action", and a second needs the Utilize action. p. 177 separately grants one
     # weapon swap per attack made as part of the Attack action. **The document never states

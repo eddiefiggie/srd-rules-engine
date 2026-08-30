@@ -42,7 +42,6 @@ from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.inventory import load_inventory
 from srd_rules_engine.core.position import Position
 from srd_rules_engine.core.reactions import (
-    OFFER_NEVER_MADE,
     REACTION_VERIFICATION,
     SIGHT_UNSTATED,
     Provocation,
@@ -253,40 +252,38 @@ def test_an_unstated_view_is_withheld_rather_than_offered() -> None:
     assert all(p.withheld == SIGHT_UNSTATED for p in found)
 
 
-def test_the_read_surface_says_the_offer_is_the_thing_that_is_missing() -> None:
-    """R18. A reaction that is never offered would otherwise look like a rule this engine
-    does not have, rather than one it has and does not fire.
+def test_the_read_surface_no_longer_discloses_an_offer_that_is_never_made() -> None:
+    """R32, retired in the change that built its rule (#382, 0072).
 
-    **The clause names the offer, not sight** (#381). It named sight until #150 made sight
-    answerable, and then went on naming it for five days — a disclosure accurate that
-    something was missing and wrong about what, which 0056 and 0060 each found once before.
+    Two clauses stood here and were one gap under two names. The first said sight was the
+    reason no reaction was ever offered and was wrong from the day #150 landed; #381 removed
+    it. The second said the offer was never made, which was true until `TurnLoop.move` made
+    it — and it comes off here, asserted beside the offer rather than on its own.
+
+    **The limit that remains is not a clause.** A consumer calling `with_movement` directly
+    provokes nothing, which is about which caller rather than which rule (0072 clause 6).
     """
-    state = _lit(_combatant("pc", ADJACENT))
-
-    assert OFFER_NEVER_MADE in situation(state, "pc").unenforced_clauses
-
-
-def test_the_disclosure_stands_even_where_sight_is_fully_answerable() -> None:
-    """The sharp end of the correction. In Bright Light with no obstruction there is nothing
-    sight cannot answer, and the creature is *still* never offered a reaction — so a
-    disclosure keyed on sight would have gone quiet here while the gap remained."""
     state = _lit(_combatant("pc", ADJACENT), _combatant("other", GUARD_AT))
 
-    assert OFFER_NEVER_MADE in situation(state, "pc").unenforced_clauses
+    disclosed = situation(state, "pc").unenforced_clauses
+
+    assert not any("opportunity-attack" in clause for clause in disclosed), (
+        "p. 185 is built end to end: the trigger, the offer, the Reaction and the attack. A "
+        "clause still naming it would tell a reader less is modelled than is"
+    )
 
 
-def test_a_creature_with_no_reaction_left_is_not_told_about_the_clause() -> None:
-    spent = ActionBudget().spend(ActionKind.REACTION, Conditions())
-    state = _lit(_combatant("pc", ADJACENT, actions=spent))
+def test_the_opportunity_attack_shape_is_claimed_now_that_an_offer_exists() -> None:
+    """The inventory is what makes "full SRD 5.2 coverage" falsifiable, so the flag moves
+    exactly when the rule does.
 
-    assert OFFER_NEVER_MADE not in situation(state, "pc").unenforced_clauses
-
-
-def test_the_opportunity_attack_shape_is_not_claimed() -> None:
-    """A trigger that cannot fire has not resolved the shape. The inventory is what makes
-    "full SRD 5.2 coverage" falsifiable, and a shape marked on machinery alone breaks it."""
+    It stayed `False` for six days while `provocations` existed, deliberately: a detection
+    with no production caller is machinery rather than a resolved rule, and a shape marked on
+    machinery alone is the overstatement R17 exists to prevent. #381 found that nobody
+    noticed for five of those days, which is the evidence the flag has to be earned.
+    """
     shape = next(s for s in load_inventory().shapes if s.id == "opportunity-attacks")
-    assert not shape.implemented
+    assert shape.implemented
 
 
 def test_every_sentence_this_module_uses_is_asserted() -> None:

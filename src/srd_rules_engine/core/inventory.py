@@ -214,6 +214,21 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # `unarmed-strike`: p. 190's three options are a separate entry and remain unbuilt,
         # and a flag over both would be 0046's defect again.
         "grappling": "core.grappling.escape_resolver",
+        # p. 185, #382, 0072. The whole sentence: the trigger in `core.reactions`, the offer
+        # and the Reaction spent in `loop.turn.TurnLoop.move`, the attack itself through the
+        # one adjudication entry point.
+        #
+        # **Claimed only once the offer existed.** The trigger shipped on 2026-08-24 and this
+        # entry did not, deliberately — `provocations` had no production caller and withheld
+        # every result, so the shape was machinery rather than a resolved rule. R17's
+        # inventory is what makes "full SRD 5.2 coverage" falsifiable, and a flag over a
+        # detection nothing called would have been the exact overstatement it exists to
+        # prevent (#381's five days are the evidence that nobody would have noticed).
+        #
+        # The named symbol is in `loop` rather than `core`, and that is the honest address: a
+        # consumer calling `core.EncounterState.with_movement` directly provokes nothing, and
+        # 0072 clause 6 ships that limit rather than implying the core resolves this alone.
+        "opportunity-attacks": "loop.turn.TurnLoop.move",
         # p. 190, #335, 0053. All three options of the Unarmed Strike: Damage in `core.combat`
         # since the strike shipped, and Grapple and Shove here. Each is offered under its own
         # key, because p. 190 says "choose one of the following options for its effect".

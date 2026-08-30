@@ -28,6 +28,8 @@ from srd_rules_engine.loop.turn import (
     FactsSupplied,
     Narrated,
     NarrationRequest,
+    ReactionDeclined,
+    ReactionRequest,
     Request,
     Response,
     SaveAbilityChosen,
@@ -81,16 +83,23 @@ class ScriptedDriver:
     #: runs out raises like any other, because a save whose choice nobody scripted is a save
     #: the test did not mean to reach — silently substituting one would be the driver choosing.
     save_abilities: Sequence[str | None] = ()
+    #: 0072. What to answer each `ReactionRequest` with: a `Declaration` to take p. 185's
+    #: Opportunity Attack, or `None` to decline it. A script that runs out raises, for the
+    #: reason `save_abilities` does — declining by default would make every unscripted test
+    #: silently assert that nobody reacts, which is the assertion most likely to be wrong.
+    reactions: Sequence[Declaration | None] = ()
     _declarations: Iterator[Declaration] = field(init=False)
     _narrations: Iterator[str | None] = field(init=False)
     _facts: Iterator[Sequence[Fact]] = field(init=False)
     _save_abilities: Iterator[str | None] = field(init=False)
+    _reactions: Iterator[Declaration | None] = field(init=False)
 
     def __post_init__(self) -> None:
         self._declarations = iter(self.declarations)
         self._narrations = iter(self.narrations)
         self._facts = iter(self.facts)
         self._save_abilities = iter(self.save_abilities)
+        self._reactions = iter(self.reactions)
 
     def __call__(self, request: Request) -> Response:
         if isinstance(request, DeclarationRequest):
@@ -99,6 +108,9 @@ class ScriptedDriver:
             return Narrated(_next(self._narrations, "narration"))
         if isinstance(request, SaveAbilityRequest):
             return SaveAbilityChosen(_next(self._save_abilities, "save ability"))
+        if isinstance(request, ReactionRequest):
+            declared = _next(self._reactions, "reaction")
+            return ReactionDeclined() if declared is None else Declared(declared)
         return FactsSupplied(tuple(_next(self._facts, "facts", default=())))
 
 
@@ -136,6 +148,26 @@ class HumanCliDriver:
             self.show(f"  It chooses which: {offered}")
             chosen = self.ask("Save with which ability (blank to decline)? ").strip()
             return SaveAbilityChosen(chosen or None)
+        if isinstance(request, ReactionRequest):
+            # 0072 clause 4. p. 185 says a creature "**can** make an Opportunity Attack", so
+            # declining is an answer rather than a missing one, and a blank line gives it.
+            self.show(
+                f"{request.reactor_id} may take an Opportunity Attack as "
+                f"{request.mover_id} leaves its reach (p. 185)"
+            )
+            offered = ", ".join(action.key for action in request.offered)
+            self.show(f"  Offered: {offered}")
+            action = self.ask("Opportunity Attack key (blank to decline): ").strip()
+            if not action:
+                return ReactionDeclined()
+            rule_id = self.ask("Rule id: ").strip()
+            return Declared(
+                Declaration(
+                    actor_id=request.reactor_id,
+                    intent=Intent(action_key=action),
+                    rule_id=rule_id,
+                )
+            )
         self.show(f"Blocked on: {', '.join(request.unresolved)}")
         return FactsSupplied(tuple(self.facts_for(request)))
 

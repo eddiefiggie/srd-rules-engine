@@ -49,7 +49,6 @@ from srd_rules_engine.core.conditions import (
     Condition,
     Conditions,
 )
-from srd_rules_engine.core.reactions import OFFER_NEVER_MADE
 from srd_rules_engine.core.read_surface import (
     OBJECT_INTERACTION_CAP,
     PUSH_DISTANCES_IN_STEPS,
@@ -118,15 +117,15 @@ CONDITION_DISCLOSURES: dict[Condition, tuple[str, ...]] = {
 #: Disclosures that are not a condition's.
 OTHER_DISCLOSURES: frozenset[str] = frozenset(
     {
-        # p. 185's Opportunity Attack is detected and never offered: `provocations` runs and
-        # nothing calls it (#381).
-        #
-        # **This was `opportunity-attack-requires-seeing-the-mover` until #381**, which named
-        # sight as the reason. #150 made sight answerable on 2026-08-25 and the disclosure
-        # went on naming it for five days — accurate that something was missing, wrong about
-        # what, which is the shape 0056 and 0060 each found once before. Swapped in the
-        # change that made `provocations` consult `can_see`.
-        OFFER_NEVER_MADE,
+        # **p. 185's Opportunity Attack is deliberately absent** (#382, 0072). Two clauses
+        # stood here and were the same gap under two names, retired one build apart:
+        # `opportunity-attack-requires-seeing-the-mover` went when #150 made sight answerable
+        # and #381 consulted it, and `opportunity-attack-detected-but-never-offered` went with
+        # the offer itself — `TurnLoop.move` asks every provoked creature whether it spends
+        # its Reaction. Each was removed in the change that built its rule, and asserted with
+        # it. The limit that remains — a direct `with_movement` caller provokes nothing — is
+        # about which caller rather than which rule, so it is 0072 clause 6 and not a clause
+        # here.
         # 0045 clause 1: one object interaction a turn is the engine's cap, taken as the
         # intersection of two readings the document does not compose.
         OBJECT_INTERACTION_CAP,
@@ -285,7 +284,6 @@ def test_the_walk_finds_every_site_and_not_merely_one() -> None:
     """
     found = appended_disclosures()
     for disclosure in (
-        OFFER_NEVER_MADE,
         OBJECT_INTERACTION_CAP,
         UTILIZE_REACHES_FOUR_MOVES,
         VERBAL_UNCHECKED,
