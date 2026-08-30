@@ -97,7 +97,7 @@ TERMINATION_COMPAT = 1
 #: rather than inferred from the preceding ruling's status, for the reason `testless` was:
 #: a resumption and a genuine second declaration look identical from the surrounding
 #: entries alone, and only one of them is the agent trying again.
-DECLARATION_VERSION = 2
+DECLARATION_VERSION = 3
 #: 2 records the advantage the test was declared under. A v1 roll cannot be reconstructed
 #: — a reader would build a test with neither flag set, roll one die where two were rolled,
 #: and report a mismatch that looks like drift. Replay refuses those rather than guessing.
@@ -1381,7 +1381,11 @@ class Adjudicator:
                 "declaration",
                 v=DECLARATION_VERSION,
                 payload=_declaration_payload(
-                    declaration, self._catalogue.version, resuming=resuming
+                    declaration,
+                    self._catalogue.version,
+                    resuming=resuming,
+                    during=state.active_id,
+                    round_number=state.round_number if state.in_combat else None,
                 ),
             )
             ruling, next_state = self._decide(state, declaration, situation or {})
@@ -2147,10 +2151,31 @@ def _entry_type(status: Status) -> str:
 
 
 def _declaration_payload(
-    declaration: Declaration, catalogue_version: int, *, resuming: bool = False
+    declaration: Declaration,
+    catalogue_version: int,
+    *,
+    resuming: bool = False,
+    during: str | None = None,
+    round_number: int | None = None,
 ) -> Mapping[str, object]:
     return {
         COMPAT: DECLARATION_COMPAT,
+        # #120, `DECLARATION_VERSION` 3. **Whose game turn this slot happened in**, and the
+        # round it happened in — together the identity of one game turn.
+        #
+        # A `Turn` in the report is a *declaration slot*, not a game turn, and two things open
+        # a slot inside somebody else's: an engine-authored obligation (0023) and a reaction
+        # (0072). Until this field the report grouped by position in the sequence, so an
+        # Opportunity Attack made mid-move was filed as a turn of its own — the defect 0015
+        # predicted would bite.
+        #
+        # **Recorded rather than inferred**, for the reason `resumption` is: the adjudicator
+        # holds the state that knows the answer, and a reader reconstructing it from actor
+        # changes would be guessing at exactly the case that motivated the field. Always
+        # present, so "outside combat" (`None`) is distinguishable from "written before the
+        # field existed" (absent).
+        "during": during,
+        "round": round_number,
         # #59. True when the engine picked this declaration back up after a block, rather
         # than the agent declaring again. Always present rather than only when true: a
         # reader must be able to tell "not a resumption" from "written before the field

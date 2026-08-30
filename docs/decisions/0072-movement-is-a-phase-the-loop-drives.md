@@ -188,7 +188,7 @@ find that question open, not silently answered.
 | 4 — an offer the driver may decline, not an obligation | **Built.** `ReactionRequest` / `ReactionDeclined` |
 | 5 — `read_surface.reaction_options`, and the key that selects it | **Built.** `reaction_options`, `opportunity_attack_key`, and `offered_actions` for the legality gate |
 | 6 — the direct-`with_movement` limit disclosed | **Built** as prose here and in `core.reactions`, and pinned by `test_a_direct_state_move_provokes_nothing` |
-| 7 — report attribution left where it is | **Not built.** [#120](https://github.com/eddiefiggie/srd-rules-engine/issues/120) |
+| 7 — report attribution left where it is | **Built** 2026-08-30 by [#120](https://github.com/eddiefiggie/srd-rules-engine/issues/120), the build after this one ([0073](0073-a-slot-records-the-turn-it-happened-in.md)). This row deliberately left it open, and the reaction it added was the second source that made the grouping decidable |
 
 `opportunity-attack-detected-but-never-offered` is **retired**, in the change that built the
 offer and asserted beside it. It was the second of two names for one gap: its predecessor
