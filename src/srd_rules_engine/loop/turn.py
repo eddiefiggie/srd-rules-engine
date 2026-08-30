@@ -59,9 +59,13 @@ from srd_rules_engine.core import (
     Fact,
     Intent,
     LegalAction,
+    MovementMode,
+    Position,
     ReadResult,
     Ruling,
     Status,
+    provocations,
+    reaction_options,
     read,
     save_ends_rule_id,
 )
@@ -110,6 +114,26 @@ class BlockedFactRequest:
 
 
 @dataclass(frozen=True)
+class ReactionRequest:
+    """p. 185's offer: this creature may spend its Reaction to attack the mover (0072).
+
+    **An offer, not an obligation**, which is the difference from every other request the
+    loop makes on a creature's behalf outside its turn. A Concentration save is *compelled*
+    — `_obligation_declaration` authors it and nobody is choosing — while p. 185 says a
+    creature "**can** make an Opportunity Attack". So the declaration that answers this is
+    the agent's, and declining is a first-class answer rather than a missing one.
+
+    `offered` is `read_surface.reaction_options`, so what may be declared here comes from the
+    same derivation of legality everything else uses (R18).
+    """
+
+    state: EncounterState
+    reactor_id: str
+    mover_id: str
+    offered: tuple[LegalAction, ...]
+
+
+@dataclass(frozen=True)
 class SaveOption:
     """One ability a compelled save may be rolled with, and what rolling it would look like.
 
@@ -153,7 +177,13 @@ class SaveAbilityRequest:
     options: tuple[SaveOption, ...]
 
 
-Request = DeclarationRequest | NarrationRequest | BlockedFactRequest | SaveAbilityRequest
+Request = (
+    DeclarationRequest
+    | NarrationRequest
+    | BlockedFactRequest
+    | SaveAbilityRequest
+    | ReactionRequest
+)
 
 
 @dataclass(frozen=True)
@@ -186,10 +216,44 @@ class SaveAbilityChosen:
     ability: str | None
 
 
-Response = Declared | Narrated | FactsSupplied | SaveAbilityChosen
+@dataclass(frozen=True)
+class ReactionDeclined:
+    """The reactor keeps its Reaction (0072 clause 4).
+
+    A named answer rather than a `Declared` carrying nothing, because "I decline" and "I have
+    nothing to declare" are different facts and the ledger should not have to guess which
+    happened. Nothing is spent and no entry is written — a reaction not taken is not an event.
+    """
+
+
+Response = Declared | Narrated | FactsSupplied | SaveAbilityChosen | ReactionDeclined
 
 
 # --- What a turn produced -----------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class MoveOutcome:
+    """What a driven move produced: the reactions it provoked, and whether it happened.
+
+    `moved` is `False` with `refusal` set when `with_movement` refused the move — most
+    interestingly when an Opportunity Attack dropped the mover, since a creature at 0 Hit
+    Points is Unconscious and therefore Prone, and p. 186 leaves a Prone creature two
+    movement options that a walk is not. **The engine states no rule about interrupting
+    movement** (0072 clause 3); this is two built rules meeting, and the refusal is the
+    ledger's evidence that they did.
+    """
+
+    state: EncounterState
+    moved: bool
+    refusal: str | None = None
+    reactions: tuple[Ruling, ...] = ()
+    narrations: tuple[str | None, ...] = ()
+    withheld: tuple[str, ...] = ()
+
+    @property
+    def missing_narration(self) -> bool:
+        return any(text is None for text in self.narrations)
 
 
 @dataclass(frozen=True)
@@ -410,6 +474,114 @@ class TurnLoop:
                 consequential_narrations=consequential_narrations,
                 unresolvable=unresolvable,
             )
+
+    # --- Movement: a phase the loop owns (0072) ---------------------------------------
+
+    def move(
+        self,
+        state: EncounterState,
+        mover_id: str,
+        to: Position,
+        *,
+        mode: MovementMode = MovementMode.WALK,
+        difficult_terrain: bool = False,
+        carrying: tuple[str, ...] = (),
+    ) -> Generator[Request, Response, MoveOutcome]:
+        """Move a creature, offering p. 185's Opportunity Attack to everyone it leaves.
+
+        **The fifth occasion.** Nothing here creates a second path to an outcome; it creates
+        another occasion on which the existing path is taken — 0023's sentence, and the
+        reason `TurnLoop` rather than `EncounterState` is where this lives. The attack is
+        produced by `Adjudicator.adjudicate` (R1) and the engine rolls it (R4).
+
+        **The attacks resolve before the move is applied**, and that is geometry rather than
+        a reading of p. 185's silence: provoking *means* the mover was inside the reactor's
+        reach and is leaving it, so at the destination a melee attack has nothing in range
+        (0072 clause 2). `core.reactions.provocations` and `read_surface.reaction_options`
+        both read positions as the state holds them, which is the origin.
+
+        **A move nothing provokes still goes through here.** The phase is where movement
+        happens for a loop-driven caller, not a special path for the case with reactions —
+        `EncounterState.with_movement` remains callable and remains reactionless, which is
+        the limit 0072 clause 6 ships disclosed rather than quietly.
+
+        **A withheld provocation is reported, not offered.** `Provocation.withheld` names a
+        clause the document does not answer for that pair — an unstated view, most often —
+        and offering the attack anyway would fire one the rules may not grant. The clause
+        names ride out on `MoveOutcome.withheld` so a caller can see what was not asked.
+        """
+        if not state.has(mover_id):
+            raise KeyError(f"no combatant {mover_id!r} in this encounter")
+        mover = state.combatant(mover_id)
+        if mover.position is None:
+            raise ValueError(
+                f"{mover.name} has no position, so there is no move to make and nothing it "
+                "could leave. An encounter that tracks no positions cannot answer this"
+            )
+
+        frm = mover.position
+        rulings: list[Ruling] = []
+        narrations: list[str | None] = []
+        withheld: list[str] = []
+
+        for provocation in provocations(state, mover_id, frm=frm, to=to):
+            if not provocation.may_be_offered:
+                assert provocation.withheld is not None  # may_be_offered is that field
+                withheld.append(provocation.withheld)
+                continue
+
+            offered = reaction_options(state, provocation.reactor_id, mover_id)
+            if not offered:
+                # Provoked, entitled to react, and holding nothing that reaches. Not a
+                # refusal and not a gap — an empty menu is the honest answer, and asking a
+                # driver to choose from nothing would be a request it cannot answer.
+                continue
+
+            response = yield ReactionRequest(
+                state=state,
+                reactor_id=provocation.reactor_id,
+                mover_id=mover_id,
+                offered=offered,
+            )
+            if isinstance(response, ReactionDeclined):
+                continue
+            declaration = _expect(response, Declared).declaration
+
+            ruling, state, unresolved = yield from self._resolve(state, declaration, {})
+            rulings.append(ruling)
+            if unresolved is not None or ruling.status in {Status.CHALLENGED, Status.REJECTED}:
+                # No retry loop, and the difference from `run` is that nobody is taking a
+                # turn: a reactor whose declaration is refused keeps its Reaction and the
+                # move carries on. Re-prompting would let one creature's reaction stall
+                # another creature's movement for the whole retry budget.
+                continue
+            narrations.append((yield from self._narrate(provocation.reactor_id, ruling)))
+
+        try:
+            state = state.with_movement(
+                mover_id,
+                to,
+                mode=mode,
+                difficult_terrain=difficult_terrain,
+                carrying=carrying,
+            )
+        except ValueError as refused:
+            return MoveOutcome(
+                state=state,
+                moved=False,
+                refusal=str(refused),
+                reactions=tuple(rulings),
+                narrations=tuple(narrations),
+                withheld=tuple(withheld),
+            )
+
+        return MoveOutcome(
+            state=state,
+            moved=True,
+            reactions=tuple(rulings),
+            narrations=tuple(narrations),
+            withheld=tuple(withheld),
+        )
 
     # --- The turn's end: a phase the loop owns (0023) ---------------------------------
 

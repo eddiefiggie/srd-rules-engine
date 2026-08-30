@@ -114,6 +114,7 @@ from srd_rules_engine.core.read_surface import (
     cleave_attack_declared,
     interaction_declared,
     nick_attack_declared,
+    opportunity_attack_declared,
     push_attack_declared,
     push_attack_feet,
 )
@@ -246,7 +247,15 @@ def attack_resolver() -> Resolver:
         # copy of their logic. The projected state is read and discarded; `_apply` performs
         # the move for real, from the effects returned below.
         before, after = _swap_effects(state, actor, declaration)
-        wielded, target_id, is_bonus, is_nick, is_cleave, is_thrown = _weapon_and_target(
+        (
+            wielded,
+            target_id,
+            is_bonus,
+            is_nick,
+            is_cleave,
+            is_thrown,
+            is_opportunity,
+        ) = _weapon_and_target(
             _after_equipping(state, before).combatant(declaration.actor_id), declaration
         )
         assert isinstance(wielded.item, Weapon)
@@ -269,6 +278,7 @@ def attack_resolver() -> Resolver:
             is_p89_extra=is_p89_extra,
             is_cleave=is_cleave,
             is_bonus=is_bonus,
+            is_opportunity=is_opportunity,
         )
         _refuse_if_behind_total_cover(state, actor, target)
         beyond_normal = _out_of_range(weapon, actor, target, thrown=is_thrown)
@@ -439,9 +449,32 @@ def attack_resolver() -> Resolver:
                 # load-bearing and was unreachable: the corruption proof for it came back
                 # green, because the condition beside it was true in every case that reaches
                 # this line.
+                # **p. 185's Opportunity Attack is charged first and unconditionally**, and
+                # neither half of the Multiattack clause below applies to it. The tally that
+                # clause reads is `attacks_this_turn`, and on somebody else's turn a
+                # reactor's is whatever its own turn left there — so letting an Opportunity
+                # Attack fall through would charge it nothing at all whenever the reactor had
+                # already swung this round. It is bought with a Reaction (p. 186), which no
+                # Attack action can have paid for (0072 clause 4).
+                *(
+                    (
+                        action_spent(
+                            declaration.actor_id,
+                            ActionKind.REACTION,
+                            description=(
+                                f"the Reaction spent on p. 185's Opportunity Attack with "
+                                f"{weapon.id}"
+                            ),
+                            weapon_id=weapon.id,
+                        ),
+                    )
+                    if is_opportunity
+                    else ()
+                ),
                 *(
                     ()
-                    if not is_bonus and state.attacks_this_turn.get(declaration.actor_id, 0)
+                    if is_opportunity
+                    or (not is_bonus and state.attacks_this_turn.get(declaration.actor_id, 0))
                     else (
                         action_spent(
                             declaration.actor_id,
@@ -990,7 +1023,7 @@ def _swap_effects(
 
 def _weapon_and_target(
     actor: Combatant, declaration: Declaration
-) -> tuple[Carried, str, bool, bool, bool, bool]:
+) -> tuple[Carried, str, bool, bool, bool, bool, bool]:
     """Which weapon this attack swung, and at whom, read off the key the surface offered.
 
     The key names both since #258, and the weapon is looked up in what the creature is
@@ -1011,6 +1044,10 @@ def _weapon_and_target(
     # rather than a flag on the attack's, because p. 90 says "you **can** push" — the wielder
     # chooses, and a menu is how this engine offers a choice it does not make.
     push = push_attack_declared(key)
+    # p. 185's Opportunity Attack. An ordinary attack in every respect but its cost: it is
+    # bought with a Reaction rather than with the Action, so it carries its own key and this
+    # is where the two part company (0072 clause 4).
+    opportunity = opportunity_attack_declared(key)
     thrown = attack_throw_declared(key)
     swap = attack_swap_declared(key)
     # p. 177's swap keys name the same attack with one weapon moved, so the weapon and target
@@ -1021,6 +1058,7 @@ def _weapon_and_target(
         or nick
         or cleave
         or push
+        or opportunity
         or thrown
         or (swap[:2] if swap else None)
         or attack_declared(key)
@@ -1062,6 +1100,14 @@ def _weapon_and_target(
                     "throwing one an improvised weapon whose damage type is the GM's to "
                     "choose. The engine has no way to supply that, so no throw is offered"
                 )
+            if opportunity is not None and not carried.item.melee:
+                # p. 185 grants "one **melee** attack". `reaction_options` offers melee
+                # weapons only, so a ranged one arriving here was never on that menu.
+                raise ValueError(
+                    f"{weapon_id!r} is not a Melee weapon, and p. 185 grants a Reaction to "
+                    "make one melee attack. A ranged Opportunity Attack is not an attack "
+                    "this engine ever offered"
+                )
             return (
                 carried,
                 target_id,
@@ -1069,6 +1115,7 @@ def _weapon_and_target(
                 nick is not None,
                 cleave is not None,
                 thrown is not None,
+                opportunity is not None,
             )
     raise ValueError(
         f"{actor.name} is not holding {weapon_id!r}. p. 177 attacks "
@@ -1085,6 +1132,7 @@ def _refuse_what_the_menu_would_not_offer(
     is_p89_extra: bool,
     is_cleave: bool,
     is_bonus: bool,
+    is_opportunity: bool,
 ) -> None:
     """Six attack-legality rules the menu asked and nothing else did (#376, 0069).
 
@@ -1109,7 +1157,16 @@ def _refuse_what_the_menu_would_not_offer(
     """
     # p. 257: the entry "details the attacks a creature can make", so a Multiattack naming a
     # set restricts which weapons may fill its rolls (0043 clause 2).
-    if actor.multiattack is not None and not actor.multiattack.allows(weapon.id):
+    # **Neither p. 257 rule reaches an Opportunity Attack** (0072 clause 4). Both are about
+    # what the *Attack action* buys — which weapons may fill a Multiattack's rolls, and how
+    # many rolls there are — and p. 185's attack is bought with a Reaction instead. Applying
+    # them would refuse an attack the document grants, and would make this resolver disagree
+    # with `reaction_options`, which does not apply them either.
+    if (
+        not is_opportunity
+        and actor.multiattack is not None
+        and not actor.multiattack.allows(weapon.id)
+    ):
         raise ValueError(
             f"{actor.name}'s Multiattack does not name {weapon.id}, so p. 257's entry grants "
             "no attack with it. A stat block that lists its weapons has listed them"
@@ -1118,7 +1175,7 @@ def _refuse_what_the_menu_would_not_offer(
     # p. 257: the Attack action buys a stated number of rolls, and a creature with no
     # Multiattack buys exactly one. An extra attack is bought by a different sentence and is
     # deliberately not counted here — p. 90's Nick and Cleave each have their own cap below.
-    if not (is_p89_extra or is_cleave) and not state.attacks_remaining(actor.id):
+    if not (is_p89_extra or is_cleave or is_opportunity) and not state.attacks_remaining(actor.id):
         raise ValueError(
             f"{actor.name} has no attacks left from its Attack action this turn (p. 257). An "
             "attack the action did not buy is not a slower attack, it is one the rules do "

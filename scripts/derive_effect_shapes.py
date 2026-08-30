@@ -185,7 +185,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Nonplayer Character": ("vocabulary", False),
     "Object": ("vocabulary", False),
     "Occupied Space": ("targeting", False),
-    "Opportunity Attacks": ("action", False),
+    "Opportunity Attacks": ("action", True),
     "Passive Perception": ("test", True),
     "Per Day": ("resource", False),
     "Player Character": ("vocabulary", False),

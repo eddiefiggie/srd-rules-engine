@@ -67,7 +67,12 @@ from srd_rules_engine.core.memory_port import (
 )
 from srd_rules_engine.core.pending_rolls import PendingAdvantage
 from srd_rules_engine.core.position import Position, SpeedReduction
-from srd_rules_engine.core.read_surface import LegalAction, Verdict, legal_actions, verify
+from srd_rules_engine.core.read_surface import (
+    LegalAction,
+    Verdict,
+    offered_actions,
+    verify,
+)
 from srd_rules_engine.core.rules import Ruleset
 from srd_rules_engine.core.spellcasting import MAX_SPELL_LEVEL, LongCast
 from srd_rules_engine.core.state import Combatant, EncounterState, ForcedSave, grapples_released
@@ -1491,8 +1496,11 @@ class Adjudicator:
                 declaration.actor_id,
             )
 
-        offered = legal_actions(state, declaration.actor_id)
         key = declaration.intent.action_key
+        # 0072 clause 5. The key chooses the surface: p. 185's Opportunity Attack is legal
+        # only when it is *not* the actor's turn, which is exactly when `legal_actions`
+        # answers nothing.
+        offered = offered_actions(state, declaration.actor_id, key)
         if key is not None and key not in {action.key for action in offered}:
             return (
                 f"{key!r} is not legal for {declaration.actor_id!r} right now; "

@@ -49,18 +49,26 @@ to it, in a case where saying "no" avoids being attacked and saying "yes" grants
 attack. R18's read surface reports what *is* legal; it does not delegate the question. That is
 why `UNSTATED` withholds rather than escalating.
 
-## What this module still does not do
+## What this module does, and what asks
 
 It does not move anyone, does not spend a Reaction, and does not reach adjudication. It
-answers "who would this movement provoke", which is the input the turn loop will need when
-the offer can be made. `EncounterState.with_movement` does not call it.
+answers "who would this movement provoke"; **`TurnLoop.move` is what asks**, and what then
+offers the attack, spends the Reaction and adjudicates it
+([0072](../../../docs/decisions/0072-movement-is-a-phase-the-loop-drives.md), #382). The offer
+needs the agent seam and the seam lives in the loop, so movement became a phase the loop
+drives rather than this module growing a way to ask.
 
-**That is the remaining half, and it is what `OFFER_NEVER_MADE` now discloses.** The read
-surface said sight was the reason no reaction had ever been offered; sight has not been the
-reason since #150, and the disclosure went on saying so. 0056 and
+**A consumer calling `EncounterState.with_movement` directly still provokes nothing**, and
+that ships disclosed (0072 clause 6). It is the shape `AGENTS.md` already states for skips —
+the guarantee holds for callers the turn loop drives.
+
+Two disclosures were retired on the way here, one build apart, and they were one gap under two
+names: `opportunity-attack-requires-seeing-the-mover`, wrong from the day #150 made sight
+answerable and removed by #381, and `opportunity-attack-detected-but-never-offered`, removed
+by #382 with the offer it named. 0056 and
 [0060](../../../docs/decisions/0060-a-disclosure-can-be-wrong-about-why.md) found the same
-shape twice before — a disclosure that is accurate about *that* something is missing and
-wrong about *what*. The offer is [#382](https://github.com/eddiefiggie/srd-rules-engine/issues/382).
+shape twice before — a disclosure accurate about *that* something is missing and wrong about
+*what*.
 """
 
 from __future__ import annotations
@@ -80,11 +88,6 @@ from srd_rules_engine.core.state import Combatant, EncounterState
 #: creature, because it is true of one pair rather than of the encounter.
 SIGHT_UNSTATED = "opportunity-attack-sight-unstated"
 
-#: The half that is genuinely unbuilt: the detection runs, and nothing offers its result.
-#: In the vocabulary `ActionBudget.unenforced_clauses` and `Conditions.unenforced_clauses`
-#: already use. **This replaced `opportunity-attack-requires-seeing-the-mover`**, which named
-#: sight as the reason and stayed after #150 made that untrue (#381).
-OFFER_NEVER_MADE = "opportunity-attack-detected-but-never-offered"
 
 #: R31. Every sentence below is asserted against its printed page in
 #: `scripts/verify_d20_rules.py`; this module adds no rule value of its own.
