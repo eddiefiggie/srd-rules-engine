@@ -63,6 +63,7 @@ from srd_rules_engine.core.memory_port import (
 from srd_rules_engine.core.memory_port import (
     resolve as resolve_fact,
 )
+from srd_rules_engine.core.pending_rolls import PendingAdvantage
 from srd_rules_engine.core.read_surface import LegalAction, Verdict, legal_actions, verify
 from srd_rules_engine.core.rules import Ruleset
 from srd_rules_engine.core.spellcasting import MAX_SPELL_LEVEL
@@ -268,6 +269,15 @@ class EffectKind(StrEnum):
     #: deciding anything. The DC and its derivation ride on `forced_save`, computed where the
     #: trigger fired, because neither is recoverable by the time the save is rolled.
     SAVE_COMPELLED = "save-compelled"
+    #: Advantage or Disadvantage granted for a **later** roll (p. 90, 0049). Its own kind
+    #: because every other advantage in this engine is recomputed at the moment of the
+    #: roll and nothing records it: these are held and spent, so the grant is a state
+    #: change rather than a fact recomputed later.
+    ADVANTAGE_PENDING = "advantage-pending"
+    #: One of those tokens, consumed by the roll it applied to (0049). Spent whether the
+    #: roll hit or missed — p. 90 says "your **next** attack roll" — so it is emitted
+    #: from `Proposal.always` rather than from either branch.
+    ADVANTAGE_SPENT = "advantage-spent"
     #: One piece of ammunition expended by an attack (p. 89, #273). `item_id` names which.
     #: "Each attack expends one piece of ammunition" — a cost that applies because the attack
     #: happened, so it rides in `Proposal.always` beside the action charge rather than in a
@@ -406,6 +416,19 @@ class Effect:
     #: `CARRIAGE_CHANGED` only: where the item went. The other two say it by their kind —
     #: detaching has no carriage at all, and picking up always arrives `HELD`.
     carriage: Carriage | None = None
+    #: `when` only: **whose** damage the predicate reads, when that is not this effect's own
+    #: target (0049). `None` means the target, which is p. 182's Falling — the creature that
+    #: took the damage is the creature that falls Prone.
+    #:
+    #: p. 90's Vex needs the other shape: "If you hit a creature **and deal damage to the
+    #: creature**, *you* have Advantage" — the damage is the defender's and the benefit is the
+    #: attacker's. Without this the predicate would read the attacker's own damage, find none,
+    #: and withhold Vex on every hit.
+    when_subject_id: str | None = None
+    #: The two advantage kinds only: the token granted or spent, whole (0049). Carried
+    #: rather than rebuilt, because a token is identified by every field it has — the
+    #: same holder may hold two with different scopes and expiries.
+    pending_advantage: PendingAdvantage | None = None
     #: `SAVE_COMPELLED` only: the save that is owed, whole (0048, #321). The DC and its
     #: derivation are carried rather than recomputed later, because the attack they came
     #: from — and the ability its wielder chose for it — is gone by the time it is rolled.
@@ -550,6 +573,41 @@ def attack_made(target_id: str, *, description: str) -> Effect:
     """One attack roll, counted against the Multiattack allowance (p. 257)."""
     return Effect(
         kind=EffectKind.ATTACK_MADE, target_id=target_id, amount=0, description=description
+    )
+
+
+def advantage_pending(
+    token: PendingAdvantage,
+    *,
+    description: str,
+    when: When | None = None,
+    when_subject_id: str | None = None,
+) -> Effect:
+    """Advantage or Disadvantage granted for a later roll (0049).
+
+    `when` carries p. 90's Vex condition — "and deal damage to the creature" — with
+    `when_subject_id` naming the creature whose damage decides it, which is not the creature
+    the token is granted to.
+    """
+    return Effect(
+        kind=EffectKind.ADVANTAGE_PENDING,
+        target_id=token.holder_id,
+        amount=0,
+        description=description,
+        pending_advantage=token,
+        when=when,
+        when_subject_id=when_subject_id,
+    )
+
+
+def advantage_spent(token: PendingAdvantage, *, description: str) -> Effect:
+    """A pending token consumed by the roll it applied to (0049)."""
+    return Effect(
+        kind=EffectKind.ADVANTAGE_SPENT,
+        target_id=token.holder_id,
+        amount=0,
+        description=description,
+        pending_advantage=token,
     )
 
 
@@ -834,12 +892,17 @@ def _refuse_undecidable_conditional(branch_name: str, branch: Sequence[Declared]
         if declared.kind is EffectKind.DAMAGE:
             damaged.add(declared.target_id)
             continue
-        if declared.when is not None and declared.target_id not in damaged:
+        # The **subject** of the predicate, which is the effect's own target unless the rule
+        # says otherwise (0049). p. 90's Vex conditions the attacker's benefit on the
+        # defender's damage, so checking `target_id` here would refuse a correct proposal —
+        # and, worse, checking neither would let a genuinely undecidable one through.
+        subject = declared.when_subject_id or declared.target_id
+        if declared.when is not None and subject not in damaged:
             raise ValueError(
                 f"the {branch_name} branch makes an effect on {declared.target_id!r} "
-                f"conditional on {declared.when}, but no damage to that creature precedes "
-                f"it. Every predicate reads what a sibling settled to, so this one is "
-                f"false before the branch runs and the effect would never apply"
+                f"conditional on {declared.when} against {subject!r}, but no damage to that "
+                f"creature precedes it. Every predicate reads what a sibling settled to, so "
+                f"this one is false before the branch runs and the effect would never apply"
             )
 
 
@@ -1558,7 +1621,8 @@ def _apply(
             )
             continue
 
-        if effect.when is not None and not _holds(effect.when, effect.target_id, taken):
+        subject = effect.when_subject_id or effect.target_id
+        if effect.when is not None and not _holds(effect.when, subject, taken):
             withheld.append(effect)
             continue
 
@@ -1633,6 +1697,12 @@ def _apply(
             state = state.with_object_interaction(effect.target_id)
         elif effect.kind is EffectKind.EXTRA_ATTACK_MADE:
             state = state.with_extra_attack(effect.target_id)
+        elif effect.kind is EffectKind.ADVANTAGE_PENDING:
+            assert effect.pending_advantage is not None  # the constructor requires one
+            state = state.with_pending_advantage(effect.pending_advantage)
+        elif effect.kind is EffectKind.ADVANTAGE_SPENT:
+            assert effect.pending_advantage is not None
+            state = state.without_pending_advantage((effect.pending_advantage,))
         elif effect.kind is EffectKind.SAVE_COMPELLED:
             assert effect.forced_save is not None  # the constructor requires one
             state = state.with_forced_save(effect.forced_save)
@@ -1697,6 +1767,10 @@ def _holds(when: When, target_id: str, taken: Mapping[str, int]) -> bool:
     One member, one sentence (0032 clause 3). A new member arrives with the printed rule it
     serves and a clause asserting it, and the exhaustiveness below is what makes forgetting
     the second half impossible to do quietly.
+
+    `target_id` is the **subject** of the predicate rather than the effect's own target, and
+    the two differ whenever a rule conditions one creature's benefit on another's damage —
+    p. 90's Vex, which is why `Effect.when_subject_id` exists (0049).
     """
     if when is When.DAMAGE_TAKEN:
         # p. 182: "unless it avoids taking any damage". Any amount at all satisfies it, so

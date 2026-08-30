@@ -806,6 +806,19 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         90,
+        "Vex needs damage as well as a hit, and runs to the END of your next turn",
+        r"If you hit a creature with this weapon and deal damage to the creature, you have "
+        r"Advantage on your next attack roll against that creature before the end of your "
+        r"next turn",
+    ),
+    (
+        90,
+        "Sap needs only a hit, and runs to the START of your next turn",
+        r"If you hit a creature with this weapon, that creature has Disadvantage on its next "
+        r"attack roll before the start of your next turn",
+    ),
+    (
+        90,
         "Topple fires on a hit and compels a Constitution save",
         r"If you hit a creature with this weapon, you can force the creature to make a "
         r"Constitution saving throw",

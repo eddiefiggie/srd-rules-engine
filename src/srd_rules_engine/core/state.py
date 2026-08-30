@@ -66,6 +66,7 @@ from srd_rules_engine.core.equipment import (
     items_in,
 )
 from srd_rules_engine.core.obstructions import Obstruction, blocking, line_is_blocked
+from srd_rules_engine.core.pending_rolls import PendingAdvantage, is_live
 from srd_rules_engine.core.position import (
     DEFAULT_REACH_FEET,
     MovementMode,
@@ -207,6 +208,22 @@ class DeathSaves:
 #: of the silence: granting a move the rules never granted manufactures movement, refusing
 #: it cannot.
 _SPEED_ONLY_MODES: Final = (MovementMode.FLY, MovementMode.BURROW)
+
+
+def _swept(state: EncounterState) -> EncounterState:
+    """Drop pending roll tokens the advanced turn has passed the expiry of (0049).
+
+    **Run against the state the turn advanced *to*.** Liveness is a question about where the
+    encounter has reached, so asking it before the index moves answers about the turn that
+    just ended — which leaves every token alive exactly one turn too long. The rule is
+    unaffected either way, because `live_pending_advantage` is what a roll consults; this is
+    the hygiene that keeps the queue from growing, and a hygiene step that lags is a queue
+    that never empties.
+    """
+    live = state.live_pending_advantage()
+    if len(live) == len(state.pending_advantage):
+        return state
+    return state._evolve(pending_advantage=live)
 
 
 @dataclass(frozen=True)
@@ -722,6 +739,13 @@ class EncounterState:
     #: **Not cleared by `advanced_turn`**, for the same reason: a debt incurred on the
     #: monster's turn is owed by the caster, who is not the creature whose turn is ending.
     forced_saves_owed: tuple[ForcedSave, ...] = ()
+    #: Advantage and Disadvantage granted by one roll and spent by another (p. 90, 0049).
+    #:
+    #: **Not per turn, and not a condition.** Every other source of Advantage here is a
+    #: standing fact recomputed at the moment of the roll; these are held and consumed. They
+    #: outlive turns — Vex's window runs to the end of the granter's *next* turn — so
+    #: `advanced_turn` sweeps the dead rather than clearing the field.
+    pending_advantage: tuple[PendingAdvantage, ...] = ()
     #: Who has already expended a spell slot this turn (p. 105, 0038): "On a turn, you can
     #: expend only one spell slot to cast a spell."
     #:
@@ -2099,6 +2123,47 @@ class EncounterState:
         """Whether p. 89's extra attack is already spent this turn (#320)."""
         return combatant_id in self.extra_attacks_this_turn
 
+    def with_pending_advantage(self, token: PendingAdvantage) -> EncounterState:
+        """Record Advantage or Disadvantage a rule granted for a later roll (0049)."""
+        return self._evolve(pending_advantage=(*self.pending_advantage, token))
+
+    def live_pending_advantage(self) -> tuple[PendingAdvantage, ...]:
+        """The tokens the encounter has not yet passed the expiry of (0049).
+
+        Derived rather than swept, so a token cannot outlive its window even if the sweep
+        below never ran. The order is the recording order, which is the only one p. 90 gives.
+        """
+        order = tuple(c.id for c in self.combatants)
+        return tuple(
+            token
+            for token in self.pending_advantage
+            if is_live(
+                token,
+                round_number=self.round_number,
+                turn_index=self.turn_index,
+                order=order,
+            )
+        )
+
+    def pending_advantage_for(
+        self, attacker_id: str, target_id: str
+    ) -> tuple[PendingAdvantage, ...]:
+        """The live tokens in scope for that attack, which the roll will spend (0049)."""
+        return tuple(
+            token
+            for token in self.live_pending_advantage()
+            if token.applies_to(attacker_id, target_id)
+        )
+
+    def without_pending_advantage(self, spent: tuple[PendingAdvantage, ...]) -> EncounterState:
+        """Drop tokens a roll consumed (0049).
+
+        Spent whether the roll hit or missed: p. 90 says "your **next** attack roll", and a
+        token that survived a miss would grant Advantage on every attack in the window.
+        """
+        remaining = [token for token in self.pending_advantage if token not in spent]
+        return self._evolve(pending_advantage=tuple(remaining))
+
     def attacks_remaining(self, combatant_id: str) -> int:
         """How many attack rolls this creature's Attack action still buys (p. 257).
 
@@ -2350,9 +2415,24 @@ class EncounterState:
         # other a resource spent, and they agree about *when* rather than about what.
         following = self.turn_index + 1
         if following < len(self.combatants):
-            return ended._evolve(
-                turn_index=following,
-                combatants=ended._refreshed(following),
+            return _swept(
+                ended._evolve(
+                    turn_index=following,
+                    combatants=ended._refreshed(following),
+                    discharged=frozenset(),
+                    slots_expended_this_turn=frozenset(),
+                    light_attacks_this_turn=frozenset(),
+                    extra_attacks_this_turn=frozenset(),
+                    attacks_this_turn={},
+                    object_interactions_this_turn=frozenset(),
+                    loading_shots_this_turn=frozenset(),
+                )
+            )
+        return _swept(
+            ended._evolve(
+                turn_index=0,
+                round_number=self.round_number + 1,
+                combatants=ended._refreshed(0),
                 discharged=frozenset(),
                 slots_expended_this_turn=frozenset(),
                 light_attacks_this_turn=frozenset(),
@@ -2361,17 +2441,6 @@ class EncounterState:
                 object_interactions_this_turn=frozenset(),
                 loading_shots_this_turn=frozenset(),
             )
-        return ended._evolve(
-            turn_index=0,
-            round_number=self.round_number + 1,
-            combatants=ended._refreshed(0),
-            discharged=frozenset(),
-            slots_expended_this_turn=frozenset(),
-            light_attacks_this_turn=frozenset(),
-            extra_attacks_this_turn=frozenset(),
-            attacks_this_turn={},
-            object_interactions_this_turn=frozenset(),
-            loading_shots_this_turn=frozenset(),
         )
 
     def _retired(self, actor_id: str) -> EncounterState:

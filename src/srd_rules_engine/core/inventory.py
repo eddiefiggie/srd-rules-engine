@@ -204,6 +204,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # rolls it through the one adjudication entry point — the second occupant of the
         # forced-save queue 0048 generalised out of 0036's Concentration-shaped one.
         "mastery-topple": "core.topple.topple_resolver",
+        # p. 90, #318 and #319. One mechanism, two sides: a token granted by a hit,
+        # scoped and expiring differently for each, and spent by the roll it applies to.
+        "mastery-vex": "core.pending_rolls.PendingAdvantage",
+        "mastery-sap": "core.pending_rolls.PendingAdvantage",
         # Position, movement and range in feet (#17, #20).
         "speed": "core.position.Speeds.walk",
         "difficult-terrain": "core.position.movement_cost",
