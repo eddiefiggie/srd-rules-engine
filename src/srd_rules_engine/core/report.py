@@ -47,7 +47,7 @@ primary success criterion is read from, in the flattering direction.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Final
@@ -100,11 +100,13 @@ NOT_MEASURED: Final[tuple[str, ...]] = (
     "cannot distinguish 'no skip' from 'no row'",
     "anything about a caller that reached adjudication without the turn loop, which is "
     "outside the skip guarantee and disclosed as such",
-    "how many turns a session took. A `Turn` is one declaration slot, and an engine-authored "
-    "obligation — a save-ends save (p. 63) or a death save — opens a slot of its own, so a "
-    "creature that acted once and owed one save reports two. `Turn.improvised` tells them "
-    "apart today; how they should be *grouped* is undecided, and deliberately, because "
-    "reactions are the second source of the same question and do not exist yet (#120)",
+    "how many turns a session took, **for a ledger written before `DECLARATION_VERSION` 3**. "
+    "A `Turn` is one declaration slot, and both an engine-authored obligation (0023) and a "
+    "reaction (0072) open one inside another creature's turn. Since #120 the slot records "
+    "which game turn it happened in and `SessionReport.game_turns` groups by it — but only "
+    "where the ledger carries the field. An older one comes back with `attributable` false "
+    "and is not apportioned by inference, because reconstructing the turn from actor changes "
+    "would guess at exactly the case the field was added for",
 )
 
 
@@ -149,13 +151,17 @@ class Turn:
     **A slot, not a game turn**, and the distinction is load-bearing rather than pedantic.
     An engine-authored obligation opens a slot of its own — 0023 clause 2 is explicit that
     its `Declaration` "is not the agent's" — so a creature that acted once and owed one
-    save-ends save reports two `Turn`s. `improvised` is `True` on the second, and no
-    `read_token` was ever issued for it, so the two are distinguishable; what nothing here
-    decides is how they should be **grouped**, which is #120 and is left open on purpose
-    until reactions supply the second half of the question.
+    save-ends save reports two `Turn`s.
 
-    `SessionReport.not_measured` says so, because a count a reader takes at face value is
-    the failure mode this report already exists to prevent.
+    **How they group is decided now** (#120, 0073): the slot records whose game turn it
+    happened in, and `SessionReport.game_turns` groups by it. This docstring said the
+    question was "left open on purpose until reactions supply the second half"; 0072 supplied
+    it, and an Opportunity Attack made mid-move was filed as a turn of its own.
+
+    **`improvised` was never enough**, which is what building the second source showed. It is
+    `True` for an engine-authored obligation and `False` for a reaction — a reaction is the
+    agent's own declaration — so a reader told to use the flag would have caught one source
+    and silently missed the other. The turn is recorded rather than derived.
     """
 
     seq: int
@@ -165,6 +171,17 @@ class Turn:
     rule_id: str | None
     #: How many declarations the slot took. More than one means a refusal was answered.
     attempts: int = 1
+    #: #120. Whose game turn this slot happened in, and which round — together the identity
+    #: of one game turn. `None` for a slot outside combat, and **also** `None` for one an
+    #: older ledger recorded, which `attributable` is what tells apart.
+    during: str | None = None
+    round_number: int | None = None
+    #: Whether `during` was read off the entry rather than defaulted. A ledger written before
+    #: `DECLARATION_VERSION` 3 carries no such field, and this engine does not reconstruct one
+    #: — inferring the turn from actor changes would guess at exactly the case the field was
+    #: added for. False means "this report cannot say", which is a different claim from
+    #: "outside combat" and has to stay distinguishable (#120).
+    attributable: bool = False
     alternatives: tuple[Mapping[str, object], ...] = ()
     alternatives_verdict: str | None = None
     status: str | None = None
@@ -176,6 +193,48 @@ class Turn:
     @property
     def produced_ruling(self) -> bool:
         return self.status == "ruled"
+
+    @property
+    def interjected(self) -> bool:
+        """Whether this slot happened inside a **different** creature's turn (#120).
+
+        The two sources are the ones 0015 named: an engine-authored obligation (0023) and a
+        reaction (0072). `improvised` tells the first apart and **not the second** — an
+        Opportunity Attack is the agent's own declaration, so it is `improvised=False` like
+        any other. That is why the turn is recorded rather than derived from the flag.
+        """
+        return self.attributable and self.during is not None and self.actor != self.during
+
+
+@dataclass(frozen=True)
+class GameTurn:
+    """Every declaration slot that happened during one creature's turn (#120).
+
+    The grouping `Turn`'s docstring said was undecided. A game turn is identified by
+    `(round_number, actor)` — the creature whose turn it was, and which round — and slots
+    are grouped into **consecutive runs** of that key rather than gathered globally. A run
+    keeps the ledger's order and cannot merge two things that merely share a key, which
+    matters most for the slots that have no key at all: everything outside combat carries
+    `(None, None)`, and collapsing all of it into one group would be a claim nobody made.
+
+    `actor` is `None` for a slot outside combat and for one an older ledger recorded. The two
+    are told apart by `attributable`, not by this field.
+    """
+
+    round_number: int | None
+    actor: str | None
+    slots: tuple[Turn, ...]
+    #: Whether the ledger recorded whose turn this was. False means the entries predate
+    #: `DECLARATION_VERSION` 3 and this report declines to reconstruct it.
+    attributable: bool = False
+
+    @property
+    def interjections(self) -> tuple[Turn, ...]:
+        """The slots that belong to a creature other than the one whose turn this is.
+
+        A reaction (0072) or an engine-authored obligation for another creature (0023).
+        """
+        return tuple(slot for slot in self.slots if slot.interjected)
 
 
 @dataclass(frozen=True)
@@ -202,6 +261,42 @@ class SessionReport:
         cleared bar.
         """
         return NOT_MEASURED
+
+    @property
+    def game_turns(self) -> tuple[GameTurn, ...]:
+        """The declaration slots grouped into the game turns they happened in (#120).
+
+        **This is the count a reader wants**, and `turns` is not it: a `Turn` is a
+        declaration slot, and a creature that acted once, owed one save and was reacted to
+        reports three of them inside one game turn.
+
+        Grouped by consecutive runs of `(round_number, during)`. A ledger written before
+        `DECLARATION_VERSION` 3 has no such key, so its slots come back as one unattributable
+        group per run rather than being apportioned by a guess.
+        """
+        groups: list[GameTurn] = []
+        for turn in self.turns:
+            key = (turn.round_number, turn.during, turn.attributable)
+            if (
+                groups
+                and (
+                    groups[-1].round_number,
+                    groups[-1].actor,
+                    groups[-1].attributable,
+                )
+                == key
+            ):
+                groups[-1] = replace(groups[-1], slots=(*groups[-1].slots, turn))
+            else:
+                groups.append(
+                    GameTurn(
+                        round_number=turn.round_number,
+                        actor=turn.during,
+                        slots=(turn,),
+                        attributable=turn.attributable,
+                    )
+                )
+        return tuple(groups)
 
     @property
     def flags(self) -> tuple[tuple[int, Flag], ...]:
@@ -408,10 +503,17 @@ def _turns(entries: Sequence[Entry]) -> tuple[tuple[Turn, ...], int]:
     def declaration_fields(entry: Entry) -> dict[str, Any]:
         intent = entry.payload.get("intent")
         intent = intent if isinstance(intent, Mapping) else {}
+        # #120, `DECLARATION_VERSION` 3. Present-and-null and absent are different facts —
+        # the first is "outside combat", the second is "written before this was recorded" —
+        # so membership is what decides `attributable` rather than the value being truthy.
+        attributable = "during" in entry.payload
         return {
             "action_key": _text(intent.get("action_key")),
             "improvised": bool(intent.get("improvised")),
             "rule_id": _text(entry.payload.get("rule_id")),
+            "during": _text(entry.payload.get("during")),
+            "round_number": _int(entry.payload.get("round")),
+            "attributable": attributable,
             "alternatives": tuple(
                 a for a in _sequence(entry.payload.get("alternatives")) if isinstance(a, Mapping)
             ),
@@ -509,6 +611,9 @@ def _finish(pending: Mapping[str, Any]) -> Turn:
         improvised=bool(pending.get("improvised")),
         rule_id=pending.get("rule_id"),
         attempts=int(pending.get("attempts") or 1),
+        during=pending.get("during"),
+        round_number=pending.get("round_number"),
+        attributable=bool(pending.get("attributable")),
         alternatives=tuple(pending.get("alternatives") or ()),
         alternatives_verdict=stale or (verdicts[-1] if verdicts else None),
         status=status,
@@ -529,24 +634,39 @@ def render(report: SessionReport) -> str:
         f"SESSION REVIEW — {report.session_id or 'unnamed session'}",
         f"  engine version:    {report.engine_version or 'unrecorded'}",
         f"  catalogue version: {report.catalogue_version if report.catalogue_version else '—'}",
-        f"  turns:             {len(report.turns)}",
+        # Both counts, because they answer different questions and the difference is the
+        # whole of #120: a game turn can hold several slots, and a reader given only the
+        # slot count reads it as a turn count.
+        f"  game turns:        {len(report.game_turns)}",
+        f"  declaration slots: {len(report.turns)}",
         f"  flags:             {len(report.flags)}",
         "",
     ]
     body: list[str] = []
-    for turn in report.turns:
-        named = turn.action_key or (turn.rule_id and f"rule {turn.rule_id}") or "improvised"
-        retries = f" after {turn.attempts - 1} refused" if turn.attempts > 1 else ""
-        body.append(
-            f"seq {turn.seq} — {turn.actor}: {named} [{turn.status or 'no ruling'}]{retries}"
-        )
-        if turn.outcome:
-            body.append(f"    {turn.outcome}")
-        if turn.narration:
-            body.append(f'    "{turn.narration}"')
-        if turn.terminal_reason:
-            body.append(f"    ended: {turn.terminal_reason}")
-        body.extend(f"    FLAG {flag}" for flag in turn.flags)
+    for group in report.game_turns:
+        if not group.attributable:
+            body.append("— turn unrecorded (ledger predates turn attribution) —")
+        elif group.actor is None:
+            body.append("— outside combat —")
+        else:
+            body.append(f"— round {group.round_number}, {group.actor}'s turn —")
+        for turn in group.slots:
+            named = turn.action_key or (turn.rule_id and f"rule {turn.rule_id}") or "improvised"
+            retries = f" after {turn.attempts - 1} refused" if turn.attempts > 1 else ""
+            # An interjection is named as one. Without it a reaction reads as the turn's own
+            # creature acting twice, which is the misreading the grouping exists to stop.
+            interjected = " (interjected)" if turn.interjected else ""
+            body.append(
+                f"  seq {turn.seq} — {turn.actor}{interjected}: {named} "
+                f"[{turn.status or 'no ruling'}]{retries}"
+            )
+            if turn.outcome:
+                body.append(f"      {turn.outcome}")
+            if turn.narration:
+                body.append(f'      "{turn.narration}"')
+            if turn.terminal_reason:
+                body.append(f"      ended: {turn.terminal_reason}")
+            body.extend(f"      FLAG {flag}" for flag in turn.flags)
 
     # #197. Printed on every report, flags or none, because the reading this is here to
     # prevent is the one a *clean* report invites. A footnote only on failures would appear

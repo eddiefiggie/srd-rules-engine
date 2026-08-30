@@ -242,6 +242,7 @@ from srd_rules_engine.core.read_surface import (
 )
 from srd_rules_engine.core.report import (
     Flag,
+    GameTurn,
     Replay,
     ReplayVerdict,
     SessionReport,
@@ -415,6 +416,7 @@ __all__ = [
     "Finding",
     "Flag",
     "ForcedSave",
+    "GameTurn",
     "Grapple",
     "Grounding",
     "Intent",

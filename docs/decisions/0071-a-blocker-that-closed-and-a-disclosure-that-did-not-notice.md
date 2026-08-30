@@ -127,7 +127,7 @@ makes `UNSTATED` a third value rather than a stub.
 | 2 — the withholding narrows to a pair | **Built.** `SIGHT_UNSTATED` on the `Provocation` |
 | 3 — `withheld` has no default | **Built.** Proved by corrupting the field back to a default |
 | 4 — the disclosure names the offer | **Built.** `OFFER_NEVER_MADE`, pinned |
-| 5 — the offer itself | **Not built.** [#382](https://github.com/eddiefiggie/srd-rules-engine/issues/382) |
+| 5 — the offer itself | **Built** 2026-08-30 by [#382](https://github.com/eddiefiggie/srd-rules-engine/issues/382), one build later, as `loop.turn.TurnLoop.move` ([0072](0072-movement-is-a-phase-the-loop-drives.md)) |
 
 The `opportunity-attacks` shape stays **unclaimed** in `effect_shapes.json`. A trigger that
 nothing calls has not resolved the shape, and R17's inventory is what makes "full SRD 5.2
