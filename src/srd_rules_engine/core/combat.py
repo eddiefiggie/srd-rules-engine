@@ -1,9 +1,11 @@
 """Enough of combat to run one fight: turn order, attacks, damage, and dropping to 0.
 
 R12 in full covers reactions, opportunity attacks, and the whole action economy. This is
-the slice's share of it. What provokes an Opportunity Attack now lives in `core.reactions`
-(#16), which computes the trigger and withholds every offer, because p. 185's sentence turns
-on a mover "that you can see" and sight is unanswerable until [#150](https://github.com/eddiefiggie/srd-rules-engine/issues/150).
+the slice's share of it. What provokes an Opportunity Attack lives in `core.reactions`,
+which computes the trigger and answers p. 185's "that you can see" against `can_see` — it
+withheld every offer on that clause until [#150](https://github.com/eddiefiggie/srd-rules-engine/issues/150)
+made sight answerable, and for five days after. What is still missing is the *offer*:
+[#382](https://github.com/eddiefiggie/srd-rules-engine/issues/382).
 
 Two things in this module are machinery rather than content, which is what lets them
 exist while [#3](https://github.com/eddiefiggie/srd-rules-engine/issues/3) — the official

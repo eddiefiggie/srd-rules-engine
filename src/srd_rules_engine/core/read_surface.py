@@ -56,7 +56,7 @@ from srd_rules_engine.core.equipment import (
 )
 from srd_rules_engine.core.forced_movement import push_distances
 from srd_rules_engine.core.position import MovementMode, distance_feet, within
-from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
+from srd_rules_engine.core.reactions import OFFER_NEVER_MADE
 from srd_rules_engine.core.sight import LightLevel, Senses
 from srd_rules_engine.core.size import CarryingCapacity, Size
 from srd_rules_engine.core.skills import Skill
@@ -135,7 +135,8 @@ VERBAL_UNCHECKED: Final = "verbal-component-gagged-or-silenced-unchecked"
 RELEASE_ONLY_ON_YOUR_TURN: Final = "grapple-release-offered-only-on-the-grapplers-turn"
 
 
-#: p. 177: "If you use a Shield and lack training with it, you don't gain its AC bonus" (#367).
+#: p. 177: "If you use a Shield and lack training with it, you don't gain its AC bonus"
+#: (#367). The derivation it needs is #380.
 #:
 #: `Item.is_armour` deliberately does not distinguish a Shield from worn armour — the category
 #: is content (0040 clause 2) — and the clause needs a shield's AC bonus to withhold, which
@@ -1730,12 +1731,17 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
 
     unenforced = list(conditions.unenforced_clauses())
     unenforced.extend(c for c in actor.actions.unenforced_clauses() if c not in unenforced)
-    # A creature holding a Reaction is a creature the engine cannot tell when to spend it:
-    # p. 185's Opportunity Attack fires on a mover "that you can see", and sight is the
-    # mapping #150 has not filled. Disclosed here rather than left for a reader to notice
-    # that no reaction has ever been offered.
+    # A creature holding a Reaction is a creature that will never be offered one. The engine
+    # can now tell *when* p. 185 provokes — `core.reactions.provocations` consults `can_see`
+    # since #381 — and nothing calls it: no offer is made, no Reaction spent, no attack
+    # adjudicated out of turn. That half is #382, and this clause comes off with it.
+    #
+    # **This said sight was the reason until #381**, and sight stopped being the reason when
+    # #150 landed on 2026-08-25. The disclosure was right that something was missing and
+    # wrong about what, which is the third instance of that shape (0056, 0060) and the reason
+    # the clause is named for the offer rather than for the qualifier.
     if actor.actions.available(ActionKind.REACTION, conditions):
-        unenforced.append(SIGHT_QUALIFIER)
+        unenforced.append(OFFER_NEVER_MADE)
     # p. 13 grants "one object or feature of the environment for free, during either your
     # move or action", and a second needs the Utilize action. p. 177 separately grants one
     # weapon swap per attack made as part of the Attack action. **The document never states

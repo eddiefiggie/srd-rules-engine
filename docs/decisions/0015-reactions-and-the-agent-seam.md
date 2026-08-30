@@ -110,11 +110,21 @@ detection and the ledger interleaving rule are not, and are named above as the r
 
 | Unbuilt clause | Held by |
 |---|---|
-| Trigger detection — a departure from reach during movement | **Built** 2026-08-24 as `core.reactions.provocations`, with `disengaged` finally consumed. The *offer* is withheld: p. 185 fires on a mover "that you can see" and sight is unanswerable until [#150](https://github.com/eddiefiggie/srd-rules-engine/issues/150) |
-| The Reaction offer itself, and the out-of-turn invocation this record says the seam already serves | [#16](https://github.com/eddiefiggie/srd-rules-engine/issues/16), and unprovable until an offer can be made |
+| Trigger detection — a departure from reach during movement | **Built** 2026-08-24 as `core.reactions.provocations`, with `disengaged` finally consumed |
+| p. 185's "that you can see" | **Built** 2026-08-30. `provocations` consults `EncounterState.can_see` per reactor: `CANNOT_SEE` drops the provocation, `UNSTATED` withholds it naming `SIGHT_UNSTATED`, `CAN_SEE` offers it. It was withheld unconditionally until then, on [#150](https://github.com/eddiefiggie/srd-rules-engine/issues/150) — **which closed on 2026-08-25**, five days before this row was corrected ([#381](https://github.com/eddiefiggie/srd-rules-engine/issues/381)) |
+| The Reaction offer itself, and the out-of-turn invocation this record says the seam already serves | **Not built.** [#382](https://github.com/eddiefiggie/srd-rules-engine/issues/382). This row said "unprovable until an offer can be made", and it now *is* provable — [#381](https://github.com/eddiefiggie/srd-rules-engine/issues/381) made `provocations` return offerable results. Disclosed at the read surface as `opportunity-attack-detected-but-never-offered` |
 | Ready (p. 186), whose sentence is asserted nowhere | [#16](https://github.com/eddiefiggie/srd-rules-engine/issues/16) |
 | The rule `session_report` needs for attributing interleaved entries to turns | [#120](https://github.com/eddiefiggie/srd-rules-engine/issues/120) |
 
 _Table added 2026-08-24 ([#126](https://github.com/eddiefiggie/srd-rules-engine/issues/126)). Both were tracked
 already; neither was named here, so a reader of this record alone could not find the work it
 deferred._
+
+_Corrected 2026-08-30 ([#381](https://github.com/eddiefiggie/srd-rules-engine/issues/381)). The
+trigger row said sight was unanswerable and cited a **closed** issue, and it said so for five
+days across four builds. It is worth recording **why no guard caught it**:
+`scripts/check_status_rows.py` fails a row that claims `not built` while the issue it cites is
+closed, and this row said **Built** — the lapsed blocker was in its prose, not in its claim. That
+is a third direction beyond the two `AGENTS.md` names, and the one that reads as a deliberate
+limit rather than as an oversight. The sight clause is now its own row, so what is built and
+what is not are separately checkable._

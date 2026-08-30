@@ -39,6 +39,7 @@ from srd_rules_engine.core import (
 )
 from srd_rules_engine.core.position import DEFAULT_REACH_FEET, Position
 from srd_rules_engine.core.reactions import Provocation, provocations
+from srd_rules_engine.core.sight import Lighting, LightLevel
 from srd_rules_engine.memory.store import JsonMemoryStore
 
 #: A Reach weapon, one-handed so it can be held alongside a second one — the clause under
@@ -257,12 +258,20 @@ def leaving(guard: Combatant, *, frm_feet: int, to_feet: int) -> tuple[Provocati
 
     Distances from the guard are therefore `|feet - 5|`, which is worth stating once: every
     case below turns on which reach each endpoint falls inside.
+
+    Bright Light is stated so that `can_see` answers p. 185's sight clause and these cases
+    turn on reach alone. An encounter that states no light answers `UNSTATED` (0025 clause 2),
+    which would withhold every offer here and make the assertions below about two things.
     """
-    state = EncounterState(generation=0, combatants=(mover(), guard))
+    state = EncounterState(
+        generation=0,
+        combatants=(mover(), guard),
+        lighting=Lighting(ambient=LightLevel.BRIGHT),
+    )
     return provocations(state, "mover", frm=Position(frm_feet, 0, 0), to=Position(to_feet, 0, 0))
 
 
-PROVOKED = (Provocation(reactor_id="guard", mover_id="mover"),)
+PROVOKED = (Provocation(reactor_id="guard", mover_id="mover", withheld=None),)
 
 
 def test_a_reach_weapon_extends_what_counts_as_leaving() -> None:
