@@ -98,6 +98,7 @@ from srd_rules_engine.core.size import (
     carrying_capacity,
     dehydrated,
     one_size_larger_for_carrying,
+    undernourished,
 )
 from srd_rules_engine.core.skills import SKILL_ABILITY, PerceptionCheck, Skill
 from srd_rules_engine.core.spellcasting import (
@@ -141,6 +142,11 @@ SUFFOCATION_RULE_ID: Final = "suffocation"
 #: `tests/test_long_rest.py` is where that would be caught.
 DEHYDRATION_RULE_ID: Final = "dehydration"
 MALNUTRITION_RULE_ID: Final = "malnutrition"
+
+#: p. 185: "must succeed on a **DC 10** Constitution saving throw". Stated outright by the
+#: document rather than derived from anything, which is unusual enough to name — every other
+#: forced save in this engine computes its DC when the trigger fires (0036 clause 4).
+MALNUTRITION_SAVE_DC: Final = 10
 
 #: 0028 clause 3. A level from one of these is **invisible** to the general removal rule
 #: rather than subtracted from it: a creature holding only these finishes a Long Rest and
@@ -2531,7 +2537,9 @@ class EncounterState:
             )
         )
 
-    def with_day_ended(self, *, water: Mapping[str, Fraction]) -> EncounterState:
+    def with_day_ended(
+        self, *, water: Mapping[str, Fraction], food: Mapping[str, Fraction] | None = None
+    ) -> EncounterState:
         """p. 181's Dehydration, at the day's end (#315, 0080).
 
         > A creature that drinks less than half the required water for a day gains 1
@@ -2574,12 +2582,50 @@ class EncounterState:
                 "requirement to have drunk less than half of"
             )
 
+        eaten = food or {}
+        missing_food = [cid for cid in eaten if not self.has(cid)]
+        if missing_food:
+            raise KeyError(f"no combatant {missing_food[0]!r} in this encounter")
+        unsized = [cid for cid in sorted(eaten) if self.combatant(cid).size is None]
+        if unsized:
+            raise ValueError(
+                f"{', '.join(unsized)} has no stated size, and p. 185 reads a day's food from "
+                "the Food Needs per Day table"
+            )
+
         state = self
         for combatant_id in sorted(water):
             size = self.combatant(combatant_id).size
             assert size is not None  # refused above
             if dehydrated(size, water[combatant_id]):
                 state = state.with_exhaustion(combatant_id, DEHYDRATION_RULE_ID)
+
+        # p. 185's Malnutrition **compels a save rather than inflicting a level** (#399,
+        # 0081), which is the whole difference from p. 181. Compelled here and rolled by
+        # `TurnLoop.end_day`, through the machinery 0048 generalised: a `ForcedSave` is "one
+        # save a creature owes and has not rolled, whatever compelled it", and this is the
+        # third thing to compel one.
+        #
+        # **The DC is recorded now**, which 0036 clause 4 requires of every forced save: by
+        # the time the loop rolls it, the state it came from has moved. Here it is a constant,
+        # and recording it anyway keeps the one rule rather than an exception to it.
+        for combatant_id in sorted(eaten):
+            size = self.combatant(combatant_id).size
+            assert size is not None  # refused above
+            if undernourished(size, eaten[combatant_id]):
+                state = state.with_forced_save(
+                    ForcedSave(
+                        combatant_id=combatant_id,
+                        rule_id=MALNUTRITION_RULE_ID,
+                        ability="con",
+                        dc=MALNUTRITION_SAVE_DC,
+                        dc_basis=(
+                            f"DC {MALNUTRITION_SAVE_DC} Constitution saving throw, stated "
+                            "outright by p. 185 rather than derived"
+                        ),
+                        label="the save p. 185 compels for a day's food (Malnutrition)",
+                    )
+                )
         return state
 
     def with_long_rest(self, combatant_id: str) -> EncounterState:

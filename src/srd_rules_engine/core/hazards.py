@@ -386,6 +386,108 @@ def suffocation_rule() -> Rule:
     )
 
 
+#: R31. p. 185's Malnutrition entry, asserted whole in `scripts/verify_d20_rules.py` — the
+#: size table, the DC 10 Constitution save for eating too little, the automatic level after
+#: five days with nothing, and the removal it locks (#399).
+MALNUTRITION_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference="SRD v5.2.1, Rules Glossary: Malnutrition p. 185",
+    date="2026-08-30",
+    method=VerificationMethod.ASSERTED,
+)
+
+
+def malnutrition_rule() -> Rule:
+    """The SRD rule a campaign day's end compels for an undernourished creature (p. 185)."""
+    return Rule(
+        id=MALNUTRITION_RULE_ID,
+        summary=(
+            "A creature that eats less than half a day's food must succeed on a DC 10 "
+            "Constitution saving throw or gain 1 Exhaustion level at the day's end."
+        ),
+        provenance=RuleProvenance.SRD,
+        verification=MALNUTRITION_VERIFICATION,
+    )
+
+
+def malnutrition_resolver() -> Resolver:
+    """p. 185's Malnutrition save, rolled at a day's end (#399, 0081).
+
+    > A creature that eats but consumes less than half the required food for a day **must
+    > succeed on a DC 10 Constitution saving throw** or gain 1 Exhaustion level at the day's
+    > end.
+
+    **The one hazard with a die**, which is why it waited: p. 178's Burning, p. 189's
+    Suffocation and p. 181's Dehydration all state their outcome outright, and this one asks
+    the dice. It needed an occasion on the campaign axis that could produce a *ruling* rather
+    than a state transition, and `TurnLoop.end_day` is it.
+
+    **The debt carries the DC**, so this reads it off the `ForcedSave` rather than restating
+    p. 185's 10 — the rule 0036 clause 4 sets for every forced save, kept here even though
+    this DC is a constant. An exception for the one that happens to be constant is an
+    exception somebody has to remember.
+
+    **The failure gains a level attributed to this rule**, which is what makes p. 185's
+    removal restriction expressible: `LOCKED_EXHAUSTION_RULES` holds `MALNUTRITION_RULE_ID`,
+    so a Long Rest cannot take it until the creature eats a full day's food.
+    """
+
+    def resolve(
+        *,
+        state: EncounterState,
+        declaration: Declaration,
+        facts: Mapping[str, Resolution],
+    ) -> Proposal:
+        actor_id = declaration.actor_id
+        debt = next(
+            (
+                owed
+                for owed in state.forced_saves_owed
+                if owed.combatant_id == actor_id and owed.rule_id == MALNUTRITION_RULE_ID
+            ),
+            None,
+        )
+        if debt is None:
+            raise ValueError(
+                f"{state.combatant(actor_id).name} owes no Malnutrition save, so p. 185 has "
+                "nothing to resolve. The save is compelled by a day ending and is never "
+                "declared"
+            )
+
+        return Proposal(
+            test=D20Test(
+                kind=TestKind.SAVE,
+                target=debt.dc,
+                target_basis=debt.dc_basis,
+                ability=debt.ability,
+                modifiers=(
+                    Modifier(
+                        source=f"ability:{debt.ability}",
+                        value=state.combatant(actor_id).modifier(debt.ability),
+                    ),
+                ),
+            ),
+            on_failure=(
+                Effect(
+                    kind=EffectKind.EXHAUSTION_GAINED,
+                    target_id=actor_id,
+                    amount=1,
+                    description="too little food for a day: 1 Exhaustion level (p. 185)",
+                ),
+            ),
+            citations=("srd:rules-glossary/malnutrition",),
+            may_claim=("that the creature went hungry for a day and felt it, or did not",),
+            may_not_claim=(
+                "that it starved; p. 185's five-day clause is a different rule and did not "
+                "fire here",
+                "that the Exhaustion can be slept off — p. 185 holds it until the creature "
+                "eats a full day's food",
+            ),
+        )
+
+    return resolve
+
+
 def suffocation_resolver() -> Resolver:
     """Build the resolver for Suffocation's Exhaustion at the end of a turn.
 
