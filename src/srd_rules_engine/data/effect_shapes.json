@@ -428,7 +428,7 @@
    "tag": "Hazard",
    "reference": "Rules Glossary, p. 181",
    "kind": "hazard",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "difficult-terrain",

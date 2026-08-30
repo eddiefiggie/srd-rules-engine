@@ -501,6 +501,31 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"If a spell has movable effects, they aren.t restricted by its range unless the "
         r"spell.s description says otherwise",
     ),
+    # --- Dehydration and Malnutrition (#315) ---------------------------------------------
+    (
+        181,
+        "Dehydration: a size-keyed requirement, **less than half** a day's water, one level "
+        "at the day's end, and no die — which is what makes it bookkeeping rather than an "
+        "adjudication (0080)",
+        r"A creature that drinks less than half the required water for a day gains 1 "
+        r"Exhaustion level at the day.s end\.\s*Exhaustion caused by dehydration can.t be "
+        r"removed until the creature drinks the full amount of water required for a day",
+    ),
+    (
+        181,
+        "the Water Needs per Day table, whose quarter-gallon is why the engine holds these as "
+        "fractions: half of a quarter is an eighth, and no binary float holds either",
+        r"Tiny 1/4 gallon Small 1 gallon Medium 1 gallon",
+    ),
+    (
+        185,
+        "Malnutrition is **two rules, not one** — a DC 10 Constitution save for eating too "
+        "little, and an *automatic* level after five days with nothing. 0027 clause 8 called "
+        "it an outcome and Dehydration bookkeeping; the second half is bookkeeping too (#399)",
+        r"must succeed on a DC 10 Constitution saving throw or gain 1 Exhaustion level at the "
+        r"day.s end\.\s*A creature that eats nothing for 5 days automatically gains 1 "
+        r"Exhaustion level at the end of the fifth day",
+    ),
     # --- Armour training (#367) ----------------------------------------------------------
     (
         177,

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from fractions import Fraction
 from types import MappingProxyType
 from typing import Any, Final
 
@@ -95,6 +96,7 @@ from srd_rules_engine.core.size import (
     Size,
     carried_without_extra_cost,
     carrying_capacity,
+    dehydrated,
     one_size_larger_for_carrying,
 )
 from srd_rules_engine.core.skills import SKILL_ABILITY, PerceptionCheck, Skill
@@ -2528,6 +2530,57 @@ class EncounterState:
                 )
             )
         )
+
+    def with_day_ended(self, *, water: Mapping[str, Fraction]) -> EncounterState:
+        """p. 181's Dehydration, at the day's end (#315, 0080).
+
+        > A creature that drinks less than half the required water for a day gains 1
+        > Exhaustion level at the day's end. Exhaustion caused by dehydration can't be removed
+        > until the creature drinks the full amount of water required for a day.
+
+        **The caller says how much each creature drank**, which is a narrative fact only the
+        agent holds — the same contract `with_time_passed` states for how much time passed.
+        The engine decides every consequence of it.
+
+        **Deterministic bookkeeping, and no die** (R1, R4). p. 181 attaches no saving throw:
+        the level is gained outright, so this is a state transition rather than an
+        adjudication. Malnutrition is the opposite case and is deliberately not here — p. 185
+        compels a DC 10 Constitution save, which needs an occasion that can produce a *ruling*
+        on the campaign axis. That occasion does not exist and is
+        [#399](https://github.com/eddiefiggie/srd-rules-engine/issues/399).
+
+        **A creature named without a stated size is refused**, not skipped. p. 181's
+        requirement is read from a size table, so a sizeless creature has no requirement to
+        compare against — and passing over it silently would report a day in which nobody was
+        thirsty (0051's refusal rather than a comparison against a Medium nobody stated).
+
+        **Only creatures the caller names are considered.** A day ending is not a claim about
+        every creature in the encounter, and inventing a consumption of zero for the rest
+        would dehydrate every bystander.
+
+        **The removal restriction needs nothing here.** `LOCKED_EXHAUSTION_RULES` already
+        holds `DEHYDRATION_RULE_ID`, so `with_long_rest` cannot take a level this applies —
+        the lock was built ahead of the hazard by 0028 clause 3, and this is the first hazard
+        to put a level behind it.
+        """
+        missing = [cid for cid in water if not self.has(cid)]
+        if missing:
+            raise KeyError(f"no combatant {missing[0]!r} in this encounter")
+        sizeless = [cid for cid in sorted(water) if self.combatant(cid).size is None]
+        if sizeless:
+            raise ValueError(
+                f"{', '.join(sizeless)} has no stated size, and p. 181 reads a day's water "
+                "from the Water Needs per Day table. A creature of unknown size has no "
+                "requirement to have drunk less than half of"
+            )
+
+        state = self
+        for combatant_id in sorted(water):
+            size = self.combatant(combatant_id).size
+            assert size is not None  # refused above
+            if dehydrated(size, water[combatant_id]):
+                state = state.with_exhaustion(combatant_id, DEHYDRATION_RULE_ID)
+        return state
 
     def with_long_rest(self, combatant_id: str) -> EncounterState:
         """Finish a Long Rest, and apply the benefits this engine can express (p. 185).
