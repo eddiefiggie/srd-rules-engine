@@ -407,6 +407,10 @@ def test_no_slot_table_ships_in_this_module() -> None:
         # really about: a name may join this list, a *table* may not.
         "RITUAL_EXTRA_MINUTES",
         "RITUAL_VERIFICATION",
+        # #250. Ten turns to the minute, from 0021's six-second round — the equivalence the
+        # document states rather than a duration chosen here. A scalar, and the spells' own
+        # minute counts stay on the spells (`Spell.casting_minutes`) where a table cannot form.
+        "TURNS_PER_MINUTE",
     }, "a slot table hiding in a module constant would read like a verified rule"
 
 

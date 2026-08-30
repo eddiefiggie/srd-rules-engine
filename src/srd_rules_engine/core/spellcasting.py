@@ -48,7 +48,7 @@ explanation long after it has become a description of a bug.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Final
@@ -250,16 +250,85 @@ class CastingTime(StrEnum):
     "Most spells require the Magic action to cast, but some spells require a Bonus Action, a
     Reaction, or 1 minute or more."
 
-    Four values are printed and three are modelled. The fourth is
-    [#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250) and is **absent rather
-    than approximated**: a 10-minute cast treated as an action is an engine casting instantly
-    something the document takes ten minutes over, which is wrong in the direction nobody
-    notices. A `Spell` that needs one cannot be built rather than being built wrongly.
+    All four are modelled since #250. `MINUTES` was **absent rather than approximated** until
+    then, because a 10-minute cast treated as an action is an engine casting instantly
+    something the document takes ten minutes over — wrong in the direction nobody notices.
+
+    **`MINUTES` is a kind, and the number is the spell's.** p. 105 says "1 minute or more" and
+    the spells themselves say how many, so `Spell.casting_minutes` carries it and this says
+    only that the casting is a long one.
     """
 
     ACTION = "action"
     BONUS_ACTION = "bonus-action"
     REACTION = "reaction"
+    #: p. 105, *Longer Casting Times*: "minutes or even hours".
+    MINUTES = "minutes"
+
+
+#: p. 98 through 0021: a round is exactly six seconds, so a minute is ten of them — and a
+#: creature takes one turn per round. A one-minute casting therefore costs ten Magic actions.
+TURNS_PER_MINUTE: Final = 10
+
+
+@dataclass(frozen=True)
+class LongCast:
+    """A casting of a minute or more, part-way through (p. 105, #250, 0065).
+
+    > While you cast a spell with a casting time of 1 minute or more, you must take the Magic
+    > action on each of your turns, and you must maintain Concentration while you do so. If
+    > your Concentration is broken, the spell fails, **but you don't expend a spell slot**. To
+    > cast the spell again, you must start over.
+
+    **The slot level is carried and not spent.** That is the clause an implementation gets
+    wrong: the ordinary order expends the slot when the casting starts, and p. 105 says a
+    broken Concentration costs nothing — so the slot is spent when the casting **completes**,
+    and an engine that expended up front and refunded would be inventing a transaction the
+    document does not describe.
+
+    `turns_remaining` counts the Magic actions still owed, this turn's included. It reaches
+    zero on the turn the spell resolves, which is why the last continuation is the one that
+    produces the effects rather than the turn after it.
+    """
+
+    spell_id: str
+    slot_level: int
+    turns_remaining: int
+
+    def __post_init__(self) -> None:
+        if self.turns_remaining < 1:
+            raise ValueError(
+                f"a casting in progress owes at least one more Magic action, not "
+                f"{self.turns_remaining}. A casting with none owing has finished, and a "
+                "finished casting is not in progress"
+            )
+        if self.slot_level < CANTRIP_LEVEL:
+            raise ValueError(f"a slot level is {CANTRIP_LEVEL} or higher, not {self.slot_level}")
+
+    @property
+    def finishes_now(self) -> bool:
+        """Whether this turn's Magic action is the last one the casting needs."""
+        return self.turns_remaining == 1
+
+    def continued(self) -> LongCast | None:
+        """One Magic action later, or `None` when the casting is complete."""
+        if self.finishes_now:
+            return None
+        return replace(self, turns_remaining=self.turns_remaining - 1)
+
+
+def turns_to_cast(spell: Spell) -> int:
+    """How many Magic actions p. 105 charges for this spell's casting (#250).
+
+    Ten per minute, from 0021's six-second round — the equivalence the document states rather
+    than one chosen here.
+    """
+    if spell.casting_time is not CastingTime.MINUTES or spell.casting_minutes is None:
+        raise ValueError(
+            f"{spell.rule_id!r} is cast as {spell.casting_time.value} and takes no turns of "
+            "its own. p. 105's longer casting times are the ones this counts"
+        )
+    return spell.casting_minutes * TURNS_PER_MINUTE
 
 
 @dataclass(frozen=True)
@@ -310,10 +379,28 @@ class Spell:
     #: that replaces it, which is why 0039 clause 2 kept them off `Item` and sent them here.
     material_consumed: bool = False
     material_has_cost: bool = False
+    #: How many minutes a `MINUTES` casting takes, and `None` for every other kind (#250).
+    #:
+    #: The number is the spell's rather than the kind's: p. 105 says "1 minute or more" and
+    #: leaves each spell to state its own, so an engine holding one number for all of them
+    #: would be inventing a duration the document does not give.
+    casting_minutes: int | None = None
 
     def __post_init__(self) -> None:
         if not self.rule_id:
             raise ValueError("a spell is identified by the rule that resolves it")
+        long_cast = self.casting_time is CastingTime.MINUTES
+        if long_cast and (self.casting_minutes is None or self.casting_minutes < 1):
+            raise ValueError(
+                f"{self.rule_id!r} has a casting time of minutes and states none. p. 105 says "
+                '"1 minute or more", so a long casting carries its own number'
+            )
+        if not long_cast and self.casting_minutes is not None:
+            raise ValueError(
+                f"{self.rule_id!r} states {self.casting_minutes} minutes and is cast as "
+                f"{self.casting_time.value}. A duration on a casting that has none describes "
+                "nothing"
+            )
         if not CANTRIP_LEVEL <= self.level <= MAX_SPELL_LEVEL:
             raise ValueError(
                 f"p. 104: every spell has a level from {CANTRIP_LEVEL} to {MAX_SPELL_LEVEL}, "
