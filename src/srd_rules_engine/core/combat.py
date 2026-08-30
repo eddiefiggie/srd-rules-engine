@@ -65,6 +65,7 @@ from srd_rules_engine.core.adjudicate import (
     object_interacted,
     object_picked_up,
     save_compelled,
+    speed_reduced,
     time_passed,
 )
 from srd_rules_engine.core.d20 import (
@@ -87,7 +88,13 @@ from srd_rules_engine.core.pending_rolls import (
     PendingAdvantage,
     TurnBoundary,
 )
-from srd_rules_engine.core.position import distance_feet, within
+from srd_rules_engine.core.position import (
+    SLOW_REDUCTION_FEET,
+    SLOW_RULE_ID,
+    SpeedReduction,
+    distance_feet,
+    within,
+)
 from srd_rules_engine.core.read_surface import (
     ATTACK_DROP,
     ATTACK_EQUIP,
@@ -509,8 +516,9 @@ def attack_resolver() -> Resolver:
                     and not is_cleave
                     else ()
                 ),
-                # Vex and Sap (p. 90), granted by the hit and spent by a later roll (0049).
-                *_vex_and_sap(state, actor, weapon, target),
+                # Vex, Sap and Slow (p. 90): three properties a hit imposes, sharing one
+                # turn boundary vocabulary and differing in what they impose (0049, 0050).
+                *_vex_sap_and_slow(state, actor, weapon, target),
                 # Topple (p. 90): "If you hit a creature with this weapon, you can force the
                 # creature to make a Constitution saving throw." **On the hit branch and not
                 # the damage one** — Vex and Slow say "and deal damage to it" and this does
@@ -1056,10 +1064,10 @@ def _out_of_range(
     return not within(actor.position, target.position, weapon.normal_range)
 
 
-def _vex_and_sap(
+def _vex_sap_and_slow(
     state: EncounterState, actor: Combatant, weapon: Weapon, target: Combatant
 ) -> tuple[Effect, ...]:
-    """The tokens a hit grants, if the wielder may use the property (p. 90, #318, #319).
+    """What a hit imposes, for each property the wielder may use (p. 90, #318, #319, #322).
 
     Both windows are measured against the **attacker's** turns — "before the end of *your*
     next turn" and "before the start of *your* next turn" — even though Sap's token belongs
@@ -1089,8 +1097,29 @@ def _vex_and_sap(
                     f"{weapon.id} (Vex): Advantage on {actor.name}'s next attack roll against "
                     f"{target.name}, until the end of its next turn"
                 ),
-                # "and deal damage to the creature" — the only mastery whose trigger is not
-                # the bare hit, and the damage is the *target's* rather than the holder's.
+                # "and deal damage to the creature" — one of the two masteries whose trigger
+                # is not the bare hit (Slow below is the other; Topple and Sap fire on a hit
+                # alone), and the damage is the *target's* rather than the holder's.
+                when=When.DAMAGE_TAKEN,
+                when_subject_id=target.id,
+            )
+        )
+    if weapon.slow and unlocked:
+        effects.append(
+            speed_reduced(
+                target.id,
+                SpeedReduction(
+                    rule_id=SLOW_RULE_ID,
+                    feet=SLOW_REDUCTION_FEET,
+                    expires_after_actor_id=actor.id,
+                    expires_in_round=next_round,
+                    expires_at=TurnBoundary.START,
+                ),
+                description=(
+                    f"{weapon.id} (Slow): {target.name}'s Speed is reduced by "
+                    f"{SLOW_REDUCTION_FEET} feet until the start of {actor.name}'s next turn"
+                ),
+                # "and deal damage to it", which Sap beside it does not require.
                 when=When.DAMAGE_TAKEN,
                 when_subject_id=target.id,
             )

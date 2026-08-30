@@ -48,30 +48,20 @@ That is tidiness, and the rule is `is_live`.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
 from typing import Final
 
 from srd_rules_engine.core.d20 import Advantage
+
+# Re-exported, not merely imported (0050). Both moved to `core.turn_span` so
+# p. 90's Slow could share the vocabulary without importing a module about rolls.
+from srd_rules_engine.core.turn_span import TurnBoundary as TurnBoundary
+from srd_rules_engine.core.turn_span import is_live as is_live
 
 #: p. 90's Vex, as a rule id. A literal repeated at both ends is a literal that drifts.
 VEX_RULE_ID: Final = "mastery-vex"
 
 #: p. 90's Sap.
 SAP_RULE_ID: Final = "mastery-sap"
-
-
-class TurnBoundary(StrEnum):
-    """Which end of a turn a span is measured to.
-
-    A vocabulary rather than a boolean, because the two are mutually exclusive and a
-    `bool` at a call site reads as neither (0019). `Duration` needs no such thing — every
-    span it counts ends at `END` — so this lives here with the one mechanism that needs both.
-    """
-
-    #: "before the **start** of your next turn" (p. 90, Sap).
-    START = "start"
-    #: "before the **end** of your next turn" (p. 90, Vex).
-    END = "end"
 
 
 @dataclass(frozen=True)
@@ -118,35 +108,3 @@ class PendingAdvantage:
         if attacker_id != self.holder_id:
             return False
         return self.against_id is None or self.against_id == target_id
-
-
-def is_live(
-    token: PendingAdvantage,
-    *,
-    round_number: int,
-    turn_index: int | None,
-    order: tuple[str, ...],
-) -> bool:
-    """Whether the encounter has yet to pass the boundary this token dies at.
-
-    `turn_index is None` is an encounter that has not started, so nothing has been passed and
-    every token is live — the same honest answer `active_id` gives for the same state.
-
-    A token whose expiring creature has left the order is live: the boundary it named can no
-    longer arrive, and withdrawing a granted benefit because its clock left the encounter
-    would be the engine deciding an outcome nothing in the document decides.
-    """
-    if turn_index is None:
-        return True
-    if round_number < token.expires_in_round:
-        return True
-    if round_number > token.expires_in_round:
-        return False
-    if token.expires_after_actor_id not in order:
-        return True
-    at = order.index(token.expires_after_actor_id)
-    if token.expires_at is TurnBoundary.START:
-        # Dies the moment that turn begins, so reaching it is already too late.
-        return turn_index < at
-    # Survives that whole turn, and dies as it closes.
-    return turn_index <= at

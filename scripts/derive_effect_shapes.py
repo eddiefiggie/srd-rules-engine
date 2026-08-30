@@ -291,6 +291,7 @@ IMPLEMENTED_SECTION_SHAPES: frozenset[str] = frozenset(
         "mastery-nick",
         "mastery-topple",
         "mastery-cleave",
+        "mastery-slow",
         "mastery-vex",
         "mastery-sap",
         "split-movement",

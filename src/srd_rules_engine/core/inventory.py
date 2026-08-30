@@ -211,6 +211,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "mastery-cleave": "core.read_surface.cleave_attack_key",
         "mastery-vex": "core.pending_rolls.PendingAdvantage",
         "mastery-sap": "core.pending_rolls.PendingAdvantage",
+        # p. 90, #322. Sap's window and Vex's trigger, imposing a Speed reduction rather
+        # than a d20 state — capped across sources, which is the clause a per-hit
+        # reduction gets wrong.
+        "mastery-slow": "core.position.slow_feet_taken",
         # Position, movement and range in feet (#17, #20).
         "speed": "core.position.Speeds.walk",
         "difficult-terrain": "core.position.movement_cost",
