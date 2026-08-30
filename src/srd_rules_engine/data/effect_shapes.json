@@ -1436,7 +1436,7 @@
    "tag": null,
    "reference": "Equipment, p. 90 (Sap)",
    "kind": "weapon-mastery",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "mastery-slow",
@@ -1460,7 +1460,7 @@
    "tag": null,
    "reference": "Equipment, p. 90 (Vex)",
    "kind": "weapon-mastery",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "spell-slot",

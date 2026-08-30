@@ -343,6 +343,25 @@ class Weapon(Item):
     #:
     #: Usable only by a wielder whose `mastery_weapons` holds this weapon (p. 90, 0047).
     topple: bool = False
+    #: Vex (p. 90): "If you hit a creature with this weapon **and deal damage to the
+    #: creature**, you have Advantage on your next attack roll against that creature before
+    #: the **end** of your next turn."
+    #:
+    #: Held by the **attacker** and scoped to the creature that was hit. Its trigger requires
+    #: damage, unlike Topple's and Sap's bare hit.
+    #:
+    #: Usable only by a wielder whose `mastery_weapons` holds this weapon (p. 90, 0047).
+    vex: bool = False
+    #: Sap (p. 90): "If you hit a creature with this weapon, that creature has Disadvantage on
+    #: its next attack roll before the **start** of your next turn."
+    #:
+    #: Vex's mechanism with all four axes reversed: held by the **creature that was hit**,
+    #: scoped to no particular target, triggered by a bare hit, and expiring at the **start**
+    #: of the attacker's next turn rather than its end. Both windows are measured against the
+    #: *attacker's* turns even though this token belongs to somebody else (0049).
+    #:
+    #: Usable only by a wielder whose `mastery_weapons` holds this weapon (p. 90, 0047).
+    sap: bool = False
     #: Ammunition (p. 89): the **id of the item this weapon fires**, or `None` for a weapon
     #: without the property. "You can use a weapon that has the Ammunition property to make a
     #: ranged attack **only if you have ammunition to fire from it**."

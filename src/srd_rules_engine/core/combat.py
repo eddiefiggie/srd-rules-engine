@@ -49,7 +49,10 @@ from srd_rules_engine.core.adjudicate import (
     EffectKind,
     Proposal,
     Resolver,
+    When,
     action_spent,
+    advantage_pending,
+    advantage_spent,
     ammunition_recovered,
     ammunition_spent,
     attack_made,
@@ -76,6 +79,12 @@ from srd_rules_engine.core.equipment import RECOVERY_MINUTES, Carriage, Carried
 from srd_rules_engine.core.equipment import Weapon as Weapon
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.obstructions import Cover, total_cover
+from srd_rules_engine.core.pending_rolls import (
+    SAP_RULE_ID,
+    VEX_RULE_ID,
+    PendingAdvantage,
+    TurnBoundary,
+)
 from srd_rules_engine.core.position import distance_feet, within
 from srd_rules_engine.core.read_surface import (
     ATTACK_DROP,
@@ -231,6 +240,15 @@ def attack_resolver() -> Resolver:
         if weapon.bonus:
             modifiers.append(Modifier(source=f"{weapon.id} bonus", value=weapon.bonus))
 
+        # p. 90's Vex and Sap, granted by an earlier roll and spent by this one (0049). They
+        # reach the same pair of flags as every other circumstance, so p. 8's cancellation
+        # rule resolves them rather than a second mechanism — a creature holding a Sap
+        # penalty and attacking a target it has Vex on rolls straight, which is the document's
+        # own answer and not a special case anybody had to write.
+        pending = state.pending_advantage_for(declaration.actor_id, target_id)
+        pending_advantage_held = any(t.state is Advantage.ADVANTAGE for t in pending)
+        pending_disadvantage_held = any(t.state is Advantage.DISADVANTAGE for t in pending)
+
         return Proposal(
             # p. 176: "On your turn, you can take one action." p. 177 makes an attack one:
             # "When you take the Attack action, you can make **one attack roll**." So one
@@ -248,6 +266,19 @@ def attack_resolver() -> Resolver:
             # ordering `_swap_effects` documents.
             always=(
                 *before,
+                # p. 90: "your **next** attack roll", so a token in scope is spent by this
+                # roll whether it hits or misses (0049). In `always` for exactly that reason —
+                # either branch would keep it alive through half the outcomes.
+                *(
+                    advantage_spent(
+                        token,
+                        description=(
+                            f"{token.rule_id}: the {token.state} it granted is spent on this "
+                            "attack roll (p. 90)"
+                        ),
+                    )
+                    for token in pending
+                ),
                 # p. 177's allowance is drawn on when a swap actually happens, and only then.
                 # p. 191's Unconscious detaches an item too and must not spend it (0043
                 # clause 3).
@@ -404,12 +435,15 @@ def attack_resolver() -> Resolver:
                     or attacker_state is Advantage.DISADVANTAGE
                     or defender_state is Advantage.DISADVANTAGE
                     or dodging
+                    or pending_disadvantage_held
                 ),
                 # Conditions on either side reach the same pair of flags, so the
                 # cancellation rule (p. 8) resolves them exactly as it resolves any other
                 # pair of circumstances rather than through a second mechanism.
                 has_advantage=(
-                    attacker_state is Advantage.ADVANTAGE or defender_state is Advantage.ADVANTAGE
+                    attacker_state is Advantage.ADVANTAGE
+                    or defender_state is Advantage.ADVANTAGE
+                    or pending_advantage_held
                 ),
             ),
             on_success=(
@@ -432,6 +466,8 @@ def attack_resolver() -> Resolver:
                     modifier=(min(0, ability) if is_extra else ability) + weapon.bonus,
                     source=weapon.id,
                 ),
+                # Vex and Sap (p. 90), granted by the hit and spent by a later roll (0049).
+                *_vex_and_sap(state, actor, weapon, target),
                 # Topple (p. 90): "If you hit a creature with this weapon, you can force the
                 # creature to make a Constitution saving throw." **On the hit branch and not
                 # the damage one** — Vex and Slow say "and deal damage to it" and this does
@@ -962,6 +998,66 @@ def _out_of_range(
             f"({weapon.long_range} feet), and no attack may be made at all (p. 90)"
         )
     return not within(actor.position, target.position, weapon.normal_range)
+
+
+def _vex_and_sap(
+    state: EncounterState, actor: Combatant, weapon: Weapon, target: Combatant
+) -> tuple[Effect, ...]:
+    """The tokens a hit grants, if the wielder may use the property (p. 90, #318, #319).
+
+    Both windows are measured against the **attacker's** turns — "before the end of *your*
+    next turn" and "before the start of *your* next turn" — even though Sap's token belongs
+    to the creature that was hit. The round it expires in is the current one plus one, which
+    is what "your next turn" names whether or not the attacker has already acted this round.
+
+    p. 90 gates every mastery property on a feature the wielder has (0047 clause 6), checked
+    beside each property's own flag, which is where that clause puts it.
+    """
+    effects: list[Effect] = []
+    unlocked = weapon.id in actor.mastery_weapons
+    next_round = state.round_number + 1
+
+    if weapon.vex and unlocked:
+        effects.append(
+            advantage_pending(
+                PendingAdvantage(
+                    holder_id=actor.id,
+                    state=Advantage.ADVANTAGE,
+                    rule_id=VEX_RULE_ID,
+                    against_id=target.id,
+                    expires_after_actor_id=actor.id,
+                    expires_in_round=next_round,
+                    expires_at=TurnBoundary.END,
+                ),
+                description=(
+                    f"{weapon.id} (Vex): Advantage on {actor.name}'s next attack roll against "
+                    f"{target.name}, until the end of its next turn"
+                ),
+                # "and deal damage to the creature" — the only mastery whose trigger is not
+                # the bare hit, and the damage is the *target's* rather than the holder's.
+                when=When.DAMAGE_TAKEN,
+                when_subject_id=target.id,
+            )
+        )
+    if weapon.sap and unlocked:
+        effects.append(
+            advantage_pending(
+                PendingAdvantage(
+                    holder_id=target.id,
+                    state=Advantage.DISADVANTAGE,
+                    rule_id=SAP_RULE_ID,
+                    against_id=None,
+                    expires_after_actor_id=actor.id,
+                    expires_in_round=next_round,
+                    expires_at=TurnBoundary.START,
+                ),
+                description=(
+                    f"{weapon.id} (Sap): Disadvantage on {target.name}'s next attack roll, "
+                    f"until the start of {actor.name}'s next turn"
+                ),
+            )
+        )
+    return tuple(effects)
 
 
 def _topple(
