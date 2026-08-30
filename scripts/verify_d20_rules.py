@@ -1804,6 +1804,19 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"of movement equal to half your Speed \(round down\) to right yourself and thereby end "
         r"the condition",
     ),
+    # --- 0057: Prone's two options, built together -----------------------------------------
+    (
+        186,
+        "and the Speed-0 exception is p. 186's OWN sentence, not a consequence of the cost "
+        "being zero - half of nothing is nothing, and a free stand is what a naive reading "
+        "would grant",
+        r"If your Speed is 0, you can.t right yourself",
+    ),
+    (
+        179,
+        "crawling is priced, so the option p. 186 leaves a Prone creature costs something",
+        r"Crawling While you.re crawling, each foot of movement costs 1 extra foot",
+    ),
 )
 
 #: Clauses about the document as a whole rather than about one page, as

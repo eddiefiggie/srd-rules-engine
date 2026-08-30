@@ -1624,6 +1624,27 @@ class EncounterState:
         remaining[remaining.index(debt)] = debt.with_ability(ability)
         return self._evolve(forced_saves_owed=tuple(remaining))
 
+    def with_movement_spent(self, combatant_id: str, feet: int) -> EncounterState:
+        """Charge movement for something that is not travel (p. 186, 0057).
+
+        The mirror of `with_forced_movement`: that one moves a creature and spends nothing,
+        this one spends and moves nobody. p. 186 rights a Prone creature for "an amount of
+        movement equal to half your Speed (round down)", and it ends up where it started.
+
+        Refused when there is not that much left, for the reason `with_movement` refuses an
+        unaffordable step: a creature cannot spend what it does not have, and p. 186 states a
+        cost rather than a discount.
+        """
+        target = self.combatant(combatant_id)
+        remaining = target.movement_remaining_in(MovementMode.WALK)
+        assert remaining is not None  # WALK always draws on Speed
+        if feet > remaining:
+            raise ValueError(
+                f"{target.name} has {remaining} feet of movement left and that costs {feet}"
+            )
+        spent = replace(target, movement_used=target.movement_used + feet)
+        return self._evolve(combatants=self._replacing(spent))
+
     def with_forced_movement(self, combatant_id: str, to: Position) -> EncounterState:
         """Put a creature somewhere it did not walk to (0055).
 
@@ -2732,6 +2753,14 @@ class EncounterState:
             raise ValueError(
                 f"{target.name} has {remaining} feet of {mode.value} movement left and "
                 f"that move costs {cost}"
+            )
+
+        if Condition.PRONE in target.conditions.held and mode is not MovementMode.CRAWL:
+            raise ValueError(
+                f"{target.name} is Prone, so p. 186 leaves it two movement options and "
+                f'{mode.value} is neither: "Your only movement options are to crawl or to '
+                "spend an amount of movement equal to half your Speed (round down) to right "
+                'yourself." Standing up is a ruling, not a move'
             )
 
         approached = self._fear_approached(target, to)

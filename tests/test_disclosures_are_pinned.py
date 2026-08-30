@@ -87,9 +87,11 @@ CONDITION_DISCLOSURES: dict[Condition, tuple[str, ...]] = {
     # p. 186: turned to inanimate substance, and weight times ten with ageing stopped. Neither
     # is a quantity this engine holds.
     Condition.PETRIFIED: ("turned-to-inanimate-substance", "weight-and-ageing"),
-    # p. 186: righting yourself costs half your movement, and movement is crawling. Both need
-    # a movement model that distinguishes standing from moving.
-    Condition.PRONE: ("righting-costs-half-speed", "movement-limited-to-crawling"),
+    # **Prone's two clauses are deliberately absent** (#353). They needed "a movement model
+    # that distinguishes standing from moving", which turned out to be two effect kinds —
+    # `MOVED_BY_FORCE` covers ground and spends nothing, `MOVEMENT_SPENT` spends and moves
+    # nobody. Both left together, because p. 186 states them in one sentence and the
+    # restriction without the exit is a trap (0057).
     # p. 191: unaware of your surroundings — a fact about perception with no consumer.
     #
     # **`remains-prone-when-this-ends` is deliberately absent** (#292). It was here and was
