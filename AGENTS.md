@@ -103,6 +103,21 @@ only auto-closes on `Closes` / `Fixes` / `Resolves`. A bare `#N` links the issue
 open, so closing then depends on somebody remembering days later. That dependency has already
 failed in a sibling project of mine: a single sweep found five issues fixed, shipped, and still open.
 
+**A keyword per issue, not one keyword and a list.** `Closes #349, #345, #324` closes
+[#349](https://github.com/eddiefiggie/srd-rules-engine/issues/349) and *links* the other two —
+GitHub binds the keyword to the reference that follows it and to nothing further along. Write
+`Closes #349, closes #345, closes #324`.
+
+The rule above does not reach this one. A bare `#N` looks like what it is; a list after a
+keyword reads as though every reference is handled, and two of the three silently are not. It
+happened here on [#352](https://github.com/eddiefiggie/srd-rules-engine/pull/352), and the sweep
+that caught it was reading the issue list for something else — the same accident the sibling
+project was relying on.
+
+**A markdown-linked reference does not close either.** `Closes [#345](https://.../issues/345)`
+reads correctly to a person and binds to nothing, so a PR body written in the prose style this
+repository uses everywhere else is exactly where it hides.
+
 **An issue resolved as already-correct still gets closed, with the evidence.** Some
 investigations end in "no code change." That is a result, not the absence of one — record it and
 close, or the issue reads as untouched forever.
