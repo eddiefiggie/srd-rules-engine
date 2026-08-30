@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08302026.24` — **the guard's six, fixed the next day.** Yesterday's walk found six attack-legality rules asked by the menu and by nothing else ([#376](https://github.com/eddiefiggie/srd-rules-engine/issues/376), [0069](docs/decisions/0069-the-attack-path-asks-what-the-menu-asks.md)): p. 257's roll count and its weapon list, p. 89's **one** extra attack and its Ammunition, p. 90's Loading and Cleave. A caller reaching adjudication directly could attack five times with an Extra Attack of two, cleave every turn out of nowhere, and fire a crossbow twice with an empty quiver. **The one-line fix is the trap**: the resolver could call `legal_actions` and refuse anything absent from it, which is shorter, covers all six at once, and covers future ones for free — and it makes the menu a *promise*, which [0062](docs/decisions/0062-the-menu-is-not-a-promise.md) refused. The menu answers *what may I do* and the resolver answers *may I do this*; deriving the second from the first turns every menu defect into an outcome defect. So each rule is asked directly, against the same state, the way four earlier records did it. Two of this repository's **own tests** were declaring attacks the rules forbid — a fixture reaching a state play cannot produce, which is the same defect one level up, and neither test was about the rule it violated. And the six names left [0068](docs/decisions/0068-a-rule-the-menu-asks-and-nothing-else-does.md)'s list by **failing its own test** rather than by anybody remembering to delete them; that direction was written on the argument that it would matter later, and later was the next day. 117 of 210, 16 clauses. 282 clauses verified against the document. 2053 tests.
+**Current build:** `08302026.25` — **the instrument behind the published figures could not be run.** `scripts/derive_effect_shapes.py` died on `ValueError: not enough values to unpack` ([#373](https://github.com/eddiefiggie/srd-rules-engine/issues/373), [0070](docs/decisions/0070-an-instrument-that-cannot-notice-its-own-staleness.md)): [#352](https://github.com/eddiefiggie/srd-rules-engine/issues/352) added `"mastery-push"` to one list and, in the same hunk, deleted the identical line from the Push row of another — leaving a five-element row in a table its sweep unpacks into six names. It broke on 2026-08-29 and was found on the 30th, by a build that happened to need the numbers. **The interesting result is that the data was right**: the first successful run in a day reproduced `effect_shapes.json` byte for byte. What was lost was not accuracy but falsifiability — R17's claim is that coverage is *checkable*, and for a day the check could not be performed. Repairing the row was not the fix: **ten tables share that shape** and every one was exposed to the identical accident. So the guard splits by what it depends on rather than by which script it lives in — the document half still cannot run in CI, and the **structural** half never needed a document, so it now runs on every pull request and both its sides are derived from the source. Selecting tables by their *annotation* rather than their *name* was itself a correction the guard forced: keyed on the `_SHAPES` suffix it hit a `frozenset` and — because it raises rather than skips what it cannot read — refused, on the day it was written. A `--check` mode compares without overwriting, and the script's docstring now carries the date it last ran green, because nothing else can. 117 of 210, 16 clauses. 282 clauses verified against the document. 2056 tests.
 
 ---
 
@@ -155,6 +155,13 @@ memory. Classification — which entries are effect shapes and which merely defi
 is editorial and lives in that script where it can be reviewed. Twenty-two entries are
 recorded as vocabulary with a stated reason rather than dropped.
 
+The script is **not** in CI, because CI has no copy of the document. Anyone holding the PDF can
+run it with `--check` to confirm the shipped inventory is still what the document says, without
+overwriting it. What *is* in CI is the half that needs no document: every one of its ten sweep
+tables must hold rows of the arity its own sweep unpacks, which is the structural claim that
+broke in [#373](https://github.com/eddiefiggie/srd-rules-engine/issues/373) and took the
+instrument down for a day.
+
 **All eleven rules sections of the document are swept**, and that claim is asserted rather
 than described: `test_every_section_of_the_document_is_represented` compares the sections the
 shapes cite against the document's table of contents, and `unswept_sections` — now empty —
@@ -239,6 +246,7 @@ from the records themselves by `scripts/render_record_index.py` — a hand-writt
 - [0067 — p. 178's cap needed an antecedent, and stating it is the permission](docs/decisions/0067-p-178s-cap-needed-an-antecedent.md) — settles [#336](https://github.com/eddiefiggie/srd-rules-engine/issues/336)
 - [0068 — A rule the menu asks and nothing else does](docs/decisions/0068-a-rule-the-menu-asks-and-nothing-else-does.md) — settles [#365](https://github.com/eddiefiggie/srd-rules-engine/issues/365)
 - [0069 — The attack path asks what the menu asks](docs/decisions/0069-the-attack-path-asks-what-the-menu-asks.md) — settles [#376](https://github.com/eddiefiggie/srd-rules-engine/issues/376)
+- [0070 — An instrument that cannot notice its own staleness](docs/decisions/0070-an-instrument-that-cannot-notice-its-own-staleness.md) — settles [#373](https://github.com/eddiefiggie/srd-rules-engine/issues/373)
 <!-- /record-index -->
 
 **Next up:** [#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250) — longer casting times, where the Magic action is taken each
@@ -294,4 +302,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-30 — build `08302026.24`._
+_Last updated: 2026-08-30 — build `08302026.25`._

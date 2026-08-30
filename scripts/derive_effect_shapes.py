@@ -16,7 +16,32 @@ Two halves, and the split is the point:
   in `vocabulary`, with a reason. Nothing is dropped, because silent omission is the exact
   failure mode R17 exists to name.
 
-Usage: python3 scripts/derive_effect_shapes.py /path/to/SRD_CC_v5.2.1.pdf
+## It cannot notice its own staleness, so this line is the record
+
+Not being in CI means nothing tells you it stopped working. It stopped working on 2026-08-29:
+[#352](https://github.com/eddiefiggie/srd-rules-engine/issues/352) added `"mastery-push"` to
+`IMPLEMENTED_SECTION_SHAPES` and, in the same edit, deleted the identical line from
+`EQUIPMENT_SHAPES`'s Push row — leaving a 5-tuple in a table `sweep_equipment` unpacks into
+six names. Every run after that died on `ValueError: not enough values to unpack`, and the
+figures the README publishes went a day unable to be re-derived
+([#373](https://github.com/eddiefiggie/srd-rules-engine/issues/373)).
+
+Two things came out of that, because a fix that only repaired the row would leave the same
+trap set:
+
+* **`--check`**, which compares without writing and exits non-zero on a difference. A person
+  holding the PDF can now verify the shipped inventory is current instead of overwriting it
+  and reading a diff.
+* **`tests/test_shape_tables_are_well_formed.py`**, which is hermetic and therefore *does*
+  run in CI. It cannot read the document, but it can check that every one of the ten
+  `*_SHAPES` tables holds rows of the arity its own sweep unpacks — which is the whole of what
+  broke, and the half of this script that never needed the PDF.
+
+**Last run green against SRD v5.2.1: 2026-08-30**, reproducing `effect_shapes.json`
+byte-for-byte — 210 shapes, 117 implemented, 22 vocabulary. Update this line when you re-run
+it, because nothing else can.
+
+Usage: python3 scripts/derive_effect_shapes.py /path/to/SRD_CC_v5.2.1.pdf [--check]
 """
 
 from __future__ import annotations
@@ -954,6 +979,7 @@ EQUIPMENT_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
         r"as part of the Attack action instead of as a Bonus Action",
     ),
     (
+        "mastery-push",
         "Push",
         "weapon-mastery",
         "Push",
@@ -2037,14 +2063,35 @@ def build(pdf: Path) -> dict[str, object]:
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
+    args = sys.argv[1:]
+    check = "--check" in args
+    positional = [a for a in args if a != "--check"]
+    if len(positional) != 1:
         raise SystemExit(__doc__)
+
     out = Path(__file__).resolve().parents[1] / "src/srd_rules_engine/data/effect_shapes.json"
-    data = build(Path(sys.argv[1]))
-    out.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    data = build(Path(positional[0]))
+    rendered = json.dumps(data, indent=1, ensure_ascii=False) + "\n"
     total = len(data["shapes"])
     done = sum(1 for s in data["shapes"] if s["implemented"])
-    print(f"{out}: {total} shapes ({done} implemented), {len(data['vocabulary'])} vocabulary")
+    summary = f"{total} shapes ({done} implemented), {len(data['vocabulary'])} vocabulary"
+
+    if not check:
+        out.write_text(rendered, encoding="utf-8")
+        print(f"{out}: {summary}")
+        return
+
+    # `--check` exists because the writing form cannot tell you the inventory was already
+    # right: it overwrites and leaves you to read a diff, which is a different question from
+    # "is what shipped still what the document says" (#373).
+    if not out.is_file():
+        raise SystemExit(f"{out} does not exist, so there is nothing to check it against")
+    if out.read_text(encoding="utf-8") != rendered:
+        raise SystemExit(
+            f"{out} disagrees with the document. Re-run without --check to regenerate it, "
+            "read the diff, and say in the build line what moved"
+        )
+    print(f"  ok  {out.name} is what the document says: {summary}")
 
 
 if __name__ == "__main__":
