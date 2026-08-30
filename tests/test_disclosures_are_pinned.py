@@ -54,8 +54,8 @@ from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.read_surface import (
     CARRYING_CAPACITY_SPEED_CAP,
     OBJECT_INTERACTION_CAP,
+    PUSH_DISTANCES_IN_STEPS,
     RELEASE_ONLY_ON_YOUR_TURN,
-    SHOVE_PUSH_UNBUILT,
     UTILIZE_REACHES_FOUR_MOVES,
     VERBAL_UNCHECKED,
 )
@@ -123,10 +123,15 @@ OTHER_DISCLOSURES: frozenset[str] = frozenset(
         # to the creature whose turn it is, so the release is narrowed to the grappler's own
         # turn (#341). What is offered is p. 182's release; what is missing is its timing.
         RELEASE_ONLY_ON_YOUR_TURN,
-        # p. 190 lets a Shove push the target 5 feet away *or* knock it Prone, and only the
-        # Prone half is built — the push is forced movement relative to another creature,
-        # the primitive Frightened and the Push mastery both wait on (#345).
-        SHOVE_PUSH_UNBUILT,
+        # p. 90's Push is "up to 10 feet" and the menu offers it in five-foot steps, so a
+        # wielder who wants seven cannot say so (#351). Five is every push distance the
+        # document names, and the ones in between are the ones not offered.
+        PUSH_DISTANCES_IN_STEPS,
+        # **`shove-cannot-push-only-knock-prone` is deliberately absent** (#345). It was
+        # here for one build, while p. 190's Shove could knock a target Prone and not push it.
+        # 0055 built the push and the clause came off in the change that built it, which is
+        # the pairing AGENTS.md asks for — `tests/test_unarmed_options.py` asserts both
+        # effects are offered, which is what makes the removal honest.
     }
 )
 
@@ -254,7 +259,7 @@ def test_the_walk_finds_every_site_and_not_merely_one() -> None:
         VERBAL_UNCHECKED,
         CARRYING_CAPACITY_SPEED_CAP,
         RELEASE_ONLY_ON_YOUR_TURN,
-        SHOVE_PUSH_UNBUILT,
+        PUSH_DISTANCES_IN_STEPS,
     ):
         assert disclosure in found, f"{disclosure!r} is appended in the core and was not found"
 

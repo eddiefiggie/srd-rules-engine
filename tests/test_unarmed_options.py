@@ -33,9 +33,9 @@ from srd_rules_engine.core.conditions import Conditions, Grapple
 from srd_rules_engine.core.equipment import Carriage, Carried, Item
 from srd_rules_engine.core.position import Position
 from srd_rules_engine.core.read_surface import (
-    SHOVE_PUSH_UNBUILT,
     grapple_key,
     shove_prone_key,
+    shove_push_key,
 )
 from srd_rules_engine.core.state import ForcedSave
 from srd_rules_engine.core.unarmed_strike import (
@@ -364,19 +364,17 @@ def test_a_failed_shove_save_knocks_the_target_prone(tmp_path: Path) -> None:
     assert target.conditions.grapple is None, "a shove is not a grapple and states no terms"
 
 
-def test_the_missing_push_is_disclosed_to_anyone_who_could_shove() -> None:
-    """p. 190 lets the attacker choose between pushing 5 feet and knocking Prone, and only one
-    is built (#345). Named rather than left for a reader to infer from a menu with one entry
-    where the document offers two."""
-    situation = read(encounter(), "pc").situation
-    assert situation is not None
-    assert SHOVE_PUSH_UNBUILT in situation.unenforced_clauses
+def test_both_shove_effects_are_offered_now() -> None:
+    """This asserted `shove-cannot-push-only-knock-prone` was disclosed, while p. 190 offered
+    two effects and this engine built one. 0055 built the other, so the clause came off — and
+    the assertion is replaced by the thing that makes its removal honest.
 
-    # And not to a creature that cannot Shove at all, which has no missing half to be told of.
-    alone = EncounterState.new([hero()]).with_initiative({"pc": 20})
-    only = read(alone, "pc").situation
-    assert only is not None
-    assert SHOVE_PUSH_UNBUILT not in only.unenforced_clauses
+    p. 190: "you **either** push it 5 feet away **or** cause it to have the Prone condition."
+    Two entries, because the choice is the attacker's.
+    """
+    keys = offered_keys(encounter())
+    assert shove_prone_key("ogre") in keys
+    assert shove_push_key("ogre") in keys
 
 
 # --- What the seam leaves alone ----------------------------------------------------------------

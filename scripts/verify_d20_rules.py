@@ -1756,6 +1756,39 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "above reaches it - and why an Unconscious creature still rolls one",
         r"Unlike other saving throws, this one isn.t tied to an ability score",
     ),
+    # --- 0055: a creature moved by something other than itself -----------------------------
+    (
+        90,
+        "Push: UP TO ten feet, so the wielder chooses the distance, and only if the target is "
+        "Large or smaller",
+        r"Push If you hit a creature with this weapon, you can push the creature up to 10 feet "
+        r"straight away from yourself if it is Large or smaller",
+    ),
+    (
+        190,
+        "Shove's push is EXACTLY five feet, not a maximum - so there is no distance to choose "
+        "and none in the key",
+        r"or you either push it 5 feet away or cause it to have the Prone condition",
+    ),
+    (
+        185,
+        "forced movement provokes NO Opportunity Attack: the trigger names the three actions "
+        "and the speeds, and a shove uses none of them",
+        r"You can make an Opportunity Attack when a creature that you can see leaves your "
+        r"reach using its action, its Bonus Action, its Reaction, or one of its speeds",
+    ),
+    (
+        169,
+        "Thunderwave states its distance rather than a maximum, which is the other half of "
+        "the up-to distinction",
+        r"a creature takes 2d8 Thunder damage and is pushed 10 feet away from you",
+    ),
+    (
+        320,
+        "a pull is the same line read the other way - and it stops AT the puller, since a "
+        "creature reeled past it would be somewhere no rule put it",
+        r"The roper pulls each creature Grappled by it up to 30 feet straight toward it",
+    ),
 )
 
 #: Clauses about the document as a whole rather than about one page, as

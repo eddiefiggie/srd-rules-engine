@@ -49,19 +49,24 @@ from typing import Final
 from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.adjudicate import (
     Declaration,
+    Effect,
     Proposal,
     Resolver,
     action_spent,
     condition_applied,
+    moved_by_force,
     save_compelled,
 )
 from srd_rules_engine.core.conditions import Condition, Grapple
 from srd_rules_engine.core.d20 import D20Test, Modifier, TestKind
+from srd_rules_engine.core.forced_movement import displaced
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.read_surface import (
+    SHOVE_PUSH_FEET,
     grapple_declared,
     no_more_than_one_size_larger,
     shove_prone_declared,
+    shove_push_declared,
 )
 from srd_rules_engine.core.rules import (
     Rule,
@@ -74,6 +79,9 @@ from srd_rules_engine.core.state import Combatant, EncounterState, ForcedSave
 
 GRAPPLE_RULE_ID: Final = "unarmed-strike-grapple"
 SHOVE_RULE_ID: Final = "unarmed-strike-shove"
+#: p. 190 offers the shover a choice of two effects, so each is its own rule id:
+#: the ledger names which of the two the attacker took (0055).
+SHOVE_PUSH_RULE_ID: Final = "unarmed-strike-shove-push"
 
 #: p. 190 gives the target the choice, and names these two (0053).
 SAVE_CHOICES: Final[tuple[str, ...]] = ("str", "dex")
@@ -227,8 +235,10 @@ def shove_resolver() -> Resolver:
         facts: Mapping[str, Resolution],
     ) -> Proposal:
         actor = state.combatant(declaration.actor_id)
+        key = declaration.intent.action_key
+        pushing = shove_push_declared(key) is not None
         target = _target_of(
-            state, actor, shove_prone_declared(declaration.intent.action_key), "a Shove"
+            state, actor, shove_push_declared(key) or shove_prone_declared(key), "a Shove"
         )
 
         dc = option_dc(actor)
@@ -245,7 +255,7 @@ def shove_resolver() -> Resolver:
                     target.id,
                     ForcedSave(
                         combatant_id=target.id,
-                        rule_id=SHOVE_RULE_ID,
+                        rule_id=SHOVE_PUSH_RULE_ID if pushing else SHOVE_RULE_ID,
                         ability="",
                         dc=dc,
                         dc_basis=_dc_basis(actor),
@@ -265,16 +275,49 @@ def shove_resolver() -> Resolver:
                 "that the outcome is not settled until the target's save is rolled",
             ),
             may_not_claim=(
-                "that the target fell — nothing is decided until the save resolves",
-                "that the target was pushed anywhere; this engine offers only p. 190's Prone "
-                "effect and says so",
+                "that the target fell or was pushed — nothing is decided until the save resolves",
+                "that the attacker chose both effects; p. 190 offers one or the other",
             ),
         )
 
     return resolve
 
 
-def _save_resolver(rule_id: str, condition: Condition, *, what: str) -> Resolver:
+def _push_on_failure(
+    state: EncounterState, actor: Combatant, debt: ForcedSave
+) -> tuple[Effect, ...]:
+    """p. 190's push, as the failure branch of a Shove save (0055).
+
+    Five feet exactly — p. 190 states the distance rather than a maximum, so there is nothing
+    for the shover to choose and nothing in the key to carry.
+
+    **Empty when the push cannot be computed**, which is not a silent pass: the shover is
+    recorded on the debt, and if either creature has no position, or the two share one, there
+    is no ray to push along. `displaced` refuses rather than picking a direction, and a save
+    that failed with nothing to show for it is the honest record of a rule the engine could
+    not place.
+    """
+    shover = (
+        state.combatant(debt.source_id) if debt.source_id and state.has(debt.source_id) else None
+    )
+    if shover is None or shover.position is None or actor.position is None:
+        return ()
+    displacement = displaced(
+        actor.position, anchor=shover.position, feet=SHOVE_PUSH_FEET, away=True
+    )
+    if displacement is None:
+        return ()
+    return (
+        moved_by_force(
+            actor.id,
+            displacement.to,
+            feet=displacement.achieved_feet,
+            description=(f"shoved away from {shover.name}: {displacement.derivation()} (p. 190)"),
+        ),
+    )
+
+
+def _save_resolver(rule_id: str, condition: Condition | None, *, what: str) -> Resolver:
     """The save either option compels, and the condition its failure applies.
 
     One builder for both, because p. 190 states the two saves in the same words and they
@@ -310,20 +353,13 @@ def _save_resolver(rule_id: str, condition: Condition, *, what: str) -> Resolver
                 "now would be the engine choosing, which is what 0053 exists to refuse"
             )
 
-        return Proposal(
-            test=D20Test(
-                kind=TestKind.SAVE,
-                ability=debt.ability,
-                target=debt.dc,
-                target_basis=debt.dc_basis,
-                modifiers=(
-                    Modifier(source=f"ability:{debt.ability}", value=actor.modifier(debt.ability)),
-                ),
-            ),
-            # p. 190 states one consequence and states it for the failure. Success is the
-            # absence of that, so it carries no effect.
-            on_success=(),
-            on_failure=(
+        # p. 190 states one consequence per option and states it for the failure. A `None`
+        # condition is the push, which is a displacement rather than a condition and is the
+        # only branch that can legitimately come back empty — see `_push_on_failure`.
+        failed: tuple[Effect, ...] = (
+            _push_on_failure(state, actor, debt)
+            if condition is None
+            else (
                 condition_applied(
                     actor_id,
                     condition,
@@ -341,7 +377,23 @@ def _save_resolver(rule_id: str, condition: Condition, *, what: str) -> Resolver
                         else None
                     ),
                 ),
+            )
+        )
+
+        return Proposal(
+            test=D20Test(
+                kind=TestKind.SAVE,
+                ability=debt.ability,
+                target=debt.dc,
+                target_basis=debt.dc_basis,
+                modifiers=(
+                    Modifier(source=f"ability:{debt.ability}", value=actor.modifier(debt.ability)),
+                ),
             ),
+            # p. 190 states one consequence and states it for the failure. Success is the
+            # absence of that, so it carries no effect.
+            on_success=(),
+            on_failure=failed,
             citations=("srd:rules-glossary/unarmed-strike",),
             may_claim=(
                 f"that {actor.name} resisted, or did not, as the roll says",
@@ -362,6 +414,11 @@ def grapple_save_resolver() -> Resolver:
 
 def shove_save_resolver() -> Resolver:
     return _save_resolver(SHOVE_RULE_ID, Condition.PRONE, what="Shove")
+
+
+def shove_push_save_resolver() -> Resolver:
+    """p. 190's other Shove effect: five feet straight away instead of the ground."""
+    return _save_resolver(SHOVE_PUSH_RULE_ID, None, what="Shove")
 
 
 def unarmed_option_rules() -> tuple[Rule, ...]:
@@ -385,6 +442,15 @@ def unarmed_option_rules() -> tuple[Rule, ...]:
             provenance=RuleProvenance.SRD,
             verification=UNARMED_OPTIONS_VERIFICATION,
         ),
+        Rule(
+            id=SHOVE_PUSH_RULE_ID,
+            summary=(
+                "p. 190's Shove option, taking the other of its two effects: the target is "
+                "pushed 5 feet straight away from the shover on a failure."
+            ),
+            provenance=RuleProvenance.SRD,
+            verification=UNARMED_OPTIONS_VERIFICATION,
+        ),
     )
 
 
@@ -398,6 +464,7 @@ def unarmed_option_resolvers() -> dict[str, Resolver]:
     return {
         GRAPPLE_RULE_ID: _either(grapple_resolver(), grapple_save_resolver()),
         SHOVE_RULE_ID: _either(shove_resolver(), shove_save_resolver()),
+        SHOVE_PUSH_RULE_ID: _either(shove_resolver(), shove_push_save_resolver()),
     }
 
 

@@ -1148,7 +1148,7 @@
    "tag": null,
    "reference": "Spell Descriptions, p. 169 (Thunderwave)",
    "kind": "effect",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "summon-creature",
@@ -1428,7 +1428,7 @@
    "tag": null,
    "reference": "Equipment, p. 90 (Push)",
    "kind": "weapon-mastery",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "mastery-sap",

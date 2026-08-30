@@ -291,6 +291,8 @@ IMPLEMENTED_SECTION_SHAPES: frozenset[str] = frozenset(
         "mastery-nick",
         "mastery-topple",
         "mastery-cleave",
+        "forced-movement",
+        "mastery-push",
         "mastery-slow",
         "mastery-vex",
         "mastery-sap",
@@ -952,7 +954,6 @@ EQUIPMENT_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
         r"as part of the Attack action instead of as a Bonus Action",
     ),
     (
-        "mastery-push",
         "Push",
         "weapon-mastery",
         "Push",

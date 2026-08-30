@@ -388,6 +388,10 @@ class Weapon(Item):
     #:
     #: Usable only by a wielder whose `mastery_weapons` holds this weapon (p. 90, 0047).
     slow: bool = False
+    #: p. 90's Push: "If you hit a creature with this weapon, you can push the creature up to
+    #: 10 feet straight away from yourself if it is Large or smaller." The eighth and last of
+    #: the mastery properties (#324, 0055).
+    push: bool = False
     #: Ammunition (p. 89): the **id of the item this weapon fires**, or `None` for a weapon
     #: without the property. "You can use a weapon that has the Ammunition property to make a
     #: ranged attack **only if you have ammunition to fire from it**."

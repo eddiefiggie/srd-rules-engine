@@ -66,7 +66,7 @@ from srd_rules_engine.core.memory_port import (
     resolve as resolve_fact,
 )
 from srd_rules_engine.core.pending_rolls import PendingAdvantage
-from srd_rules_engine.core.position import SpeedReduction
+from srd_rules_engine.core.position import Position, SpeedReduction
 from srd_rules_engine.core.read_surface import LegalAction, Verdict, legal_actions, verify
 from srd_rules_engine.core.rules import Ruleset
 from srd_rules_engine.core.spellcasting import MAX_SPELL_LEVEL
@@ -186,6 +186,14 @@ class EffectKind(StrEnum):
     #: The Dodge action taken (p. 181). Carries no number: the benefits are stated, and
     #: whether they hold is re-asked whenever they are read rather than frozen here.
     DODGING = "dodging"
+    #: A creature moved by something other than itself (p. 90, p. 169, p. 190, 0055).
+    #:
+    #: Its own kind rather than a movement effect, because forced movement is not movement in
+    #: the sense every other rule uses: p. 185 provokes an Opportunity Attack only when a
+    #: creature "leaves your reach **using its action, its Bonus Action, its Reaction, or one
+    #: of its speeds**", and a shove uses none of those. It also spends none of the moved
+    #: creature's allowance, because it is not the creature moving.
+    MOVED_BY_FORCE = "moved-by-force"
     #: The Disengage action taken (p. 181): movement does not provoke for the rest of the turn.
     DISENGAGED = "disengaged"
     #: A spell slot spent to cast a spell (p. 104, 0038 clause 6). `amount` is the **slot**
@@ -433,6 +441,8 @@ class Effect:
     #: number — so it travels with the application rather than being recomputed later, which
     #: is 0052 clause 4 read from the other end.
     grapple: Grapple | None = None
+    #: Where a forced move put the creature (0055). Set only beside `MOVED_BY_FORCE`.
+    position: Position | None = None
     #: `ACTION_SPENT` only: which of the three the act cost (p. 176-177).
     action: ActionKind | None = None
     #: `ACTION_SPENT` only, and only for an attack: which weapon the action was spent
@@ -572,6 +582,22 @@ def condition_applied(
         source_id=source_id,
         grapple=grapple,
         when=when,
+    )
+
+
+def moved_by_force(target_id: str, to: Position, *, feet: int, description: str) -> Effect:
+    """A creature put somewhere by something other than itself (0055).
+
+    `amount` is the distance actually covered, which is not always the distance the rule
+    stated — a `Position` is three integer feet and the exact destination of a diagonal push
+    is not one. `Displacement.derivation` carries both numbers; this carries what happened.
+    """
+    return Effect(
+        kind=EffectKind.MOVED_BY_FORCE,
+        target_id=target_id,
+        amount=feet,
+        description=description,
+        position=to,
     )
 
 
@@ -1874,6 +1900,9 @@ def _apply(
             state = state.with_dash(effect.target_id, effect.amount)
         elif effect.kind is EffectKind.DODGING:
             state = state.with_dodge(effect.target_id)
+        elif effect.kind is EffectKind.MOVED_BY_FORCE:
+            assert effect.position is not None  # the constructor requires one
+            state = state.with_forced_movement(effect.target_id, effect.position)
         elif effect.kind is EffectKind.DISENGAGED:
             state = state.with_disengage(effect.target_id)
         elif effect.kind is EffectKind.SPELL_SLOT_EXPENDED:
