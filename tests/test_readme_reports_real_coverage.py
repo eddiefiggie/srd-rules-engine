@@ -30,6 +30,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from srd_rules_engine.core.conditions import EFFECTS
 from srd_rules_engine.core.inventory import Inventory, load_inventory
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -195,4 +196,61 @@ def test_the_senses_and_light_slice_is_the_one_the_row_names() -> None:
     assert "0 of 23" not in row.group(0)
     assert "5 of 23" not in row.group(0), (
         "the five-category group is still not what this row names, whatever its count"
+    )
+
+
+DISCLOSED_CLAIM = re.compile(
+    r"\*\*(?P<clauses>\d+) clauses are disclosed but unenforced\*\*",
+)
+
+
+def test_the_disclosed_clause_count_is_the_one_the_engine_holds() -> None:
+    """R17's second figure (0061, #356).
+
+    Coverage counts **shapes** and cannot see a shape that resolves while a *sentence* of it
+    reaches no roll. Five consecutive builds fixed exactly that and `116 of 210` did not move
+    once — 0054, 0056, 0057, 0059 and 0060 each said so in their own words, which is the point
+    at which it stops being a note and becomes a property of the instrument.
+
+    Derived from both halves rather than counted by hand: the condition clauses from `EFFECTS`,
+    and the rest from the AST walk that pins them. A published number nobody derives is the
+    hand-maintained pin #334 was.
+    """
+    from test_disclosures_are_pinned import appended_disclosures
+
+    match = DISCLOSED_CLAIM.search(_readme())
+    assert match is not None, (
+        "README.md has no 'N clauses are disclosed but unenforced' sentence. Restore it "
+        "rather than relaxing this test — it is the only published figure that can fall when "
+        "a rule is built inside a shape already claimed."
+    )
+
+    held = sum(len(effects.unenforced_clauses) for effects in EFFECTS.values())
+    actual = held + len(appended_disclosures())
+    assert int(match.group("clauses")) == actual, (
+        f"README.md publishes {match.group('clauses')} disclosed clauses and the engine holds "
+        f"{actual} ({held} on conditions, {len(appended_disclosures())} at the read surface). "
+        "A clause built without the figure moving is a build that looks like it changed "
+        "nothing, which is what this figure exists to prevent."
+    )
+
+
+def test_the_two_figures_measure_different_things() -> None:
+    """The reason for a second figure at all, asserted rather than only written down.
+
+    A condition can be `implemented` in the inventory **and** carry an unenforced clause — that
+    is not a contradiction, it is the gap coverage cannot see. If no shape were ever in both
+    states, one figure would do.
+    """
+    from srd_rules_engine.core.inventory import load_inventory
+
+    implemented = {shape.id for shape in load_inventory().implemented}
+    both = {
+        condition.value
+        for condition, effects in EFFECTS.items()
+        if effects.unenforced_clauses and condition.value in implemented
+    }
+    assert both, (
+        "no claimed shape carries an unenforced clause, so the two figures are measuring the "
+        "same thing and one of them is redundant"
     )

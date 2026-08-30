@@ -182,7 +182,7 @@ def test_the_condition_disclosures_are_exactly_these() -> None:
 DISCLOSURE_LIST = "unenforced"
 
 
-def _appended_disclosures() -> frozenset[str]:
+def appended_disclosures() -> frozenset[str]:
     """Every non-condition disclosure the core can emit, read out of the source (#334).
 
     The condition half of this pin derives `actual` from `EFFECTS`, which is why it is a real
@@ -258,7 +258,7 @@ def test_the_other_disclosures_are_exactly_these() -> None:
     stopped enforcing p. 105's gagged-or-silenced refusal, the pin claimed to hold every
     disclosure, and no test disagreed.
     """
-    assert _appended_disclosures() == OTHER_DISCLOSURES, (
+    assert appended_disclosures() == OTHER_DISCLOSURES, (
         "the disclosures the core appends and the ones pinned here have diverged. If a rule "
         "was built, take its clause off in the same change that builds it. If a disclosure "
         "was added, R32 now names a gap that nobody chose to name — which is the direction "
@@ -274,7 +274,7 @@ def test_the_walk_finds_every_site_and_not_merely_one() -> None:
     different conditions, so finding all of them is evidence the walk reaches the
     whole assembly rather than the first line of it.
     """
-    found = _appended_disclosures()
+    found = appended_disclosures()
     for disclosure in (
         SIGHT_QUALIFIER,
         OBJECT_INTERACTION_CAP,
@@ -295,7 +295,7 @@ def test_the_walk_reads_the_source_rather_than_a_situation_it_happened_to_build(
     whatever the fixtures happened to reach, so a disclosure with no fixture would look like a
     disclosure that does not exist. That is the same blindness in a new shape.
     """
-    found = _appended_disclosures()
+    found = appended_disclosures()
     assert CARRYING_CAPACITY_SPEED_CAP in found
     # The fixture nothing sizes: the clause above cannot appear in any situation this suite
     # builds by default, and the pin holds it regardless.
