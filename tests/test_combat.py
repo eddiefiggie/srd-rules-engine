@@ -666,6 +666,10 @@ def test_no_weapon_list_ships_in_this_module() -> None:
         "INITIATIVE_VERIFICATION",
         "WEAPON_PROPERTY_VERIFICATION",
         "UNARMED_STRIKE_VERIFICATION",
+        # #264. p. 183's Improvised Weapons, asserted whole — the use rather than the object,
+        # the Proficiency Bonus that is not added, the 1d4, and the damage type the document
+        # hands to a person.
+        "IMPROVISED_VERIFICATION",
     }
     assert constants == allowed, (
         f"{constants - allowed} are module constants; a rule value hiding in one "

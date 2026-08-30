@@ -118,6 +118,15 @@ class Item:
 
     `id` is identity rather than a name: it is what a declaration will name and what the
     ledger will record, exactly as `Spell.rule_id` is.
+
+    **A fourth fact since [#264](https://github.com/eddiefiggie/srd-rules-engine/issues/264):
+    what this object deals when it is swung as an improvised weapon.** p. 183 puts the
+    damage type in a person's hands — "1d4 damage of a type the GM thinks is appropriate for
+    the object" — so it is ruleset data reaching the engine through the channel
+    `Weapon.damage_type` already uses, rather than a value the engine picks. It earns its
+    place by the test this class applies to every other field: the engine has a rule about
+    it (1d4 of *that* type, with no Proficiency Bonus), and without it the rule has nothing
+    to read.
     """
 
     id: str
@@ -148,6 +157,21 @@ class Item:
     #: p. 177 treats a Shield separately from worn armour and this flag does not distinguish
     #: them, which is why the Shield clause is disclosed rather than built (#367).
     is_armour: bool = False
+    #: p. 183: what this object deals when wielded as a makeshift weapon, or `None` when
+    #: nobody has said (#264, 0076).
+    #:
+    #: **`None` is not "no damage"** — it is the GM's judgement not yet given, so the read
+    #: surface offers no improvised attack with this object and the resolver refuses one. An
+    #: engine that picked a type instead would be inventing the one rule p. 183 explicitly
+    #: hands to a person, and a frying pan dealing Bludgeoning is a guess that looks like a
+    #: rule.
+    #:
+    #: **Set on a `Weapon` too**, and that is not redundant with `damage_type`. p. 183 makes
+    #: a Simple or Martial weapon count as improvised "if it's wielded in a way contrary to
+    #: its design", and an improvised weapon deals 1d4 of the GM's type — *not* the weapon's
+    #: own dice or its own type. A longbow swung as a club is the document's own example, and
+    #: reading `damage_type` there would keep the piercing the swing never delivers.
+    improvised_damage_type: DamageType | None = None
 
     def __post_init__(self) -> None:
         if not self.id:
