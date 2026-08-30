@@ -1817,6 +1817,32 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "crawling is priced, so the option p. 186 leaves a Prone creature costs something",
         r"Crawling While you.re crawling, each foot of movement costs 1 extra foot",
     ),
+    # --- 0058: condition effects that reached no roll --------------------------------------
+    (
+        186,
+        "Paralyzed: any HIT within 5 feet is a Critical Hit - a hit, so a natural 1 is "
+        "untouched, and 5 feet is the condition's number rather than the attacker's reach",
+        r"Automatic Critical Hits\. Any attack roll that hits you is a Critical Hit if the "
+        r"attacker is within 5 feet of you",
+    ),
+    (
+        186,
+        "Petrified resists ALL damage, which `Defences.resists_all` already expressed and no "
+        "condition had ever set",
+        r"Resist Damage\. You have Resistance to all damage",
+    ),
+    (
+        186,
+        "and is Immune to the Poisoned CONDITION, which p. 183 makes a no-op rather than an error",
+        r"Poison Immunity\. You have Immunity to the Poisoned condition",
+    ),
+    (
+        183,
+        "p. 183's Immunity: it does not affect you IN ANY WAY, which is why applying Poisoned "
+        "to a statue returns the state unchanged rather than raising",
+        r"Immunity If you have Immunity to a damage type or a condition, it doesn.t affect "
+        r"you in any way",
+    ),
 )
 
 #: Clauses about the document as a whole rather than about one page, as

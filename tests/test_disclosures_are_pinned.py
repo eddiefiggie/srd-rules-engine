@@ -67,7 +67,15 @@ CONDITION_DISCLOSURES: dict[Condition, tuple[str, ...]] = {
     # p. 178: cannot attack or target the charmer with a harmful effect, and the charmer has
     # Advantage on social checks — the second needs the Influence action (#143), the first
     # needs a target the engine can compare against the source.
+    # p. 178: which checks *require sight* is not tabulated by the document — it is decided
+    # per check by the situation — so the automatic failure has nothing to key on (#360).
+    Condition.BLINDED: ("checks-requiring-sight-not-identified",),
     Condition.CHARMED: ("cannot-attack-or-target-the-charmer", "charmer-social-advantage"),
+    # p. 180: the same gap for hearing (#360).
+    Condition.DEAFENED: ("checks-requiring-hearing-not-identified",),
+    # p. 184: speech is not modelled at all (#360), and `initiative_order` rolls one die per
+    # combatant and consults no conditions (#359). Two clauses, two different reasons.
+    Condition.INCAPACITATED: ("cannot-speak", "initiative-disadvantage-not-applied"),
     # **`cannot-willingly-approach-the-source` is deliberately absent** (#350). It said
     # "movement has no notion of a direction relative to a creature", and that was the wrong
     # diagnosis twice over: "closer" is a comparison of two distances and needs no direction
@@ -83,7 +91,11 @@ CONDITION_DISCLOSURES: dict[Condition, tuple[str, ...]] = {
     # and answered by `own_attack_rolls(target_id=...)` rather than by a flat field.
     Condition.GRAPPLED: (MOVABLE_UNENFORCED,),
     # p. 184: hidden from effects that require sight. #150's mapping is unfilled.
-    Condition.INVISIBLE: ("concealed-from-effects-requiring-sight",),
+    Condition.INVISIBLE: (
+        "concealed-from-effects-requiring-sight",
+        # p. 184's Advantage on Initiative, held and not applied (#359).
+        "initiative-advantage-not-applied",
+    ),
     # p. 186: turned to inanimate substance, and weight times ten with ageing stopped. Neither
     # is a quantity this engine holds.
     Condition.PETRIFIED: ("turned-to-inanimate-substance", "weight-and-ageing"),

@@ -371,6 +371,15 @@ class D20Test:
     #: special saving throw" rolled with no ability at all, so a rule keyed on one must not
     #: reach it (#344).
     ability: str | None = None
+    #: Whether a hit is a Critical Hit whatever the die showed (pp. 186, 191, #357).
+    #:
+    #: > **Automatic Critical Hits.** Any attack roll that hits you is a Critical Hit if the
+    #: > attacker is within 5 feet of you. *(Paralyzed, Unconscious)*
+    #:
+    #: On the **test** rather than the result, because it is known before the dice are thrown:
+    #: it is a fact about the target and the distance, and the roll only decides whether the
+    #: attack hits at all.
+    critical_on_hit: bool = False
 
     def __post_init__(self) -> None:
         if not self.target_basis:
@@ -467,6 +476,13 @@ def resolve(test: D20Test, *, seed: int) -> D20Result:
 
     total = used + sum(modifier.value for modifier in test.modifiers)
     critical = _critical(test.kind, used)
+    succeeded = _outcome(total, test.target, critical, None)
+    # pp. 186, 191: "Any attack roll that **hits** you is a Critical Hit." A hit, so a natural
+    # 1 is untouched — p. 7 misses "regardless of any modifiers or the target's AC", and a
+    # miss is not a hit to upgrade. Applied after the outcome for that reason, and never
+    # downgraded: a natural 20 is already `Critical.HIT`.
+    if test.critical_on_hit and succeeded and critical is Critical.NONE:
+        critical = Critical.HIT
     return D20Result(
         kind=test.kind,
         seed=seed,
@@ -479,7 +495,7 @@ def resolve(test: D20Test, *, seed: int) -> D20Result:
         effective=effective,
         modifiers=test.modifiers,
         total=total,
-        succeeded=_outcome(total, test.target, critical, None),
+        succeeded=succeeded,
         critical=critical,
     )
 

@@ -69,6 +69,7 @@ from srd_rules_engine.core.adjudicate import (
     speed_reduced,
     time_passed,
 )
+from srd_rules_engine.core.conditions import AUTO_CRITICAL_FEET
 from srd_rules_engine.core.d20 import (
     INITIATIVE_BAND,
     Advantage,
@@ -146,6 +147,27 @@ WEAPON_PROPERTY_VERIFICATION = Verification(
     date="2026-08-23",
     method=VerificationMethod.ASSERTED,
 )
+
+
+def _hit_is_automatically_critical(actor: Combatant, target: Combatant) -> bool:
+    """pp. 186, 191's Automatic Critical Hits, for Paralyzed and Unconscious targets (#357).
+
+    > Any attack roll that hits you is a Critical Hit if the attacker is within 5 feet of you.
+
+    **Both halves, and the distance is this engine's to measure.** The condition answers the
+    first; `within` answers the second exactly, without a square root, which matters at
+    precisely the boundary the sentence names.
+
+    An encounter that tracks no positions cannot answer it, and the reading that omits nothing
+    is the one that does **not** upgrade: a Critical Hit doubles dice, so granting one on an
+    unmeasurable distance manufactures damage, while withholding it only fails to double
+    (0030 clause 1).
+    """
+    if not target.conditions.hits_against_you_are_critical:
+        return False
+    if actor.position is None or target.position is None:
+        return False
+    return within(actor.position, target.position, AUTO_CRITICAL_FEET)
 
 
 def initiative_order(
@@ -455,6 +477,7 @@ def attack_resolver() -> Resolver:
                 kind=TestKind.ATTACK,
                 target=target.armour_class,
                 target_basis=f"armour class {target.armour_class}, worn by {target.name}",
+                critical_on_hit=_hit_is_automatically_critical(actor, target),
                 modifiers=tuple(modifiers),
                 # Heavy (p. 89). The disadvantage is a property of the weapon in these
                 # hands, so it is decided here rather than asked of the caller.
@@ -812,6 +835,7 @@ def unarmed_strike_resolver() -> Resolver:
                 kind=TestKind.ATTACK,
                 target=target.armour_class,
                 target_basis=f"armour class {target.armour_class}, worn by {target.name}",
+                critical_on_hit=_hit_is_automatically_critical(actor, target),
                 modifiers=(
                     Modifier(source="ability:str", value=strength),
                     # Unconditional (p. 190), unlike a weapon's.

@@ -169,17 +169,33 @@ MOVABLE_UNENFORCED: Final = "grappled-creature-is-movable-by-the-grappler"
 #: implementation detail.
 _AUTO_FAILED_ABILITIES: Final[frozenset[str]] = frozenset({"str", "dex"})
 
+#: pp. 186, 191: "if the attacker is **within 5 feet** of you" (#357).
+#:
+#: Here rather than in `core.combat`, because it is the conditions' own number: it is stated by
+#: Paralyzed and Unconscious, not taken from the attacker's reach — which p. 90's Reach weapons
+#: extend to 10 feet without extending this.
+AUTO_CRITICAL_FEET: Final = 5
+
 #: Each condition's effects, transcribed field by field from its glossary entry.
 EFFECTS: Final[dict[Condition, ConditionEffects]] = {
     Condition.BLINDED: ConditionEffects(
         attack_rolls_against=Advantage.ADVANTAGE,
         own_attack_rolls=Advantage.DISADVANTAGE,
+        # p. 178's automatic failure is held and not applied: which checks *require sight* is
+        # a mapping the document does not tabulate — it is decided per check by the situation
+        # — so there is nothing to key it on (#360, and the same seam as #150).
         auto_fail_checks_requiring_sight=True,
+        unenforced_clauses=("checks-requiring-sight-not-identified",),
     ),
     Condition.CHARMED: ConditionEffects(
         unenforced_clauses=("cannot-attack-or-target-the-charmer", "charmer-social-advantage"),
     ),
-    Condition.DEAFENED: ConditionEffects(auto_fail_checks_requiring_hearing=True),
+    Condition.DEAFENED: ConditionEffects(
+        # Held and not applied, for the reason Blinded's twin is: which checks *require
+        # hearing* is not tabulated anywhere (#360).
+        auto_fail_checks_requiring_hearing=True,
+        unenforced_clauses=("checks-requiring-hearing-not-identified",),
+    ),
     Condition.EXHAUSTION: ConditionEffects(),  # levels carry its arithmetic; see Conditions
     Condition.FRIGHTENED: ConditionEffects(
         own_attack_rolls=Advantage.DISADVANTAGE,
@@ -202,19 +218,26 @@ EFFECTS: Final[dict[Condition, ConditionEffects]] = {
     Condition.INCAPACITATED: ConditionEffects(
         cannot_act=True,
         concentration_broken=True,
+        # Two clauses held and not applied. Speech is not modelled at all (#360), and
+        # `initiative_order` rolls one die per combatant and consults no conditions (#359).
         cannot_speak=True,
         initiative=Advantage.DISADVANTAGE,
+        unenforced_clauses=("cannot-speak", "initiative-disadvantage-not-applied"),
     ),
     Condition.INVISIBLE: ConditionEffects(
         attack_rolls_against=Advantage.DISADVANTAGE,
         own_attack_rolls=Advantage.ADVANTAGE,
+        # Held and not applied, the same gap Incapacitated's carries (#359).
         initiative=Advantage.ADVANTAGE,
         # `unless-seen-exception` left this list in #193, when the condition surface
         # could be told whether one creature sees another. The other clause needs a
         # notion of "an effect that requires its target to be seen", which nothing here
         # marks — a resolver knows whether its own rule needs sight and records it
         # nowhere.
-        unenforced_clauses=("concealed-from-effects-requiring-sight",),
+        unenforced_clauses=(
+            "concealed-from-effects-requiring-sight",
+            "initiative-advantage-not-applied",
+        ),
     ),
     Condition.PARALYZED: ConditionEffects(
         attack_rolls_against=Advantage.ADVANTAGE,
@@ -576,6 +599,22 @@ class Conditions:
                 pass
 
         return _combine(advantage, disadvantage)
+
+    @property
+    def resists_all_damage(self) -> bool:
+        """p. 186, *Petrified*: "You have Resistance to all damage." (#357)"""
+        return any(effects.resistance_to_all_damage for effects in self.effects)
+
+    @property
+    def immune_to_poisoned(self) -> bool:
+        """p. 186, *Petrified*: "You have Immunity to the Poisoned condition." (#357)"""
+        return any(effects.immune_to_poisoned for effects in self.effects)
+
+    @property
+    def hits_against_you_are_critical(self) -> bool:
+        """pp. 186, 191: any attack roll that hits is a Critical Hit — **if the attacker is
+        within 5 feet**, which is the caller's half of the question (#357)."""
+        return any(effects.auto_critical_within_5_feet for effects in self.effects)
 
     def saves_fail_outright(self, ability: str | None) -> bool:
         """Whether a save of this ability fails without a roll (pp. 186, 189, 191).
