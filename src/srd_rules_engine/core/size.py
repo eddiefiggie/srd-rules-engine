@@ -224,3 +224,12 @@ def carried_without_extra_cost(*, passenger: Size | None, grappler: Size | None)
     if grappler is None:
         return False
     return grappler.categories_above(passenger) >= CARRIED_FREELY_CATEGORIES_SMALLER
+
+
+#: p. 178: "your Speed can be no more than 5 feet" while hauling more than you can carry.
+#:
+#: Named here rather than written at the one place it is applied, because it is the rule and
+#: not a bound somebody chose. Five is also p. 182's grapple range and p. 186's auto-crit
+#: distance, and each of those is stated by its own sentence — three coincident numbers, and
+#: sharing one constant between them would tie together rules that could move apart.
+HAULING_SPEED_CAP_FEET: Final = 5

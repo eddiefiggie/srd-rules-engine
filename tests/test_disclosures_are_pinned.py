@@ -51,7 +51,6 @@ from srd_rules_engine.core.conditions import (
 )
 from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.read_surface import (
-    CARRYING_CAPACITY_SPEED_CAP,
     OBJECT_INTERACTION_CAP,
     PUSH_DISTANCES_IN_STEPS,
     RELEASE_ONLY_ON_YOUR_TURN,
@@ -126,10 +125,10 @@ OTHER_DISCLOSURES: frozenset[str] = frozenset(
         OBJECT_INTERACTION_CAP,
         # 0045 clause 5: p. 14's GM escalation and p. 177's Breaking Objects are beyond it.
         UTILIZE_REACHES_FOUR_MOVES,
-        # 0051 clause 5: p. 178's "your Speed can be no more than 5 feet" is computed against
-        # and not applied, because its trigger is dragging, lifting or pushing rather than
-        # carrying too much, and p. 12 leaves the subsystem to a person (#336).
-        CARRYING_CAPACITY_SPEED_CAP,
+        # `CARRYING_CAPACITY_SPEED_CAP` was here until #336 (0067). p. 178's cap is applied
+        # now: `Combatant.hauled_weight` supplies the antecedent the clause turned on, and
+        # stating it is how p. 12's "the GM **might** require you to abide by the rules" is
+        # exercised. Removed in the change that built the rule.
         # p. 105 refuses a Verbal component to a creature "gagged or in an area of magical
         # silence" and the engine models neither (#246).
         #
@@ -283,7 +282,6 @@ def test_the_walk_finds_every_site_and_not_merely_one() -> None:
         OBJECT_INTERACTION_CAP,
         UTILIZE_REACHES_FOUR_MOVES,
         VERBAL_UNCHECKED,
-        CARRYING_CAPACITY_SPEED_CAP,
         RELEASE_ONLY_ON_YOUR_TURN,
         PUSH_DISTANCES_IN_STEPS,
         UNTRAINED_SHIELD_STILL_GRANTS_AC,
@@ -294,18 +292,18 @@ def test_the_walk_finds_every_site_and_not_merely_one() -> None:
 def test_the_walk_reads_the_source_rather_than_a_situation_it_happened_to_build() -> None:
     """Why this is a static walk and not a play-and-collect.
 
-    Every one of these five is conditional — a held Reaction, a Verbal spell, an unspent object
-    interaction, a load over the carry bound. Collecting them by reading situations would pin
+    Every one of these is conditional — a held Reaction, a Verbal spell, an unspent object
+    interaction, a weapon in hand. Collecting them by reading situations would pin
     whatever the fixtures happened to reach, so a disclosure with no fixture would look like a
     disclosure that does not exist. That is the same blindness in a new shape.
     """
     found = appended_disclosures()
-    assert CARRYING_CAPACITY_SPEED_CAP in found
-    # The fixture nothing sizes: the clause above cannot appear in any situation this suite
-    # builds by default, and the pin holds it regardless.
+    assert PUSH_DISTANCES_IN_STEPS in found
+    # The fixture with no weapon in hand: the clause above cannot appear in any situation this
+    # suite builds by default, and the pin holds it regardless.
     situation = read(EncounterState.new([character()]).with_initiative({"pc": 10}), "pc").situation
     assert situation is not None
-    assert CARRYING_CAPACITY_SPEED_CAP not in situation.unenforced_clauses
+    assert PUSH_DISTANCES_IN_STEPS not in situation.unenforced_clauses
 
 
 def test_the_action_budget_discloses_nothing_by_default() -> None:

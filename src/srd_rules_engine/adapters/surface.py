@@ -192,6 +192,9 @@ def situation_payload(situation: object) -> dict[str, Any] | None:
         # a creature nobody sized has no capacity to be over, which is not the same fact as
         # being under one.
         "over_carrying_capacity",
+        # p. 178's Speed cap, now applied (#336, 0067). `bool | None`, and this `None` carries
+        # two meanings a caller may want apart: no haul was stated, or the creature is unsized.
+        "over_hauling_capacity",
         # 0041 clauses 3 and 4. Both JSON-safe as they stand — tuples of item ids, and the
         # first is `tuple[str, ...] | None` where the `None` is load-bearing in the same way
         # `free_hands` above is: a creature with no position cannot be told what is within
