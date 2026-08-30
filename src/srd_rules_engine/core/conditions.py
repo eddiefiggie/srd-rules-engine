@@ -181,20 +181,22 @@ EFFECTS: Final[dict[Condition, ConditionEffects]] = {
     Condition.BLINDED: ConditionEffects(
         attack_rolls_against=Advantage.ADVANTAGE,
         own_attack_rolls=Advantage.DISADVANTAGE,
-        # p. 178's automatic failure is held and not applied: which checks *require sight* is
-        # a mapping the document does not tabulate — it is decided per check by the situation
-        # — so there is nothing to key it on (#360, and the same seam as #150).
+        # p. 178's automatic failure is **applied** to the one check this engine knows
+        # requires sight — `perception_of`, seeing a creature. What is not built is the
+        # general rule: no other check declares which sense it needs, and the document does
+        # not tabulate that either, so a Blinded creature's other checks are unaffected
+        # (#360, the same seam as #150).
         auto_fail_checks_requiring_sight=True,
-        unenforced_clauses=("checks-requiring-sight-not-identified",),
+        unenforced_clauses=("only-seeing-declares-that-it-requires-sight",),
     ),
     Condition.CHARMED: ConditionEffects(
         unenforced_clauses=("cannot-attack-or-target-the-charmer", "charmer-social-advantage"),
     ),
     Condition.DEAFENED: ConditionEffects(
-        # Held and not applied, for the reason Blinded's twin is: which checks *require
-        # hearing* is not tabulated anywhere (#360).
+        # Held and applied to nothing at all, unlike Blinded's twin: **no check in this
+        # engine requires hearing**, so there is not even one consumer to key it on (#360).
         auto_fail_checks_requiring_hearing=True,
-        unenforced_clauses=("checks-requiring-hearing-not-identified",),
+        unenforced_clauses=("no-check-requires-hearing",),
     ),
     Condition.EXHAUSTION: ConditionEffects(),  # levels carry its arithmetic; see Conditions
     Condition.FRIGHTENED: ConditionEffects(
@@ -218,11 +220,16 @@ EFFECTS: Final[dict[Condition, ConditionEffects]] = {
     Condition.INCAPACITATED: ConditionEffects(
         cannot_act=True,
         concentration_broken=True,
-        # Speech is not modelled at all (#360). `initiative` is applied since #359 —
-        # `initiative_order` rolls two dice per combatant and picks by this.
+        # p. 184's "You can't speak", held and applied to nothing — and the reason is
+        # sharper than "speech is not modelled" (#360). Its one mechanical consumer in the
+        # document is p. 105's Verbal component, and **Incapacitated is the only condition
+        # that sets this flag while also setting `cannot_act`** — so a creature that cannot
+        # speak cannot cast either, and the link would be unreachable code. What is missing
+        # is a rule about speech that is not casting: the Influence action (#143), or a
+        # command a familiar hears.
         cannot_speak=True,
         initiative=Advantage.DISADVANTAGE,
-        unenforced_clauses=("cannot-speak",),
+        unenforced_clauses=("no-rule-consumes-speech",),
     ),
     Condition.INVISIBLE: ConditionEffects(
         attack_rolls_against=Advantage.DISADVANTAGE,
@@ -596,6 +603,24 @@ class Conditions:
                 pass
 
         return _combine(advantage, disadvantage)
+
+    @property
+    def auto_fails_checks_requiring_sight(self) -> bool:
+        """p. 178: "You can't see and automatically fail any ability check that requires
+        sight." (#360)
+
+        Read by `EncounterState.perception_of`, which used to name `Condition.BLINDED` itself
+        while quoting this very sentence — one rule written down twice, in two modules, with
+        nothing holding them together. A second condition with this flag would have worked in
+        the table and done nothing at the check.
+
+        **There is deliberately no `auto_fails_checks_requiring_hearing` beside this** (#360).
+        One was written, and a corruption proof showed it defeated the guard: an accessor is a
+        *read*, so a property nothing calls makes an unconsumed field look consumed — which is
+        the exact state #356 exists to surface. The hearing flag stays unread and disclosed
+        until a check needs it, and whoever builds that check writes the accessor then.
+        """
+        return any(effects.auto_fail_checks_requiring_sight for effects in self.effects)
 
     @property
     def initiative_advantage(self) -> Advantage:

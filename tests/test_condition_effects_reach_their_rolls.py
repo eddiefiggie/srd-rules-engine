@@ -25,6 +25,7 @@ from srd_rules_engine.core.conditions import (
 from srd_rules_engine.core.d20 import Critical, D20Test, TestKind, resolve
 from srd_rules_engine.core.damage import DamageType, Defences
 from srd_rules_engine.core.position import Position
+from srd_rules_engine.core.sight import Visibility
 
 ORIGIN = Position(0, 0, 0)
 
@@ -59,8 +60,10 @@ def test_every_condition_effect_is_read_or_disclosed() -> None:
 
     #356's guard, in the shape #334 taught: walk the AST of every `core` module, collect
     attribute **reads** of `ConditionEffects` field names, and compare against the dataclass.
-    Run against `main` before this change it returned seven; every one is now either read by
-    something or named in `unenforced_clauses`.
+    Run against `main` before 0058 it returned seven. Five have since been **read** — the
+    three 0058 built, `initiative` in #359, and `auto_fail_checks_requiring_sight` in #360,
+    which turned out to be a second copy of a rule `perception_of` had been enforcing by
+    naming the condition itself. Two remain, and each is named in `unenforced_clauses`.
 
     **Reads, not keyword arguments.** `ConditionEffects(cannot_speak=True)` in the `EFFECTS`
     table is the field being *populated*, which is exactly the state this is looking for — a
@@ -80,10 +83,8 @@ def test_every_condition_effect_is_read_or_disclosed() -> None:
     disclosed = {c for effects in EFFECTS.values() for c in effects.unenforced_clauses}
     #: Each unread field, and the clause that names the gap instead.
     named: dict[str, str] = {
-        "cannot_speak": "cannot-speak",
-        "initiative": "initiative-advantage-not-applied",
-        "auto_fail_checks_requiring_sight": "checks-requiring-sight-not-identified",
-        "auto_fail_checks_requiring_hearing": "checks-requiring-hearing-not-identified",
+        "cannot_speak": "no-rule-consumes-speech",
+        "auto_fail_checks_requiring_hearing": "no-check-requires-hearing",
     }
     unaccounted = sorted(f for f in fields - read if named.get(f) not in disclosed)
 
@@ -225,3 +226,59 @@ def test_the_immunity_is_to_Poisoned_and_not_to_everything() -> None:
 def test_an_ordinary_creature_is_poisoned_normally() -> None:
     after = encounter().with_condition("pc", Condition.POISONED)
     assert Condition.POISONED in after.combatant("pc").conditions.held
+
+
+# --- #360: the sight clause was built twice, in two modules -------------------------------------
+
+
+def test_the_sight_failure_is_read_from_the_condition_set() -> None:
+    """p. 178's automatic failure reaches `perception_of` through the field, not through the
+    condition (#360).
+
+    It was enforced there all along by naming `Condition.BLINDED` and quoting the very sentence
+    the field is transcribed from — one rule written down twice, in two modules, with nothing
+    holding them together. A second condition carrying the flag would have worked in the table
+    and done nothing at the check.
+
+    Asserted with a condition that is **not** Blinded, which is the only way to tell the two
+    implementations apart.
+    """
+    from dataclasses import replace as _replace
+
+    from srd_rules_engine.core.conditions import EFFECTS as _EFFECTS
+
+    observer = creature("seer", conditions=Conditions(applied=frozenset({Condition.POISONED})))
+    seen = creature("mark", position=Position(5, 0, 0))
+    state = encounter(observer, seen)
+    assert not state.perception_of("seer", "mark").automatic_failure, "the precondition"
+
+    # Give Poisoned the flag Blinded carries. Nothing else about it changes.
+    patched = dict(_EFFECTS)
+    patched[Condition.POISONED] = _replace(
+        _EFFECTS[Condition.POISONED], auto_fail_checks_requiring_sight=True
+    )
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("srd_rules_engine.core.conditions.EFFECTS", patched)
+        assert state.perception_of("seer", "mark").automatic_failure, (
+            "a condition that sets the flag fails the check, whatever the condition is called"
+        )
+
+
+def test_blinded_still_cannot_see_by_the_conditions_other_clause() -> None:
+    """p. 178 has two clauses and only one moved. `can_see` still names the condition, and
+    correctly: "You can't see" is about sight rather than about checks.
+
+    **Asserted on the verdict, not on `can_see`.** The first draft checked
+    `not can_see(...).can_see` and a corruption proof stayed green — because a *sighted*
+    creature also cannot see here: nobody stated the light, and 0025 clause 2 refuses to assume
+    daylight. The assertion was true for both and distinguished nothing.
+    """
+    seen = creature("mark", position=Position(5, 0, 0))
+    blind = creature("seer", conditions=Conditions(applied=frozenset({Condition.BLINDED})))
+    sighted = encounter(creature("seer"), seen).can_see("seer", "mark")
+    assert sighted.verdict is Visibility.UNSTATED, "the light is what stops an ordinary creature"
+
+    blinded = encounter(blind, seen).can_see("seer", "mark")
+    assert blinded.verdict is Visibility.CANNOT_SEE
+    assert "Blinded" in blinded.because
+    assert encounter(blind, seen).perception_of("seer", "mark").automatic_failure
