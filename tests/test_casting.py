@@ -48,7 +48,6 @@ from srd_rules_engine.core.actions import ActionBudget, ActionKind
 from srd_rules_engine.core.casting import spell_resolver
 from srd_rules_engine.core.equipment import Carriage, Carried, Item
 from srd_rules_engine.core.read_surface import (
-    UNTRAINED_ARMOUR_DISADVANTAGE,
     UNTRAINED_SHIELD_STILL_GRANTS_AC,
     cast_declared,
 )
@@ -713,14 +712,15 @@ def test_every_untrained_piece_is_named(tmp_path: Path) -> None:
         spell_resolver(BOLT, effects_of)(state=state, declaration=declaration, facts={})
 
 
-def test_the_other_two_drawbacks_are_disclosed() -> None:
-    """R32, #367. p. 177 states three and this builds one — the Disadvantage reaches attacks
-    and checks as well as saves, and the Shield clause needs an AC derived from what is worn."""
+def test_the_shield_drawback_is_the_one_that_remains_disclosed() -> None:
+    """R32, #367. p. 177 states three drawbacks: 0063 built the casting prohibition, 0064 the
+    Disadvantage once `D20Test.ability` reached every test site, and the Shield clause needs an
+    AC derived from what is worn — which nothing models."""
     situation = read(encounter(armoured()), "mage").situation
     assert situation is not None
-    assert UNTRAINED_ARMOUR_DISADVANTAGE in situation.unenforced_clauses
     assert UNTRAINED_SHIELD_STILL_GRANTS_AC in situation.unenforced_clauses
+    assert "untrained-armour-disadvantage-not-applied" not in situation.unenforced_clauses
 
     trained = read(encounter(armoured(armour_training=frozenset({PLATE.id}))), "mage").situation
     assert trained is not None
-    assert UNTRAINED_ARMOUR_DISADVANTAGE not in trained.unenforced_clauses
+    assert UNTRAINED_SHIELD_STILL_GRANTS_AC not in trained.unenforced_clauses

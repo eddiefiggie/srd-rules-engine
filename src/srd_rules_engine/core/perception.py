@@ -150,6 +150,9 @@ def perception_resolver(target_id: str, *, dc: int, basis: str) -> Resolver:
         return Proposal(
             test=D20Test(
                 kind=TestKind.CHECK,
+                # Wisdom, so p. 177's Strength-or-Dexterity clause does not reach it — which
+                # is a fact worth stating rather than leaving to an absent field.
+                ability="wis",
                 target=dc,
                 target_basis=basis,
                 modifiers=(Modifier(source="skill:perception", value=bonus),),

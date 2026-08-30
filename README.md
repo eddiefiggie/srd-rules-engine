@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08302026.17` — **training is a legality rule, and it is by item id.** [#247](https://github.com/eddiefiggie/srd-rules-engine/issues/247), another slice of [#19](https://github.com/eddiefiggie/srd-rules-engine/issues/19). The issue said the engine could not evaluate p. 104 because *"nothing models what a creature is wearing, and nothing models armour training"* — **the first half went stale** when 0039 built `Carriage.WORN`, and the second was still true. Training is now a set of **item ids**, which is 0040 clause 2's reasoning unchanged: p. 19 grants it by *category*, the categories live in pp. 93-97's tables, and those are content this repository does not ship (R31) — so the engine holds the resolved relation and a ruleset expands it ([0063](docs/decisions/0063-training-is-a-legality-rule.md)). **It is a legality rule, so a caster in untrained armour is offered nothing at all**: an engine that skipped it would be *confidently wrong* rather than incomplete, which is the distinction R18 exists for. **And the resolver refuses too** — 0062's rule applied in the change after it rather than three builds later, both call sites through one function. Worn only, so stowed plate and a worn robe both hamper nobody; and **every** untrained piece is named rather than the first, because a caster in two is refused for two reasons. p. 177 states **three** drawbacks and this builds one: the Disadvantage reaches attacks and checks as well as saves, and `D20Test.ability` is passed by the six save sites only, while the Shield clause needs an AC **derived from what is worn** — a subsystem nobody had filed, and the dependency a reader reaching for `is_armour` would have found the hard way ([#367](https://github.com/eddiefiggie/srd-rules-engine/issues/367)). **117 of 210**, and **19 clauses** — up from 17, which is 0061's figure working as described: a rise here is an honesty improvement, because both clauses were unbuilt *and unnamed* before this change. 278 clauses verified against the document. 7 corruptions, each red on its own test. A duplicate test name shadowed 0062’s resolver test and silently stopped it running — caught by ruff’s F811, not by anything failing. 1966 tests.
+**Current build:** `08302026.18` — **any D20 Test, not any saving throw.** [#367](https://github.com/eddiefiggie/srd-rules-engine/issues/367)'s Disadvantage half, disclosed one build ago and built now rather than left: p. 177 hampers *"**any D20 Test** that involves Strength or Dexterity"*, which reaches attacks and ability checks as much as saves. 0054 gave `D20Test` an `ability` and **six save sites** passed it; every site passes it now — the two attacks, p. 182's escape check (Athletics or Acrobatics, so which was declared decides what the rule reaches), p. 185's landing, and Perception, whose Wisdom is *stated* rather than left to an absent field ([0064](docs/decisions/0064-any-d20-test-not-any-saving-throw.md)). The transform is `_as_this_creature_rolls` now, not `_saves`: p. 187's Restrained and p. 181's Dodge stay **save-only** because both sentences say saving throws, while p. 177's does not — three rules in one place, each scoped to what its own sentence says. It **accumulates** rather than replaces, so p. 8 still cancels a Dodging creature's Advantage against its armour's Disadvantage. **The guard widened with it**: 0054's walk asked only saves to name their ability, and a site that omitted it now escapes a rule rather than three — `core.report` is excluded and named, because it reconstructs a test from a ledger entry rather than building one. 117 of 210, and **18 clauses** — down from 19, which is the figure moving the way 0061 said it should. 278 clauses verified against the document. 7 corruptions, each red on its own test; the seventh failed first and found an untested half of the cancellation. 1984 tests.
 
 ---
 
@@ -141,7 +141,7 @@ to see exactly which. Entries sit at independently-failable granularity, so each
 fifteen conditions counts separately — an engine that resolves Prone and nothing else
 reports 1/15 rather than reporting conditions done.
 
-**19 clauses are disclosed but unenforced**, and that is the instrument's second figure
+**18 clauses are disclosed but unenforced**, and that is the instrument's second figure
 ([0061](docs/decisions/0061-a-shape-resolves-and-a-clause-may-not.md)). A shape can resolve
 while a *sentence* of it reaches no roll: `frightened` was implemented for forty builds while
 "you can't willingly move closer to the source of fear" was enforced by nothing. Coverage
@@ -233,6 +233,7 @@ from the records themselves by `scripts/render_record_index.py` — a hand-writt
 - [0061 — A shape resolves, and a clause may not](docs/decisions/0061-a-shape-resolves-and-a-clause-may-not.md) — settles [#356](https://github.com/eddiefiggie/srd-rules-engine/issues/356)
 - [0062 — The menu is not a promise](docs/decisions/0062-the-menu-is-not-a-promise.md) — settles [#245](https://github.com/eddiefiggie/srd-rules-engine/issues/245)
 - [0063 — Training is a legality rule, and it is by item id](docs/decisions/0063-training-is-a-legality-rule.md) — settles [#247](https://github.com/eddiefiggie/srd-rules-engine/issues/247)
+- [0064 — Any D20 Test, not any saving throw](docs/decisions/0064-any-d20-test-not-any-saving-throw.md) — settles [#367](https://github.com/eddiefiggie/srd-rules-engine/issues/367)
 <!-- /record-index -->
 
 **Next up:** [#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250) — longer casting times, where the Magic action is taken each
@@ -288,4 +289,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-30 — build `08302026.17`._
+_Last updated: 2026-08-30 — build `08302026.18`._

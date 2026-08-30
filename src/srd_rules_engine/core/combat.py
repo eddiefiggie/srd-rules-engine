@@ -495,6 +495,10 @@ def attack_resolver() -> Resolver:
                 kind=TestKind.ATTACK,
                 target=target.armour_class,
                 target_basis=f"armour class {target.armour_class}, worn by {target.name}",
+                # p. 89 lets a Finesse wielder choose, and `weapon.ability` is what the
+                # attack actually used — which is what p. 177's untrained-armour clause keys
+                # on ("any D20 Test that involves Strength or Dexterity").
+                ability=weapon.ability,
                 critical_on_hit=_hit_is_automatically_critical(actor, target),
                 modifiers=tuple(modifiers),
                 # Heavy (p. 89). The disadvantage is a property of the weapon in these
@@ -853,6 +857,8 @@ def unarmed_strike_resolver() -> Resolver:
                 kind=TestKind.ATTACK,
                 target=target.armour_class,
                 target_basis=f"armour class {target.armour_class}, worn by {target.name}",
+                # p. 190's Unarmed Strike is Strength, always — there is no weapon to choose.
+                ability="str",
                 critical_on_hit=_hit_is_automatically_critical(actor, target),
                 modifiers=(
                     Modifier(source="ability:str", value=strength),

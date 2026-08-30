@@ -56,7 +56,6 @@ from srd_rules_engine.core.read_surface import (
     OBJECT_INTERACTION_CAP,
     PUSH_DISTANCES_IN_STEPS,
     RELEASE_ONLY_ON_YOUR_TURN,
-    UNTRAINED_ARMOUR_DISADVANTAGE,
     UNTRAINED_SHIELD_STILL_GRANTS_AC,
     UTILIZE_REACHES_FOUR_MOVES,
     VERBAL_UNCHECKED,
@@ -152,11 +151,11 @@ OTHER_DISCLOSURES: frozenset[str] = frozenset(
         # wielder who wants seven cannot say so (#351). Five is every push distance the
         # document names, and the ones in between are the ones not offered.
         PUSH_DISTANCES_IN_STEPS,
-        # p. 177 states three drawbacks for untrained armour and 0063 builds one — the
-        # casting prohibition, which p. 104 states too. The Disadvantage reaches attacks and
-        # checks as well as saves, and the Shield clause needs an AC derived from what is
-        # worn, which nothing models (#367).
-        UNTRAINED_ARMOUR_DISADVANTAGE,
+        # p. 177 states three drawbacks for untrained armour. 0063 built the casting
+        # prohibition and 0064 the Disadvantage, once `D20Test.ability` reached every test
+        # site. The Shield clause needs an AC derived from what is worn, which nothing
+        # models — so `untrained-armour-disadvantage-not-applied` is deliberately absent and
+        # this is what remains (#367).
         UNTRAINED_SHIELD_STILL_GRANTS_AC,
         # **`shove-cannot-push-only-knock-prone` is deliberately absent** (#345). It was
         # here for one build, while p. 190's Shove could knock a target Prone and not push it.
@@ -291,7 +290,6 @@ def test_the_walk_finds_every_site_and_not_merely_one() -> None:
         CARRYING_CAPACITY_SPEED_CAP,
         RELEASE_ONLY_ON_YOUR_TURN,
         PUSH_DISTANCES_IN_STEPS,
-        UNTRAINED_ARMOUR_DISADVANTAGE,
         UNTRAINED_SHIELD_STILL_GRANTS_AC,
     ):
         assert disclosure in found, f"{disclosure!r} is appended in the core and was not found"

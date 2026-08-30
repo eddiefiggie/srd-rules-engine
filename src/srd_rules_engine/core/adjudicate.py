@@ -54,7 +54,7 @@ from srd_rules_engine.core.d20 import resolve as roll_d20
 from srd_rules_engine.core.d20 import roll as dice
 from srd_rules_engine.core.damage import DamageOutcome, DamageType
 from srd_rules_engine.core.duration import Duration
-from srd_rules_engine.core.equipment import Carriage, items_in
+from srd_rules_engine.core.equipment import Carriage, items_in, untrained_armour
 from srd_rules_engine.core.ledger import COMPAT, Ledger
 from srd_rules_engine.core.memory_port import (
     DefaultKind,
@@ -1397,7 +1397,7 @@ class Adjudicator:
         # than in each resolver. Six resolvers build a save today and none of them consulted
         # the roller's conditions, which is the failure mode this engine names most often: a
         # rule that every call site has to remember is a rule some call site will not.
-        proposal = _as_this_creature_saves(state, declaration.actor_id, proposal)
+        proposal = _as_this_creature_rolls(state, declaration.actor_id, proposal)
         # pp. 186, 189, 191. The save fails and **is not rolled**, so the branch is selected
         # here rather than by `_branch` and no die is drawn at all. Kept out of the proposal
         # because an auto-failure with nothing in `on_failure` is a real case —
@@ -1646,7 +1646,11 @@ def _checked_seed(seed: int) -> int:
     return seed
 
 
-def _as_this_creature_saves(state: EncounterState, actor_id: str, proposal: Proposal) -> Proposal:
+#: p. 177 names these two and no others.
+_STRENGTH_AND_DEXTERITY: Final = frozenset({"str", "dex"})
+
+
+def _as_this_creature_rolls(state: EncounterState, actor_id: str, proposal: Proposal) -> Proposal:
     """The proposal as the creature actually rolls it, once its own state is consulted (#344).
 
     Three printed rules act on a saving throw because of what the roller is holding, and none
@@ -1679,26 +1683,37 @@ def _as_this_creature_saves(state: EncounterState, actor_id: str, proposal: Prop
     unchanged. The last is p. 17's Death Saving Throw, which has no ability and which none of
     these three rules reaches.
     """
-    actor = _saving_creature(state, actor_id, proposal)
     test = proposal.test
-    if actor is None or test is None:
+    if test is None or not state.has(actor_id):
         return proposal
+    actor = state.combatant(actor_id)
     # No `test.ability is None` guard, deliberately. Every rule below keys on the ability and
-    # answers "nothing" for a save that has none, so a guard here would be a second place for
+    # answers "nothing" for a test that has none, so a guard here would be a second place for
     # the same fact — and a corruption proof showed it was carrying no weight: removing it
     # left the assertion green, because `Conditions` was already refusing.
-    if actor.conditions.saves_fail_outright(test.ability):
+
+    saving = test.kind is TestKind.SAVE
+    if saving and actor.conditions.saves_fail_outright(test.ability):
         # Handled by the caller, which selects the failure branch without rolling. Returned
         # unchanged here so the advantage below is never computed for a save that will not
         # happen — an automatic failure is not a roll at Disadvantage.
         return proposal
 
-    from_conditions = actor.conditions.save_advantage(test.ability)
+    # The two save-only rules: p. 187's Restrained and p. 181's Dodge both say *saving throws*.
+    from_conditions = actor.conditions.save_advantage(test.ability) if saving else Advantage.NONE
     # p. 181's Dodge, through `is_dodging` rather than the raw flag: the benefit is lost to
     # Incapacitated or a Speed of 0, and `still_dodging` is what asks.
-    dodging = actor.is_dodging and test.ability == "dex"
+    dodging = saving and actor.is_dodging and test.ability == "dex"
+    # p. 177, and it is **not** save-only: "If you wear Light, Medium, or Heavy armor and lack
+    # training with it, you have Disadvantage on **any D20 Test** that involves Strength or
+    # Dexterity." Attacks and ability checks as much as saves, which is why `D20Test.ability`
+    # is now passed by every site that builds one rather than by the six that build saves
+    # (#367, 0064).
+    hampered = test.ability in _STRENGTH_AND_DEXTERITY and bool(
+        untrained_armour(actor.equipment, actor.armour_training)
+    )
     advantage = from_conditions is Advantage.ADVANTAGE or dodging
-    disadvantage = from_conditions is Advantage.DISADVANTAGE
+    disadvantage = from_conditions is Advantage.DISADVANTAGE or hampered
     if not advantage and not disadvantage:
         return proposal
     # Accumulated onto whatever the rule itself granted, never replacing it — p. 8 cancels

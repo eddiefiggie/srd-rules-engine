@@ -81,7 +81,7 @@ from srd_rules_engine.core.rules import (
     VerificationMethod,
     VerificationState,
 )
-from srd_rules_engine.core.skills import Skill
+from srd_rules_engine.core.skills import SKILL_ABILITY, Skill
 from srd_rules_engine.core.state import EncounterState
 
 # Re-exported: the two derivations below need `EncounterState` and are called from inside
@@ -215,6 +215,9 @@ def escape_resolver(skill: Skill) -> Resolver:
             ),
             test=D20Test(
                 kind=TestKind.CHECK,
+                # p. 182's two checks are a Strength one and a Dexterity one, so which was
+                # declared decides what p. 177's untrained-armour clause reaches.
+                ability=SKILL_ABILITY[skill],
                 target=grapple.escape_dc,
                 target_basis=f"the grapple's escape DC {grapple.escape_dc} (p. 182)",
                 modifiers=(

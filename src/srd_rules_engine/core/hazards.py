@@ -479,6 +479,7 @@ def landing_resolver() -> Resolver:
         return Proposal(
             test=D20Test(
                 kind=TestKind.CHECK,
+                ability="dex",
                 target=LANDING_DC,
                 target_basis=(
                     "DC 10 Dexterity (Acrobatics) to land a Long Jump in Difficult Terrain (p. 185)"
