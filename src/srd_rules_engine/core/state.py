@@ -89,6 +89,7 @@ from srd_rules_engine.core.sight import (
     obscurement_at,
 )
 from srd_rules_engine.core.size import (
+    HAULING_SPEED_CAP_FEET,
     CarryingCapacity,
     Size,
     carried_without_extra_cost,
@@ -676,6 +677,25 @@ class Combatant:
     concentration: Concentration = field(default_factory=Concentration)
     #: Only meaningful at 0 hit points. Reset rather than carried once healing lands.
     death_saves: DeathSaves = DeathSaves()
+    #: The weight this creature is dragging, lifting or pushing, in pounds (p. 178, #336).
+    #:
+    #: > While dragging, lifting, or pushing weight in excess of the maximum weight you can
+    #: > carry, your Speed can be no more than 5 feet.
+    #:
+    #: **`None` is how p. 12's discretion is exercised** (0067 clause 2). "The GM **might**
+    #: require you to abide by the rules for carrying capacity" — so the subsystem binds when
+    #: somebody says it does, and saying so *is* stating this weight. A creature nobody stated
+    #: one for is not hauling as far as this engine is concerned, and nothing caps its Speed.
+    #:
+    #: **Not derived from `equipment`, and it must not be.** p. 178 fires on dragging, lifting
+    #: or pushing — which is not the same fact as carrying too much, and a creature laden with
+    #: 400 lb of worn gear is not on that account dragging anything. Deriving one from the
+    #: other would apply a Speed cap the document does not state for that creature.
+    #:
+    #: **Which of the three verbs it is, is deliberately absent.** p. 178 states one rule for
+    #: all three and nothing in this engine branches on the distinction, so modelling it would
+    #: be the `kind` field 0019 refuses.
+    hauled_weight: float | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "abilities", MappingProxyType(dict(self.abilities)))
@@ -710,6 +730,25 @@ class Combatant:
                     f"{self.name} is holding things needing {committed} hands and has "
                     f"{self.hands}. A Two-Handed weapon requires two hands (p. 90), so a "
                     "creature that cannot spare them cannot be wielding it"
+                )
+
+        # p. 178: "The table also shows the **maximum** weight you can drag, lift, or push."
+        # A maximum, so a haul above it is not a slow haul — it is one the rules do not
+        # permit, and a caller stating it has stated an impossible fact (0067 clause 4).
+        #
+        # Refused only for a creature the ruleset sized, because an unsized one has no row to
+        # read and an unstated bound cannot be exceeded — the same direction `hands` takes
+        # three paragraphs above, and R31's.
+        if self.hauled_weight is not None:
+            if self.hauled_weight < 0:
+                raise ValueError(f"a hauled weight is a weight in pounds, not {self.hauled_weight}")
+            capacity = self.carrying_capacity
+            if capacity is not None and self.hauled_weight > capacity.drag_lift_push:
+                raise ValueError(
+                    f"{self.name} cannot drag, lift or push {self.hauled_weight} lb: p. 178 "
+                    f"makes {capacity.drag_lift_push} lb the maximum for a "
+                    f"{capacity.size.value} creature of Strength {capacity.strength_score}. "
+                    "Above the maximum is not a slower haul, it is one the rules do not allow"
                 )
 
         if self.concentration.active and (
@@ -789,6 +828,30 @@ class Combatant:
         return self.carried_weight > capacity.carry
 
     @property
+    def over_hauling_capacity(self) -> bool | None:
+        """Whether p. 178's Speed cap bites right now, or `None` if it cannot be told (#336).
+
+        > While dragging, lifting, or pushing weight in excess of the maximum weight you can
+        > carry, your Speed can be no more than 5 feet.
+
+        **The comparison is against the Carry column, and against the hauled weight alone.**
+        p. 178 says "weight in excess of the maximum weight you can carry" of the weight being
+        dragged, lifted or pushed — it does not add the creature's own gear to it, and an
+        implementation that summed the two would cap a Speed the sentence does not.
+
+        `None` twice over, and they mean different things a caller may want to tell apart:
+        a creature nobody stated a haul for is not hauling (`False` would be a verdict about a
+        question nobody asked), while an **unsized** creature hauling something has no row of
+        p. 178's table to read and the bound is genuinely unknown.
+        """
+        if self.hauled_weight is None:
+            return None
+        capacity = self.carrying_capacity
+        if capacity is None:
+            return None
+        return self.hauled_weight > capacity.carry
+
+    @property
     def weapons_held(self) -> tuple[Weapon, ...]:
         """Every weapon this creature has in hand (0040 clause 1).
 
@@ -830,9 +893,17 @@ class Combatant:
         # reduction reaching a Fly or Swim Speed would be a rule the sentence does not state.
         # Floored at zero, because a Speed is a distance and not a debt.
         taken = slow_feet_taken(self.speed_reductions)
-        if not taken:
-            return reduced
-        return replace(reduced, walk=max(0, reduced.walk - taken))
+        if taken:
+            reduced = replace(reduced, walk=max(0, reduced.walk - taken))
+        # p. 178's hauling cap, applied last because it is a **ceiling** rather than a
+        # reduction: "your Speed can be no more than 5 feet". A creature already slower than
+        # five feet is not sped up to it, which is what `min` says and a subtraction would not.
+        # The walking Speed only, for the same reason Slow reaches only that one — p. 188 makes
+        # "Speed" the walking one, and a cap reaching a Fly or Swim Speed would be a rule this
+        # sentence does not state.
+        if self.over_hauling_capacity:
+            reduced = replace(reduced, walk=min(reduced.walk, HAULING_SPEED_CAP_FEET))
+        return reduced
 
     @property
     def falls_if_flying(self) -> bool:

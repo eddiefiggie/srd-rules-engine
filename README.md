@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08302026.21` — **a move that brings someone with it.** p. 182's *Movable* clause ([#340](https://github.com/eddiefiggie/srd-rules-engine/issues/340), [0066](docs/decisions/0066-a-move-that-brings-someone-with-it.md)): *"The grappler can drag or carry you when it moves, but every foot of movement costs it 1 extra foot unless you are Tiny or two or more sizes smaller than it."* It had been disclosed and unenforced since the grapple shipped, because **movement moved the mover** — and a grappled creature has Speed 0, so the carrying could not be modelled as the passenger moving itself. `with_movement` now takes the passengers along. Three things the sentence does not say had to be decided first, and the interesting one is **where the passenger ends up**: it is translated by the grappler's own displacement, because that is the only answer preserving the distance between the two — and that distance is a number the engine already reads to decide whether the grapple has ended, so any other reading makes carrying a creature a way of ending the grapple that carries it. The extra foot **adds** to Difficult Terrain's rather than replacing it (Difficult Terrain prints its own non-cumulative clause and *Movable* prints none), and an **unstated size makes out neither exemption** — not the engine deciding a creature is large, but declining to find an exception nobody stated. Nothing is spent by the passenger and nothing is provoked, for [0055](docs/decisions/0055-a-creature-moved-by-something-other-than-itself.md)'s reason; a Frightened captive may be carried toward what it fears, because p. 182 refuses only a **willing** approach. **`Grappled` now discloses nothing**: all three of its clauses are built, and the disclosure came off in the change that built the last one. 117 of 210, 17 clauses — the second figure is the one that improves by going down. 281 clauses verified against the document. 2019 tests.
+**Current build:** `08302026.22` — **the cap needed an antecedent, and stating it is the permission.** p. 178's *"While dragging, lifting, or pushing weight in excess of the maximum weight you can carry, your Speed can be no more than 5 feet"* was computed against and never applied ([#336](https://github.com/eddiefiggie/srd-rules-engine/issues/336), [0067](docs/decisions/0067-p-178s-cap-needed-an-antecedent.md)), for two reasons that each sufficed: the clause fires on *dragging, lifting or pushing*, which is not the same fact as carrying too much, and p. 12 leaves the whole subsystem to a person — *"the GM **might** require you to abide by the rules for carrying capacity."* One field answers both. `Combatant.hauled_weight` is stated by the ruleset and never derived from the equipment list, and **stating it is how p. 12's discretion is exercised**: a haul nobody stated caps nothing, which is also the document's own starting position. The comparison is the *hauled* weight against the *Carry* column, strictly — three near-misses in one sentence, since the Drag column is printed one line away, the creature's own gear is the other weight in scope, and the maximum is not in excess of itself. A haul above the Drag maximum is refused outright rather than merely slowed. **A defect this did not cause came out with it**: `Situation.speed` had re-derived a partial `effective_speeds` since before p. 90's Slow existed, so a Slowed creature was published a Speed of 30 beside 20 feet of movement — the surface's own two numbers disagreeing about one creature, in the direction that overstates what it may do. It is [#365](https://github.com/eddiefiggie/srd-rules-engine/issues/365)'s pattern in mirror image, and worse than its usual shape: a stale copy reads as an answer. 117 of 210, 16 clauses. 282 clauses verified against the document. 2036 tests.
 
 ---
 
@@ -141,7 +141,7 @@ to see exactly which. Entries sit at independently-failable granularity, so each
 fifteen conditions counts separately — an engine that resolves Prone and nothing else
 reports 1/15 rather than reporting conditions done.
 
-**17 clauses are disclosed but unenforced**, and that is the instrument's second figure
+**16 clauses are disclosed but unenforced**, and that is the instrument's second figure
 ([0061](docs/decisions/0061-a-shape-resolves-and-a-clause-may-not.md)). A shape can resolve
 while a *sentence* of it reaches no roll: `frightened` was implemented for forty builds while
 "you can't willingly move closer to the source of fear" was enforced by nothing. Coverage
@@ -236,6 +236,7 @@ from the records themselves by `scripts/render_record_index.py` — a hand-writt
 - [0064 — Any D20 Test, not any saving throw](docs/decisions/0064-any-d20-test-not-any-saving-throw.md) — settles [#367](https://github.com/eddiefiggie/srd-rules-engine/issues/367)
 - [0065 — A long cast spends its slot on completion](docs/decisions/0065-a-long-cast-spends-its-slot-on-completion.md) — settles [#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250)
 - [0066 — A move that brings someone with it](docs/decisions/0066-a-move-that-brings-someone-with-it.md) — settles [#340](https://github.com/eddiefiggie/srd-rules-engine/issues/340)
+- [0067 — p. 178's cap needed an antecedent, and stating it is the permission](docs/decisions/0067-p-178s-cap-needed-an-antecedent.md) — settles [#336](https://github.com/eddiefiggie/srd-rules-engine/issues/336)
 <!-- /record-index -->
 
 **Next up:** [#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250) — longer casting times, where the Magic action is taken each
@@ -291,4 +292,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-30 — build `08302026.21`._
+_Last updated: 2026-08-30 — build `08302026.22`._

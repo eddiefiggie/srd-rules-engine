@@ -1610,6 +1610,12 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         178,
+        "and the OTHER maximum in the same table, one line away - a haul above it is refused "
+        "outright rather than merely slowed (0067 clause 4)",
+        r"The table also shows the maximum weight you can drag, lift, or push",
+    ),
+    (
+        178,
         "p. 178's table, both columns and all six rows - and Small/Medium printed as ONE row, "
         "which is what makes counting as one size larger worthless to a Small creature",
         r"Creature Size Carry Drag/Lift/Push Tiny Str\. . 7\.5 lb\. Str\. . 15 lb\. "

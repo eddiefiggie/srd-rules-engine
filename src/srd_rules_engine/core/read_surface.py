@@ -122,17 +122,6 @@ UTILIZE_REACHES_FOUR_MOVES: Final = "utilize-reaches-only-the-engines-object-mov
 #: the rule that went unchecked is named rather than inferred from a silent pass.
 VERBAL_UNCHECKED: Final = "verbal-component-gagged-or-silenced-unchecked"
 
-#: p. 178: "While dragging, lifting, or pushing weight in excess of the maximum weight you can
-#: carry, your Speed can be no more than 5 feet." The engine computes the bound and does not
-#: apply the cap, for two reasons that each suffice. The clause turns on whether the creature
-#: is *dragging, lifting, or pushing* — a narrative fact nothing here holds, and not the same
-#: fact as carrying too much. And p. 12 leaves the subsystem to a person: "the GM **might**
-#: require you to abide by the rules for carrying capacity."
-#:
-#: Disclosed only when the weight is actually over the bound, which is the moment the rule
-#: would have bitten — the same timing `SIGHT_QUALIFIER` uses.
-CARRYING_CAPACITY_SPEED_CAP: Final = "carrying-capacity-speed-cap-is-not-applied"
-
 #: p. 182: "the grappler can release the target **at any time** (no action required)."
 #:
 #: This engine offers the release on the grappler's turn and not on anyone else's. The read
@@ -779,10 +768,19 @@ class Situation:
     #: **carrying** size, which p. 86 and p. 357 move one row up for the creatures that have
     #: the trait — `derivation()` says which row was used, because the result alone cannot.
     carrying_capacity: CarryingCapacity | None
-    #: Whether `carried_weight` exceeds the Carry column, or `None` when unsized. The verdict
-    #: is arithmetic and the **consequence is not applied** — `CARRYING_CAPACITY_SPEED_CAP`
-    #: appears in `unenforced_clauses` whenever this is `True`.
+    #: Whether `carried_weight` exceeds the Carry column, or `None` when unsized.
+    #:
+    #: Arithmetic and nothing more: p. 178 attaches no consequence to a creature's own gear
+    #: weighing more than it can carry. The sentence that *does* have a consequence is about
+    #: hauling, and it is `over_hauling_capacity` below — the two were conflated while the cap
+    #: was disclosed rather than applied, and they are not the same fact (#336, 0067).
     over_carrying_capacity: bool | None
+    #: Whether p. 178's Speed cap is biting: this creature is dragging, lifting or pushing
+    #: more than it can carry, so `movement_remaining` above is already capped at 5 feet.
+    #:
+    #: `None` when no haul was stated — which is p. 12's discretion, exercised by silence —
+    #: or when the creature is unsized and the bound cannot be read.
+    over_hauling_capacity: bool | None
     #: Elapsed campaign time in minutes (decision 0020). Ordinal `round_number` is not
     #: reported here and does not convert into it — p. 13 says a round represents *about*
     #: 6 seconds, which is the document declining an exact conversion.
@@ -905,10 +903,15 @@ def legal_actions(state: EncounterState, actor_id: str) -> tuple[LegalAction, ..
     actions.extend(_interactions(state, actor))
 
     if has_action:
-        speed = actor.conditions.speed_after(actor.speeds.walk)
         # p. 180's choice of speed, enumerated rather than assumed — one entry per speed the
         # creature has, so the choice is the creature's and the number is the engine's.
-        speeds = actor.conditions.speeds_after(actor.speeds)
+        #
+        # `effective_speeds` rather than `conditions.speeds_after`, which is the same rule read
+        # through a narrower window: p. 90's Slow reduction and p. 178's hauling cap both live
+        # on the creature rather than on a condition, and Dash grants "extra movement equal to
+        # your Speed" — the Speed it has now (#336, 0067).
+        speeds = actor.effective_speeds
+        speed = speeds.walk
         actions.extend(
             LegalAction(
                 key=dash_key(mode),
@@ -1742,7 +1745,12 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
     """
     actor = state.combatant(actor_id)
     conditions = actor.conditions
-    speed = conditions.speed_after(actor.speeds.walk)
+    # **One rule, read from one place.** This said `conditions.speed_after(actor.speeds.walk)`
+    # until #336, which applies conditions and neither p. 90's Slow nor p. 178's hauling cap —
+    # so a Slowed creature was published a Speed of 30 beside a `movement_remaining` of 20,
+    # since that field already read `effective_speeds`. The surface's own two numbers disagreed
+    # about one creature (0067).
+    speed = actor.effective_speeds.walk
 
     unenforced = list(conditions.unenforced_clauses())
     unenforced.extend(c for c in actor.actions.unenforced_clauses() if c not in unenforced)
@@ -1770,8 +1778,6 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
     # visible in the menu and the disclosure has done its work.
     if actor.id not in state.object_interactions_this_turn:
         unenforced.append(OBJECT_INTERACTION_CAP)
-    if actor.over_carrying_capacity:
-        unenforced.append(CARRYING_CAPACITY_SPEED_CAP)
     if any(held.conditions.grappler_id == actor.id for held in state.combatants):
         unenforced.append(RELEASE_ONLY_ON_YOUR_TURN)
     # Disclosed only to a creature actually wearing untrained armour, which is the only one
@@ -1825,6 +1831,7 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
         size=actor.size,
         carrying_capacity=actor.carrying_capacity,
         over_carrying_capacity=actor.over_carrying_capacity,
+        over_hauling_capacity=actor.over_hauling_capacity,
         elapsed_minutes=state.clock.elapsed_minutes,
         minutes_until_recovery=(
             max(0, actor.death_saves.recovers_at_minute - state.clock.elapsed_minutes)

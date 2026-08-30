@@ -17,7 +17,6 @@ import pytest
 
 from srd_rules_engine.core import Combatant, EncounterState, read
 from srd_rules_engine.core.equipment import Carriage, Carried, Item
-from srd_rules_engine.core.read_surface import CARRYING_CAPACITY_SPEED_CAP
 from srd_rules_engine.core.size import (
     CARRY_MULTIPLIER,
     DRAG_LIFT_PUSH_MULTIPLIER,
@@ -246,14 +245,11 @@ def test_the_surface_reports_an_unknown_size_as_unknown() -> None:
     assert situation.carrying_capacity is None
 
 
-def test_the_unapplied_speed_cap_is_disclosed_only_when_it_would_bite() -> None:
-    """R32, and the timing `SIGHT_QUALIFIER` uses. p. 178's "your Speed can be no more than 5
-    feet" is not applied (#336), so a creature over its bound is told the rule went
-    unenforced rather than left to infer it from a Speed that did not change."""
-    under = read(encounter(replace(creature(), size=Size.MEDIUM)), "pc").situation
-    assert under is not None
-    assert CARRYING_CAPACITY_SPEED_CAP not in under.unenforced_clauses
-
+def test_carrying_too_much_gear_is_arithmetic_and_caps_nothing() -> None:
+    """p. 178 attaches **no consequence** to a creature's own gear outweighing its Carry
+    column. The consequence belongs to the hauling sentence, and until #336 the two were
+    conflated behind a disclosure — so a creature laden with 300 lb reports the fact and keeps
+    every foot of its Speed."""
     over = replace(
         creature(),
         size=Size.MEDIUM,
@@ -261,14 +257,6 @@ def test_the_unapplied_speed_cap_is_disclosed_only_when_it_would_bite() -> None:
     )
     situation = read(encounter(over), "pc").situation
     assert situation is not None
-    assert CARRYING_CAPACITY_SPEED_CAP in situation.unenforced_clauses
-    assert situation.speed == over.effective_speeds.walk, "disclosed, and genuinely not applied"
-
-
-def test_an_unsized_creature_discloses_nothing_about_a_cap_it_cannot_reach() -> None:
-    """The disclosure names a rule that went unenforced. A creature whose bound is unknown has
-    no unenforced cap — it has no cap — and saying otherwise would report a gap that is not
-    this one."""
-    situation = read(encounter(creature()), "pc").situation
-    assert situation is not None
-    assert CARRYING_CAPACITY_SPEED_CAP not in situation.unenforced_clauses
+    assert situation.over_carrying_capacity is True
+    assert situation.over_hauling_capacity is None, "nobody said it was dragging anything"
+    assert situation.speed == over.speeds.walk, "and nothing capped it"
