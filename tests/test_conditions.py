@@ -289,7 +289,10 @@ def test_unenforced_clauses_are_named_rather_than_left_to_discovery() -> None:
     this list is meant to have: entries leave when the behaviour changes, one at a time.
     """
     assert "cannot-attack-or-target-the-charmer" in held(Condition.CHARMED).unenforced_clauses()
-    assert "cannot-willingly-approach-the-source" in held(Condition.FRIGHTENED).unenforced_clauses()
+    # Frightened discloses nothing at all now: `line-of-sight-qualifier` left in #192 and
+    # `cannot-willingly-approach-the-source` in #350, so the condition is fully enforced and
+    # this is the second entry rather than a third (0056).
+    assert held(Condition.FRIGHTENED).unenforced_clauses() == ()
 
 
 def test_frightened_keeps_its_penalty_when_the_source_cannot_be_placed() -> None:
@@ -314,15 +317,16 @@ def test_frightened_loses_its_penalty_when_the_source_is_out_of_sight() -> None:
     assert frightened.own_attack_rolls(fear_in_sight=False) is Advantage.NONE
 
 
-def test_the_qualifier_has_left_the_unenforced_list() -> None:
+def test_both_frightened_clauses_have_left_the_unenforced_list() -> None:
     """0030 clause 5: a clause leaves this list when it is **enforced**, not when it becomes
-    answerable. It became answerable in 0029 and stayed; #192 enforced it, so it goes."""
-    frightened = held(Condition.FRIGHTENED)
-    assert "line-of-sight-qualifier" not in frightened.unenforced_clauses()
-    assert "cannot-willingly-approach-the-source" in frightened.unenforced_clauses(), (
-        "the other Frightened clause is untouched — nothing stops a frightened creature "
-        "walking towards what it fears"
-    )
+    answerable. `line-of-sight-qualifier` became answerable in 0029 and stayed until #192
+    enforced it; `cannot-willingly-approach-the-source` followed in #350, when `with_movement`
+    began refusing a move that closes on a source of fear.
+
+    So Frightened discloses nothing, and this asserts the whole list rather than two absences —
+    a third clause appearing would otherwise pass unnoticed.
+    """
+    assert held(Condition.FRIGHTENED).unenforced_clauses() == ()
 
 
 def test_the_module_discloses_what_it_does_not_enforce() -> None:

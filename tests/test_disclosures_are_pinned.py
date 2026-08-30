@@ -68,9 +68,12 @@ CONDITION_DISCLOSURES: dict[Condition, tuple[str, ...]] = {
     # Advantage on social checks — the second needs the Influence action (#143), the first
     # needs a target the engine can compare against the source.
     Condition.CHARMED: ("cannot-attack-or-target-the-charmer", "charmer-social-advantage"),
-    # p. 182: cannot willingly move closer to the source. Movement has no notion of a
-    # direction relative to a creature.
-    Condition.FRIGHTENED: ("cannot-willingly-approach-the-source",),
+    # **`cannot-willingly-approach-the-source` is deliberately absent** (#350). It said
+    # "movement has no notion of a direction relative to a creature", and that was the wrong
+    # diagnosis twice over: "closer" is a comparison of two distances and needs no direction
+    # at all, and what was actually missing was a refusal. `with_movement` makes one now, and
+    # `test_the_retired_fear_disclosure_is_enforced_now` asserts the removal and the rule
+    # together (0056).
     # p. 182's *Movable*: the grappler can drag or carry you, at 1 extra foot per foot unless
     # you are Tiny or two or more sizes smaller than it. Nothing lets one creature's movement
     # carry another, and the exemption is a size comparison against the grappler (#340).
