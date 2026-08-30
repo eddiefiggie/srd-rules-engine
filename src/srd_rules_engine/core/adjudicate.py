@@ -40,7 +40,7 @@ from typing import Final, Protocol
 from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.canonical import MAX_SAFE_INTEGER
 from srd_rules_engine.core.conditions import EFFECTS as CONDITION_EFFECTS
-from srd_rules_engine.core.conditions import Condition
+from srd_rules_engine.core.conditions import Condition, Grapple
 from srd_rules_engine.core.d20 import (
     DAMAGE_OFFSET,
     DIE_SIDES,
@@ -425,6 +425,12 @@ class Effect:
     #: Named `grappler` in the ledger until `RULING_VERSION` 6, when Grappled stopped being
     #: the only condition that needed one.
     source_id: str | None = None
+    #: The terms of a grapple this effect imposes (p. 182, p. 190, 0053). Only ever set
+    #: beside `condition=Condition.GRAPPLED`: p. 190 fixes the escape DC at the moment the
+    #: grapple is made — "The DC for the saving throw **and any escape attempts**" is one
+    #: number — so it travels with the application rather than being recomputed later, which
+    #: is 0052 clause 4 read from the other end.
+    grapple: Grapple | None = None
     #: `ACTION_SPENT` only: which of the three the act cost (p. 176-177).
     action: ActionKind | None = None
     #: `ACTION_SPENT` only, and only for an attack: which weapon the action was spent
@@ -541,6 +547,7 @@ def condition_applied(
     description: str,
     duration: Duration | None = None,
     source_id: str | None = None,
+    grapple: Grapple | None = None,
     when: When | None = None,
 ) -> Effect:
     """A condition imposed by the ruling that caused it (#119).
@@ -561,6 +568,7 @@ def condition_applied(
         condition=condition,
         duration=duration,
         source_id=source_id,
+        grapple=grapple,
         when=when,
     )
 
@@ -1734,6 +1742,7 @@ def _apply(
                 effect.condition,
                 duration=effect.duration,
                 source_id=effect.source_id,
+                grapple=effect.grapple,
             )
             # p. 191: "you drop whatever you're holding". Derived by the engine rather than
             # left to the resolver that applied the condition, for the reason implication is

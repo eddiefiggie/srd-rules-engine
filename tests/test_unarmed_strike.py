@@ -249,14 +249,29 @@ def test_grapple_and_shove_are_disclosed_rather_than_approximated(tmp_path: Path
     assert any("grappled or shoved" in claim for claim in ruling.bounds.may_not)
 
 
-def test_the_grapple_and_shove_dependency_is_named_in_the_module() -> None:
-    """A prose disclosure, guarded — this repository has watched three of them decay.
+def test_the_grapple_and_shove_disclosure_is_retired_because_they_are_built() -> None:
+    """This asserted that `core.combat` still named the issue Grapple and Shove waited on —
+    #259 first, then #335 when 0051 moved the blocker. 0053 built them, so there is nothing
+    left to wait for and the pointer should be gone with it.
 
-    It pointed at #259 while a `Size` was what Grapple and Shove waited on. 0051 built one,
-    so the wait moved to the effects themselves and the pointer moved with it. A guard left
-    naming a closed issue is the decay it exists to catch.
+    Retired **against the build** rather than deleted, which is the pairing AGENTS.md asks
+    for: it now asserts the two options are genuinely offered, so a regression that removed
+    them fails here instead of leaving a test that quietly checks nothing.
     """
+    from dataclasses import replace as _replace
+
+    from srd_rules_engine.core import Size
+    from srd_rules_engine.core.read_surface import grapple_key, shove_prone_key
+
+    state = encounter(
+        _replace(brawler(), size=Size.MEDIUM, hands=2),
+        _replace(boar(), size=Size.MEDIUM),
+    )
+    offered = {action.key for action in read(state, "pc").actions}
+    assert grapple_key("boar") in offered
+    assert shove_prone_key("boar") in offered
+
     module = (
         Path(__file__).resolve().parents[1] / "src" / "srd_rules_engine" / "core" / "combat.py"
     ).read_text()
-    assert "#335" in module, "the issue Grapple and Shove now wait on is no longer named"
+    assert "#335" not in module, "the wait is over; the pointer should have gone with it"

@@ -109,7 +109,51 @@ class BlockedFactRequest:
     unresolved: tuple[str, ...]
 
 
-Request = DeclarationRequest | NarrationRequest | BlockedFactRequest
+@dataclass(frozen=True)
+class SaveOption:
+    """One ability a compelled save may be rolled with, and what rolling it would look like.
+
+    The modifier travels because a choice presented without it is not a choice an agent can
+    make — the same reason the escape check's two offers carry their bonuses (0052 clause 5).
+
+    **It is the modifier the engine would actually use, and today that is the bare ability
+    modifier.** A creature's conditions do not reach its saving throws at all
+    ([#344](https://github.com/eddiefiggie/srd-rules-engine/issues/344)): Restrained's
+    Disadvantage on Dexterity saves and the four conditions that make Strength and Dexterity
+    saves fail outright are modelled in `ConditionEffects` and consumed by no roll. So this
+    number is honest about what the engine will do and is *not* yet the whole of what p. 187
+    says. When #344 lands, this is where the difference has to show.
+    """
+
+    ability: str
+    modifier: int
+
+
+@dataclass(frozen=True)
+class SaveAbilityRequest:
+    """0053. A rule gave the **target** the choice of which ability to save with.
+
+    Yielded only for the two saves in SRD 5.2 that say so — p. 190's Grapple and Shove, which
+    are the same sentence twice. Every other compelled save names its ability, and the loop
+    rolls it without asking anyone, exactly as before.
+
+    The request goes to whoever controls the target, which in solo play is the agent either
+    way: the player when the target is the player character, the GM's voice when it is a
+    monster. That is the same person a table would ask.
+    """
+
+    state: EncounterState
+    #: The creature that must choose. **Not the actor whose turn it is** — a compelled save is
+    #: owed by whoever the trigger named, and a Grapple is resolved on the attacker's turn.
+    actor_id: str
+    rule_id: str
+    label: str
+    dc: int
+    dc_basis: str
+    options: tuple[SaveOption, ...]
+
+
+Request = DeclarationRequest | NarrationRequest | BlockedFactRequest | SaveAbilityRequest
 
 
 @dataclass(frozen=True)
@@ -129,7 +173,20 @@ class FactsSupplied:
     facts: tuple[Fact, ...] = ()
 
 
-Response = Declared | Narrated | FactsSupplied
+@dataclass(frozen=True)
+class SaveAbilityChosen:
+    """`ability=None` is an explicit refusal to choose, and it is not a default.
+
+    The save then goes **unresolved** — recorded as an unresolvable obligation, the way a
+    rejected one is. There is no fallback ability, because any fallback is the engine
+    choosing, which is the whole of what 0053 refuses. A grapple whose save nobody answered
+    neither lands nor misses, and the ledger says so.
+    """
+
+    ability: str | None
+
+
+Response = Declared | Narrated | FactsSupplied | SaveAbilityChosen
 
 
 # --- What a turn produced -----------------------------------------------------------
@@ -643,6 +700,50 @@ class TurnLoop:
             if debt.rule_id == CONCENTRATION_RULE_ID and not target.concentration.active:
                 state = state.with_forced_save_discharged(debt.combatant_id)
                 continue
+
+            # 0053. Two saves in the document let the **target** choose which ability it
+            # rolls, and this is where it is asked. Every other debt arrives settled and
+            # falls straight through — `ability_choices` is empty for p. 179's Concentration
+            # and p. 90's Topple, so neither notices this branch exists.
+            #
+            # Asked here rather than when the trigger fired, because a choice made at the
+            # trigger would be made against the state before the ruling landed: p. 190's
+            # Grapple compels the save inside the attacker's own ruling, and the conditions
+            # the target is holding when it chooses are the ones that matter.
+            if not debt.is_settled:
+                response = yield SaveAbilityRequest(
+                    state=state,
+                    actor_id=debt.combatant_id,
+                    rule_id=debt.rule_id,
+                    label=debt.label,
+                    dc=debt.dc,
+                    dc_basis=debt.dc_basis,
+                    options=tuple(
+                        SaveOption(ability=ability, modifier=target.modifier(ability))
+                        for ability in debt.ability_choices
+                    ),
+                )
+                if not isinstance(response, SaveAbilityChosen):
+                    raise TypeError(
+                        f"a SaveAbilityRequest is answered with SaveAbilityChosen, not "
+                        f"{type(response).__name__}"
+                    )
+                if response.ability is None:
+                    # Refused. The save is not rolled and no ability is substituted, because
+                    # a substitute is the engine choosing — see `SaveAbilityChosen`.
+                    unresolvable.append(
+                        Obligation(
+                            actor_id=debt.combatant_id,
+                            rule_id=debt.rule_id,
+                            label=debt.label,
+                        )
+                    )
+                    state = state.with_forced_save_discharged(debt.combatant_id)
+                    continue
+                state = state.with_forced_save_choice(debt.combatant_id, response.ability)
+                settled = state.forced_save_for(debt.combatant_id)
+                assert settled is not None and settled.is_settled  # just settled, above
+                debt = settled
 
             # The label was written where the trigger fired (0048): the loop sees a debt, and
             # only the rule that recorded it knows what happened.

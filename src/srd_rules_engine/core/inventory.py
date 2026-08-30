@@ -210,6 +210,17 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # `unarmed-strike`: p. 190's three options are a separate entry and remain unbuilt,
         # and a flag over both would be 0046's defect again.
         "grappling": "core.grappling.escape_resolver",
+        # p. 190, #335, 0053. All three options of the Unarmed Strike: Damage in `core.combat`
+        # since the strike shipped, and Grapple and Shove here. Each is offered under its own
+        # key, because p. 190 says "choose one of the following options for its effect".
+        #
+        # **Claimed with a disclosure rather than in spite of one.** p. 190 lets a Shove push
+        # the target 5 feet away *or* knock it Prone, and only the Prone half is built — the
+        # push is forced movement relative to another creature (#345). That is named at the
+        # read surface as `shove-cannot-push-only-knock-prone`, which is the same arrangement
+        # `carrying-capacity` ships under: the shape resolves, and the clause it does not
+        # enforce is disclosed rather than left for a reader to find.
+        "unarmed-strike": "core.unarmed_strike.unarmed_option_resolvers",
         "mastery-graze": "core.combat.Weapon.graze",
         # p. 90, #320. p. 89's extra attack, re-routed into the Attack action: offered under
         # its own key, costing nothing, and capped with the Bonus Action route at the one

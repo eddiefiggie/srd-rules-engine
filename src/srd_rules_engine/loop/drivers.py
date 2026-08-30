@@ -30,6 +30,8 @@ from srd_rules_engine.loop.turn import (
     NarrationRequest,
     Request,
     Response,
+    SaveAbilityChosen,
+    SaveAbilityRequest,
     TurnEnd,
     TurnOutcome,
     TurnStart,
@@ -75,20 +77,28 @@ class ScriptedDriver:
     declarations: Sequence[Declaration] = ()
     narrations: Sequence[str | None] = ()
     facts: Sequence[Sequence[Fact]] = ()
+    #: 0053. Which ability to save with, in the order the choices are asked for. A script that
+    #: runs out raises like any other, because a save whose choice nobody scripted is a save
+    #: the test did not mean to reach — silently substituting one would be the driver choosing.
+    save_abilities: Sequence[str | None] = ()
     _declarations: Iterator[Declaration] = field(init=False)
     _narrations: Iterator[str | None] = field(init=False)
     _facts: Iterator[Sequence[Fact]] = field(init=False)
+    _save_abilities: Iterator[str | None] = field(init=False)
 
     def __post_init__(self) -> None:
         self._declarations = iter(self.declarations)
         self._narrations = iter(self.narrations)
         self._facts = iter(self.facts)
+        self._save_abilities = iter(self.save_abilities)
 
     def __call__(self, request: Request) -> Response:
         if isinstance(request, DeclarationRequest):
             return Declared(_next(self._declarations, "declaration"))
         if isinstance(request, NarrationRequest):
             return Narrated(_next(self._narrations, "narration"))
+        if isinstance(request, SaveAbilityRequest):
+            return SaveAbilityChosen(_next(self._save_abilities, "save ability"))
         return FactsSupplied(tuple(_next(self._facts, "facts", default=())))
 
 
@@ -114,6 +124,18 @@ class HumanCliDriver:
             self.show("You may not claim: " + "; ".join(request.ruling.bounds.may_not))
             text = self.ask("Narrate within those bounds (blank to decline): ").strip()
             return Narrated(text or None)
+        if isinstance(request, SaveAbilityRequest):
+            # 0053. The person controlling the target picks, and a blank answer is a refusal
+            # rather than a default — there is no ability to fall back to that would not be
+            # the engine choosing.
+            self.show(f"{request.actor_id} must save: {request.label} (DC {request.dc})")
+            self.show(f"  {request.dc_basis}")
+            offered = ", ".join(
+                f"{option.ability} ({option.modifier:+d})" for option in request.options
+            )
+            self.show(f"  It chooses which: {offered}")
+            chosen = self.ask("Save with which ability (blank to decline)? ").strip()
+            return SaveAbilityChosen(chosen or None)
         self.show(f"Blocked on: {', '.join(request.unresolved)}")
         return FactsSupplied(tuple(self.facts_for(request)))
 

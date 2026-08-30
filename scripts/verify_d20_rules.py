@@ -1669,6 +1669,60 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "grapple rather than recomputed from the grappler",
         r"the rug can give it the Grappled condition \(escape DC 13\)",
     ),
+    # --- 0053: the target chooses, and the engine rolls ----------------------------------
+    (
+        190,
+        "the Unarmed Strike offers THREE options and the attacker picks one - which is why "
+        "each is its own action key rather than a parameter",
+        r"Whenever you use your Unarmed Strike, choose one of the following options for its "
+        r"effect",
+    ),
+    (
+        190,
+        "Grapple: the TARGET chooses which of two abilities it saves with, and the failure "
+        "applies the condition",
+        r"Grapple\. The target must succeed on a Strength or Dexterity saving throw \(it "
+        r"chooses which\), or it has the Grappled condition",
+    ),
+    (
+        190,
+        "and one DC serves the save AND every later escape attempt, which is why it is stored "
+        "on the grapple rather than recomputed (0052 clause 4)",
+        r"The DC for the saving throw and any escape attempts equals 8 plus your Strength "
+        r"modifier and Proficiency Bonus",
+    ),
+    (
+        190,
+        "Grapple's two qualifiers, and the free hand is asked for HERE and not in Shove",
+        r"This grapple is possible only if the target is no more than one size larger than you "
+        r"and if you have a hand free to grab it",
+    ),
+    (
+        190,
+        "Shove: the same choice of save, and TWO effects the attacker picks between - only the "
+        "Prone one is built (#345)",
+        r"Shove\. The target must succeed on a Strength or Dexterity saving throw \(it chooses "
+        r"which\), or you either push it 5 feet away or cause it to have the Prone condition",
+    ),
+    (
+        190,
+        "and Shove's qualifier is the size test ALONE - no free hand, which is the document's "
+        "own distinction rather than an omission",
+        r"This shove is possible only if the target is no more than one size larger than you",
+    ),
+    (
+        190,
+        "the distance p. 190 states is the STRIKE's, not the grapple's - which is why a "
+        "grapple made here carries no range (#346)",
+        r"a melee attack that involves you using your body to damage, grapple, or shove a "
+        r"target within 5 feet of you",
+    ),
+    (
+        187,
+        "Restrained gives Disadvantage on DEXTERITY saves only, which is why the better "
+        "modifier is not the better save and the engine may not choose (#344)",
+        r"Saving Throws Affected\. You have Disadvantage on Dexterity saving throws",
+    ),
 )
 
 #: Clauses about the document as a whole rather than about one page, as

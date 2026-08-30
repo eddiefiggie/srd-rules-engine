@@ -67,6 +67,8 @@ from srd_rules_engine.loop.turn import (
     NarrationRequest,
     Request,
     Response,
+    SaveAbilityChosen,
+    SaveAbilityRequest,
     TurnLoop,
     TurnOutcome,
 )
@@ -262,6 +264,9 @@ class SliceDriver:
     #: Injected declarations, consumed before the policy is consulted. This is how a defect
     #: gets into the run: deliberately, from the outside, and named at the call site.
     scripted: Sequence[Callable[[DeclarationRequest], Declaration]] = ()
+    #: 0053. Which ability this driver picks when a save offers the target a choice, or
+    #: `None` to take the first the rule offered. A test that turns on the choice sets it.
+    save_ability: str | None = None
     seen: list[Ruling] = field(default_factory=list)
     narrations: list[str] = field(default_factory=list)
     _used: int = 0
@@ -276,6 +281,8 @@ class SliceDriver:
             text = _narration_for(request.ruling)
             self.narrations.append(text)
             return Narrated(text)
+        if isinstance(request, SaveAbilityRequest):
+            return self._choose(request)
         return self._supply(request)
 
     def _declare(self, request: DeclarationRequest) -> Declaration:
@@ -284,6 +291,18 @@ class SliceDriver:
             self._used += 1
             return scripted(request)
         return policy_declaration(request)
+
+    def _choose(self, request: SaveAbilityRequest) -> SaveAbilityChosen:
+        """0053. The fixture's policy is **the first ability the rule offered**, in the
+        document's own order.
+
+        Deliberately not the best one: a fixture that optimised would make every test read as
+        though the engine had chosen, which is the behaviour 0053 exists to prevent. A test
+        that cares which ability was picked says so by scripting it.
+        """
+        if self.save_ability is not None:
+            return SaveAbilityChosen(self.save_ability)
+        return SaveAbilityChosen(request.options[0].ability if request.options else None)
 
     def _supply(self, request: BlockedFactRequest) -> FactsSupplied:
         wanted = set(request.unresolved)
