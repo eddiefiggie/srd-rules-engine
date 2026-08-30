@@ -3067,7 +3067,33 @@ class EncounterState:
         return None
 
     def with_initiative(self, rolls: Mapping[str, int]) -> EncounterState:
-        """Order the combatants and begin round 1. Ties break by the order given."""
+        """Order the combatants and begin round 1 (p. 13, #385).
+
+        > The GM ranks the combatants, from highest to lowest Initiative. This is the order
+        > in which they act during each round. The Initiative order remains the same from
+        > round to round.
+
+        Sorted once and never re-sorted, which is that last sentence.
+
+        ## Ties are a person's to break, and this engine has no person
+
+        > **Ties.** If a tie occurs, the GM decides the order among tied monsters, and the
+        > players decide the order among tied characters. The GM decides the order if the tie
+        > is between a monster and a player character.
+
+        The document does not leave ties open — it **assigns** them, to a person, in three
+        clauses. So there is no rule here for the engine to implement, and inventing one
+        would be inventing a decision the document gave away (R31).
+
+        **Insertion order is therefore a convention, declared rather than presented as SRD.**
+        The same construction `Lighting` uses for overlapping volumes and for the same reason:
+        the engine needs a total order to be reproducible, the document supplies none it may
+        use, so the tie-break is stable, stated, and not a claim about the rules.
+
+        A ruleset that wants the document's answer supplies it the way p. 13 describes —
+        by ordering the combatants it passes in. That is the person deciding, expressed as
+        the only input this method has.
+        """
         missing = [cid for cid in rolls if not self.has(cid)]
         if missing:
             raise KeyError(f"no combatant {missing[0]!r} in this encounter")
