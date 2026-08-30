@@ -709,6 +709,21 @@ class Combatant:
         return carried_weight(self.equipment)
 
     @property
+    def effective_defences(self) -> Defences:
+        """What this creature resists right now, with its conditions applied (#357).
+
+        `defences` is what it has; this is what a blow meets. p. 186's Petrified grants
+        "Resistance to all damage", which `Defences.resists_all` already expresses — the flag
+        existed and no condition had ever set it, which is the shape #357 is about.
+
+        Composed rather than replaced, so a creature that is both Petrified and Immune to Fire
+        keeps the Immunity.
+        """
+        if not self.conditions.resists_all_damage:
+            return self.defences
+        return replace(self.defences, resists_all=True)
+
+    @property
     def carrying_size(self) -> Size | None:
         """The size p. 178's table is read at, which is not always this creature's.
 
@@ -1841,7 +1856,7 @@ class EncounterState:
         result to `with_damage` — needs an "already adjusted" flag, and a flag that skips
         defences is a flag that skips defences.
         """
-        return after_defences(amount, damage_type, self.combatant(combatant_id).defences)
+        return after_defences(amount, damage_type, self.combatant(combatant_id).effective_defences)
 
     def with_damage(
         self,
@@ -2161,6 +2176,12 @@ class EncounterState:
             durations[condition] = duration
         else:
             durations.pop(condition, None)
+        # p. 183: Immunity to a condition means it "doesn't affect you in any way", so the
+        # application is a **no-op** rather than an error — p. 186's Petrified is Immune to
+        # Poisoned, and a rule that tries to poison a statue is not a caller's mistake (#357).
+        if condition is Condition.POISONED and held.immune_to_poisoned:
+            return self
+
         # A condition does not stack (p. 179), so a second application adds its source to
         # the one condition rather than making a second — #192.
         sources = dict(held.sources)
