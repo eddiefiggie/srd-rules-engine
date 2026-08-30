@@ -186,3 +186,41 @@ def carrying_capacity(size: Size, strength_score: int) -> CarryingCapacity:
         size=size,
         strength_score=strength_score,
     )
+
+
+#: p. 182, *Grappled*, *Movable*: "two or more sizes smaller than it".
+#:
+#: The number the second escape is a comparison against, named rather than written `>= 2` at
+#: the one call site — it is the rule, and a bare literal there reads as an implementation
+#: choice somebody could tune.
+CARRIED_FREELY_CATEGORIES_SMALLER: Final = 2
+
+
+def carried_without_extra_cost(*, passenger: Size | None, grappler: Size | None) -> bool:
+    """Whether p. 182's *Movable* clause carries this creature for nothing (#340).
+
+    > **Movable.** The grappler can drag or carry you when it moves, but every foot of
+    > movement costs it 1 extra foot **unless you are Tiny or two or more sizes smaller than
+    > it.**
+
+    Two escapes, and only the second needs the grappler's size. Tiny is absolute: a Tiny
+    creature is carried free by a Gargantuan and by another Tiny, because the sentence says
+    so without qualification.
+
+    **An unstated size establishes no escape, and the extra applies.** That is not a size
+    guessed at — it is the difference between a rule and its exception. p. 182 states the
+    extra foot as what happens, and names two facts that lift it; a fact the ruleset never
+    stated is not one of them, so the exception is simply not made out. Reading it the other
+    way would grant an exemption on no evidence, which is the invention R31 forbids, and it
+    would do so silently in the caller's favour.
+
+    Note the asymmetry that follows: a Tiny passenger is free whatever the grappler is, so an
+    unstated **grappler** size only matters for a passenger that is not Tiny.
+    """
+    if passenger is None:
+        return False
+    if passenger is Size.TINY:
+        return True
+    if grappler is None:
+        return False
+    return grappler.categories_above(passenger) >= CARRIED_FREELY_CATEGORIES_SMALLER

@@ -1681,7 +1681,8 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         182,
-        "and its third, which is disclosed and not built (#340)",
+        "and its third, now built (#340, 0066) - two exemptions, and the cost is the "
+        'GRAPPLER\'s: "costs IT 1 extra foot"',
         r"The grappler can drag or carry you when it moves, but every foot of movement costs "
         r"it 1 extra foot unless you are Tiny or two or more sizes smaller than it",
     ),

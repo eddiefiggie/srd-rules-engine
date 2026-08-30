@@ -151,17 +151,6 @@ class ConditionEffects:
     unenforced_clauses: tuple[str, ...] = ()
 
 
-#: p. 182's third Grappled clause, held and not enforced.
-#:
-#: > **Movable.** The grappler can drag or carry you when it moves, but every foot of movement
-#: > costs it 1 extra foot unless you are Tiny or two or more sizes smaller than it.
-#:
-#: Two things are missing and the second is the larger. Nothing lets one creature's movement
-#: carry another — movement moves the mover. And the exemption is a **size comparison against
-#: the grappler**, which `Size.categories_above` can now answer (0051) for the creatures a
-#: ruleset has sized and cannot answer at all for the rest.
-MOVABLE_UNENFORCED: Final = "grappled-creature-is-movable-by-the-grappler"
-
 #: The two abilities every "automatically fail" sentence names, and the only two.
 #:
 #: A frozen pair rather than a check against `"str"` and `"dex"` at the call site, because the
@@ -210,12 +199,17 @@ EFFECTS: Final[dict[Condition, ConditionEffects]] = {
     ),
     Condition.GRAPPLED: ConditionEffects(
         speed_zero=True,
-        # p. 182's second clause — Disadvantage "on attack rolls against any target other than
-        # the grappler" — is **built** and is not here, because it is relational: it needs a
-        # target, so `own_attack_rolls(target_id=...)` answers it rather than a flat field.
+        # **All three of p. 182's clauses are built, and none of them is a field here.**
         #
-        # The third is not built. See `MOVABLE_UNENFORCED` above.
-        unenforced_clauses=(MOVABLE_UNENFORCED,),
+        # The second — Disadvantage "on attack rolls against any target other than the
+        # grappler" — is relational: it needs a target, so `own_attack_rolls(target_id=...)`
+        # answers it rather than a flat field.
+        #
+        # The third — *Movable* — is the grappler's rule rather than the grappled creature's,
+        # and it left this list in #340 when `EncounterState.with_movement` learned to bring
+        # passengers along and `carried_without_extra_cost` learned p. 182's two exemptions.
+        # A clause comes off in the change that builds its rule, which is why the disclosure
+        # and the constant that named it are both gone (0066).
     ),
     Condition.INCAPACITATED: ConditionEffects(
         cannot_act=True,

@@ -91,6 +91,7 @@ from srd_rules_engine.core.sight import (
 from srd_rules_engine.core.size import (
     CarryingCapacity,
     Size,
+    carried_without_extra_cost,
     carrying_capacity,
     one_size_larger_for_carrying,
 )
@@ -1888,8 +1889,9 @@ class EncounterState:
         changes.pop("generation", None)
         return replace(self, generation=self.generation + 1, **changes)
 
-    def _replacing(self, updated: Combatant) -> tuple[Combatant, ...]:
-        return tuple(updated if c.id == updated.id else c for c in self.combatants)
+    def _replacing(self, *updated: Combatant) -> tuple[Combatant, ...]:
+        by_id = {c.id: c for c in updated}
+        return tuple(by_id.get(c.id, c) for c in self.combatants)
 
     def damage_after_defences(
         self, combatant_id: str, amount: int, damage_type: DamageType | None = None
@@ -2786,6 +2788,7 @@ class EncounterState:
         *,
         mode: MovementMode = MovementMode.WALK,
         difficult_terrain: bool = False,
+        carrying: tuple[str, ...] = (),
     ) -> EncounterState:
         """Move a creature, spending what the distance costs (p. 188, p. 181).
 
@@ -2798,6 +2801,14 @@ class EncounterState:
         is shared across every mode; the number it comes off belongs to the mode being
         used, so a Fly Speed of 40 buys 40 feet of flight rather than the Speed's 30. See
         `Combatant.movement_remaining_in`.
+
+        **`carrying` names the grappled creatures that come along** (p. 182, *Movable*,
+        #340). It is the caller's to state because the document makes it optional — "the
+        grappler **can** drag or carry you when it moves" — the same kind of declaration
+        `mode` is, and not an outcome. Naming a creature this one is not grappling is
+        refused; each named creature that p. 182 does not carry free adds its extra foot per
+        foot to *this* creature's cost, and every one of them is translated by the same
+        displacement so the grapple's geometry is preserved rather than invented.
         """
         target = self.combatant(combatant_id)
         if target.position is None:
@@ -2816,8 +2827,18 @@ class EncounterState:
                 f"grant them (pp. 178, 182)"
             )
 
+        passengers = self._passengers(target, carrying)
         feet = distance_feet(target.position, to)
-        cost = movement_cost(feet, mode=mode, difficult_terrain=difficult_terrain, speeds=speeds)
+        cost = movement_cost(
+            feet,
+            mode=mode,
+            difficult_terrain=difficult_terrain,
+            speeds=speeds,
+            carrying=sum(
+                not carried_without_extra_cost(passenger=p.size, grappler=target.size)
+                for p in passengers
+            ),
+        )
         remaining = target.movement_remaining_in(mode)
         assert remaining is not None  # the refusal above covers the modes that answer None
         if cost > remaining:
@@ -2842,8 +2863,58 @@ class EncounterState:
                 "move a creature declares is one it makes willingly"
             )
 
-        moved = replace(target, position=to, movement_used=target.movement_used + cost)
-        return self._evolve(combatants=self._replacing(moved))
+        moved = [replace(target, position=to, movement_used=target.movement_used + cost)]
+        # p. 182 says the grappler drags or carries the creature and says nothing about where
+        # it ends up, so the passengers are translated by the same displacement: the only
+        # answer that preserves the distance between the two rather than inventing one. And
+        # nothing is spent and nothing is provoked, for 0055's reason — a carried creature has
+        # Speed 0 and uses none of the four things p. 185 provokes on.
+        dx = to.x - target.position.x
+        dy = to.y - target.position.y
+        dz = to.z - target.position.z
+        moved.extend(
+            replace(
+                passenger,
+                position=Position(
+                    x=passenger.position.x + dx,
+                    y=passenger.position.y + dy,
+                    z=passenger.position.z + dz,
+                ),
+            )
+            for passenger in passengers
+            # Refused above, and narrowed here for the type checker.
+            if passenger.position is not None
+        )
+        return self._evolve(combatants=self._replacing(*moved))
+
+    def _passengers(self, grappler: Combatant, carrying: tuple[str, ...]) -> tuple[Combatant, ...]:
+        """The creatures p. 182 lets this one bring along, refusing anything else (#340).
+
+        > **Movable.** The grappler can drag or carry you when it moves…
+
+        Three refusals, and each is a fact the engine has rather than a judgement it makes:
+        a creature that is not in this encounter, one this creature is not grappling, and one
+        nobody placed. The last matters because carrying translates a position, and there is
+        no position to translate — a caller asking for it has a creature the engine cannot
+        put anywhere, which is not a move made approximately.
+        """
+        passengers = []
+        for passenger_id in carrying:
+            passenger = self.combatant(passenger_id)
+            if passenger.conditions.grappler_id != grappler.id:
+                raise ValueError(
+                    f"{grappler.name} is not grappling {passenger.name}, so p. 182's "
+                    "Movable clause gives it nothing to drag or carry. A creature comes "
+                    "along because it is Grappled by the mover, not because it was named"
+                )
+            if passenger.position is None:
+                raise ValueError(
+                    f"{passenger.name} has no position, so there is nowhere for "
+                    f"{grappler.name} to carry it to. p. 182 moves a creature that is "
+                    "somewhere"
+                )
+            passengers.append(passenger)
+        return tuple(passengers)
 
     def _fear_approached(self, target: Combatant, to: Position) -> Combatant | None:
         """The source of fear this move would close on, or `None` (p. 182, #350).

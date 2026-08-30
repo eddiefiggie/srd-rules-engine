@@ -259,7 +259,14 @@ def within(a: Position, b: Position, feet: int) -> bool:
     return squared_distance(a, b) <= feet * feet
 
 
-def movement_cost(feet: int, *, mode: MovementMode, difficult_terrain: bool, speeds: Speeds) -> int:
+def movement_cost(
+    feet: int,
+    *,
+    mode: MovementMode,
+    difficult_terrain: bool,
+    speeds: Speeds,
+    carrying: int = 0,
+) -> int:
     """What covering `feet` costs in movement, in feet.
 
     p. 181, Difficult Terrain: "every foot of movement in that space costs 1 extra foot",
@@ -275,16 +282,27 @@ def movement_cost(feet: int, *, mode: MovementMode, difficult_terrain: bool, spe
     compounds them. Three is the arithmetic the two rules agree on when read together
     (1 base + 1 terrain + 1 climb), which is why it is taken; the document does not settle
     it outright.
+
+    p. 182, *Movable*: "every foot of movement costs it 1 extra foot" for each grappled
+    creature the grappler brings along and is not carrying free. `carrying` is how many of
+    those there are, and it **adds** rather than replacing — a second reading this function
+    takes, and a second one the document does not settle outright.
+
+    The evidence for adding is that Difficult Terrain carries its own non-cumulative clause
+    ("either a space is Difficult Terrain or it isn't") and *Movable* carries none. A
+    document that says so where it means it has not said so here.
     """
     if feet < 0:
         raise ValueError("movement is not negative")
+    if carrying < 0:
+        raise ValueError(f"a grappler carries no fewer than nobody, not {carrying}")
 
     extra = 1 if difficult_terrain else 0
     costlier = (MovementMode.CLIMB, MovementMode.SWIM, MovementMode.CRAWL)
     if mode in costlier and not speeds.has_special_speed(mode):
         extra = 2 if difficult_terrain else 1
 
-    return feet * (1 + extra)
+    return feet * (1 + extra + carrying)
 
 
 #: p. 183: a High Jump is "3 plus your Strength modifier (minimum of 0 feet)".

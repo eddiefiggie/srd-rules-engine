@@ -53,7 +53,6 @@ from srd_rules_engine.core.adjudicate import (
     action_spent,
     condition_ended,
 )
-from srd_rules_engine.core.conditions import MOVABLE_UNENFORCED as MOVABLE_UNENFORCED
 from srd_rules_engine.core.conditions import Condition
 from srd_rules_engine.core.d20 import D20Test, Modifier, TestKind
 from srd_rules_engine.core.memory_port import Resolution
@@ -305,7 +304,6 @@ __all__ = [
     "ESCAPE_RULE_ID",
     "ESCAPE_SKILLS",
     "GRAPPLING_VERIFICATION",
-    "MOVABLE_UNENFORCED",
     "RELEASE_RULE_ID",
     "can_be_escaped",
     "ended_by_circumstance",

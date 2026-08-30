@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08302026.20` — **a slot that is spent when the casting finishes.** p. 105's longer casting times ([#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250), [0065](docs/decisions/0065-a-long-cast-spends-its-slot-on-completion.md)): a spell of a minute or more owes the Magic action on **each** of the caster's turns, and the interesting half is the sentence about what never happens — *"If your Concentration is broken, the spell fails, but you don't expend a spell slot."* The obvious implementation expends the slot up front and refunds it on a break, and it is wrong for a reason about the document rather than the code: **there is no refund in the SRD.** So the slot leaves the caster on the **last** of the ten turns, and a casting that fails part-way returns nothing because nothing was spent — the ledger never records an expenditure the document says did not occur. Six more rules came with it: the casting is state the creature carries, the slot level is fixed when it begins and is **not** re-read from the action key on the last turn (which would be upcasting for the price of a first-level commitment), it is the only casting the menu offers while it runs, Concentration begins once rather than restarting each turn, and the resolver refuses the three things the menu expresses by not offering them (R1). Reading p. 105's *first* sentence rather than only its third produced [#371](https://github.com/eddiefiggie/srd-rules-engine/issues/371): a Ritual is explicitly one of these castings, `ritual_cast` computes its extra ten minutes, and nothing charges them — disclosed rather than left to be found. Coverage does not move, and that is [0061](docs/decisions/0061-a-shape-resolves-and-a-clause-may-not.md) again: a casting time is a clause under a shape already claimed. 117 of 210, 18 clauses. 281 clauses verified against the document. 2000 tests.
+**Current build:** `08302026.21` — **a move that brings someone with it.** p. 182's *Movable* clause ([#340](https://github.com/eddiefiggie/srd-rules-engine/issues/340), [0066](docs/decisions/0066-a-move-that-brings-someone-with-it.md)): *"The grappler can drag or carry you when it moves, but every foot of movement costs it 1 extra foot unless you are Tiny or two or more sizes smaller than it."* It had been disclosed and unenforced since the grapple shipped, because **movement moved the mover** — and a grappled creature has Speed 0, so the carrying could not be modelled as the passenger moving itself. `with_movement` now takes the passengers along. Three things the sentence does not say had to be decided first, and the interesting one is **where the passenger ends up**: it is translated by the grappler's own displacement, because that is the only answer preserving the distance between the two — and that distance is a number the engine already reads to decide whether the grapple has ended, so any other reading makes carrying a creature a way of ending the grapple that carries it. The extra foot **adds** to Difficult Terrain's rather than replacing it (Difficult Terrain prints its own non-cumulative clause and *Movable* prints none), and an **unstated size makes out neither exemption** — not the engine deciding a creature is large, but declining to find an exception nobody stated. Nothing is spent by the passenger and nothing is provoked, for [0055](docs/decisions/0055-a-creature-moved-by-something-other-than-itself.md)'s reason; a Frightened captive may be carried toward what it fears, because p. 182 refuses only a **willing** approach. **`Grappled` now discloses nothing**: all three of its clauses are built, and the disclosure came off in the change that built the last one. 117 of 210, 17 clauses — the second figure is the one that improves by going down. 281 clauses verified against the document. 2019 tests.
 
 ---
 
@@ -141,7 +141,7 @@ to see exactly which. Entries sit at independently-failable granularity, so each
 fifteen conditions counts separately — an engine that resolves Prone and nothing else
 reports 1/15 rather than reporting conditions done.
 
-**18 clauses are disclosed but unenforced**, and that is the instrument's second figure
+**17 clauses are disclosed but unenforced**, and that is the instrument's second figure
 ([0061](docs/decisions/0061-a-shape-resolves-and-a-clause-may-not.md)). A shape can resolve
 while a *sentence* of it reaches no roll: `frightened` was implemented for forty builds while
 "you can't willingly move closer to the source of fear" was enforced by nothing. Coverage
@@ -235,6 +235,7 @@ from the records themselves by `scripts/render_record_index.py` — a hand-writt
 - [0063 — Training is a legality rule, and it is by item id](docs/decisions/0063-training-is-a-legality-rule.md) — settles [#247](https://github.com/eddiefiggie/srd-rules-engine/issues/247)
 - [0064 — Any D20 Test, not any saving throw](docs/decisions/0064-any-d20-test-not-any-saving-throw.md) — settles [#367](https://github.com/eddiefiggie/srd-rules-engine/issues/367)
 - [0065 — A long cast spends its slot on completion](docs/decisions/0065-a-long-cast-spends-its-slot-on-completion.md) — settles [#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250)
+- [0066 — A move that brings someone with it](docs/decisions/0066-a-move-that-brings-someone-with-it.md) — settles [#340](https://github.com/eddiefiggie/srd-rules-engine/issues/340)
 <!-- /record-index -->
 
 **Next up:** [#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250) — longer casting times, where the Magic action is taken each
@@ -290,4 +291,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-30 — build `08302026.20`._
+_Last updated: 2026-08-30 — build `08302026.21`._
