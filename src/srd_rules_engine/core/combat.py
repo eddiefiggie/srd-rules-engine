@@ -57,6 +57,8 @@ from srd_rules_engine.core.adjudicate import (
     ammunition_spent,
     attack_made,
     carriage_changed,
+    cleave_opened,
+    cleave_taken,
     extra_attack_made,
     loading_fired,
     object_detached,
@@ -95,6 +97,7 @@ from srd_rules_engine.core.read_surface import (
     attack_swap_declared,
     attack_throw_declared,
     bonus_attack_declared,
+    cleave_attack_declared,
     interaction_declared,
     nick_attack_declared,
 )
@@ -188,7 +191,7 @@ def attack_resolver() -> Resolver:
         # copy of their logic. The projected state is read and discarded; `_apply` performs
         # the move for real, from the effects returned below.
         before, after = _swap_effects(state, actor, declaration)
-        wielded, target_id, is_bonus, is_nick, is_thrown = _weapon_and_target(
+        wielded, target_id, is_bonus, is_nick, is_cleave, is_thrown = _weapon_and_target(
             _after_equipping(state, before).combatant(declaration.actor_id), declaration
         )
         assert isinstance(wielded.item, Weapon)
@@ -197,7 +200,10 @@ def attack_resolver() -> Resolver:
         # attack" — its damage exception, and its exclusion from the Multiattack tally — is
         # about p. 89 and not about the action carrying it, so p. 90's Nick answers yes to
         # all of them and differs only in what it costs (#320).
-        is_extra = is_bonus or is_nick
+        is_extra = is_bonus or is_nick or is_cleave
+        # p. 89's **one** extra attack, which Cleave is not: p. 90 gives it its own cap in its
+        # own sentence, so a Cleave must not spend the Light property's allowance (#323).
+        is_p89_extra = is_bonus or is_nick
         target = state.combatant(target_id)
         ability = actor.modifier(weapon.ability)
 
@@ -266,6 +272,19 @@ def attack_resolver() -> Resolver:
             # ordering `_swap_effects` documents.
             always=(
                 *before,
+                # p. 90: "You can make this extra attack **only once per turn**", spent by
+                # making it rather than by landing it — the document caps the *attack*, not
+                # the hit, so a missed Cleave is still the one this turn allowed (#323).
+                *(
+                    (
+                        cleave_taken(
+                            declaration.actor_id,
+                            description=f"p. 90's one Cleave a turn, swung with {weapon.id}",
+                        ),
+                    )
+                    if is_cleave
+                    else ()
+                ),
                 # p. 90: "your **next** attack roll", so a token in scope is spent by this
                 # roll whether it hits or misses (0049). In `always` for exactly that reason —
                 # either branch would keep it alive through half the outcomes.
@@ -394,7 +413,7 @@ def attack_resolver() -> Resolver:
                             ),
                         ),
                     )
-                    if is_extra
+                    if is_p89_extra
                     else ()
                 ),
                 *after,
@@ -465,6 +484,30 @@ def attack_resolver() -> Resolver:
                     # in the direction that helps them. The *attack roll* keeps it either way.
                     modifier=(min(0, ability) if is_extra else ability) + weapon.bonus,
                     source=weapon.id,
+                ),
+                # p. 90's Cleave, opened by a **melee** hit with a weapon the wielder may use
+                # the property of (#323, 0047 clause 6). Recorded rather than resolved: the
+                # second swing is a separate attack roll the wielder chooses to make, so it
+                # reaches an outcome through the read surface and the one adjudication entry
+                # point like any other (R1, R18).
+                *(
+                    (
+                        cleave_opened(
+                            actor.id,
+                            weapon.id,
+                            target.id,
+                            description=(
+                                f"{weapon.id} (Cleave): a second swing is open against a "
+                                f"creature within 5 feet of {target.name}"
+                            ),
+                        ),
+                    )
+                    if weapon.cleave
+                    and weapon.id in actor.mastery_weapons
+                    and weapon.melee
+                    and not is_thrown
+                    and not is_cleave
+                    else ()
                 ),
                 # Vex and Sap (p. 90), granted by the hit and spent by a later roll (0049).
                 *_vex_and_sap(state, actor, weapon, target),
@@ -868,7 +911,7 @@ def _swap_effects(
 
 def _weapon_and_target(
     actor: Combatant, declaration: Declaration
-) -> tuple[Carried, str, bool, bool, bool]:
+) -> tuple[Carried, str, bool, bool, bool, bool]:
     """Which weapon this attack swung, and at whom, read off the key the surface offered.
 
     The key names both since #258, and the weapon is looked up in what the creature is
@@ -881,12 +924,18 @@ def _weapon_and_target(
     # the Bonus Action (#320). It is `extra` for every rule that asks "is this p. 89's extra
     # attack" — the damage exception, the Multiattack tally — and differs only in the cost.
     nick = nick_attack_declared(key)
+    # p. 90's Cleave: a second swing the hit opened (#323). Like Nick it is an extra
+    # attack for every rule that asks — the damage exception, the Multiattack tally —
+    # and unlike Nick it is not p. 89's, so it spends a cap of its own.
+    cleave = cleave_attack_declared(key)
     thrown = attack_throw_declared(key)
     swap = attack_swap_declared(key)
     # p. 177's swap keys name the same attack with one weapon moved, so the weapon and target
     # are read from them the same way (0042 clauses 1 and 3). The move itself is the ruling's
     # effect, built by `_swap_effects`.
-    declared = bonus or nick or thrown or (swap[:2] if swap else None) or attack_declared(key)
+    declared = (
+        bonus or nick or cleave or thrown or (swap[:2] if swap else None) or attack_declared(key)
+    )
     if declared is None:
         raise ValueError(
             "this declaration is not an attack: an attack names the weapon and the target "
@@ -924,7 +973,14 @@ def _weapon_and_target(
                     "throwing one an improvised weapon whose damage type is the GM's to "
                     "choose. The engine has no way to supply that, so no throw is offered"
                 )
-            return carried, target_id, bonus is not None, nick is not None, thrown is not None
+            return (
+                carried,
+                target_id,
+                bonus is not None,
+                nick is not None,
+                cleave is not None,
+                thrown is not None,
+            )
     raise ValueError(
         f"{actor.name} is not holding {weapon_id!r}. p. 177 attacks "
         '"with a weapon or an Unarmed Strike", and the read surface offers only weapons in '

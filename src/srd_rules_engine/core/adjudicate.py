@@ -278,6 +278,15 @@ class EffectKind(StrEnum):
     #: roll hit or missed — p. 90 says "your **next** attack roll" — so it is emitted
     #: from `Proposal.always` rather than from either branch.
     ADVANTAGE_SPENT = "advantage-spent"
+    #: A melee hit that opens p. 90's Cleave (#323): the wielder may swing the same
+    #: weapon at a second creature beside the first. Its own kind because the opening is
+    #: a fact about *this* hit — which weapon, and whom it landed on — and the second
+    #: attack's eligibility is measured from that creature rather than from the attacker.
+    CLEAVE_OPENED = "cleave-opened"
+    #: p. 90's Cleave attack, taken (#323). Its own record rather than p. 89's
+    #: `EXTRA_ATTACK_MADE`, because "you can make **this** extra attack only once per
+    #: turn" caps Cleave alone — spending it must not spend the Light property's.
+    CLEAVE_TAKEN = "cleave-taken"
     #: One piece of ammunition expended by an attack (p. 89, #273). `item_id` names which.
     #: "Each attack expends one piece of ammunition" — a cost that applies because the attack
     #: happened, so it rides in `Proposal.always` beside the action charge rather than in a
@@ -350,6 +359,18 @@ class When(StrEnum):
 WITHHELD_BECAUSE: Final[Mapping[When, str]] = MappingProxyType(
     {When.DAMAGE_TAKEN: "no damage was taken"}
 )
+
+
+#: The kinds that legitimately name a weapon. `ACTION_SPENT` because p. 89's Light property
+#: reads which weapon the Attack *action* was spent on; `CLEAVE_OPENED` because p. 90's second
+#: swing is made "with the weapon" that opened it, so the opening has to say which (#323).
+#: The kinds that legitimately name a second creature. `CONDITION_APPLIED` because p. 183's
+#: Grappled names "the grappler" and p. 182's Frightened "the source of fear"; `CLEAVE_OPENED`
+#: because p. 90 measures the second swing's targets from **the creature that was hit**, which
+#: makes that creature part of the mechanical effect rather than colour (#323).
+_SOURCE_BEARING_KINDS: Final = frozenset({EffectKind.CONDITION_APPLIED, EffectKind.CLEAVE_OPENED})
+
+_WEAPON_BEARING_KINDS: Final = frozenset({EffectKind.ACTION_SPENT, EffectKind.CLEAVE_OPENED})
 
 
 @dataclass(frozen=True)
@@ -466,7 +487,7 @@ class Effect:
                 "and would depend on it — so whether it applied would turn on where it sat "
                 "in the branch. No rule the sweep behind 0032 found asks for this"
             )
-        if self.weapon_id is not None and self.kind is not EffectKind.ACTION_SPENT:
+        if self.weapon_id is not None and self.kind not in _WEAPON_BEARING_KINDS:
             raise ValueError(
                 f"a {self.kind} effect names no weapon. p. 89's Light property reads which "
                 "weapon the Attack *action* was spent on, so the weapon travels with the "
@@ -491,13 +512,17 @@ class Effect:
                 "Reaction is free of the other two, and p. 90 caps a Loading shot per action "
                 "used rather than per turn"
             )
-        if self.kind is not EffectKind.CONDITION_APPLIED and (
-            self.duration is not None or self.source_id is not None
-        ):
+        if self.kind is not EffectKind.CONDITION_APPLIED and self.duration is not None:
             raise ValueError(
-                f"a {self.kind} effect states no duration and no source. Both belong to "
-                "the application that imposed the condition, and a condition ending does "
-                "not acquire a span on its way out"
+                f"a {self.kind} effect states no duration. A span belongs to the application "
+                "that imposed a condition, and nothing else here has one to state"
+            )
+        if self.kind not in _SOURCE_BEARING_KINDS and self.source_id is not None:
+            raise ValueError(
+                f"a {self.kind} effect names no second creature. A source belongs to the "
+                "application that imposed a condition — p. 183's grappler, p. 182's source "
+                "of fear — or to p. 90's Cleave, which measures its second swing from the "
+                "creature that was hit. A condition ending acquires neither on its way out"
             )
 
 
@@ -597,6 +622,34 @@ def advantage_pending(
         pending_advantage=token,
         when=when,
         when_subject_id=when_subject_id,
+    )
+
+
+def cleave_opened(
+    actor_id: str, weapon_id: str, first_target_id: str, *, description: str
+) -> Effect:
+    """A melee hit that opens p. 90's Cleave (#323).
+
+    Carries the weapon and the creature that was hit, because the second attack is made with
+    that weapon and its eligible targets are measured from that creature.
+    """
+    return Effect(
+        kind=EffectKind.CLEAVE_OPENED,
+        target_id=actor_id,
+        amount=0,
+        description=description,
+        weapon_id=weapon_id,
+        source_id=first_target_id,
+    )
+
+
+def cleave_taken(actor_id: str, *, description: str) -> Effect:
+    """p. 90's one Cleave a turn, spent (#323)."""
+    return Effect(
+        kind=EffectKind.CLEAVE_TAKEN,
+        target_id=actor_id,
+        amount=0,
+        description=description,
     )
 
 
@@ -1697,6 +1750,11 @@ def _apply(
             state = state.with_object_interaction(effect.target_id)
         elif effect.kind is EffectKind.EXTRA_ATTACK_MADE:
             state = state.with_extra_attack(effect.target_id)
+        elif effect.kind is EffectKind.CLEAVE_OPENED:
+            assert effect.weapon_id is not None and effect.source_id is not None
+            state = state.with_cleave_opening(effect.target_id, effect.weapon_id, effect.source_id)
+        elif effect.kind is EffectKind.CLEAVE_TAKEN:
+            state = state.with_cleave_taken(effect.target_id)
         elif effect.kind is EffectKind.ADVANTAGE_PENDING:
             assert effect.pending_advantage is not None  # the constructor requires one
             state = state.with_pending_advantage(effect.pending_advantage)

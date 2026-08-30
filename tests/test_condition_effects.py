@@ -165,7 +165,7 @@ def test_a_condition_effect_carries_no_number() -> None:
 def test_a_condition_ending_acquires_no_span() -> None:
     """The duration belongs to the application that imposed the condition. A condition on
     its way out does not pick one up."""
-    with pytest.raises(ValueError, match="states no duration and no source"):
+    with pytest.raises(ValueError, match="states no duration"):
         Effect(
             kind=EffectKind.CONDITION_ENDED,
             target_id="troll",
@@ -177,7 +177,7 @@ def test_a_condition_ending_acquires_no_span() -> None:
 
 
 def test_only_an_application_names_a_source() -> None:
-    with pytest.raises(ValueError, match="states no duration and no source"):
+    with pytest.raises(ValueError, match="names no second creature"):
         Effect(
             kind=EffectKind.CONDITION_ENDED,
             target_id="troll",
@@ -190,8 +190,13 @@ def test_only_an_application_names_a_source() -> None:
 
 def test_damage_may_not_carry_a_duration_either() -> None:
     """The guard is stated over every kind that is not an application, not over conditions
-    alone — so a span cannot ride on a blow."""
-    with pytest.raises(ValueError, match="states no duration and no source"):
+    alone — so a span cannot ride on a blow.
+
+    The duration and source halves are separate refusals since #323, because the sets that
+    may carry them stopped being the same one: p. 90's Cleave names a second creature and
+    states no span.
+    """
+    with pytest.raises(ValueError, match="states no duration"):
         Effect(
             kind=EffectKind.DAMAGE,
             target_id="troll",

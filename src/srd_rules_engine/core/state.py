@@ -790,6 +790,20 @@ class EncounterState:
     #: 0036 clause 3 a fourth time: mechanisms agreeing about *when* are still different
     #: mechanisms.
     extra_attacks_this_turn: frozenset[str] = frozenset()
+    #: Melee hits this turn that opened p. 90's Cleave, as (actor, weapon, creature hit)
+    #: (#323). The creature is remembered because Cleave's second target is "within 5 feet of
+    #: **the first**" — a set of actors could not answer "beside which".
+    #:
+    #: **A fifth per-turn structure, and a fifth meaning**, which is 0036 clause 3 again:
+    #: `light_attacks_this_turn` records what bought p. 89's extra attack, this records what
+    #: opened p. 90's, and the two caps are separate sentences.
+    cleave_openings_this_turn: frozenset[tuple[str, str, str]] = frozenset()
+    #: Who has already made p. 90's one Cleave attack this turn (#323).
+    #:
+    #: Distinct from `extra_attacks_this_turn`, and deliberately: "you can make **this** extra
+    #: attack only once per turn" caps Cleave alone, so a creature may take p. 89's extra
+    #: attack *and* a Cleave in the same turn. Sharing the record would refuse one of them.
+    cleaves_this_turn: frozenset[str] = frozenset()
     #: Who has already spent this turn's one object interaction (0045 clause 1).
     #:
     #: **One allowance, two routes.** p. 13 grants "one object or feature of the environment
@@ -2111,6 +2125,36 @@ class EncounterState:
             object_interactions_this_turn=self.object_interactions_this_turn | {combatant_id}
         )
 
+    def with_cleave_opening(
+        self, combatant_id: str, weapon_id: str, first_target_id: str
+    ) -> EncounterState:
+        """Record a melee hit that opened p. 90's Cleave (#323).
+
+        Whether the weapon is Cleave-carrying and whether the wielder may use the property
+        were both settled where the hit landed; this only remembers that it happened, and
+        against whom.
+        """
+        return self._evolve(
+            cleave_openings_this_turn=self.cleave_openings_this_turn
+            | {(combatant_id, weapon_id, first_target_id)}
+        )
+
+    def with_cleave_taken(self, combatant_id: str) -> EncounterState:
+        """Record p. 90's one Cleave a turn as spent (#323)."""
+        return self._evolve(cleaves_this_turn=self.cleaves_this_turn | {combatant_id})
+
+    def has_cleaved(self, combatant_id: str) -> bool:
+        """Whether p. 90's one Cleave a turn is already spent (#323)."""
+        return combatant_id in self.cleaves_this_turn
+
+    def cleave_openings(self, combatant_id: str) -> tuple[tuple[str, str], ...]:
+        """The (weapon, creature hit) pairs this creature's melee hits opened this turn."""
+        return tuple(
+            (weapon_id, first_target_id)
+            for who, weapon_id, first_target_id in sorted(self.cleave_openings_this_turn)
+            if who == combatant_id
+        )
+
     def with_extra_attack(self, combatant_id: str) -> EncounterState:
         """Record p. 89's one extra Light attack as taken (#320).
 
@@ -2423,6 +2467,8 @@ class EncounterState:
                     slots_expended_this_turn=frozenset(),
                     light_attacks_this_turn=frozenset(),
                     extra_attacks_this_turn=frozenset(),
+                    cleave_openings_this_turn=frozenset(),
+                    cleaves_this_turn=frozenset(),
                     attacks_this_turn={},
                     object_interactions_this_turn=frozenset(),
                     loading_shots_this_turn=frozenset(),
@@ -2437,6 +2483,8 @@ class EncounterState:
                 slots_expended_this_turn=frozenset(),
                 light_attacks_this_turn=frozenset(),
                 extra_attacks_this_turn=frozenset(),
+                cleave_openings_this_turn=frozenset(),
+                cleaves_this_turn=frozenset(),
                 attacks_this_turn={},
                 object_interactions_this_turn=frozenset(),
                 loading_shots_this_turn=frozenset(),

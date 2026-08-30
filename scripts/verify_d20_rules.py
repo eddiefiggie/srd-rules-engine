@@ -806,6 +806,19 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         90,
+        "Cleave opens a second melee swing beside the first, once a turn",
+        r"you can make a melee attack roll with the weapon against a second creature within "
+        r"5 feet of the first that is also within your reach",
+    ),
+    (
+        90,
+        "and Cleave's damage drops a positive ability modifier, once per turn",
+        r"the second creature takes the weapon.s damage, but don.t add your ability modifier "
+        r"to that damage unless that modifier is negative\. You can make this extra attack "
+        r"only once per turn",
+    ),
+    (
+        90,
         "Vex needs damage as well as a hit, and runs to the END of your next turn",
         r"If you hit a creature with this weapon and deal damage to the creature, you have "
         r"Advantage on your next attack roll against that creature before the end of your "
