@@ -196,7 +196,7 @@ def test_initiative_is_deterministic_from_a_recorded_seed() -> None:
 
 def test_initiative_covers_every_combatant_and_applies_its_modifier() -> None:
     state = encounter()
-    rolled = initiative_order(state, seed=7, ability="dex")
+    rolled = initiative_order(state, seed=7)
     assert set(rolled) == {"pc", "boar"}
 
     # From initiative's own band (#82), not index 0 — sharing the d20's band is what let a
@@ -210,14 +210,30 @@ def test_initiative_covers_every_combatant_and_applies_its_modifier() -> None:
     assert rolled["boar"] == faces[2] + 0, "dex 10 is +0"
 
 
-def test_the_ability_initiative_uses_is_a_parameter_not_a_constant() -> None:
-    """Which ability the SRD ties initiative to is a rule with a citation (R31).
+def test_the_ability_initiative_uses_is_a_verified_constant_not_a_parameter() -> None:
+    """p. 13: "they make a **Dexterity check** that determines their place in the Initiative
+    order." A constant since #385, and a parameter before it.
 
-    Baking one in would be an inferred rule value wearing the same face as a verified one.
+    **This test asserted the opposite**, and was right to: baking in a rule value the
+    verifier had never read would have been an inferred value wearing the same face as a
+    verified one. What changed is not the design's correctness but the document's presence —
+    the page is asserted now, so the honest shape inverts. A caller able to roll Initiative
+    off Strength could reorder an encounter and leave a legitimate-looking ledger, which is
+    the dial 0026 removed for terrain and 0025 for light.
     """
-    state = encounter()
-    assert initiative_order(state, seed=7, ability="dex") != initiative_order(
-        state, seed=7, ability="str"
+    import inspect
+
+    from srd_rules_engine.core.combat import INITIATIVE_ABILITY, INITIATIVE_VERIFICATION
+    from srd_rules_engine.core.rules import VerificationState
+
+    assert INITIATIVE_ABILITY == "dex"
+    assert INITIATIVE_VERIFICATION.state is VerificationState.VERIFIED
+    assert "p. 13" in (INITIATIVE_VERIFICATION.reference or "")
+
+    signature = inspect.signature(initiative_order)
+    assert "ability" not in signature.parameters, (
+        "which ability Initiative rolls is p. 13's to say and not a caller's; a parameter "
+        "here lets a caller choose the modifier"
     )
 
 
@@ -637,9 +653,17 @@ def test_no_weapon_list_ships_in_this_module() -> None:
     # and it is a **seed-layout** decision rather than a rule value a resolver reads: the pair
     # is drawn for every combatant so one creature's offset never depends on another's
     # conditions.
+    #
+    # `INITIATIVE_ABILITY` and `INITIATIVE_VERIFICATION` joined in #385, and the pair is the
+    # point: the ability is a rule value, and it is admitted here **because** the verification
+    # beside it names the page. A constant carrying a rule with no `Verification` in the
+    # module is exactly what this pin exists to catch, and until #385 this module held no
+    # initiative verification at all.
     allowed = {
         "DICE_PER_COMBATANT",
+        "INITIATIVE_ABILITY",
         "INITIATIVE_DIE",
+        "INITIATIVE_VERIFICATION",
         "WEAPON_PROPERTY_VERIFICATION",
         "UNARMED_STRIKE_VERIFICATION",
     }

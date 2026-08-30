@@ -501,6 +501,40 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"If a spell has movable effects, they aren.t restricted by its range unless the "
         r"spell.s description says otherwise",
     ),
+    # --- Initiative (#385) --------------------------------------------------------------
+    (
+        13,
+        "initiative is a **Dexterity check**, which is what lets `initiative_order` carry a "
+        "verified default instead of asking a caller which ability to roll — a caller "
+        "choosing the ability is a caller choosing the modifier (0026's dial)",
+        r"every participant rolls Initiative; they make a Dexterity check that determines "
+        r"their place in the Initiative order",
+    ),
+    (
+        13,
+        "the order is ranked highest to lowest and **stays the same from round to round**, "
+        "which is what `EncounterState.with_initiative` sorts once and never re-sorts",
+        r"ranks the combatants, from highest to lowest Initiative\.\s*This is the order in "
+        r"which they act during each round\.\s*The Initiative order remains the same from "
+        r"round to round",
+    ),
+    (
+        13,
+        "**ties are a person's to break**, and the document says so in three clauses rather "
+        "than leaving it open. This engine has no person, so its insertion order is a "
+        "convention it declares rather than a rule it implements (0075)",
+        r"If a tie occurs, the GM decides the order among tied monsters, and the players "
+        r"decide the order among tied characters\.\s*The GM decides the order if the tie is "
+        r"between a monster and a player character",
+    ),
+    (
+        184,
+        "the glossary's Initiative entry, including the **score** variant a GM may use "
+        "instead of rolling — modelled by nothing here, and disclosed rather than silently "
+        "absent",
+        r"Your Initiative score equals 10 plus your Dexterity modifier\. If you have "
+        r"Advantage on Initiative rolls, increase your Initiative score by 5",
+    ),
     # --- Rituals and preparation (#19) --------------------------------------------------
     (
         187,

@@ -179,13 +179,42 @@ def _hit_is_automatically_critical(actor: Combatant, target: Combatant) -> bool:
     return within(actor.position, target.position, AUTO_CRITICAL_FEET)
 
 
-def initiative_order(
-    state: EncounterState, *, seed: int, ability: str = "dex"
-) -> Mapping[str, int]:
+#: p. 13: "they make a **Dexterity check** that determines their place in the Initiative
+#: order." A constant since #385, and a caller-supplied parameter before it — which was the
+#: honest shape while the page was asserted nowhere, and is the dial
+#: [0026](../../../docs/decisions/0026-terrain-enters-as-state.md) removed for terrain once
+#: it was not: a caller choosing the ability is a caller choosing the modifier.
+INITIATIVE_ABILITY: Final = "dex"
+
+#: R31. The initiative rules, asserted against their printed pages in
+#: `scripts/verify_d20_rules.py` (#385). **This module held none until then** — `Verification`
+#: objects existed here for weapon properties and the Unarmed Strike only, so every initiative
+#: rule the engine implemented or declined to implement was unasserted, including the two
+#: that were decided by default rather than by reading: which ability is rolled, and what
+#: happens on a tie.
+INITIATIVE_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference=(
+        'SRD v5.2.1, "Playing the Game" ("Combat" -> Initiative, Initiative Order, Ties), '
+        "p. 13; Rules Glossary: Initiative p. 184"
+    ),
+    date="2026-08-30",
+    method=VerificationMethod.ASSERTED,
+)
+
+
+def initiative_order(state: EncounterState, *, seed: int) -> Mapping[str, int]:
     """Roll initiative for every combatant, deterministically from one seed.
 
     Returned rather than applied, because applying it is `EncounterState.with_initiative`
     and that is the only thing allowed to move the generation.
+
+    **A Dexterity check, and no longer a parameter** (p. 13, #385). `ability` was an argument
+    with a `"dex"` default, correct in value and unciteable in provenance — the module said
+    outright that "which ability the modifier comes from is a rule with a section citation,
+    so it is a *parameter* rather than a constant here". The citation exists now, so the
+    parameter does not: a caller able to roll Initiative off Strength could change every
+    outcome in the encounter and the ledger would record a legitimate-looking order.
     """
     # #82. Its own band, and a bounded one. This used to draw from index 0 — the d20's
     # band — with one die per combatant and no bound, so a large enough encounter aliased a
@@ -210,7 +239,7 @@ def initiative_order(
             faces[index * DICE_PER_COMBATANT : (index + 1) * DICE_PER_COMBATANT],
             combatant.conditions.initiative_advantage,
         )
-        + combatant.modifier(ability)
+        + combatant.modifier(INITIATIVE_ABILITY)
         for index, combatant in enumerate(state.combatants)
     }
 
