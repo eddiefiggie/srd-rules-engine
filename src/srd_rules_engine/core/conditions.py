@@ -238,7 +238,10 @@ EFFECTS: Final[dict[Condition, ConditionEffects]] = {
     ),
     Condition.PRONE: ConditionEffects(
         own_attack_rolls=Advantage.DISADVANTAGE,
-        unenforced_clauses=("righting-costs-half-speed", "movement-limited-to-crawling"),
+        # `righting-costs-half-speed` and `movement-limited-to-crawling` both left in #353,
+        # and together, because p. 186 states them in one sentence: the crawl restriction is
+        # a refusal in `with_movement` and the righting is a ruling in `core.prone` (0057).
+        # Building the first alone would have trapped a creature crawling.
     ),
     Condition.RESTRAINED: ConditionEffects(
         attack_rolls_against=Advantage.ADVANTAGE,

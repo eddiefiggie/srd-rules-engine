@@ -538,6 +538,39 @@ def no_more_than_one_size_larger(actor: Combatant, target: Combatant) -> bool:
     return target.size.categories_above(actor.size) <= 1
 
 
+#: p. 186's other movement option for a Prone creature (0057).
+STAND: Final = "stand"
+
+
+def righting_cost(actor: Combatant) -> int:
+    """What p. 186 charges a Prone creature to get up: half its Speed, rounded down.
+
+    **The walking Speed after modifiers**, because p. 188 makes "your Speed" the walking one
+    and `effective_speeds` is what applies the conditions to it. A creature slowed by p. 90's
+    Slow pays half of what it has left, not half of what its stat block says.
+    """
+    return actor.effective_speeds.walk // 2
+
+
+def can_stand(actor: Combatant) -> bool:
+    """Whether p. 186's righting is available to this creature right now.
+
+    Three things, and the middle one is the document's own exception:
+
+    * it is Prone,
+    * **its Speed is not 0** — "If your Speed is 0, you can't right yourself" — which is a
+      separate sentence rather than a consequence of the cost being zero,
+    * and it has the movement to spend. p. 186 states a cost, and a creature cannot spend what
+      it does not have; `with_movement` refuses an unaffordable step for the same reason.
+    """
+    if Condition.PRONE not in actor.conditions.held:
+        return False
+    if actor.effective_speeds.walk == 0:
+        return False
+    remaining = actor.movement_remaining_in(MovementMode.WALK)
+    return remaining is not None and remaining >= righting_cost(actor)
+
+
 CAST: Final = "cast"
 
 
@@ -877,6 +910,17 @@ def legal_actions(state: EncounterState, actor_id: str) -> tuple[LegalAction, ..
                 )
                 for skill in ESCAPE_SKILLS
             )
+    # p. 186's righting, deliberately outside the `has_action` block: it costs **movement**,
+    # not an action, so gating it on a spare Action would refuse a creature that had spent one
+    # and could still stand.
+    if can_stand(actor):
+        actions.append(
+            LegalAction(
+                key=STAND,
+                label="Stand up",
+                detail={"costs_movement": righting_cost(actor), "costs_action": False},
+            )
+        )
     # Deliberately outside the `has_action` block: p. 182 lets a grappler release "at any time
     # (no action required)", so an offer gated on a spare Action would refuse the one thing the
     # document says costs nothing.

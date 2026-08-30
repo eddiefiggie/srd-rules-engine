@@ -194,6 +194,13 @@ class EffectKind(StrEnum):
     #: of its speeds**", and a shove uses none of those. It also spends none of the moved
     #: creature's allowance, because it is not the creature moving.
     MOVED_BY_FORCE = "moved-by-force"
+    #: Movement spent on something other than travel (p. 186, 0057). `amount` is the feet.
+    #:
+    #: The counterpart of `MOVED_BY_FORCE`, and the two together are why neither is a
+    #: movement: that one covers ground and spends nothing, and this one spends without
+    #: covering any. p. 186 rights a Prone creature for "an amount of movement equal to half
+    #: your Speed", and the creature ends up exactly where it started.
+    MOVEMENT_SPENT = "movement-spent"
     #: The Disengage action taken (p. 181): movement does not provoke for the rest of the turn.
     DISENGAGED = "disengaged"
     #: A spell slot spent to cast a spell (p. 104, 0038 clause 6). `amount` is the **slot**
@@ -598,6 +605,18 @@ def moved_by_force(target_id: str, to: Position, *, feet: int, description: str)
         amount=feet,
         description=description,
         position=to,
+    )
+
+
+def movement_spent(target_id: str, feet: int, *, description: str) -> Effect:
+    """Movement charged for something that is not travel (p. 186, 0057)."""
+    if feet < 0:
+        raise ValueError(f"movement spent is zero or more feet, not {feet}")
+    return Effect(
+        kind=EffectKind.MOVEMENT_SPENT,
+        target_id=target_id,
+        amount=feet,
+        description=description,
     )
 
 
@@ -1900,6 +1919,8 @@ def _apply(
             state = state.with_dash(effect.target_id, effect.amount)
         elif effect.kind is EffectKind.DODGING:
             state = state.with_dodge(effect.target_id)
+        elif effect.kind is EffectKind.MOVEMENT_SPENT:
+            state = state.with_movement_spent(effect.target_id, effect.amount)
         elif effect.kind is EffectKind.MOVED_BY_FORCE:
             assert effect.position is not None  # the constructor requires one
             state = state.with_forced_movement(effect.target_id, effect.position)
