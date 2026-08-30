@@ -205,6 +205,11 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # row up. The Speed consequence is disclosed rather than applied — it turns on
         # dragging, lifting or pushing, and p. 12 leaves the subsystem to a person.
         "carrying-capacity": "core.size.carrying_capacity",
+        # p. 182, #335, 0052. The rules a grapple follows "however a grapple is initiated" —
+        # the escape check, the release, and the two endings nobody decides. Deliberately not
+        # `unarmed-strike`: p. 190's three options are a separate entry and remain unbuilt,
+        # and a flag over both would be 0046's defect again.
+        "grappling": "core.grappling.escape_resolver",
         "mastery-graze": "core.combat.Weapon.graze",
         # p. 90, #320. p. 89's extra attack, re-routed into the Attack action: offered under
         # its own key, costing nothing, and capped with the Bonus Action route at the one

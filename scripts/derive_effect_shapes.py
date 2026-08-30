@@ -137,7 +137,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Expertise": ("state", False),
     "Flying": ("movement", True),
     "Fly Speed": ("movement", True),
-    "Grappling": ("effect", False),
+    "Grappling": ("effect", True),
     "Hazard": ("effect", False),
     "Healing": ("effect", True),
     "Heavily Obscured": ("environment", True),

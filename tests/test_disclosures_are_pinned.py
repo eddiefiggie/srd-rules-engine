@@ -44,11 +44,17 @@ import srd_rules_engine.core as core_package
 from fixtures.encounter import character
 from srd_rules_engine.core import EncounterState, read
 from srd_rules_engine.core.actions import ActionBudget
-from srd_rules_engine.core.conditions import EFFECTS, Condition, Conditions
+from srd_rules_engine.core.conditions import (
+    EFFECTS,
+    MOVABLE_UNENFORCED,
+    Condition,
+    Conditions,
+)
 from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.read_surface import (
     CARRYING_CAPACITY_SPEED_CAP,
     OBJECT_INTERACTION_CAP,
+    RELEASE_ONLY_ON_YOUR_TURN,
     UTILIZE_REACHES_FOUR_MOVES,
     VERBAL_UNCHECKED,
 )
@@ -64,6 +70,14 @@ CONDITION_DISCLOSURES: dict[Condition, tuple[str, ...]] = {
     # p. 182: cannot willingly move closer to the source. Movement has no notion of a
     # direction relative to a creature.
     Condition.FRIGHTENED: ("cannot-willingly-approach-the-source",),
+    # p. 182's *Movable*: the grappler can drag or carry you, at 1 extra foot per foot unless
+    # you are Tiny or two or more sizes smaller than it. Nothing lets one creature's movement
+    # carry another, and the exemption is a size comparison against the grappler (#340).
+    #
+    # The other two clauses of the condition are built: Speed 0 is `speed_zero`, and
+    # "Disadvantage on attack rolls against any target other than the grappler" is relational
+    # and answered by `own_attack_rolls(target_id=...)` rather than by a flat field.
+    Condition.GRAPPLED: (MOVABLE_UNENFORCED,),
     # p. 184: hidden from effects that require sight. #150's mapping is unfilled.
     Condition.INVISIBLE: ("concealed-from-effects-requiring-sight",),
     # p. 186: turned to inanimate substance, and weight times ten with ageing stopped. Neither
@@ -104,6 +118,10 @@ OTHER_DISCLOSURES: frozenset[str] = frozenset(
         # know. Nothing could have caught that, because the test below used to compare a
         # literal against a constant built from the same names. It derives now.
         VERBAL_UNCHECKED,
+        # p. 182 lets a grappler release "at any time"; the read surface offers actions only
+        # to the creature whose turn it is, so the release is narrowed to the grappler's own
+        # turn (#341). What is offered is p. 182's release; what is missing is its timing.
+        RELEASE_ONLY_ON_YOUR_TURN,
     }
 )
 
@@ -219,8 +237,8 @@ def test_the_walk_finds_every_site_and_not_merely_one() -> None:
     """The negative case for the assertion above, and the reason it is not vacuous.
 
     A walk that found a single `append` would satisfy an equality against a one-element pin and
-    prove nothing about the rest. The four names below are appended at four distinct sites
-    under four different conditions, so finding all of them is evidence the walk reaches the
+    prove nothing about the rest. The names below are appended at distinct sites under
+    different conditions, so finding all of them is evidence the walk reaches the
     whole assembly rather than the first line of it.
     """
     found = _appended_disclosures()
@@ -230,6 +248,7 @@ def test_the_walk_finds_every_site_and_not_merely_one() -> None:
         UTILIZE_REACHES_FOUR_MOVES,
         VERBAL_UNCHECKED,
         CARRYING_CAPACITY_SPEED_CAP,
+        RELEASE_ONLY_ON_YOUR_TURN,
     ):
         assert disclosure in found, f"{disclosure!r} is appended in the core and was not found"
 

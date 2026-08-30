@@ -57,6 +57,7 @@ from srd_rules_engine.core.position import MovementMode, distance_feet, within
 from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.sight import LightLevel, Senses
 from srd_rules_engine.core.size import CarryingCapacity, Size
+from srd_rules_engine.core.skills import Skill
 from srd_rules_engine.core.spellcasting import CastingTime, component_refusal
 from srd_rules_engine.core.state import Combatant, EncounterState
 
@@ -129,6 +130,18 @@ VERBAL_UNCHECKED: Final = "verbal-component-gagged-or-silenced-unchecked"
 #: Disclosed only when the weight is actually over the bound, which is the moment the rule
 #: would have bitten — the same timing `SIGHT_QUALIFIER` uses.
 CARRYING_CAPACITY_SPEED_CAP: Final = "carrying-capacity-speed-cap-is-not-applied"
+
+#: p. 182: "the grappler can release the target **at any time** (no action required)."
+#:
+#: This engine offers the release on the grappler's turn and not on anyone else's. The read
+#: surface answers what is legal for a creature *now*, and "now" is a turn — a creature that is
+#: not acting is offered nothing at all, which is right for every action that costs something
+#: and wrong for the one p. 182 says costs nothing.
+#:
+#: Narrowed rather than enforced wrongly: the release the engine does offer is p. 182's, and
+#: what is missing is its timing. Disclosed only to a creature actually holding a grapple,
+#: since that is the only creature the clause can bite (#341).
+RELEASE_ONLY_ON_YOUR_TURN: Final = "grapple-release-offered-only-on-the-grapplers-turn"
 
 #: A standalone object interaction — p. 13's free one — and the Utilize action that buys
 #: another (p. 13, p. 191, 0045 clauses 2-3).
@@ -266,6 +279,65 @@ def bonus_attack_declared(action_key: str | None) -> tuple[str, str] | None:
 
 #: p. 90's Cleave: a second swing at a creature beside the one just hit (#323).
 CLEAVE_ATTACK: Final = "cleave-attack"
+
+
+#: p. 182 names exactly these two checks, in this order. A tuple rather than a set, so the
+#: read surface offers them in the document's order rather than in a hash's.
+ESCAPE_SKILLS: Final[tuple[Skill, ...]] = (Skill.ATHLETICS, Skill.ACROBATICS)
+
+ESCAPE_PREFIX: Final = "escape-grapple"
+RELEASE_PREFIX: Final = "release-grapple"
+
+
+def escape_key(skill: Skill) -> str:
+    """The action key for escaping with that check (p. 182).
+
+    One key per check rather than one key with a parameter, because the choice is p. 182's own
+    and an enumerated menu is how this engine offers a choice it does not make — the shape
+    `dash_key(mode)` uses for p. 180's choice of speed.
+    """
+    if skill not in ESCAPE_SKILLS:
+        raise ValueError(
+            f"p. 182 offers a Strength (Athletics) or Dexterity (Acrobatics) check to escape "
+            f"a grapple, and {skill.value!r} is neither"
+        )
+    return f"{ESCAPE_PREFIX}:{skill.value}"
+
+
+def escape_declared(action_key: str | None) -> Skill | None:
+    """The check an escape declaration names, or `None` if it is not one."""
+    prefix, _, name = (action_key or "").partition(":")
+    if prefix != ESCAPE_PREFIX:
+        return None
+    return next((skill for skill in ESCAPE_SKILLS if skill.value == name), None)
+
+
+def release_key(target_id: str) -> str:
+    """The action key for a grappler letting one creature go (p. 182)."""
+    return f"{RELEASE_PREFIX}:{target_id}"
+
+
+def release_declared(action_key: str | None) -> str | None:
+    """Who a release declaration frees, or `None` if it is not one."""
+    prefix, _, target_id = (action_key or "").partition(":")
+    return target_id if prefix == RELEASE_PREFIX and target_id else None
+
+
+def can_be_escaped(actor: Combatant) -> bool:
+    """Whether p. 182's escape check is available to this creature right now.
+
+    Three things, and the third is the one a reader would not predict: the creature is
+    Grappled, it has an Action to spend, and **the grapple states an escape DC**. A check
+    without a target number is not a check, so a grapple whose ruleset never stated one is
+    escaped by the other endings or not at all — reported rather than resolved against a
+    number the engine would have had to choose.
+    """
+    if Condition.GRAPPLED not in actor.conditions.held:
+        return False
+    if not actor.actions.available(ActionKind.ACTION, actor.conditions):
+        return False
+    grapple = actor.conditions.grapple
+    return grapple is not None and grapple.escape_dc is not None
 
 
 def cleave_attack_key(weapon_id: str, target_id: str) -> str:
@@ -683,6 +755,34 @@ def legal_actions(state: EncounterState, actor_id: str) -> tuple[LegalAction, ..
         )
         actions.append(LegalAction(key=DODGE, label="Dodge", detail={"holds": speed > 0}))
         actions.append(LegalAction(key=DISENGAGE, label="Disengage", detail={}))
+        # p. 182's escape check, one entry per check the document offers. The choice is the
+        # escaping creature's — "a Strength (Athletics) or Dexterity (Acrobatics) check" — so
+        # it is a menu rather than a parameter, the same shape the Dash uses above. The bonus
+        # travels in `detail` because the two entries are otherwise indistinguishable to an
+        # agent, and choosing between them is the whole point of offering both.
+        if can_be_escaped(actor):
+            grapple = actor.conditions.grapple
+            assert grapple is not None and grapple.escape_dc is not None  # can_be_escaped
+            actions.extend(
+                LegalAction(
+                    key=escape_key(skill),
+                    label=f"Escape the grapple ({skill.value})",
+                    detail={"dc": grapple.escape_dc, "bonus": actor.check_bonus(skill)},
+                )
+                for skill in ESCAPE_SKILLS
+            )
+    # Deliberately outside the `has_action` block: p. 182 lets a grappler release "at any time
+    # (no action required)", so an offer gated on a spare Action would refuse the one thing the
+    # document says costs nothing.
+    actions.extend(
+        LegalAction(
+            key=release_key(held.id),
+            label=f"Release {held.name}",
+            detail={"costs_action": False},
+        )
+        for held in state.combatants
+        if held.conditions.grappler_id == actor.id
+    )
 
     return tuple(actions)
 
@@ -1399,6 +1499,8 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
         unenforced.append(OBJECT_INTERACTION_CAP)
     if actor.over_carrying_capacity:
         unenforced.append(CARRYING_CAPACITY_SPEED_CAP)
+    if any(held.conditions.grappler_id == actor.id for held in state.combatants):
+        unenforced.append(RELEASE_ONLY_ON_YOUR_TURN)
 
     return Situation(
         hit_points=actor.hit_points,
