@@ -135,6 +135,31 @@ visible gap beats a confident wrong number, because a wrong number is indistingu
 right one once it's inside a finished ruling. Widely-known 5e behaviour that isn't in the SRD is
 still a guess, and Product Identity outside the SRD must not enter this repository at all.
 
+**Accuracy is not provenance, and a quotation is not an assertion.** A rule value can be
+*right* and still unverified, and the two are indistinguishable from inside the repository —
+which is the whole reason `scripts/verify_d20_rules.py` exists. Three consecutive builds found
+the same thing on 2026-08-30, each in a different disguise:
+
+- [#371](https://github.com/eddiefiggie/srd-rules-engine/issues/371): `core.casting` **quoted** p. 105's ritual clause in a docstring, to explain
+  why rituals sat outside the long-cast machinery. The quotation was word-perfect and the
+  verifier had never read that sentence — so an entire issue rested on a clause the repository
+  had not asserted, written by someone recalling a document rather than opening it.
+- [#385](https://github.com/eddiefiggie/srd-rules-engine/issues/385): `initiative_order` took `ability="dex"`, which is correct, beside a comment
+  saying the value was a parameter *because* the page was unread. Correct, honest, and
+  unfalsifiable for as long as nobody checked.
+- [#264](https://github.com/eddiefiggie/srd-rules-engine/issues/264): the page was read first, and the reading changed the design — p. 183's
+  second sentence is what makes improvised-ness a *use* rather than an object.
+
+So: **before building a mechanic, read its page — do not rely on a quotation already in the
+tree, however exact.** A docstring quoting the SRD is evidence that somebody believed
+something, and nothing more. If the sentence a change rests on is not in
+`scripts/verify_d20_rules.py`, adding it is part of the change rather than follow-up work.
+
+The document is deliberately outside this repository (`NOTICE.md`), so this costs a run of
+`scripts/verify_d20_rules.py /path/to/SRD_CC_v5.2.1.pdf` by somebody holding it. That is the
+price of the guarantee, and it is small next to the alternative: a value nobody can tell from
+a guess.
+
 **Seeded is not verified.** A community dataset is a seed, never a source. Each entry carries its
 own verification state against the official document, and unverified entries do not reach the
 engine. The closest prior art I have — [`ddo-loadout-optimizer`](https://github.com/eddiefiggie/ddo-loadout-optimizer)

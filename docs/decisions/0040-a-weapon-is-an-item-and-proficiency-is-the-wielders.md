@@ -165,7 +165,7 @@ menu.
 | 2 — proficiency is the wielder's, keyed by weapon id | **Built** as `Combatant.weapon_proficiencies`. The test that exercised it could not be written before: the same weapon in the hands of someone who lacks the proficiency was unexpressible |
 | 3 — the read surface gates on reach and range, long range included | **Built**, and it narrowed something the clause did not foresee: a creature holding no weapon is now offered no attack, while p. 177 always allows an Unarmed Strike. Disclosed and filed as [#267](https://github.com/eddiefiggie/srd-rules-engine/issues/267) |
 | 4 — no wrapper, because an attack's effect is the engine's | **Built.** `attack_resolver()` takes no weapon and one attack rule replaces one rule per weapon — the fixture's two-closure dispatcher was deleted rather than rewritten |
-| 5 — improvised is a use, not an object | **Decided, not built.** [#264](https://github.com/eddiefiggie/srd-rules-engine/issues/264) |
+| 5 — improvised is a use, not an object | **Built** 2026-08-30 by [#264](https://github.com/eddiefiggie/srd-rules-engine/issues/264) ([0076](0076-improvised-is-a-use-not-an-object.md)), which found the clause right and its reason sharper than recorded: p. 183's *second* sentence is what forecloses the object modelling. The thrown 20/60 half is [#390](https://github.com/eddiefiggie/srd-rules-engine/issues/390) |
 
 **#262 is closed by this record.** #258 builds clauses 1-4; the weapon properties it unblocks
 are [#263](https://github.com/eddiefiggie/srd-rules-engine/issues/263), and p. 177's
