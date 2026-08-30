@@ -126,8 +126,19 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # bonus for a class feature, and no class data ships.
         "skill": "core.state.Combatant.check_bonus",
         # p. 187's Ritual, whole: the prepared-and-tagged precondition, the 10 minutes, the
-        # slot it does not expend, and the upcasting that therefore cannot happen (#19).
-        "ritual": "core.spellcasting.ritual_cast",
+        # slot it does not expend, and the upcasting that therefore cannot happen (#19) —
+        # **and p. 105's clause that a Ritual is one of the longer casting times**, which is
+        # what charges those minutes as Magic actions (#371, 0074).
+        #
+        # **This named `core.spellcasting.ritual_cast` until #371, and that function had no
+        # caller anywhere in the engine.** It computed a `RitualCast` and returned it to
+        # nobody, so a caller could ritual a spell and take zero turns — the shape was claimed
+        # over machinery, which is the overstatement R17's inventory exists to prevent. The
+        # same finding as
+        # [#381](https://github.com/eddiefiggie/srd-rules-engine/issues/381)'s,
+        # except that one was honestly withheld and this
+        # one was already claimed.
+        "ritual": "core.casting._ritual_begun",
         # Jumping. `high-jump` is NOT here: p. 183 adds one and a half times the creature's
         # height to what it can reach, and nothing models height — the arithmetic exists in
         # `core.position.high_jump_feet` and the entry says more than it computes.

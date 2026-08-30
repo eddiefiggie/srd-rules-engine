@@ -59,7 +59,12 @@ from srd_rules_engine.core.position import MovementMode, distance_feet, within
 from srd_rules_engine.core.sight import LightLevel, Senses
 from srd_rules_engine.core.size import CarryingCapacity, Size
 from srd_rules_engine.core.skills import Skill
-from srd_rules_engine.core.spellcasting import CastingTime, component_refusal
+from srd_rules_engine.core.spellcasting import (
+    RITUAL_EXTRA_MINUTES,
+    CastingTime,
+    component_refusal,
+    ritual_turns_to_cast,
+)
 from srd_rules_engine.core.state import Combatant, EncounterState
 
 #: Marks the token's encoding. An unrecognised prefix yields `unread` rather than an
@@ -649,6 +654,24 @@ def dash_mode(action_key: str | None) -> MovementMode | None:
         return None
 
 
+#: p. 187's Ritual. Its own key rather than a slot level on `cast:`, because a Ritual is not
+#: a casting at some level — it expends no slot at all, and p. 187 draws the consequence that
+#: it therefore "can't be cast at a higher level". A key carrying a level would offer exactly
+#: the thing that sentence forbids (#371).
+RITUAL: Final = "ritual"
+
+
+def ritual_key(rule_id: str) -> str:
+    """The key one Ritual option is offered under (p. 187, #371)."""
+    return f"{RITUAL}:{rule_id}"
+
+
+def ritual_declared(action_key: str | None) -> str | None:
+    """Which spell a Ritual key names, or `None` if it is not one."""
+    prefix, _, rule_id = (action_key or "").partition(":")
+    return rule_id if prefix == RITUAL and rule_id else None
+
+
 def cast_key(rule_id: str, slot_level: int) -> str:
     """The key one castable option is offered under (0038 clause 4).
 
@@ -1061,6 +1084,29 @@ def _castable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...
         # not enough" — and ordinary casting was the half that did not ask (R18).
         if spell.rule_id not in actor.prepared:
             continue
+
+        # p. 187's Ritual, offered beside the ordinary casting rather than instead of it —
+        # "you **can** cast that spell as a Ritual" is a choice, and a caster holding a slot
+        # may still want the version that spends one (#371).
+        #
+        # **Not gated on a slot**, which is the whole point: a Ritual expends none, so it is
+        # on the menu for a caster with an empty slot list and for one that has already cast
+        # this turn. Gating it the way ordinary casting is gated would remove the option
+        # exactly when the document makes it most useful.
+        if spell.ritual:
+            offered.append(
+                LegalAction(
+                    key=ritual_key(spell.rule_id),
+                    label=f"Cast {spell.rule_id} as a Ritual",
+                    detail={
+                        "spell_level": spell.level,
+                        "extra_minutes": RITUAL_EXTRA_MINUTES,
+                        "turns_to_cast": ritual_turns_to_cast(spell),
+                        "expends_slot": False,
+                        "concentration": True,
+                    },
+                )
+            )
 
         if spell.is_cantrip:
             levels: tuple[int, ...] = (0,)
