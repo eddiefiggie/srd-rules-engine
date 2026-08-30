@@ -17,8 +17,8 @@ from srd_rules_engine.core.damage import (
     after_defences,
 )
 from srd_rules_engine.core.rules import VerificationState
-from srd_rules_engine.core.spellcasting import Concentration
-from srd_rules_engine.core.state import Combatant, ConcentrationDebt, EncounterState
+from srd_rules_engine.core.spellcasting import CONCENTRATION_RULE_ID, Concentration
+from srd_rules_engine.core.state import Combatant, EncounterState, ForcedSave
 
 FIRE = DamageType.FIRE
 NECROTIC = DamageType.NECROTIC
@@ -341,14 +341,26 @@ def caster(
     )
 
 
+def _owed(state: EncounterState) -> list[tuple[str, str, int]]:
+    """Each debt as (who owes it, which rule compelled it, the DC) — 0048's shape.
+
+    The queue held a damage amount until the generalisation; the DC and its derivation are
+    now computed where the trigger fires, so what a test reads is the number the save will
+    actually be rolled against. The amount survives inside `dc_basis`, which is asserted
+    separately where it is the point.
+    """
+    return [(d.combatant_id, d.rule_id, d.dc) for d in state.forced_saves_owed]
+
+
 def test_damage_to_a_concentrating_creature_records_a_save_owed() -> None:
     state = EncounterState.new([caster()]).with_damage("mage", 12)
-    assert state.concentration_saves_owed == (ConcentrationDebt(combatant_id="mage", amount=12),)
+    assert _owed(state) == [("mage", CONCENTRATION_RULE_ID, 10)], "10 or half of 12 (p. 179)"
+    assert "12 damage taken" in state.forced_saves_owed[0].dc_basis
 
 
 def test_nothing_is_owed_by_a_creature_that_is_not_concentrating() -> None:
     state = EncounterState.new([caster(spell=None)]).with_damage("mage", 12)
-    assert state.concentration_saves_owed == ()
+    assert state.forced_saves_owed == ()
 
 
 def test_two_instances_in_one_turn_owe_two_saves() -> None:
@@ -365,10 +377,10 @@ def test_two_instances_in_one_turn_owe_two_saves() -> None:
     """
     state = EncounterState.new([caster()]).with_damage("mage", 8).with_damage("mage", 30)
 
-    assert state.concentration_saves_owed == (
-        ConcentrationDebt(combatant_id="mage", amount=8),
-        ConcentrationDebt(combatant_id="mage", amount=30),
-    )
+    assert _owed(state) == [
+        ("mage", CONCENTRATION_RULE_ID, 10),  # 10 or half of 8
+        ("mage", CONCENTRATION_RULE_ID, 15),  # 10 or half of 30
+    ]
 
 
 def test_damage_fully_absorbed_by_immunity_owes_nothing() -> None:
@@ -382,7 +394,7 @@ def test_damage_fully_absorbed_by_immunity_owes_nothing() -> None:
     )
 
     assert state.combatant("mage").hit_points == 40, "the immunity applied"
-    assert state.concentration_saves_owed == ()
+    assert state.forced_saves_owed == ()
 
 
 def test_resistance_halves_the_dc_the_save_will_use() -> None:
@@ -391,7 +403,8 @@ def test_resistance_halves_the_dc_the_save_will_use() -> None:
         "mage", 30, damage_type=FIRE
     )
 
-    assert state.concentration_saves_owed == (ConcentrationDebt(combatant_id="mage", amount=15),)
+    assert _owed(state) == [("mage", CONCENTRATION_RULE_ID, 10)], "half of 15, not of 30"
+    assert "15 damage taken" in state.forced_saves_owed[0].dc_basis
 
 
 def test_a_debt_survives_the_turn_advancing() -> None:
@@ -408,14 +421,14 @@ def test_a_debt_survives_the_turn_advancing() -> None:
         .with_initiative({"mage": 20, "hero": 5})
         .with_damage("mage", 12)
     )
-    assert state.concentration_saves_owed, "precondition: a debt exists"
+    assert state.forced_saves_owed, "precondition: a debt exists"
 
     advanced = state.advanced_turn()
 
     assert advanced.discharged == frozenset(), "the once-per-turn set does clear"
-    assert advanced.concentration_saves_owed == (
-        ConcentrationDebt(combatant_id="mage", amount=12),
-    ), "the per-instance debt does not"
+    assert _owed(advanced) == [("mage", CONCENTRATION_RULE_ID, 10)], (
+        "the per-instance debt does not"
+    )
 
 
 def test_recording_a_debt_produces_no_result_of_its_own() -> None:
@@ -427,15 +440,40 @@ def test_recording_a_debt_produces_no_result_of_its_own() -> None:
     (R1).
     """
     state = EncounterState.new([caster()]).with_damage("mage", 12)
-    debt = state.concentration_saves_owed[0]
+    debt = state.forced_saves_owed[0]
 
-    assert isinstance(debt, ConcentrationDebt)
+    assert isinstance(debt, ForcedSave)
     assert not hasattr(debt, "rolled"), "a debt is what is owed, never what came of it"
     assert state.combatant("mage").concentration.active, (
         "the Concentration is untouched — whether it survives is the save's to decide"
     )
 
 
-def test_a_debt_of_zero_is_refused_rather_than_stored() -> None:
-    with pytest.raises(ValueError, match="damage actually taken"):
-        ConcentrationDebt(combatant_id="mage", amount=0)
+def test_a_debt_with_no_dc_is_refused_rather_than_stored() -> None:
+    """0048 moved the validation with the field. The queue used to refuse a zero *amount*,
+    because 0 damage breaks no Concentration; it now refuses a DC no save could be rolled
+    against, which is the same refusal one step later and covers every rule rather than one.
+    """
+    with pytest.raises(ValueError, match="positive target number"):
+        ForcedSave(
+            combatant_id="mage",
+            rule_id=CONCENTRATION_RULE_ID,
+            ability="con",
+            dc=0,
+            dc_basis="a DC nothing could derive",
+            label="an impossible save",
+        )
+
+
+def test_a_debt_with_no_derivation_is_refused() -> None:
+    """R30. A target number the reader cannot check is what the basis exists to prevent, and
+    the old queue could not express one because its DC was computed from a carried amount."""
+    with pytest.raises(ValueError, match="derivation of its DC"):
+        ForcedSave(
+            combatant_id="mage",
+            rule_id=CONCENTRATION_RULE_ID,
+            ability="con",
+            dc=12,
+            dc_basis="",
+            label="a save with an unexplained DC",
+        )

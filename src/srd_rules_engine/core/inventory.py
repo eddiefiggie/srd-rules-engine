@@ -200,6 +200,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # extra attack p. 89 grants — which needed a per-turn record, because the Bonus Action
         # spend had been doing that job and a Nick attack spends nothing.
         "mastery-nick": "core.read_surface.nick_attack_key",
+        # p. 90, #321. The hit records a save the engine's own DC derives from, and the loop
+        # rolls it through the one adjudication entry point — the second occupant of the
+        # forced-save queue 0048 generalised out of 0036's Concentration-shaped one.
+        "mastery-topple": "core.topple.topple_resolver",
         # Position, movement and range in feet (#17, #20).
         "speed": "core.position.Speeds.walk",
         "difficult-terrain": "core.position.movement_cost",

@@ -798,6 +798,25 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"only by increasing the ability modifier",
     ),
     (
+        90,
+        "Nick moves the Light property's extra attack into the Attack action, once a turn",
+        r"When you make the extra attack of the Light property, you can make it as part of "
+        r"the Attack action instead of as a Bonus Action\. You can make this extra attack "
+        r"only once per turn",
+    ),
+    (
+        90,
+        "Topple fires on a hit and compels a Constitution save",
+        r"If you hit a creature with this weapon, you can force the creature to make a "
+        r"Constitution saving throw",
+    ),
+    (
+        90,
+        "and the Topple DC is 8 plus the attack's ability modifier plus the Proficiency Bonus",
+        r"DC 8 plus the ability modifier used to make the attack roll and your Proficiency "
+        r"Bonus\)\. On a failed save, the creature has the Prone condition",
+    ),
+    (
         188,
         "Speed is the distance a creature covers when it moves ON ITS TURN",
         r"A creature has a Speed, which is the distance in feet the creature can cover "

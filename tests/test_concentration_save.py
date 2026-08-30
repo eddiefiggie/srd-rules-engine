@@ -31,10 +31,10 @@ from srd_rules_engine.core import (
     CONCENTRATION_RULE_ID,
     Adjudicator,
     Combatant,
-    ConcentrationDebt,
     Declaration,
     EffectKind,
     EncounterState,
+    ForcedSave,
     Intent,
     Ledger,
     Rule,
@@ -210,7 +210,7 @@ def test_damage_that_a_defence_absorbs_entirely_compels_nothing(tmp_path: Path) 
     """0036 clause 5. p. 179 says "the damage taken", so a creature that took none owes
     none — and `with_damage` already reasons this way for the death-save failure."""
     state = encounter()
-    assert hurt(state, 0).concentration_saves_owed == ()
+    assert hurt(state, 0).forced_saves_owed == ()
 
 
 # --- Finding 2: once per instance, not once per turn -------------------------------------
@@ -221,7 +221,7 @@ def test_two_damage_instances_compel_two_saves(tmp_path: Path) -> None:
     `(actor_id, rule_id)` in `discharged`, cleared once per turn — the second save is
     suppressed and silently never rolled."""
     state = hurt(hurt(encounter(), 8), 30)
-    assert len(state.concentration_saves_owed) == 2, "precondition: two debts"
+    assert len(state.forced_saves_owed) == 2, "precondition: two debts"
 
     rulings = narrated(build_loop(tmp_path), state, "mage")
 
@@ -240,7 +240,7 @@ def test_the_saves_never_touch_the_once_per_turn_record(tmp_path: Path) -> None:
         ScriptedDriver(narrations=["it happened"] * 8),
     )
 
-    assert end.state.concentration_saves_owed == ()
+    assert end.state.forced_saves_owed == ()
     assert not any(rule == CONCENTRATION_RULE_ID for _, rule in end.state.discharged)
 
 
@@ -251,7 +251,9 @@ def test_a_debt_survives_a_turn_advance(tmp_path: Path) -> None:
     state = hurt(encounter(), 12)
     advanced = state.advanced_turn()
 
-    assert advanced.concentration_saves_owed == (ConcentrationDebt(combatant_id="mage", amount=12),)
+    assert [(d.combatant_id, d.rule_id, d.dc) for d in advanced.forced_saves_owed] == [
+        ("mage", CONCENTRATION_RULE_ID, 10)
+    ], "10 or half of 12 (p. 179)"
 
 
 # --- Finding 4: three phases deal damage -------------------------------------------------
@@ -267,7 +269,7 @@ def test_burning_at_the_turns_start_compels_the_save_there(tmp_path: Path) -> No
     )
 
     assert [r.rule_id for r in start.rulings] == [BURNING_RULE_ID, CONCENTRATION_RULE_ID]
-    assert start.state.concentration_saves_owed == ()
+    assert start.state.forced_saves_owed == ()
 
 
 def test_a_phase_with_no_obligations_of_its_own_still_drains_the_queue(tmp_path: Path) -> None:
@@ -365,7 +367,7 @@ def test_a_creature_whose_concentration_already_broke_owes_no_further_save(
     )
 
     assert len(end.rulings) == 1
-    assert end.state.concentration_saves_owed == ()
+    assert end.state.forced_saves_owed == ()
 
 
 def test_incapacitated_ends_it_before_the_save_is_ever_rolled(tmp_path: Path) -> None:
@@ -433,7 +435,7 @@ def test_a_ruleset_without_the_rule_names_the_gap_rather_than_dropping_the_save(
 
     assert end.rulings == ()
     assert [o.rule_id for o in end.unresolvable] == [CONCENTRATION_RULE_ID]
-    assert end.state.concentration_saves_owed == (), "the debt is dropped, not spun on"
+    assert end.state.forced_saves_owed == (), "the debt is dropped, not spun on"
 
 
 def test_the_declaration_slot_reports_an_unresolvable_save_too(tmp_path: Path) -> None:
@@ -562,7 +564,7 @@ def test_no_save_is_owed_for_a_spell_that_already_ended() -> None:
     state = concentrating().with_condition("mage", Condition.INCAPACITATED)
     lifted = state.with_condition_ended("mage", Condition.INCAPACITATED)
 
-    assert lifted.with_damage("mage", 12).concentration_saves_owed == ()
+    assert lifted.with_damage("mage", 12).forced_saves_owed == ()
 
 
 def test_a_creature_killed_outright_is_not_concentrating() -> None:
@@ -633,8 +635,42 @@ def test_a_creature_killed_by_the_blow_does_not_roll_the_save_it_owed(tmp_path: 
 
     killed = state.with_damage("ogre", 40)
     assert killed.combatant("ogre").death_saves.dead
-    assert killed.concentration_saves_owed, "precondition: the debt was recorded by the blow"
+    assert killed.forced_saves_owed, "precondition: the debt was recorded by the blow"
 
     rulings = narrated(build_loop(tmp_path), killed, "boar")
     assert rulings == (), "the dead do not roll to maintain Concentration"
-    assert killed.with_damage("ogre", 5).concentration_saves_owed == killed.concentration_saves_owed
+    assert killed.with_damage("ogre", 5).forced_saves_owed == killed.forced_saves_owed
+
+
+# --- one queue, two rules (0048) ---------------------------------------------------------
+
+
+def test_the_resolver_refuses_a_debt_belonging_to_another_rule() -> None:
+    """0048 clause 2. One queue serves every forced save, so each resolver checks that the
+    debt in front of it is its own.
+
+    Reached only if the loop and the rule have come apart — and that is exactly when rolling
+    the wrong save would be least visible, because a Constitution save against somebody
+    else's DC looks like a Constitution save.
+    """
+    state = encounter().with_forced_save(
+        ForcedSave(
+            combatant_id="mage",
+            rule_id="mastery-topple",
+            ability="con",
+            dc=13,
+            dc_basis="a fixture",
+            label="makes a Constitution save or falls Prone",
+        )
+    )
+
+    with pytest.raises(ValueError, match=r"not p\. 179's"):
+        concentration_resolver()(
+            state=state,
+            declaration=Declaration(
+                actor_id="mage",
+                intent=Intent(improvised=True, label="maintains Concentration"),
+                rule_id=CONCENTRATION_RULE_ID,
+            ),
+            facts={},
+        )

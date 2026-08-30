@@ -84,7 +84,14 @@ from srd_rules_engine.core.sight import (
     obscurement_at,
 )
 from srd_rules_engine.core.skills import SKILL_ABILITY, PerceptionCheck, Skill
-from srd_rules_engine.core.spellcasting import Concentration, Spell, SpellSlots
+from srd_rules_engine.core.spellcasting import (
+    CONCENTRATION_RULE_ID,
+    CONCENTRATION_SAVE_ABILITY,
+    Concentration,
+    Spell,
+    SpellSlots,
+    concentration_save,
+)
 
 #: p. 17: "On your third success, you become Stable... On your third failure, you die."
 DEATH_SAVE_THRESHOLD: Final = 3
@@ -203,30 +210,49 @@ _SPEED_ONLY_MODES: Final = (MovementMode.FLY, MovementMode.BURROW)
 
 
 @dataclass(frozen=True)
-class ConcentrationDebt:
-    """One Concentration save a creature owes but has not rolled (p. 179, 0036 clause 3).
+class ForcedSave:
+    """One save a creature owes and has not rolled, whatever compelled it (0048).
 
-    **The amount is carried rather than looked up**, and that is clause 4 rather than
-    convenience. p. 179's DC is "10 or half the damage taken (round down), whichever number
-    is higher, up to a maximum DC of 30" — a function of *this* instance's damage. By the
-    time the loop discharges the save the creature's hit points have moved, often more than
-    once, so the number cannot be recovered from state afterwards.
+    **Generalised from `ConcentrationDebt`** (0036 clause 3), which held p. 179's damage
+    amount and nothing else. 0036 decided the *cardinality* — one debt per triggering
+    instance, deliberately not `discharged`'s once-per-turn keying — and that cardinality is
+    the whole of what makes two forced saves the same mechanism. p. 90's Topple owes one save
+    per hit; p. 179's Concentration owes one per damage instance. Same shape, so one
+    structure, which is 0036 clause 3's own rule read forwards.
 
-    It is also what keeps R4 intact: the resolver closes over a number the **engine**
-    recorded when the damage landed, never one a caller supplied.
+    **The DC and its derivation are computed when the trigger fires**, not when the save is
+    rolled. 0036 clause 4 gave the reason for the amount and it reaches further than the
+    amount: by the time the loop discharges the save, the state the DC came from has moved.
+    Concentration's DC is a function of *that* instance's damage and the creature's hit
+    points have since changed; Topple's is a function of the ability the attacker chose for
+    *that* attack roll, which nothing records afterwards. Neither is recoverable.
 
-    The amount is damage **taken**, after defences (clause 5). A creature Immune to the type
-    takes none and owes nothing, so no debt of 0 is ever recorded.
+    It is also what keeps R4 intact: the resolver closes over numbers the **engine** recorded
+    when the trigger fired, never ones a caller supplied.
+
+    `dc_basis` travels with the DC because a target number without its derivation is half a
+    ruling (R30). It is the engine's own sentence, built where the rule is known.
     """
 
     combatant_id: str
-    amount: int
+    #: Which rule compelled it, and therefore which resolver rolls it. The rule id carries
+    #: the selection for the reason `save_ends` gives: the declaration's label is prose, and
+    #: an engine reading prose to choose a mechanic is the capability being removed.
+    rule_id: str
+    ability: str
+    dc: int
+    dc_basis: str
+    #: What the obligation says it is. Written where the trigger fired, because that is the
+    #: only place that knows what happened — the loop sees a debt, not an attack.
+    label: str
 
     def __post_init__(self) -> None:
-        if self.amount <= 0:
+        if self.dc < 1:
+            raise ValueError(f"a save DC is a positive target number, not {self.dc}")
+        if not self.dc_basis:
             raise ValueError(
-                "a Concentration debt records damage actually taken; 0 damage breaks no "
-                "Concentration and a debt for it would compel a save that can fail"
+                "a forced save carries the derivation of its DC. A target number without one "
+                "is a number the reader cannot check, which is what R30 exists to refuse"
             )
 
 
@@ -695,7 +721,7 @@ class EncounterState:
     #:
     #: **Not cleared by `advanced_turn`**, for the same reason: a debt incurred on the
     #: monster's turn is owed by the caster, who is not the creature whose turn is ending.
-    concentration_saves_owed: tuple[ConcentrationDebt, ...] = ()
+    forced_saves_owed: tuple[ForcedSave, ...] = ()
     #: Who has already expended a spell slot this turn (p. 105, 0038): "On a turn, you can
     #: expend only one spell slot to cast a spell."
     #:
@@ -1216,41 +1242,49 @@ class EncounterState:
         """
         return self._evolve(discharged=self.discharged | {(combatant_id, rule_id)})
 
-    def concentration_debt_for(self, combatant_id: str) -> ConcentrationDebt | None:
-        """The oldest Concentration save this creature owes, or `None` (0036 clause 3).
+    def forced_save_for(self, combatant_id: str) -> ForcedSave | None:
+        """The oldest save this creature owes, or `None` (0036 clause 3, 0048).
 
-        Oldest first, because the debts are one per damage instance and the document gives
-        no other order. A read, so it mutates nothing (R19) — the resolver asks it for the
-        amount p. 179's DC derives from, and the loop asks it whether anything is owed.
+        Oldest first, because the debts are one per triggering instance and the document
+        gives no other order. A read, so it mutates nothing (R19) — a resolver asks it for
+        the DC its rule derived, and the loop asks it whether anything is owed.
         """
-        for debt in self.concentration_saves_owed:
+        for debt in self.forced_saves_owed:
             if debt.combatant_id == combatant_id:
                 return debt
         return None
 
-    def with_concentration_save_discharged(self, combatant_id: str) -> EncounterState:
-        """Drop the oldest Concentration save this creature owed, having rolled it.
+    def with_forced_save(self, debt: ForcedSave) -> EncounterState:
+        """Record a save a creature owes (0048).
+
+        Appended, because the queue is ordered and one creature may owe several — a
+        Multiattack landing twice with a Topple weapon compels two, and p. 90 gives no rule
+        merging them.
+        """
+        return self._evolve(forced_saves_owed=(*self.forced_saves_owed, debt))
+
+    def with_forced_save_discharged(self, combatant_id: str) -> EncounterState:
+        """Drop the oldest save this creature owed, having rolled it.
 
         **Not `discharged`, and that is 0036 clause 3 rather than an oversight.** An entry
         in `discharged` means "owed once this turn, and met"; this queue means "owed once
-        per damage instance". A creature hit twice by a Multiattack owes two saves, so the
-        record of having met one has to remove *one* debt rather than mark the rule met.
+        per triggering instance". A creature hit twice by a Multiattack owes two saves, so
+        the record of having met one has to remove *one* debt rather than mark the rule met.
 
         Dropped whether the save succeeded, failed or was refused, exactly as
         `with_obligation_discharged` records regardless of outcome — a debt that outlived
         its adjudication would spin the loop that drains it forever.
         """
-        debt = self.concentration_debt_for(combatant_id)
+        debt = self.forced_save_for(combatant_id)
         if debt is None:
             raise ValueError(
-                f"{combatant_id!r} owes no Concentration save, so there is none to "
-                "discharge. The debt is recorded when the damage lands and dropped when "
-                "it is rolled, and a discharge with nothing to drop means the two have "
-                "come apart"
+                f"{combatant_id!r} owes no save, so there is none to discharge. The debt is "
+                "recorded when the trigger fires and dropped when it is rolled, and a "
+                "discharge with nothing to drop means the two have come apart"
             )
-        remaining = list(self.concentration_saves_owed)
+        remaining = list(self.forced_saves_owed)
         remaining.remove(debt)
-        return self._evolve(concentration_saves_owed=tuple(remaining))
+        return self._evolve(forced_saves_owed=tuple(remaining))
 
     def with_action_spent(
         self, combatant_id: str, action: ActionKind, *, weapon_id: str | None = None
@@ -1478,11 +1512,31 @@ class EncounterState:
         # surface would agree about who is concentrating. They agreed and were wrong
         # together: after an Incapacitated condition lifted, the derivation handed the spell
         # back and this compelled a save to maintain something p. 179 had already ended.
-        owed = self.concentration_saves_owed
+        owed = self.forced_saves_owed
         if amount > 0 and target.concentration.active:
-            owed = (*owed, ConcentrationDebt(combatant_id=combatant_id, amount=amount))
+            # 0048: the DC and its derivation are computed **here**, where the trigger fires,
+            # rather than carried as a damage amount for the resolver to convert. 0036 clause
+            # 4's reason for carrying the amount reaches one step further — by the time the
+            # loop rolls this, the hit points the DC came from have moved, often more than
+            # once — and it is what lets one queue serve rules whose DCs come from different
+            # things entirely.
+            test = concentration_save(amount)
+            owed = (
+                *owed,
+                ForcedSave(
+                    combatant_id=combatant_id,
+                    rule_id=CONCENTRATION_RULE_ID,
+                    ability=CONCENTRATION_SAVE_ABILITY,
+                    dc=test.target,
+                    dc_basis=test.target_basis,
+                    label=(
+                        f"makes a Constitution save to maintain Concentration, having taken "
+                        f"{amount} damage (p. 179)"
+                    ),
+                ),
+            )
 
-        state = self._evolve(combatants=self._replacing(reduced), concentration_saves_owed=owed)
+        state = self._evolve(combatants=self._replacing(reduced), forced_saves_owed=owed)
         if amount == 0 or reduced.hit_points > 0 or target.death_saves.dead:
             return state
 

@@ -339,6 +339,21 @@ def concentration_save_dc(damage: int) -> int:
     return min(CONCENTRATION_DC_CAP, max(CONCENTRATION_DC_FLOOR, damage // 2))
 
 
+#: The rule id the loop asks for and a ruleset registers under. A literal repeated at both
+#: ends is a literal that drifts, which is why `SUFFOCATION_RULE_ID` exists too.
+#:
+#: **Here rather than in `core.concentration`** since 0048. `EncounterState.with_damage` now
+#: builds the whole `ForcedSave` where the trigger fires, so it needs the id and the ability
+#: — and `core.concentration` imports state, so state cannot import it back. They are facts
+#: about the rule, and this is the module that already holds p. 179's arithmetic.
+#: `core.concentration` re-exports both, so neither name moved for a reader.
+CONCENTRATION_RULE_ID: Final = "concentration-save"
+
+#: p. 179's Constitution save is Constitution, and the ability is the rule rather than the
+#: caller's choice.
+CONCENTRATION_SAVE_ABILITY: Final = "con"
+
+
 def concentration_save(damage: int) -> D20Test:
     """The Constitution saving throw damage forces, as a test the engine can roll.
 

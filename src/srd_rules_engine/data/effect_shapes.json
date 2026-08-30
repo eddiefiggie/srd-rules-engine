@@ -1452,7 +1452,7 @@
    "tag": null,
    "reference": "Equipment, p. 90 (Topple)",
    "kind": "weapon-mastery",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "mastery-vex",
