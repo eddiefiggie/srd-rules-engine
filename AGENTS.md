@@ -225,6 +225,19 @@ Two guards, because they catch different things
 
 Neither guard checks that the prose is honest. That part is on you.
 
+**And a figure written into a decision record is prose too.** The README's two published
+numbers are derived and guarded — `scripts/check_status_rows.py` and
+`tests/test_readme_reports_real_coverage.py` — but a record's Consequences section is counted
+by hand at the moment of writing and checked by nothing, ever again.
+[0059](docs/decisions/0059-initiative-draws-a-pair-for-everyone.md) shipped saying "six
+conditions still disclose something, down from eight" when the answer was eight, unchanged:
+what fell was the *clause* count, not the *condition* count, and the line got both the number
+and the figure wrong. It survived a merge, a green suite and a review, and was caught by an
+audit that counted the conditions at each commit for an unrelated reason.
+
+So: **derive a figure before writing it down, even in prose.** One command against the tree
+costs less than a wrong number in a document nobody re-reads.
+
 **That line is the build record; there is no changelog.** `CHANGELOG.md` is retired and frozen at
 build `08232026.36` — it duplicated the README line, went fifteen PRs without an entry, and nothing
 guarded it ([0024](docs/decisions/0024-the-build-line-is-the-build-record.md),

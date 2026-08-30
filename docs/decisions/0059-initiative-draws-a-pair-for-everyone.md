@@ -80,7 +80,15 @@ That check is the test's own guard against the fixture drifting under it.
 - **Both disclosures retire**, in the change that builds their rules. They were two strings
   rather than one because the pin refuses a repeated clause, and that was right: sharing one
   would have made a single removal look like both.
-- **Six conditions still disclose something**, down from eight.
+- **Two clauses retire, and no condition stops disclosing.** Incapacitated keeps
+  `cannot-speak` and Invisible keeps `concealed-from-effects-requiring-sight`, so the
+  clause count falls from 12 to 10 while the condition count stays at eight.
+
+  *This line said "six conditions still disclose something, down from eight" when the
+  record shipped, and both halves were wrong: the number, and which of the two figures
+  moved. Corrected on 2026-08-30 after an audit counted the conditions at each commit.
+  0060 is about a disclosure being wrong about **why**; this is a record being wrong about
+  **how many**, and neither is caught by anything but a person.*
 - **`core.d20.pick` is public**, and `DICE_PER_COMBATANT` joins `core.combat`'s pinned
   constants — a deliberate diff, and a seed-layout decision rather than a rule value.
 - **One test states a property rather than guarding an implementation**, and says so:
