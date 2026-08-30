@@ -501,6 +501,35 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"If a spell has movable effects, they aren.t restricted by its range unless the "
         r"spell.s description says otherwise",
     ),
+    # --- Improvised weapons (#264) -------------------------------------------------------
+    (
+        183,
+        "an improvised weapon is a **use rather than an object** — a Simple or Martial "
+        "weapon counts as one when wielded contrary to its design, which is why this cannot "
+        "be a flag on the item (0076)",
+        r"A Simple or Martial weapon also counts as an improvised weapon if it.s wielded in "
+        r"a way contrary to its design",
+    ),
+    (
+        183,
+        "the Proficiency Bonus is **not added**, which is a prohibition rather than a "
+        "proficiency the wielder happens to lack — so there is no branch for a creature that "
+        "has one",
+        r"Don.t add your Proficiency Bonus to attack rolls with an improvised weapon",
+    ),
+    (
+        183,
+        "1d4, and a damage type **the document hands to a person** — the one rule here the "
+        "engine may not supply, and the reason `Item.improvised_damage_type` exists",
+        r"the weapon deals 1d4 damage of a type the GM thinks is appropriate for the object",
+    ),
+    (
+        183,
+        "a thrown improvised weapon is 20/60 — asserted so the number is read rather than "
+        "recalled when #390 builds the throw",
+        r"If you throw the weapon, it has a normal range of 20 feet and a long range of 60 "
+        r"feet",
+    ),
     # --- Initiative (#385) --------------------------------------------------------------
     (
         13,

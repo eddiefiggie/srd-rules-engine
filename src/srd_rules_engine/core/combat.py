@@ -83,7 +83,7 @@ from srd_rules_engine.core.d20 import (
 )
 from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.equipment import HEAVY_SCORE_THRESHOLD as HEAVY_SCORE_THRESHOLD
-from srd_rules_engine.core.equipment import RECOVERY_MINUTES, Carriage, Carried
+from srd_rules_engine.core.equipment import RECOVERY_MINUTES, Carriage, Carried, items_in
 from srd_rules_engine.core.equipment import Weapon as Weapon
 from srd_rules_engine.core.forced_movement import displaced
 from srd_rules_engine.core.memory_port import Resolution
@@ -104,6 +104,8 @@ from srd_rules_engine.core.position import (
 from srd_rules_engine.core.read_surface import (
     ATTACK_DROP,
     ATTACK_EQUIP,
+    IMPROVISED_DAMAGE_DICE,
+    IMPROVISED_DAMAGE_SIDES,
     PUSH_MASTERY_FEET,
     VERB_EQUIP,
     VERB_STOW,
@@ -112,6 +114,7 @@ from srd_rules_engine.core.read_surface import (
     attack_throw_declared,
     bonus_attack_declared,
     cleave_attack_declared,
+    improvised_attack_declared,
     interaction_declared,
     nick_attack_declared,
     opportunity_attack_declared,
@@ -967,6 +970,131 @@ def unarmed_strike_resolver() -> Resolver:
     return resolve
 
 
+#: R31. p. 183's entry, asserted whole in `scripts/verify_d20_rules.py` — the use rather than
+#: the object, the Proficiency Bonus that is not added, the 1d4, and the damage type the
+#: document hands to a person (#264).
+IMPROVISED_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference="SRD v5.2.1, Rules Glossary: Improvised Weapons p. 183",
+    date="2026-08-30",
+    method=VerificationMethod.ASSERTED,
+)
+
+
+def improvised_attack_resolver() -> Resolver:
+    """p. 183's Improvised Weapons, as a melee swing (#264, 0076).
+
+    > An improvised weapon is an object wielded as a makeshift weapon... A Simple or Martial
+    > weapon also counts as an improvised weapon **if it's wielded in a way contrary to its
+    > design**.
+
+    **A use rather than an object**, which is why this is its own resolver reached by its own
+    key rather than a flag on `attack_resolver`. Nothing here asks whether the item "is" an
+    improvised weapon: p. 183 says no object is one, and a longbow swung as a club is the
+    document's own example of a perfectly ordinary weapon being used improvisedly.
+
+    **Its own resolver rather than a branch, for the reason the Unarmed Strike has one.** Two
+    of p. 183's four rules contradict the weapon path outright — the dice are 1d4 whatever the
+    object's are, and the Proficiency Bonus is *never* added rather than added when proficient
+    — so a flag would have to suppress more of that path than it kept.
+
+    **The damage type is the ruleset's, and its absence refuses.** p. 183: "1d4 damage of a
+    type **the GM thinks is appropriate** for the object." The engine may not choose one, and
+    an unstated type is not untyped damage — untyped would interact with Resistance and
+    Immunity as though somebody had ruled on it. The read surface offers no attack with an
+    object whose type nobody has stated, and this refuses one that arrives anyway (0062).
+
+    **The ability modifier stays on both rolls.** p. 183 alters the dice and removes the
+    Proficiency Bonus from the attack roll, and says nothing about the ability modifier — so
+    the general rule applies rather than an exception being read into a sentence that does not
+    make one. Strength, because this is a melee attack and nothing about a table leg is
+    Finesse.
+
+    **Thrown is not here.** p. 183 gives a thrown improvised weapon 20/60, which needs the
+    throw path to carry an improvised mode
+    ([#390](https://github.com/eddiefiggie/srd-rules-engine/issues/390)).
+    """
+
+    def resolve(
+        *,
+        state: EncounterState,
+        declaration: Declaration,
+        facts: Mapping[str, Resolution],
+    ) -> Proposal:
+        actor = state.combatant(declaration.actor_id)
+        declared = improvised_attack_declared(declaration.intent.action_key)
+        if declared is None:
+            raise ValueError(
+                "this declaration is not an improvised attack: p. 183's swing is offered "
+                "under its own action key, and one carrying neither an object nor a target "
+                "has nothing to swing"
+            )
+        item_id, target_id = declared
+
+        held = {item.id: item for item in items_in(actor.equipment, Carriage.HELD)}
+        item = held.get(item_id)
+        if item is None:
+            raise ValueError(
+                f"{actor.name} is not holding {item_id!r}. p. 183 improvises with an object "
+                "**wielded** as a makeshift weapon, and the read surface offers only what is "
+                "in hand"
+            )
+        damage_type = item.improvised_damage_type
+        if damage_type is None:
+            raise ValueError(
+                f"nobody has said what {item_id!r} deals when it is swung. p. 183 gives an "
+                'improvised weapon "1d4 damage of a type the GM thinks is appropriate for '
+                'the object", and this engine may not think of one for them'
+            )
+
+        target = state.combatant(target_id)
+        _refuse_if_behind_total_cover(state, actor, target)
+        strength = actor.modifier("str")
+
+        return Proposal(
+            always=(
+                action_spent(
+                    actor.id,
+                    ActionKind.ACTION,
+                    description="the Action spent on the Attack (p. 176, p. 177)",
+                ),
+            ),
+            test=D20Test(
+                kind=TestKind.ATTACK,
+                target=target.armour_class,
+                target_basis=f"armour class {target.armour_class}, worn by {target.name}",
+                ability="str",
+                critical_on_hit=_hit_is_automatically_critical(actor, target),
+                # p. 183: "**Don't add your Proficiency Bonus** to attack rolls with an
+                # improvised weapon." Not a proficiency the wielder happens to lack — a
+                # prohibition, so there is no branch here for a creature that has one.
+                modifiers=(Modifier(source="ability:str", value=strength),),
+            ),
+            on_success=(
+                DamageDice(
+                    target_id=target.id,
+                    count=IMPROVISED_DAMAGE_DICE,
+                    sides=IMPROVISED_DAMAGE_SIDES,
+                    damage_type=damage_type,
+                    modifier=strength,
+                    source=item_id,
+                ),
+            ),
+            citations=("srd:rules-glossary/improvised-weapons",),
+            may_claim=(
+                f"that {actor.name} swung {item_id} at {target.name} as a makeshift weapon",
+            ),
+            may_not_claim=(
+                "that the object is a weapon, or that it has become one; p. 183 makes this "
+                "a way of using an object rather than a kind of object",
+                f"that the damage was any type but {damage_type.value} — the ruleset chose "
+                "it, as p. 183 says a person must",
+            ),
+        )
+
+    return resolve
+
+
 def _after_equipping(state: EncounterState, before: tuple[Effect, ...]) -> EncounterState:
     """`state` with p. 177's pre-attack equip already performed, for the weapon lookup only.
 
@@ -1121,9 +1249,16 @@ def _weapon_and_target(
                 )
             if thrown is not None and not carried.item.thrown:
                 # p. 183: throwing a Melee weapon that lacks Thrown makes it an improvised
-                # weapon dealing "1d4 damage of a type the GM thinks is appropriate" — a
-                # person's judgement this engine may not invent (#264). Refused rather than
-                # resolved as an ordinary throw, which would silently keep the weapon's dice.
+                # weapon. Refused rather than resolved as an ordinary throw, which would
+                # silently keep the weapon's dice.
+                #
+                # **Half this refusal's reason has lapsed** (#264, 0076). The damage type has
+                # a home now — `Item.improvised_damage_type` — so it is no longer a judgement
+                # the engine may not invent. What remains is the *range*: p. 183 gives a
+                # thrown improvised weapon 20/60 and nothing consumes those numbers, so the
+                # throw stands on
+                # [#390](https://github.com/eddiefiggie/srd-rules-engine/issues/390)
+                # rather than on #264.
                 raise ValueError(
                     f"{weapon_id!r} does not have the Thrown property, and p. 183 makes "
                     "throwing one an improvised weapon whose damage type is the GM's to "

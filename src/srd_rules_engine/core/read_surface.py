@@ -50,6 +50,7 @@ from srd_rules_engine.core.equipment import (
     Carriage,
     Item,
     Weapon,
+    items_in,
     reachable_objects,
     unplaced_objects,
     untrained_armour,
@@ -672,6 +673,40 @@ def ritual_declared(action_key: str | None) -> str | None:
     return rule_id if prefix == RITUAL and rule_id else None
 
 
+#: p. 183's Improvised Weapons. Its own key because **improvised-ness is a use rather than an
+#: object**: "A Simple or Martial weapon also counts as an improvised weapon if it's wielded in
+#: a way contrary to its design." A flag on the item could not express a longbow swung as a
+#: club, which is the document's own example of the case (#264, 0076).
+IMPROVISED_ATTACK: Final = "improvised-attack"
+
+#: p. 183: "the weapon deals 1d4 damage". One die of four sides, whatever the object is.
+IMPROVISED_DAMAGE_DICE: Final = 1
+IMPROVISED_DAMAGE_SIDES: Final = 4
+
+#: p. 183: "If you throw the weapon, it has a normal range of 20 feet and a long range of 60
+#: feet." Not built — see `improvised_attacks` (#390).
+IMPROVISED_THROWN_NORMAL_FEET: Final = 20
+IMPROVISED_THROWN_LONG_FEET: Final = 60
+
+
+def improvised_attack_key(item_id: str, target_id: str) -> str:
+    """The key one improvised attack is offered under (p. 183, #264)."""
+    return f"{IMPROVISED_ATTACK}:{item_id}:{target_id}"
+
+
+def improvised_attack_declared(action_key: str | None) -> tuple[str, str] | None:
+    """The object and the target an improvised-attack key names, or `None` if it is not one.
+
+    Parsed from the right, because an item id may itself contain colons.
+    """
+    if action_key is None or not action_key.startswith(f"{IMPROVISED_ATTACK}:"):
+        return None
+    item_id, _, target_id = action_key[len(IMPROVISED_ATTACK) + 1 :].rpartition(":")
+    if not item_id or not target_id:
+        return None
+    return item_id, target_id
+
+
 def cast_key(rule_id: str, slot_level: int) -> str:
     """The key one castable option is offered under (0038 clause 4).
 
@@ -1261,6 +1296,7 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
             offered.extend(_pushes(actor, weapon, target))
 
     offered.extend(_throwable(state, actor))
+    offered.extend(improvised_attacks(state, actor))
     offered.extend(_draw_and_use(state, actor))
 
     return tuple(offered)
@@ -1372,6 +1408,63 @@ def offered_actions(
     return reaction_options(state, actor_id, mover_id)
 
 
+def improvised_attacks(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...]:
+    """Every improvised attack this creature may make (p. 183, #264, 0076).
+
+    > An improvised weapon is an object wielded as a makeshift weapon, such as broken glass,
+    > a table leg, or a frying pan. A Simple or Martial weapon also counts as an improvised
+    > weapon if it's wielded in a way contrary to its design.
+
+    **One offer per held object, weapons included.** The second sentence is why this is keyed
+    on the *use* rather than filtered to non-weapons: a longbow swung as a club is improvised,
+    and the object is a perfectly ordinary Ranged weapon. Nothing here asks whether an item
+    "is" an improvised weapon, because p. 183 says no object is one.
+
+    **Offered only where the GM has said what it deals.** p. 183 puts the damage type in a
+    person's hands, so `Item.improvised_damage_type` of `None` produces no offer — R18's
+    "computable rather than checkable afterwards", and the same shape as filtering an attack
+    on reach. A menu that offered an attack the engine would then refuse is a menu that lies.
+
+    **Five feet**, from p. 190's Unarmed Strike rather than from the wielder's reach: p. 186
+    defers to a rule that says otherwise, p. 183 states no reach for an improvised weapon,
+    and a table leg is not a Reach weapon. Using `actor.reach` would grant a Glaive-holder ten
+    feet of frying pan.
+
+    **The thrown half is not here.** p. 183 gives a thrown improvised weapon 20/60, and
+    offering it needs the throw path to carry an improvised mode — filed as
+    [#390](https://github.com/eddiefiggie/srd-rules-engine/issues/390) rather than half-built,
+    because a throw offered without its range is the kind of partial rule this engine refuses
+    elsewhere.
+    """
+    offered: list[LegalAction] = []
+    for carried in items_in(actor.equipment, Carriage.HELD):
+        damage_type = carried.improvised_damage_type
+        if damage_type is None:
+            continue
+        for target in state.combatants:
+            if target.id == actor.id or target.is_down:
+                continue
+            if not _within(actor, target, UNARMED_REACH_FEET):
+                continue
+            offered.append(
+                LegalAction(
+                    key=improvised_attack_key(carried.id, target.id),
+                    label=f"Improvised attack on {target.name} with {carried.id}",
+                    detail={
+                        "target": target.id,
+                        "object": carried.id,
+                        "armour_class": target.armour_class,
+                        "damage": f"{IMPROVISED_DAMAGE_DICE}d{IMPROVISED_DAMAGE_SIDES}",
+                        "damage_type": str(damage_type),
+                        # p. 183: "Don't add your Proficiency Bonus to attack rolls with an
+                        # improvised weapon." Reported so the agent can weigh the swing.
+                        "proficiency_bonus_applies": False,
+                    },
+                )
+            )
+    return tuple(offered)
+
+
 def _throwable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...]:
     """Every throw this creature may make right now (p. 90, #284).
 
@@ -1389,9 +1482,9 @@ def _throwable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ..
     swung and sixty when thrown.
 
     **A Melee weapon that lacks Thrown is not offered here.** p. 183 makes throwing one an
-    improvised weapon dealing "1d4 damage of a type the GM thinks is appropriate" — a person's
-    judgement this engine may not invent, and
-    [#264](https://github.com/eddiefiggie/srd-rules-engine/issues/264)'s territory.
+    improvised weapon, which #264 built as a melee swing — the damage type has a home now, and
+    what this still needs is p. 183's 20/60 range for a thrown improvised weapon
+    ([#390](https://github.com/eddiefiggie/srd-rules-engine/issues/390)).
     """
     offered: list[LegalAction] = []
     for carried in actor.equipment:
@@ -1436,10 +1529,11 @@ def _draw_and_use(state: EncounterState, actor: Combatant) -> tuple[LegalAction,
     produces the equal pair cannot express the ordering the record says it encodes. Every
     other offer here attacks with something already in hand.
 
-    **Only weapons.** A creature may pick up a rock and swing it, and p. 183 makes that an
-    improvised weapon with a damage type "the GM thinks is appropriate" — a person's
-    judgement this engine may not invent ([#264](https://github.com/eddiefiggie/srd-rules-engine/issues/264)).
-    So a non-weapon object is equippable beside an attack and is not attackable *with*.
+    **Only weapons here.** A creature may pick up a rock and swing it, and p. 183 makes that
+    an improvised weapon — offered by `improvised_attacks` since #264, under its own key,
+    because it is a different attack with different dice rather than this one with a different
+    object. So a non-weapon object is equippable beside an attack and is not attackable *with*
+    on this path.
 
     Range is measured for the weapon being drawn, not the one in hand: a creature holding a
     dagger and reaching for a bow is asking about the bow's range.

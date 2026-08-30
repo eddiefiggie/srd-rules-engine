@@ -260,6 +260,15 @@ def test_an_item_carries_no_price_and_no_name() -> None:
         # The **category** is not here, for the same clause's reason: p. 177 grants training
         # by category and pp. 93-97 are the content this repository does not ship.
         "is_armour",
+        # #264. p. 183 gives an improvised weapon "1d4 damage of a type the GM thinks is
+        # appropriate for the object", so the engine has a rule about this field and cannot
+        # supply its value. It passes 0039 clause 2's test in both directions: something
+        # reads it (`improvised_attack_resolver`), and nothing here invents it.
+        #
+        # **It is not a name or a price by another route.** Those describe the object; this
+        # is a person's ruling about what happens when it is swung, arriving through the same
+        # channel `Weapon.damage_type` already uses.
+        "improvised_damage_type",
     }
 
 
