@@ -1623,6 +1623,28 @@ class EncounterState:
         remaining[remaining.index(debt)] = debt.with_ability(ability)
         return self._evolve(forced_saves_owed=tuple(remaining))
 
+    def with_forced_movement(self, combatant_id: str, to: Position) -> EncounterState:
+        """Put a creature somewhere it did not walk to (0055).
+
+        **Nothing is spent and nothing is provoked**, which is what separates this from
+        `with_movement`. p. 185 provokes an Opportunity Attack when a creature "leaves your
+        reach using its action, its Bonus Action, its Reaction, or one of its speeds", and a
+        shove uses none of those; and no rule that pushes a creature charges the push to the
+        creature's own allowance, because it is not the creature moving.
+
+        A creature with no position cannot be pushed anywhere: an encounter tracking no
+        positions has no origin to push from, and inventing one would put a creature on a map
+        that does not exist.
+        """
+        target = self.combatant(combatant_id)
+        if target.position is None:
+            raise ValueError(
+                f"{target.name} has no position, so there is nowhere to push it from. An "
+                "encounter that tracks no positions cannot answer a question about distance, "
+                "which is the honest result rather than a placed creature"
+            )
+        return self._evolve(combatants=self._replacing(replace(target, position=to)))
+
     def with_action_spent(
         self, combatant_id: str, action: ActionKind, *, weapon_id: str | None = None
     ) -> EncounterState:

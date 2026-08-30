@@ -221,6 +221,15 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # `carrying-capacity` ships under: the shape resolves, and the clause it does not
         # enforce is disclosed rather than left for a reader to find.
         "unarmed-strike": "core.unarmed_strike.unarmed_option_resolvers",
+        # p. 90, #324, 0055. The eighth and last mastery property, and the only one that
+        # needed a primitive rather than a rule: "push the creature up to 10 feet straight
+        # away from yourself if it is Large or smaller".
+        "mastery-push": "core.combat._push",
+        # p. 169, 0055. Moving a creature by something other than itself, which twenty-odd
+        # rules across spells, class features, a magic item and fourteen stat blocks share.
+        # Thunderwave is the inventory's exemplar; p. 90's Push and p. 190's Shove are the
+        # two callers built on it.
+        "forced-movement": "core.forced_movement.displaced",
         "mastery-graze": "core.combat.Weapon.graze",
         # p. 90, #320. p. 89's extra attack, re-routed into the Attack action: offered under
         # its own key, costing nothing, and capped with the Bonus Action route at the one

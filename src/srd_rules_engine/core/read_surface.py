@@ -53,6 +53,7 @@ from srd_rules_engine.core.equipment import (
     reachable_objects,
     unplaced_objects,
 )
+from srd_rules_engine.core.forced_movement import push_distances
 from srd_rules_engine.core.position import MovementMode, distance_feet, within
 from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.sight import LightLevel, Senses
@@ -280,6 +281,68 @@ def bonus_attack_declared(action_key: str | None) -> tuple[str, str] | None:
 #: p. 90's Cleave: a second swing at a creature beside the one just hit (#323).
 CLEAVE_ATTACK: Final = "cleave-attack"
 
+#: p. 90's Push: an attack whose hit shoves the target away (#324, 0055).
+#:
+#: Its own prefix rather than a suffix on the ordinary attack key, following Nick and Cleave —
+#: a mastery that changes what an attack *does* is offered as its own entry, so the menu shows
+#: the choice instead of hiding it in a parameter.
+#:
+#: The key carries the distance, because p. 90 says "up to 10 feet" and the wielder picks.
+PUSH_ATTACK: Final = "push-attack"
+
+#: p. 90: "you can push the creature **up to 10 feet** straight away from yourself".
+PUSH_MASTERY_FEET: Final = 10
+
+#: 0055. A push of "up to N feet" is offered in five-foot steps, and the distances between
+#: them are not. Every push and pull distance SRD 5.2 names is a multiple of five, so the
+#: steps are the document's own vocabulary — but the rule permits any distance up to the
+#: maximum, and a wielder who wants to push a creature seven feet cannot say so (#351).
+PUSH_DISTANCES_IN_STEPS: Final = "push-offered-in-five-foot-steps"
+
+
+def push_attack_key(weapon_id: str, target_id: str, feet: int) -> str:
+    return f"{PUSH_ATTACK}:{weapon_id}:{target_id}:{feet}"
+
+
+def push_attack_declared(action_key: str | None) -> tuple[str, str] | None:
+    """The weapon and target a Push-attack key names, or `None` if it is not one."""
+    parsed = _push_attack_parts(action_key)
+    return None if parsed is None else parsed[:2]
+
+
+def push_attack_feet(action_key: str | None) -> int | None:
+    """How far a Push-attack key pushes, or `None` if it is not one."""
+    parsed = _push_attack_parts(action_key)
+    return None if parsed is None else parsed[2]
+
+
+def _push_attack_parts(action_key: str | None) -> tuple[str, str, int] | None:
+    """Parsed from the right, because a weapon id may contain colons and the last two
+    segments — the target and the distance — are each one."""
+    if action_key is None or not action_key.startswith(f"{PUSH_ATTACK}:"):
+        return None
+    rest, _, feet = action_key[len(PUSH_ATTACK) + 1 :].rpartition(":")
+    weapon_id, _, target_id = rest.rpartition(":")
+    if not weapon_id or not target_id or not feet.isdigit():
+        return None
+    return weapon_id, target_id, int(feet)
+
+
+#: p. 190's Shove, taking the push of the two effects it offers (0055). Exactly five feet:
+#: p. 190 states the distance rather than a maximum, so there is no distance to choose and no
+#: distance in the key.
+SHOVE_PUSH_PREFIX: Final = "unarmed-strike:shove-push"
+SHOVE_PUSH_FEET: Final = 5
+
+
+def shove_push_key(target_id: str) -> str:
+    return f"{SHOVE_PUSH_PREFIX}:{target_id}"
+
+
+def shove_push_declared(action_key: str | None) -> str | None:
+    prefix, _, target_id = (action_key or "").rpartition(":")
+    return target_id if prefix == SHOVE_PUSH_PREFIX and target_id else None
+
 
 #: p. 182 names exactly these two checks, in this order. A tuple rather than a set, so the
 #: read surface offers them in the document's order rather than in a hash's.
@@ -434,21 +497,6 @@ UNARMED_REACH_FEET: Final = 5
 
 GRAPPLE_PREFIX: Final = "unarmed-strike:grapple"
 SHOVE_PRONE_PREFIX: Final = "unarmed-strike:shove-prone"
-
-#: p. 190's third Shove effect, offered by nothing.
-#:
-#: > **Shove.** ... or you either **push it 5 feet away** or cause it to have the Prone
-#: > condition.
-#:
-#: The attacker chooses between the two, and only one of them is here. Pushing a creature
-#: "5 feet away" is forced movement in a direction relative to another creature — the primitive
-#: `cannot-willingly-approach-the-source` is disclosed as missing for Frightened and the one
-#: [#324](https://github.com/eddiefiggie/srd-rules-engine/issues/324)'s Push mastery waits on.
-#: Building it for one effect of one option would build it narrowly (#345).
-#:
-#: Disclosed only to a creature that could actually Shove, since that is the only one the
-#: missing half can bite.
-SHOVE_PUSH_UNBUILT: Final = "shove-cannot-push-only-knock-prone"
 
 
 def grapple_key(target_id: str) -> str:
@@ -992,14 +1040,22 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
                     },
                 )
             )
+        shove_dc = 8 + actor.modifier("str") + actor.proficiency_bonus
         offered.append(
             LegalAction(
                 key=shove_prone_key(target.id),
                 label=f"Shove {target.name} prone",
-                detail={
-                    "target": target.id,
-                    "save_dc": 8 + actor.modifier("str") + actor.proficiency_bonus,
-                },
+                detail={"target": target.id, "save_dc": shove_dc},
+            )
+        )
+        # p. 190's other Shove effect (0055). Two entries rather than one with a parameter,
+        # because the attacker chooses between them and an enumerated menu is how this engine
+        # offers a choice it does not make.
+        offered.append(
+            LegalAction(
+                key=shove_push_key(target.id),
+                label=f"Shove {target.name} 5 feet away",
+                detail={"target": target.id, "save_dc": shove_dc, "feet": SHOVE_PUSH_FEET},
             )
         )
 
@@ -1031,6 +1087,10 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
                 )
             )
             offered.extend(_swaps(state, actor, weapon, target))
+            # p. 90's Push, one entry per distance (0055). The wielder chooses whether to push
+            # and how far — "you **can** push the creature **up to** 10 feet" — so both halves
+            # of that choice are on the menu rather than assumed.
+            offered.extend(_pushes(actor, weapon, target))
 
     offered.extend(_throwable(state, actor))
     offered.extend(_draw_and_use(state, actor))
@@ -1226,6 +1286,33 @@ def _interactions(state: EncounterState, actor: Combatant) -> tuple[LegalAction,
             },
         )
         for verb, item, source in _interaction_options(state, actor)
+    )
+
+
+def _pushes(actor: Combatant, weapon: Weapon, target: Combatant) -> tuple[LegalAction, ...]:
+    """p. 90's Push, if the wielder may use it and the target is small enough (#324, 0055).
+
+    Gated on the property and the feature that unlocks it together (0047 clause 6), on
+    "Large or smaller" — which refuses a creature nobody sized (0051) — and on there being a
+    ray to push along at all.
+
+    One entry per five feet, because every push and pull distance the document names is a
+    multiple of five. The rule permits any distance up to the maximum and the ones between the
+    steps are not offered; that is disclosed rather than silent.
+    """
+    if not weapon.push or weapon.id not in actor.mastery_weapons:
+        return ()
+    if target.size is None or target.size.categories_above(Size.LARGE) > 0:
+        return ()
+    if actor.position is None or target.position is None or actor.position == target.position:
+        return ()
+    return tuple(
+        LegalAction(
+            key=push_attack_key(weapon.id, target.id, feet),
+            label=f"Attack {target.name} with {weapon.id}, pushing {feet} feet",
+            detail={**_attack_detail(actor, weapon, target), "push_feet": feet},
+        )
+        for feet in push_distances(PUSH_MASTERY_FEET)
     )
 
 
@@ -1591,14 +1678,8 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
         unenforced.append(CARRYING_CAPACITY_SPEED_CAP)
     if any(held.conditions.grappler_id == actor.id for held in state.combatants):
         unenforced.append(RELEASE_ONLY_ON_YOUR_TURN)
-    # Asked of the offered set rather than recomputed from the creature, so the disclosure
-    # and the offer cannot drift: a Shove that is offered is a Shove whose push half is
-    # missing, and there is exactly one place that decides whether one is offered. `read`
-    # calls `legal_actions` too, so this is a second pass over the combatants rather than a
-    # cached answer — `situation` is public and callable on its own, and a disclosure that
-    # depended on being handed the menu would be wrong whenever it was not.
-    if any(a.key.startswith(SHOVE_PRONE_PREFIX) for a in legal_actions(state, actor_id)):
-        unenforced.append(SHOVE_PUSH_UNBUILT)
+    if any(a.key.startswith(f"{PUSH_ATTACK}:") for a in legal_actions(state, actor_id)):
+        unenforced.append(PUSH_DISTANCES_IN_STEPS)
 
     return Situation(
         hit_points=actor.hit_points,

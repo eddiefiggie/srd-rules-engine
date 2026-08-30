@@ -61,6 +61,7 @@ from srd_rules_engine.core.adjudicate import (
     cleave_taken,
     extra_attack_made,
     loading_fired,
+    moved_by_force,
     object_detached,
     object_interacted,
     object_picked_up,
@@ -80,6 +81,7 @@ from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.equipment import HEAVY_SCORE_THRESHOLD as HEAVY_SCORE_THRESHOLD
 from srd_rules_engine.core.equipment import RECOVERY_MINUTES, Carriage, Carried
 from srd_rules_engine.core.equipment import Weapon as Weapon
+from srd_rules_engine.core.forced_movement import displaced
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.obstructions import Cover, total_cover
 from srd_rules_engine.core.pending_rolls import (
@@ -98,6 +100,7 @@ from srd_rules_engine.core.position import (
 from srd_rules_engine.core.read_surface import (
     ATTACK_DROP,
     ATTACK_EQUIP,
+    PUSH_MASTERY_FEET,
     VERB_EQUIP,
     VERB_STOW,
     attack_declared,
@@ -107,6 +110,8 @@ from srd_rules_engine.core.read_surface import (
     cleave_attack_declared,
     interaction_declared,
     nick_attack_declared,
+    push_attack_declared,
+    push_attack_feet,
 )
 from srd_rules_engine.core.read_surface import UNARMED_REACH_FEET as UNARMED_REACH_FEET
 from srd_rules_engine.core.read_surface import UNARMED_STRIKE_ID as UNARMED_STRIKE_ID
@@ -118,6 +123,7 @@ from srd_rules_engine.core.rules import (
     VerificationState,
 )
 from srd_rules_engine.core.sight import Visibility
+from srd_rules_engine.core.size import Size
 from srd_rules_engine.core.state import Combatant, EncounterState, ForcedSave
 from srd_rules_engine.core.topple import (
     TOPPLE_RULE_ID,
@@ -528,6 +534,11 @@ def attack_resolver() -> Resolver:
                 # outcomes to the one adjudication entry point. The DC travels with the debt
                 # because its inputs are this attack's (0048, #321).
                 *_topple(actor, weapon, target, ability),
+                # Push (p. 90): "If you hit a creature with this weapon, you can push the
+                # creature up to 10 feet straight away from yourself if it is Large or
+                # smaller." On the hit branch beside Topple, and for the same reason — p. 90
+                # does not say "and deal damage to it", so a hit reduced to zero still pushes.
+                *_push(actor, weapon, target, declaration.intent.action_key),
             ),
             # Graze (p. 90): "If your attack roll with this weapon misses a creature, you
             # can deal damage to that creature equal to the ability modifier you used to
@@ -938,13 +949,23 @@ def _weapon_and_target(
     # attack for every rule that asks — the damage exception, the Multiattack tally —
     # and unlike Nick it is not p. 89's, so it spends a cap of its own.
     cleave = cleave_attack_declared(key)
+    # p. 90's Push: an ordinary attack whose hit shoves the target (#324, 0055). Its own key
+    # rather than a flag on the attack's, because p. 90 says "you **can** push" — the wielder
+    # chooses, and a menu is how this engine offers a choice it does not make.
+    push = push_attack_declared(key)
     thrown = attack_throw_declared(key)
     swap = attack_swap_declared(key)
     # p. 177's swap keys name the same attack with one weapon moved, so the weapon and target
     # are read from them the same way (0042 clauses 1 and 3). The move itself is the ruling's
     # effect, built by `_swap_effects`.
     declared = (
-        bonus or nick or cleave or thrown or (swap[:2] if swap else None) or attack_declared(key)
+        bonus
+        or nick
+        or cleave
+        or push
+        or thrown
+        or (swap[:2] if swap else None)
+        or attack_declared(key)
     )
     if declared is None:
         raise ValueError(
@@ -1145,6 +1166,53 @@ def _vex_sap_and_slow(
             )
         )
     return tuple(effects)
+
+
+def _push(
+    actor: Combatant, weapon: Weapon, target: Combatant, action_key: str | None
+) -> tuple[Effect, ...]:
+    """p. 90's Push, if the wielder may use the property and the target is small enough.
+
+    Three gates, and each refuses rather than approximating:
+
+    * **The property, and the feature that unlocks it** (0047 clause 6), checked together
+      because p. 90 gates every mastery on both.
+    * **"if it is Large or smaller"** — a size comparison, which answers `False` for a
+      creature nobody sized (0051). Pushing an unsized creature would decide a rule the
+      document conditions.
+    * **A ray to push along.** `displaced` refuses when the two share a position or either
+      has none, because "straight away from yourself" then names no direction.
+
+    The distance comes from the key, because p. 90 says "up to 10 feet" and the wielder picks
+    within it. It is bounded here as well as at the offer: a declaration is checkable input,
+    and the offer is a menu rather than a promise.
+    """
+    feet = push_attack_feet(action_key)
+    if feet is None or not weapon.push or weapon.id not in actor.mastery_weapons:
+        return ()
+    if feet > PUSH_MASTERY_FEET:
+        raise ValueError(
+            f"p. 90's Push moves a creature up to {PUSH_MASTERY_FEET} feet and this "
+            f"declaration names {feet}. The maximum is the rule's, not the menu's"
+        )
+    if target.size is None or target.size.categories_above(Size.LARGE) > 0:
+        return ()
+    if actor.position is None or target.position is None:
+        return ()
+    displacement = displaced(target.position, anchor=actor.position, feet=feet, away=True)
+    if displacement is None:
+        return ()
+    return (
+        moved_by_force(
+            target.id,
+            displacement.to,
+            feet=displacement.achieved_feet,
+            description=(
+                f"{weapon.id} (Push): {target.name} is shoved straight away from "
+                f"{actor.name} — {displacement.derivation()} (p. 90)"
+            ),
+        ),
+    )
 
 
 def _topple(
