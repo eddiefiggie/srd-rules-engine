@@ -132,6 +132,11 @@ carries p. 90.
 **Every clause is built** by [#317](https://github.com/eddiefiggie/srd-rules-engine/issues/317),
 except clause 6, which constrains work tracked elsewhere and is listed with its issues.
 
+_Updated 2026-08-29 ([#321](https://github.com/eddiefiggie/srd-rules-engine/issues/321)).
+Clause 6's row said "Not built, seven times" over a **closed** #320, which the **Status rows
+cite open issues** job caught on the first run after Nick merged. Two of the seven are now
+built and honour the gate; the row names them rather than counting them among the absent._
+
 | Clause | State |
 |---|---|
 | 1 — the permission is the wielder's, by id | **Built.** `Combatant.mastery_weapons` ([#317](https://github.com/eddiefiggie/srd-rules-engine/issues/317)) |
@@ -139,4 +144,4 @@ except clause 6, which constrains work tracked elsewhere and is listed with its 
 | 3 — empty by default, monsters included | **Built.** The field defaults to `frozenset()`, and the field's note carries p. 89's monster rule and p. 90's absence of one ([#317](https://github.com/eddiefiggie/srd-rules-engine/issues/317)) |
 | 4 — Graze retro-fitted in the same change | **Built.** `_graze` takes the actor and checks `mastery_weapons` ([#317](https://github.com/eddiefiggie/srd-rules-engine/issues/317)) |
 | 5 — the size bound and Long Rest re-choice are the ruleset's | **Nothing to build.** A deliberate non-requirement, and deliberately not a disclosure — see the clause for why proficiency has none either |
-| 6 — every mastery built from here takes this gate | **Not built**, seven times, and each is tracked: [#318](https://github.com/eddiefiggie/srd-rules-engine/issues/318), [#319](https://github.com/eddiefiggie/srd-rules-engine/issues/319), [#320](https://github.com/eddiefiggie/srd-rules-engine/issues/320), [#321](https://github.com/eddiefiggie/srd-rules-engine/issues/321), [#322](https://github.com/eddiefiggie/srd-rules-engine/issues/322), [#323](https://github.com/eddiefiggie/srd-rules-engine/issues/323), [#324](https://github.com/eddiefiggie/srd-rules-engine/issues/324) |
+| 6 — every mastery built from here takes this gate | **Honoured twice so far.** Nick ([#320](https://github.com/eddiefiggie/srd-rules-engine/issues/320)) and Topple ([#321](https://github.com/eddiefiggie/srd-rules-engine/issues/321)) each check `mastery_weapons` beside their own property flag. Five masteries are still unbuilt and each is tracked: [#318](https://github.com/eddiefiggie/srd-rules-engine/issues/318), [#319](https://github.com/eddiefiggie/srd-rules-engine/issues/319), [#322](https://github.com/eddiefiggie/srd-rules-engine/issues/322), [#323](https://github.com/eddiefiggie/srd-rules-engine/issues/323), [#324](https://github.com/eddiefiggie/srd-rules-engine/issues/324) |

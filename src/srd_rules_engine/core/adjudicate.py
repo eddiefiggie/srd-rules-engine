@@ -66,7 +66,7 @@ from srd_rules_engine.core.memory_port import (
 from srd_rules_engine.core.read_surface import LegalAction, Verdict, legal_actions, verify
 from srd_rules_engine.core.rules import Ruleset
 from srd_rules_engine.core.spellcasting import MAX_SPELL_LEVEL
-from srd_rules_engine.core.state import EncounterState
+from srd_rules_engine.core.state import EncounterState, ForcedSave
 from srd_rules_engine.core.triggers import Catalogue, MatchContext, Trigger, challenge_text
 
 #: A payload's schema version says *what shape it is*. Its `compat` floor says *which
@@ -262,6 +262,12 @@ class EffectKind(StrEnum):
     #: Action", which is one attack made one way or the other, and p. 89 grants "**one**
     #: extra attack" whichever way it is made.
     EXTRA_ATTACK_MADE = "extra-attack-made"
+    #: A save a rule compelled, owed by `target_id` and not yet rolled (0048, #321). Its own
+    #: kind because the debt is neither a condition nor a spend: it is an **obligation**, and
+    #: the loop drains it through the one adjudication entry point rather than the effect
+    #: deciding anything. The DC and its derivation ride on `forced_save`, computed where the
+    #: trigger fired, because neither is recoverable by the time the save is rolled.
+    SAVE_COMPELLED = "save-compelled"
     #: One piece of ammunition expended by an attack (p. 89, #273). `item_id` names which.
     #: "Each attack expends one piece of ammunition" — a cost that applies because the attack
     #: happened, so it rides in `Proposal.always` beside the action charge rather than in a
@@ -400,6 +406,10 @@ class Effect:
     #: `CARRIAGE_CHANGED` only: where the item went. The other two say it by their kind —
     #: detaching has no carriage at all, and picking up always arrives `HELD`.
     carriage: Carriage | None = None
+    #: `SAVE_COMPELLED` only: the save that is owed, whole (0048, #321). The DC and its
+    #: derivation are carried rather than recomputed later, because the attack they came
+    #: from — and the ability its wielder chose for it — is gone by the time it is rolled.
+    forced_save: ForcedSave | None = None
     #: 0032 clauses 1-3. When set, this effect applies only if the predicate holds against
     #: what a **sibling** effect in the same branch settled to — and `_apply` is the only
     #: place that can ask, because it is the only place the settled number exists.
@@ -540,6 +550,22 @@ def attack_made(target_id: str, *, description: str) -> Effect:
     """One attack roll, counted against the Multiattack allowance (p. 257)."""
     return Effect(
         kind=EffectKind.ATTACK_MADE, target_id=target_id, amount=0, description=description
+    )
+
+
+def save_compelled(target_id: str, save: ForcedSave, *, description: str) -> Effect:
+    """A save a rule compelled, recorded for the loop to roll (0048, #321).
+
+    The whole `ForcedSave` rides on the effect because the DC's inputs belong to the moment
+    the trigger fired — p. 90's Topple DC uses the ability the attacker *chose* for that
+    roll — and nothing recovers them afterwards.
+    """
+    return Effect(
+        kind=EffectKind.SAVE_COMPELLED,
+        target_id=target_id,
+        amount=0,
+        description=description,
+        forced_save=save,
     )
 
 
@@ -1607,6 +1633,9 @@ def _apply(
             state = state.with_object_interaction(effect.target_id)
         elif effect.kind is EffectKind.EXTRA_ATTACK_MADE:
             state = state.with_extra_attack(effect.target_id)
+        elif effect.kind is EffectKind.SAVE_COMPELLED:
+            assert effect.forced_save is not None  # the constructor requires one
+            state = state.with_forced_save(effect.forced_save)
         elif effect.kind is EffectKind.AMMUNITION_SPENT:
             assert effect.item_id is not None  # __post_init__ refuses one without
             state = state.with_ammunition_spent(effect.target_id, effect.item_id)

@@ -397,6 +397,11 @@ def test_no_slot_table_ships_in_this_module() -> None:
         "MAX_SPELL_LEVEL",
         "CONCENTRATION_DC_FLOOR",
         "CONCENTRATION_DC_CAP",
+        # Moved here from `core.concentration` by 0048, so `EncounterState.with_damage` can
+        # build the whole `ForcedSave` where the trigger fires. Neither is a rule value: one
+        # is an identifier the loop and a ruleset agree on, the other names an ability.
+        "CONCENTRATION_RULE_ID",
+        "CONCENTRATION_SAVE_ABILITY",
         "SPELLCASTING_VERIFICATION",
         # Added by #19 and each a scalar or a citation, which is the property this guard is
         # really about: a name may join this list, a *table* may not.

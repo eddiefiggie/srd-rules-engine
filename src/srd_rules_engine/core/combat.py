@@ -59,6 +59,7 @@ from srd_rules_engine.core.adjudicate import (
     object_detached,
     object_interacted,
     object_picked_up,
+    save_compelled,
     time_passed,
 )
 from srd_rules_engine.core.d20 import (
@@ -98,7 +99,13 @@ from srd_rules_engine.core.rules import (
     VerificationState,
 )
 from srd_rules_engine.core.sight import Visibility
-from srd_rules_engine.core.state import Combatant, EncounterState
+from srd_rules_engine.core.state import Combatant, EncounterState, ForcedSave
+from srd_rules_engine.core.topple import (
+    TOPPLE_RULE_ID,
+    TOPPLE_SAVE_ABILITY,
+    topple_save_basis,
+    topple_save_dc,
+)
 
 INITIATIVE_DIE = 20
 
@@ -425,6 +432,15 @@ def attack_resolver() -> Resolver:
                     modifier=(min(0, ability) if is_extra else ability) + weapon.bonus,
                     source=weapon.id,
                 ),
+                # Topple (p. 90): "If you hit a creature with this weapon, you can force the
+                # creature to make a Constitution saving throw." **On the hit branch and not
+                # the damage one** — Vex and Slow say "and deal damage to it" and this does
+                # not, so a hit reduced to zero by Resistance still topples.
+                #
+                # Recorded rather than resolved: the save is an outcome, and R1 leaves
+                # outcomes to the one adjudication entry point. The DC travels with the debt
+                # because its inputs are this attack's (0048, #321).
+                *_topple(actor, weapon, target, ability),
             ),
             # Graze (p. 90): "If your attack roll with this weapon misses a creature, you
             # can deal damage to that creature equal to the ability modifier you used to
@@ -946,6 +962,43 @@ def _out_of_range(
             f"({weapon.long_range} feet), and no attack may be made at all (p. 90)"
         )
     return not within(actor.position, target.position, weapon.normal_range)
+
+
+def _topple(
+    actor: Combatant, weapon: Weapon, target: Combatant, ability: int
+) -> tuple[Effect, ...]:
+    """The save a Topple hit compels, if the wielder may use the property (p. 90, #321).
+
+    The DC is computed **here**, where the attack is, because both its inputs are the
+    attack's: p. 89 lets a Finesse wielder choose which ability the roll used, and the
+    Proficiency Bonus is the attacker's. By the time the loop rolls the save it has the
+    target and nothing else.
+
+    p. 90 gates every mastery property on a feature the wielder has (0047 clause 6), checked
+    beside the property's own flag, which is where that clause puts it.
+    """
+    if not weapon.topple or weapon.id not in actor.mastery_weapons:
+        return ()
+    return (
+        save_compelled(
+            target.id,
+            ForcedSave(
+                combatant_id=target.id,
+                rule_id=TOPPLE_RULE_ID,
+                ability=TOPPLE_SAVE_ABILITY,
+                dc=topple_save_dc(ability, actor.proficiency_bonus),
+                dc_basis=topple_save_basis(weapon.ability, ability, actor.proficiency_bonus),
+                label=(
+                    f"makes a Constitution save or falls Prone, having been hit by "
+                    f"{actor.name}'s {weapon.id} (p. 90, Topple)"
+                ),
+            ),
+            description=(
+                f"{weapon.id} (Topple): {target.name} must make a Constitution save or "
+                "have the Prone condition"
+            ),
+        ),
+    )
 
 
 def _graze(actor: Combatant, weapon: Weapon, target_id: str, ability: int) -> tuple[Effect, ...]:

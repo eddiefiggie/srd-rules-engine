@@ -147,9 +147,12 @@ class TurnOutcome:
     narration: str | None = None
     missing_narration: bool = False
     unresolved: tuple[str, ...] = ()
-    #: Rulings this turn *incurred* rather than declared: today, the Concentration save
-    #: damage compels (p. 179, 0036 clause 7). Additive and defaulted, because `TurnOutcome`
-    #: is COMMITTED — nothing is removed or renamed and `API_VERSION` does not move.
+    #: Rulings this turn *incurred* rather than declared: every forced save the queue owed
+    #: (0036 clause 7, 0048). Two rules produce them today — p. 179's Concentration save and
+    #: p. 90's Topple — and this field needed no change for the second, because it is named
+    #: for what a ruling **is** rather than for the rule that caused it. Additive and
+    #: defaulted, because `TurnOutcome` is COMMITTED — nothing is removed or renamed and
+    #: `API_VERSION` does not move.
     #:
     #: Its own field rather than a second value in `ruling`, because they are answers to
     #: different questions: `ruling` is what the agent's declaration came to, and this is
@@ -616,36 +619,44 @@ class TurnLoop:
         unresolvable: list[Obligation] = []
 
         while True:
-            owed = state.concentration_saves_owed
+            owed = state.forced_saves_owed
             if not owed:
                 break
             debt = owed[0]
 
             # Whether the save is still owed is read off state, the way
-            # `start_turn_obligations` reads whether Burning is (0027 clause 2). A debt for
-            # a creature that has left the encounter, or has already lost the Concentration
-            # an earlier failed save ended, is dropped rather than rolled: p. 179 compels
-            # the save *to maintain* Concentration, and there is nothing left to maintain.
-            # This is not a skip — the outcome it would decide is already settled.
-            target = state.combatant(debt.combatant_id) if state.has(debt.combatant_id) else None
-            if target is None or not target.concentration.active:
-                state = state.with_concentration_save_discharged(debt.combatant_id)
+            # `start_turn_obligations` reads whether Burning is (0027 clause 2). A debt for a
+            # creature that has left the encounter is dropped rather than rolled. This is not
+            # a skip — there is nobody for the outcome to be about.
+            #
+            # **The second test is p. 179's and only p. 179's** (0048). A creature that has
+            # already lost the Concentration an earlier failed save ended owes nothing: the
+            # save is compelled *to maintain* Concentration, and there is nothing left to
+            # maintain. Topple has no counterpart — a creature already Prone still rolls, and
+            # p. 90 states no exemption — so the branch is keyed by rule rather than applied
+            # to every debt. A third rule with its own staleness adds a branch here; a fourth
+            # wants a registry, and this comment is where that decision starts.
+            if not state.has(debt.combatant_id):
+                state = state.with_forced_save_discharged(debt.combatant_id)
+                continue
+            target = state.combatant(debt.combatant_id)
+            if debt.rule_id == CONCENTRATION_RULE_ID and not target.concentration.active:
+                state = state.with_forced_save_discharged(debt.combatant_id)
                 continue
 
+            # The label was written where the trigger fired (0048): the loop sees a debt, and
+            # only the rule that recorded it knows what happened.
             obligation = Obligation(
                 actor_id=debt.combatant_id,
-                rule_id=CONCENTRATION_RULE_ID,
-                label=(
-                    f"makes a Constitution save to maintain Concentration, having taken "
-                    f"{debt.amount} damage (p. 179)"
-                ),
+                rule_id=debt.rule_id,
+                label=debt.label,
             )
             ruling, state = self.adjudicator.adjudicate(state, _obligation_declaration(obligation))
             # Dropped whether it succeeded, failed or was refused, for the reason the two
             # obligation loops discharge regardless of outcome: p. 179 gives one save per
             # instance of damage either way, and a debt that outlived its adjudication
             # would spin this loop forever.
-            state = state.with_concentration_save_discharged(debt.combatant_id)
+            state = state.with_forced_save_discharged(debt.combatant_id)
 
             if ruling.status is Status.REJECTED:
                 unresolvable.append(obligation)

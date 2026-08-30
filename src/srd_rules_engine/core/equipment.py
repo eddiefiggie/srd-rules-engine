@@ -331,6 +331,18 @@ class Weapon(Item):
     #:
     #: Usable only by a wielder whose `mastery_weapons` holds this weapon (p. 90, 0047).
     nick: bool = False
+    #: Topple (p. 90), a mastery property: "If you hit a creature with this weapon, you can
+    #: force the creature to make a Constitution saving throw (DC 8 plus the ability modifier
+    #: used to make the attack roll and your Proficiency Bonus). On a failed save, the
+    #: creature has the Prone condition."
+    #:
+    #: **The trigger is the hit, not the damage.** Vex and Slow both say "and deal damage to
+    #: it"; Topple and Sap say only "if you hit". A hit reduced to zero by Resistance still
+    #: topples, and reading the four properties as one trigger is a mistake the document
+    #: rules out in one clause each.
+    #:
+    #: Usable only by a wielder whose `mastery_weapons` holds this weapon (p. 90, 0047).
+    topple: bool = False
     #: Ammunition (p. 89): the **id of the item this weapon fires**, or `None` for a weapon
     #: without the property. "You can use a weapon that has the Ammunition property to make a
     #: ranged attack **only if you have ammunition to fire from it**."

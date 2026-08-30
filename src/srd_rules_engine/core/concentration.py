@@ -42,7 +42,6 @@ since #238 (0037 clause 4). `Concentration.begin` holds the first and nothing de
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import replace
 from typing import Final
 
 from srd_rules_engine.core.adjudicate import (
@@ -51,7 +50,7 @@ from srd_rules_engine.core.adjudicate import (
     Resolver,
     concentration_ended,
 )
-from srd_rules_engine.core.d20 import Modifier
+from srd_rules_engine.core.d20 import D20Test, Modifier, TestKind
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.rules import (
     Rule,
@@ -60,16 +59,18 @@ from srd_rules_engine.core.rules import (
     VerificationMethod,
     VerificationState,
 )
-from srd_rules_engine.core.spellcasting import concentration_save
+
+# Re-exported, not merely imported (0048). Both constants moved to `core.spellcasting` so
+# that `EncounterState.with_damage` could build the whole `ForcedSave` where the trigger
+# fires — this module imports state, so state cannot import it back. The names stay here
+# because this is where a reader looks for them, and `core/__init__.py` re-exports from here.
+from srd_rules_engine.core.spellcasting import (
+    CONCENTRATION_RULE_ID as CONCENTRATION_RULE_ID,
+)
+from srd_rules_engine.core.spellcasting import (
+    CONCENTRATION_SAVE_ABILITY as CONCENTRATION_SAVE_ABILITY,
+)
 from srd_rules_engine.core.state import EncounterState
-
-#: The rule id the loop asks for and a ruleset registers under. A literal repeated at both
-#: ends is a literal that drifts, which is why `SUFFOCATION_RULE_ID` exists too.
-CONCENTRATION_RULE_ID: Final = "concentration-save"
-
-#: p. 179's Constitution save is Constitution, and the ability is the rule rather than the
-#: caller's choice.
-CONCENTRATION_SAVE_ABILITY: Final = "con"
 
 #: R31. Asserted as a clause in `scripts/verify_d20_rules.py` rather than trusted from
 #: memory: the DC is a rule value, and a wrong one is indistinguishable from a right one
@@ -118,7 +119,7 @@ def concentration_resolver() -> Resolver:
     ) -> Proposal:
         actor_id = declaration.actor_id
         actor = state.combatant(actor_id)
-        debt = state.concentration_debt_for(actor_id)
+        debt = state.forced_save_for(actor_id)
         if debt is None:
             raise ValueError(
                 f"{actor.name} owes no Concentration save, so there is nothing for p. 179 "
@@ -132,15 +133,22 @@ def concentration_resolver() -> Resolver:
                 "save from a creature holding none"
             )
 
-        # `concentration_save` is p. 179's arithmetic and its derivation, both of which are
-        # the rule. What is added here is the roll's modifier, which is the creature's.
-        test = replace(
-            concentration_save(debt.amount),
+        if debt.rule_id != CONCENTRATION_RULE_ID:
+            raise ValueError(
+                f"{actor.name} owes a {debt.rule_id!r} save, not p. 179's. One queue serves "
+                "every forced save since 0048, so a resolver reached for the wrong debt is "
+                "the loop and the rule having come apart"
+            )
+
+        # p. 179's arithmetic and its derivation are the rule, and both were computed where
+        # the damage landed (0048) — the hit points they came from have since moved. What is
+        # added here is the roll's modifier, which is the creature's.
+        test = D20Test(
+            kind=TestKind.SAVE,
+            target=debt.dc,
+            target_basis=debt.dc_basis,
             modifiers=(
-                Modifier(
-                    source=f"ability:{CONCENTRATION_SAVE_ABILITY}",
-                    value=actor.modifier(CONCENTRATION_SAVE_ABILITY),
-                ),
+                Modifier(source=f"ability:{debt.ability}", value=actor.modifier(debt.ability)),
             ),
         )
         held = actor.concentration.rule_id
@@ -163,7 +171,7 @@ def concentration_resolver() -> Resolver:
             citations=("srd:rules-glossary/concentration",),
             may_claim=(
                 f"that {actor.name} held its focus on {held}, or lost it, as the roll says",
-                f"that the {debt.amount} damage is what forced the save",
+                "that the damage the ruling names is what forced the save",
             ),
             may_not_claim=(
                 f"that Concentration on {held} ended for any reason other than this save",
