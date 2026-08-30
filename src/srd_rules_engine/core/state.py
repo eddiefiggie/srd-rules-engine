@@ -855,13 +855,42 @@ class Combatant:
         a state the equipment transitions do not permit, so the refusal is a floor under them
         rather than a rule with its own path (0062).
         """
+        # **Two rules, and they were one check until #394.** p. 92 limits what a creature
+        # *wears*; p. 177 limits what it *uses*. They coincide only while worn armour is the
+        # engine's one source of a base — and a worn item that is not armour already breaks
+        # that coincidence, which is how the conflation was found: a creature in one suit of
+        # plate and a pair of bracers was told it wore "2 suits of armour".
+        suits = [
+            item
+            for item in items_in(self.equipment, Carriage.WORN)
+            if item.is_armour and item.armour_class_base is not None
+        ]
+        if len(suits) > 1:
+            raise ValueError(
+                f"{self.name} is wearing {len(suits)} suits of armour, and p. 92 allows one "
+                f"at a time: {', '.join(item.id for item in suits)}"
+            )
+
         bases = self.armour_class_bases
         if len(bases) > 1:
+            # p. 177: "you choose which calculation to use; **you can't use more than one**."
+            # The choice is the creature's and this engine has nowhere to state it yet
+            # (#394), so it refuses rather than picking. **Refusing is the safe direction and
+            # picking is not**: taking the highest optimises invisibly, and taking the first
+            # depends on the order a ruleset listed the creature's equipment. Neither is a
+            # decision the document left open — it assigned it.
             raise ValueError(
-                f"{self.name} is wearing {len(bases)} suits of armour, and p. 92 allows one "
-                "at a time. There is no rule for combining base AC calculations — p. 177 says "
-                "a creature cannot use more than one"
+                f"{self.name} has {len(bases)} base AC calculations available and p. 177 "
+                "says a creature chooses one — it cannot use more than one, and this engine "
+                "has no way to record which was chosen. Picking for it would decide "
+                "something the document assigns to the creature"
             )
+        # **At most one by now**, because both refusals above have fired otherwise — so this
+        # is not a choice and cannot become one by accident. A corruption that makes it
+        # `max(bases, key=...)` is **unobservable**: there is never more than one base to
+        # take the maximum of. That is the property #394 is about, and it is structural
+        # rather than guarded — the refusal precedes the selection, so picking is impossible
+        # rather than merely avoided.
         base = bases[0] if bases else ArmourClassBase(flat=self.armour_class, adds_dexterity=False)
         return base.value(self.modifier("dex")) + self.armour_class_bonus
 

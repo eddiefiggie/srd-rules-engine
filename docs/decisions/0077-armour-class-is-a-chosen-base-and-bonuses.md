@@ -133,7 +133,7 @@ that states one base — the overwhelming case — states nothing extra.
 | 1, 2, 3 — base-plus-bonus, its shape, the numbers staying content | **Built** by [#393](https://github.com/eddiefiggie/srd-rules-engine/issues/393). `ArmourClassBase`, `Item.armour_class_base`, `Item.armour_class_bonus` |
 | 4 — the supplied total survives | **Built, and corrected while building** — see below |
 | 5 — `effective_armour_class` | **Built.** `Combatant.effective_armour_class`, and every consumer moved to it |
-| 6 — the creature's stated choice among bases | **Not built.** [#394](https://github.com/eddiefiggie/srd-rules-engine/issues/394) |
+| 6 — the creature's stated choice among bases | **Settled** by [#394](https://github.com/eddiefiggie/srd-rules-engine/issues/394) ([0079](0079-a-second-base-refuses-rather-than-being-picked-between.md)): an unstated choice **refuses**, and the mechanism for stating one waits on something that can grant a second base |
 | 7 — the Shield's bonus, withheld without training | **Half built.** The bonus is granted ([#393](https://github.com/eddiefiggie/srd-rules-engine/issues/393)); the withholding is [#367](https://github.com/eddiefiggie/srd-rules-engine/issues/367) |
 | 8 — one suit, one Shield | **Built**, as refusals in the derivation |
 | 9 — the attack path reads the derived value | **Built.** Ten sites in `core.combat` and `core.read_surface` |
