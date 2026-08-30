@@ -86,6 +86,7 @@ from srd_rules_engine.core.adjudicate import (
     concentration_begun,
     spell_slot_expended,
 )
+from srd_rules_engine.core.equipment import untrained_armour
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.read_surface import ACTION_FOR_CASTING as ACTION_FOR_CASTING
 from srd_rules_engine.core.read_surface import cast_declared
@@ -161,6 +162,17 @@ def spell_resolver(spell: Spell, effects: Resolver) -> Resolver:
                         f"{spell.level} spell (p. 104)"
                     ),
                 )
+            )
+
+        # p. 104: "You must have training with any armor you are wearing to cast spells while
+        # wearing it." Asked here as well as at the offer, which is 0062's rule applied in the
+        # change after it rather than three builds later.
+        untrained = untrained_armour(caster.equipment, caster.armour_training)
+        if untrained:
+            raise ValueError(
+                f"{caster.name} is wearing {', '.join(untrained)} without training, and "
+                "p. 104 forbids casting while wearing armour you lack training with. p. 177 "
+                'says it again: "you can\'t cast spells"'
             )
 
         # p. 104: "Before you can cast a spell, you must have the spell **prepared in your

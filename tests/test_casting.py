@@ -47,7 +47,11 @@ from srd_rules_engine.core import (
 from srd_rules_engine.core.actions import ActionBudget, ActionKind
 from srd_rules_engine.core.casting import spell_resolver
 from srd_rules_engine.core.equipment import Carriage, Carried, Item
-from srd_rules_engine.core.read_surface import cast_declared
+from srd_rules_engine.core.read_surface import (
+    UNTRAINED_ARMOUR_DISADVANTAGE,
+    UNTRAINED_SHIELD_STILL_GRANTS_AC,
+    cast_declared,
+)
 from srd_rules_engine.core.spellcasting import CastingTime, Spell, SpellSlots
 from srd_rules_engine.memory.store import JsonMemoryStore
 
@@ -630,3 +634,93 @@ def test_an_unprepared_spell_is_refused_by_the_resolver_too(tmp_path: Path) -> N
     )
     with pytest.raises(ValueError, match="does not have"):
         spell_resolver(BOLT, effects_of)(state=state, declaration=declaration, facts={})
+
+
+# --- p. 104's Casting in Armor (#247, 0063) -----------------------------------------------------
+
+
+PLATE = Item(id="fixture:plate", weight=65.0, is_armour=True)
+ROBE = Item(id="fixture:robe", weight=4.0)
+
+
+def armoured(**overrides: object) -> Combatant:
+    fields: dict[str, object] = {"equipment": (Carried(PLATE, Carriage.WORN),)}
+    fields.update(overrides)
+    return caster(**fields)
+
+
+def test_untrained_armour_removes_every_spell_from_the_menu() -> None:
+    """p. 104: "You must have training with any armor you are wearing to cast spells while
+    wearing it." A **legality** rule, not a modifier — so nothing is offered at all.
+
+    An engine that skipped it would be confidently wrong rather than incomplete (R18)."""
+    state = encounter(armoured())
+    assert not any(cast_declared(a.key) for a in read(state, "mage").actions)
+
+
+def test_training_with_what_you_wear_restores_them() -> None:
+    """The negative case, and it changes one field: the same armour, the same caster, and the
+    training a ruleset grants."""
+    trained = encounter(armoured(armour_training=frozenset({PLATE.id})))
+    assert any(cast_declared(a.key) for a in read(trained, "mage").actions)
+
+
+def test_armour_you_are_not_wearing_hampers_nobody() -> None:
+    """p. 104 says "any armor you are **wearing**". Plate in a pack is carried, not worn —
+    which is the distinction 0039 clause 3 made carriage a closed vocabulary for."""
+    packed = encounter(armoured(equipment=(Carried(PLATE, Carriage.STOWED),)))
+    assert any(cast_declared(a.key) for a in read(packed, "mage").actions)
+
+
+def test_worn_clothing_is_not_armour() -> None:
+    """`is_armour` is the flag, not `Carriage.WORN`. A robe is worn and hampers nothing."""
+    robed = encounter(armoured(equipment=(Carried(ROBE, Carriage.WORN),)))
+    assert any(cast_declared(a.key) for a in read(robed, "mage").actions)
+
+
+def test_the_resolver_refuses_untrained_armour_too(tmp_path: Path) -> None:
+    """0062's rule applied in the change after it, rather than three builds later: the menu is
+    a menu, and the resolver is the floor under it.
+
+    **Named apart from its component twin deliberately.** The first draft reused
+    `test_the_resolver_refuses_it_too` and Python bound the later definition, so 0062's test
+    silently stopped running — caught by `ruff`'s F811 rather than by anything failing, which
+    is the point of having it on.
+    """
+    state = encounter(armoured())
+    declaration = Declaration(
+        actor_id="mage",
+        intent=Intent(action_key=cast_key(BOLT.rule_id, 1)),
+        rule_id=BOLT.rule_id,
+    )
+    with pytest.raises(ValueError, match="without training"):
+        spell_resolver(BOLT, effects_of)(state=state, declaration=declaration, facts={})
+
+
+def test_every_untrained_piece_is_named(tmp_path: Path) -> None:
+    """Not the first. A caster in two untrained pieces is refused for two reasons, and a ruling
+    naming one would be half a record (R30)."""
+    helm = Item(id="fixture:helm", weight=5.0, is_armour=True)
+    state = encounter(
+        armoured(equipment=(Carried(PLATE, Carriage.WORN), Carried(helm, Carriage.WORN)))
+    )
+    declaration = Declaration(
+        actor_id="mage",
+        intent=Intent(action_key=cast_key(BOLT.rule_id, 1)),
+        rule_id=BOLT.rule_id,
+    )
+    with pytest.raises(ValueError, match="fixture:plate, fixture:helm"):
+        spell_resolver(BOLT, effects_of)(state=state, declaration=declaration, facts={})
+
+
+def test_the_other_two_drawbacks_are_disclosed() -> None:
+    """R32, #367. p. 177 states three and this builds one — the Disadvantage reaches attacks
+    and checks as well as saves, and the Shield clause needs an AC derived from what is worn."""
+    situation = read(encounter(armoured()), "mage").situation
+    assert situation is not None
+    assert UNTRAINED_ARMOUR_DISADVANTAGE in situation.unenforced_clauses
+    assert UNTRAINED_SHIELD_STILL_GRANTS_AC in situation.unenforced_clauses
+
+    trained = read(encounter(armoured(armour_training=frozenset({PLATE.id}))), "mage").situation
+    assert trained is not None
+    assert UNTRAINED_ARMOUR_DISADVANTAGE not in trained.unenforced_clauses

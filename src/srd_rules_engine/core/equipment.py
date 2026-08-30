@@ -137,6 +137,17 @@ class Item:
     #: p. 105 names them as alternatives to each other, and the classes that grant a Focus are
     #: not the ones that grant a Pouch.
     is_component_pouch: bool = False
+    #: Whether this item is armour, in p. 177's sense (#247, 0063).
+    #:
+    #: A flag rather than a category, for 0040 clause 2's reason: p. 177 grants training "with
+    #: a certain **category**" — Light, Medium, Heavy, Shield — and the categories live in
+    #: pp. 93-97's tables, which are content this repository does not ship (R31). So the engine
+    #: holds the resolved relation (`Combatant.armour_training`, by item id) and a ruleset that
+    #: knows the categories expands them, exactly as `weapon_proficiencies` works.
+    #:
+    #: p. 177 treats a Shield separately from worn armour and this flag does not distinguish
+    #: them, which is why the Shield clause is disclosed rather than built (#367).
+    is_armour: bool = False
 
     def __post_init__(self) -> None:
         if not self.id:
@@ -233,6 +244,28 @@ def carried_weight(equipment: tuple[Carried, ...]) -> float:
     lives on `Combatant` and this stays a sum over equipment.
     """
     return sum(carried.item.weight for carried in equipment)
+
+
+def untrained_armour(equipment: tuple[Carried, ...], training: frozenset[str]) -> tuple[str, ...]:
+    """Ids of the armour this creature is **wearing** and lacks training with (p. 104, p. 177).
+
+    > p. 104: You must have training with any armor you are wearing to cast spells while
+    > wearing it.
+
+    **Worn, not held or stowed.** p. 104 says "any armor you are **wearing**", and armour in a
+    pack hampers nobody — which is the whole reason 0039 clause 3 made carriage one field with
+    a closed vocabulary rather than a boolean nobody could tell apart.
+
+    Every offender rather than the first, because a caster in two untrained pieces is refused
+    for two reasons and a ruling that named one would be half a record (R30).
+    """
+    return tuple(
+        carried.item.id
+        for carried in equipment
+        if carried.carriage is Carriage.WORN
+        and carried.item.is_armour
+        and carried.item.id not in training
+    )
 
 
 def items_in(equipment: tuple[Carried, ...], carriage: Carriage) -> tuple[Item, ...]:
