@@ -141,7 +141,11 @@ RELEASE_ONLY_ON_YOUR_TURN: Final = "grapple-release-offered-only-on-the-grappler
 
 
 #: p. 177: "If you use a Shield and lack training with it, you don't gain its AC bonus"
-#: (#367). The derivation it needs is #380.
+#: (#367). **The design is settled** — 0077, closing #380's gate — and what is missing is the
+#: derivation being *built*: [#393](https://github.com/eddiefiggie/srd-rules-engine/issues/393).
+#: p. 92 makes a Shield a `+2` **bonus** rather than a base calculation, so there is a
+#: contribution to withhold as soon as AC is derived — and training is already held by item
+#: id (0040 clause 2), so this never needed the armour *category* it appeared to.
 #:
 #: `Item.is_armour` deliberately does not distinguish a Shield from worn armour — the category
 #: is content (0040 clause 2) — and the clause needs a shield's AC bonus to withhold, which

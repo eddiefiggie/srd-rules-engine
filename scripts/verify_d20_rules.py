@@ -501,6 +501,35 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"If a spell has movable effects, they aren.t restricted by its range unless the "
         r"spell.s description says otherwise",
     ),
+    # --- Armour Class (#380) -------------------------------------------------------------
+    (
+        177,
+        "the base AC calculation, and the clause that makes armour an **alternative** rather "
+        "than an addition: another calculation is *chosen between*, never combined. This is "
+        "the structure #380 turns on, and it is stated rather than inferred (0077)",
+        r"Your base AC calculation is 10 plus your Dexterity modifier\.\s*If a rule gives "
+        r"you another base AC calculation, you choose which calculation to use; you can.t "
+        r"use more than one",
+    ),
+    (
+        92,
+        "a Shield's AC benefit is **conditional on training**, which is the half of #367 "
+        "that waits on AC being derived — there is no bonus to withhold from a stored total",
+        r"You gain the Armor Class benefit of a Shield only if you have training with it",
+    ),
+    (
+        92,
+        "one suit and one Shield, which is what makes the base a single choice rather than a "
+        "set to be summed",
+        r"A creature can wear only one suit of armor at a time and wield only one Shield at "
+        r"a time",
+    ),
+    (
+        92,
+        "a monster's training comes from its stat block, so a stat-block AC is not an "
+        "unverified number — it is the other base calculation p. 177 permits",
+        r"A monster has training with any armor in its stat block",
+    ),
     # --- Improvised weapons (#264) -------------------------------------------------------
     (
         183,
