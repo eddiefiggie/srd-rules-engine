@@ -48,7 +48,6 @@ from srd_rules_engine.core.actions import ActionBudget, ActionKind
 from srd_rules_engine.core.casting import spell_resolver
 from srd_rules_engine.core.equipment import Carriage, Carried, Item
 from srd_rules_engine.core.read_surface import (
-    UNTRAINED_SHIELD_STILL_GRANTS_AC,
     cast_declared,
 )
 from srd_rules_engine.core.spellcasting import CastingTime, Spell, SpellSlots
@@ -722,32 +721,38 @@ def test_every_untrained_piece_is_named(tmp_path: Path) -> None:
         spell_resolver(BOLT, effects_of)(state=state, declaration=declaration, facts={})
 
 
-def test_the_shield_drawback_is_the_one_that_remains_disclosed() -> None:
-    """R32, #367. p. 177 states three drawbacks: 0063 built the casting prohibition, 0064 the
-    Disadvantage once `D20Test.ability` reached every test site, and the Shield clause remains.
+def test_every_armour_training_drawback_is_now_enforced() -> None:
+    """R32, #367. p. 177's Armor Training entry states three drawbacks, and the engine has
+    just finished the last of them:
 
-    **The clause is about a Shield, which is *held*, and this asserted it against worn
-    armour** — so it passed while the disclosure was unreachable by the creature it names.
-    `untrained_armour` reads worn items (p. 104: "any armor you are **wearing**"), and gating
-    the Shield clause on it meant a creature holding an untrained Shield was told nothing,
-    and a creature in untrained plate holding none was told about a Shield it did not have.
-    Found by the first test that tried to observe the clause firing (#393).
+    * **the casting prohibition** — 0063, a legality rule the read surface answers;
+    * **the Disadvantage** on any D20 Test involving Strength or Dexterity — 0064, once
+      `D20Test.ability` reached every site that builds one;
+    * **the Shield's AC bonus** — #367, withheld by `Combatant.armour_class_bonus` now that
+      #393 gave it a derivation to withhold from.
 
-    Since #393 the derivation exists, so `untrained_shields` can name the right creature and
-    the withholding itself is #367.
+    So p. 177 discloses nothing, and this asserts the absence rather than trusting it.
+
+    **This test asserted the Shield clause was disclosed, and was wrong twice over.** The
+    clause was gated on `untrained_armour`, which reads **worn** items — so it never reached
+    a creature holding an untrained Shield, the only creature p. 92 is about, and it *did*
+    reach a creature in untrained plate holding no Shield at all (#393).
     """
     shielded = read(encounter(shield_bearing()), "mage").situation
     assert shielded is not None
-    assert UNTRAINED_SHIELD_STILL_GRANTS_AC in shielded.unenforced_clauses
+    assert not any("shield" in clause for clause in shielded.unenforced_clauses)
     assert "untrained-armour-disadvantage-not-applied" not in shielded.unenforced_clauses
 
-    trained = read(
-        encounter(shield_bearing(armour_training=frozenset({SHIELD.id}))), "mage"
-    ).situation
-    assert trained is not None
-    assert UNTRAINED_SHIELD_STILL_GRANTS_AC not in trained.unenforced_clauses
-
-    # And a creature in untrained armour holding no Shield is no longer told about one.
     plated = read(encounter(armoured()), "mage").situation
     assert plated is not None
-    assert UNTRAINED_SHIELD_STILL_GRANTS_AC not in plated.unenforced_clauses
+    assert not any("shield" in clause for clause in plated.unenforced_clauses)
+
+
+def test_an_untrained_shield_grants_no_armour_class() -> None:
+    """p. 92: "You gain the Armor Class benefit of a Shield **only if you have training with
+    it**." The rule the disclosure above stood in for, for four builds."""
+    untrained = shield_bearing()
+    trained = shield_bearing(armour_training=frozenset({SHIELD.id}))
+
+    assert untrained.effective_armour_class == untrained.armour_class
+    assert trained.effective_armour_class == trained.armour_class + 2

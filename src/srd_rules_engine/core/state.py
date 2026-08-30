@@ -804,25 +804,32 @@ class Combatant:
     def armour_class_bonus(self) -> int:
         """p. 92's Shield: what the creature holds that adds on top of the base.
 
-        **Not conditional on training yet**, which is
-        [#367](https://github.com/eddiefiggie/srd-rules-engine/issues/367)'s remaining half and
-        stays disclosed as `untrained-shield-still-grants-ac`. p. 92 gives the benefit "only
-        if you have training with it", and the withholding is now *expressible* — there is a
-        contribution to withhold — which is the whole of what #393 unblocked.
+        > You gain the Armor Class benefit of a Shield **only if you have training with it**.
+
+        **Withheld without training** (#367), the last of p. 177's three drawbacks to be
+        built — the casting prohibition landed with 0063 and the Disadvantage with 0064, and
+        this one waited on there being a contribution to withhold at all. #393 supplied that
+        by deriving Armour Class; before it there was only a stored total, and nothing can be
+        taken out of a number whose parts are unknown.
+
+        **The one-Shield refusal counts every Shield, trained or not.** p. 92's "wield only
+        one Shield at a time" is about wielding, and a creature holding two is holding two
+        whether it may benefit from either — so the refusal is asked before the training
+        filter rather than after it. Filtering first would let an untrained Shield hide a
+        second one.
+
+        **Training is by item id** (0040 clause 2), which is why this needed no armour
+        *category*: pp. 92-97 are content this repository does not ship, and the resolved
+        relation was always enough.
         """
-        bonuses = [
-            item.armour_class_bonus
-            for item in items_in(self.equipment, Carriage.HELD)
-            if item.armour_class_bonus
-        ]
-        if len(bonuses) > 1:
-            # p. 92: "wield only one Shield at a time". The document names nothing else that
-            # adds to AC by being held, so two held bonuses are two Shields — and summing
-            # them would grant what that sentence forbids.
+        held = [item for item in items_in(self.equipment, Carriage.HELD) if item.armour_class_bonus]
+        if len(held) > 1:
+            # Asked over every Shield, before training is consulted — see above.
             raise ValueError(
-                f"{self.name} is holding {len(bonuses)} things that add to Armour Class, and "
+                f"{self.name} is holding {len(held)} things that add to Armour Class, and "
                 "p. 92 allows one Shield at a time"
             )
+        bonuses = [item.armour_class_bonus for item in held if item.id in self.armour_training]
         return bonuses[0] if bonuses else 0
 
     @property
