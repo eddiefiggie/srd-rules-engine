@@ -67,6 +67,13 @@ GATES_ASKED_ONLY_BY_THE_MENU: Final[dict[str, str]] = {
         "REPORTED: an **enumerator**, not a predicate — it lists the five-foot steps the menu "
         "offers (0055). The bound itself is `PUSH_MASTERY_FEET`, and the resolver checks it."
     ),
+    "untrained_shields": (
+        '#367: p. 92 gives a Shield\'s AC benefit "only if you have training with it", and '
+        "nothing withholds it. This enumerates who the clause *would* bite, so R32's "
+        "disclosure reaches the right creature — a rule the menu names and nothing enforces, "
+        "which is what an issue number here means. #393 made the withholding expressible by "
+        "deriving AC; #367 is the withholding."
+    ),
     # --- Rules the path that produces outcomes does not ask --------------------------------
     # Empty, and it did not start that way. The seven entries here on the day this file was
     # written were p. 89's Extra Attack limit and Cleave, p. 90's Loading and Ammunition, and a

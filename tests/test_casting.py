@@ -640,10 +640,20 @@ def test_an_unprepared_spell_is_refused_by_the_resolver_too(tmp_path: Path) -> N
 
 PLATE = Item(id="fixture:plate", weight=65.0, is_armour=True)
 ROBE = Item(id="fixture:robe", weight=4.0)
+#: p. 92's Shield: `+2`, **held** rather than worn, which is what makes it a Shield to
+#: `untrained_shields` without needing p. 177's category (#393).
+SHIELD = Item(id="fixture:shield", weight=6.0, is_armour=True, armour_class_bonus=2)
 
 
 def armoured(**overrides: object) -> Combatant:
     fields: dict[str, object] = {"equipment": (Carried(PLATE, Carriage.WORN),)}
+    fields.update(overrides)
+    return caster(**fields)
+
+
+def shield_bearing(**overrides: object) -> Combatant:
+    """Holding a Shield, which is the creature p. 92's clause is actually about."""
+    fields: dict[str, object] = {"equipment": (Carried(SHIELD, Carriage.HELD),)}
     fields.update(overrides)
     return caster(**fields)
 
@@ -714,13 +724,30 @@ def test_every_untrained_piece_is_named(tmp_path: Path) -> None:
 
 def test_the_shield_drawback_is_the_one_that_remains_disclosed() -> None:
     """R32, #367. p. 177 states three drawbacks: 0063 built the casting prohibition, 0064 the
-    Disadvantage once `D20Test.ability` reached every test site, and the Shield clause needs an
-    AC derived from what is worn — which nothing models."""
-    situation = read(encounter(armoured()), "mage").situation
-    assert situation is not None
-    assert UNTRAINED_SHIELD_STILL_GRANTS_AC in situation.unenforced_clauses
-    assert "untrained-armour-disadvantage-not-applied" not in situation.unenforced_clauses
+    Disadvantage once `D20Test.ability` reached every test site, and the Shield clause remains.
 
-    trained = read(encounter(armoured(armour_training=frozenset({PLATE.id}))), "mage").situation
+    **The clause is about a Shield, which is *held*, and this asserted it against worn
+    armour** — so it passed while the disclosure was unreachable by the creature it names.
+    `untrained_armour` reads worn items (p. 104: "any armor you are **wearing**"), and gating
+    the Shield clause on it meant a creature holding an untrained Shield was told nothing,
+    and a creature in untrained plate holding none was told about a Shield it did not have.
+    Found by the first test that tried to observe the clause firing (#393).
+
+    Since #393 the derivation exists, so `untrained_shields` can name the right creature and
+    the withholding itself is #367.
+    """
+    shielded = read(encounter(shield_bearing()), "mage").situation
+    assert shielded is not None
+    assert UNTRAINED_SHIELD_STILL_GRANTS_AC in shielded.unenforced_clauses
+    assert "untrained-armour-disadvantage-not-applied" not in shielded.unenforced_clauses
+
+    trained = read(
+        encounter(shield_bearing(armour_training=frozenset({SHIELD.id}))), "mage"
+    ).situation
     assert trained is not None
     assert UNTRAINED_SHIELD_STILL_GRANTS_AC not in trained.unenforced_clauses
+
+    # And a creature in untrained armour holding no Shield is no longer told about one.
+    plated = read(encounter(armoured()), "mage").situation
+    assert plated is not None
+    assert UNTRAINED_SHIELD_STILL_GRANTS_AC not in plated.unenforced_clauses

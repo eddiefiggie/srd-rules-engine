@@ -70,6 +70,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Final
 
 from srd_rules_engine.core.damage import DamageType
 from srd_rules_engine.core.position import REACH_PROPERTY_FEET, Position, within
@@ -97,6 +98,72 @@ class Carriage(StrEnum):
     WORN = "worn"
     HELD = "held"
     STOWED = "stowed"
+
+
+#: p. 177: "Your base AC calculation is 10 plus your Dexterity modifier." The one this engine
+#: holds outright, because it is the only base the document states without a table (0077).
+UNARMOURED_BASE_AC: Final = 10
+
+
+@dataclass(frozen=True)
+class ArmourClassBase:
+    """One base AC calculation (p. 177, p. 92, #393, 0077).
+
+    > Your base AC calculation is 10 plus your Dexterity modifier. If a rule gives you another
+    > base AC calculation, you choose which calculation to use; **you can't use more than
+    > one**.
+
+    **A base, never a bonus**, and that distinction is the whole of the modelling. p. 92's
+    table puts a Shield's `+2` in the same column as Padded Armor's `11 + Dex modifier`, which
+    invites an implementation to add them; p. 177 forbids it. A base is *chosen between*, and
+    a character in Plate with a Shield is 20 rather than 28.
+
+    **The structure is the rule and the numbers are content.** Every row of p. 92's table is
+    this shape with different parameters — `11 + Dex` uncapped, `14 + Dex (max 2)`, a flat
+    `16` that ignores Dexterity entirely — and so is p. 177's default. The engine holds the
+    shape; pp. 92-97 are a table it does not ship (R31), so the parameters arrive from the
+    ruleset exactly as a weapon's dice do.
+    """
+
+    flat: int
+    #: Whether Dexterity is added at all. `False` is p. 92's Heavy Armor, which states a
+    #: number and no modifier — different from a cap of 0, which would be a cap somebody set.
+    adds_dexterity: bool = True
+    #: p. 92's Medium Armor: "13 + Dex modifier **(max 2)**". `None` is uncapped.
+    dexterity_cap: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.flat < 0:
+            raise ValueError(f"a base AC calculation starts from a number, not {self.flat}")
+        if self.dexterity_cap is not None and not self.adds_dexterity:
+            raise ValueError(
+                "a cap on a Dexterity modifier this calculation does not add describes "
+                "nothing. p. 92's Heavy Armor states a flat number and no modifier; its "
+                "Medium Armor states a modifier and a cap"
+            )
+        if self.dexterity_cap is not None and self.dexterity_cap < 0:
+            raise ValueError(
+                f"p. 92 caps a Dexterity modifier at 2, not at {self.dexterity_cap}. A "
+                "negative cap would raise a penalty into a bonus"
+            )
+
+    def value(self, dexterity_modifier: int) -> int:
+        """What this calculation comes to for a creature with that modifier.
+
+        **The cap is a maximum, not a clamp.** p. 92 writes "max 2", so a negative modifier
+        stays negative — capping it into range would turn a penalty into a bonus, which is
+        the direction 0030 clause 1 keeps away from.
+        """
+        if not self.adds_dexterity:
+            return self.flat
+        modifier = dexterity_modifier
+        if self.dexterity_cap is not None:
+            modifier = min(modifier, self.dexterity_cap)
+        return self.flat + modifier
+
+
+#: p. 177's default, held here because it is the one base the document states without a table.
+UNARMOURED: Final = ArmourClassBase(flat=UNARMOURED_BASE_AC)
 
 
 @dataclass(frozen=True)
@@ -157,6 +224,20 @@ class Item:
     #: p. 177 treats a Shield separately from worn armour and this flag does not distinguish
     #: them, which is why the Shield clause is disclosed rather than built (#367).
     is_armour: bool = False
+    #: p. 92: the base AC calculation **wearing** this gives, or `None` for an object that
+    #: gives none (#393, 0077). Ruleset data, because the table is content.
+    #:
+    #: **A base, not a bonus** — see `ArmourClassBase`. An item that sets this is one a
+    #: creature wears *instead of* being unarmoured, never in addition to it.
+    armour_class_base: ArmourClassBase | None = None
+    #: p. 92: what **holding** this adds on top of whichever base won. A Shield is `+2`, and
+    #: it is the only thing in the document that reaches AC this way.
+    #:
+    #: **Held rather than worn**, which is also how this distinguishes a Shield from armour
+    #: without needing p. 177's *category* — the content 0040 clause 2 declined to ship. A
+    #: Shield is the item you hold that adds to AC; armour is the item you wear that replaces
+    #: the base.
+    armour_class_bonus: int = 0
     #: p. 183: what this object deals when wielded as a makeshift weapon, or `None` when
     #: nobody has said (#264, 0076).
     #:
@@ -182,6 +263,18 @@ class Item:
             raise ValueError(
                 f"an item occupies zero or more hands, not {self.hands_when_held}. A negative "
                 "count would free a hand by being picked up"
+            )
+        if self.armour_class_bonus < 0:
+            raise ValueError(
+                f"an AC bonus adds to a base, and {self.armour_class_bonus} subtracts. p. 92 "
+                "gives a Shield +2 and the document names nothing that lowers AC by being "
+                "held — an item that did would be a rule this engine has not read"
+            )
+        if self.armour_class_base is not None and self.armour_class_bonus:
+            raise ValueError(
+                f"{self.id!r} gives both a base AC calculation and an AC bonus. p. 177 "
+                "chooses between bases and adds bonuses on top, so an item that is both is "
+                "one the document does not describe — a suit of armour or a Shield, not each"
             )
 
 
@@ -288,6 +381,30 @@ def untrained_armour(equipment: tuple[Carried, ...], training: frozenset[str]) -
         for carried in equipment
         if carried.carriage is Carriage.WORN
         and carried.item.is_armour
+        and carried.item.id not in training
+    )
+
+
+def untrained_shields(equipment: tuple[Carried, ...], training: frozenset[str]) -> tuple[str, ...]:
+    """Every AC-adding item this creature holds without training with it (p. 92, #393).
+
+    > You gain the Armor Class benefit of a Shield only if you have training with it.
+
+    **Held, not worn**, which is the whole difference from `untrained_armour` and the reason
+    that function could not serve this clause: p. 92's Light/Medium/Heavy drawbacks are about
+    armour "you **wear**", and a Shield is something you wield. A disclosure gated on
+    `untrained_armour` never fired for a creature holding an untrained Shield, which is the
+    only creature it was ever about.
+
+    **An AC bonus is how a Shield is recognised**, because p. 177's *category* is content this
+    repository does not ship (0040 clause 2). The document names nothing else that adds to AC
+    by being held, so the bonus identifies it without the table.
+    """
+    return tuple(
+        carried.item.id
+        for carried in equipment
+        if carried.carriage is Carriage.HELD
+        and carried.item.armour_class_bonus
         and carried.item.id not in training
     )
 

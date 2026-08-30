@@ -128,24 +128,59 @@ that states one base — the overwhelming case — states nothing extra.
 
 ## Status of implementation
 
-**Nothing here is built.** This record settles the gate and the work follows, filed rather than
-described, per `AGENTS.md`: a gate closes by producing a record, and the record's unbuilt
-clauses are filed at that moment because a *closed* gate issue reads as finished work.
-
-| Clause | Held by |
+| Clause | State |
 |---|---|
-| 1, 2, 3 — base-plus-bonus, its shape, and the numbers staying content | [#393](https://github.com/eddiefiggie/srd-rules-engine/issues/393) |
-| 4, 5 — the supplied total survives; `effective_armour_class` | [#393](https://github.com/eddiefiggie/srd-rules-engine/issues/393) |
-| 6 — the creature's stated choice among bases | [#394](https://github.com/eddiefiggie/srd-rules-engine/issues/394) |
-| 7 — the Shield's bonus, withheld without training | [#367](https://github.com/eddiefiggie/srd-rules-engine/issues/367) |
-| 8 — one suit, one Shield, refused at the transition | [#393](https://github.com/eddiefiggie/srd-rules-engine/issues/393) |
-| 9 — the attack path reads the derived value | [#393](https://github.com/eddiefiggie/srd-rules-engine/issues/393) |
+| 1, 2, 3 — base-plus-bonus, its shape, the numbers staying content | **Built** by [#393](https://github.com/eddiefiggie/srd-rules-engine/issues/393). `ArmourClassBase`, `Item.armour_class_base`, `Item.armour_class_bonus` |
+| 4 — the supplied total survives | **Built, and corrected while building** — see below |
+| 5 — `effective_armour_class` | **Built.** `Combatant.effective_armour_class`, and every consumer moved to it |
+| 6 — the creature's stated choice among bases | **Not built.** [#394](https://github.com/eddiefiggie/srd-rules-engine/issues/394) |
+| 7 — the Shield's bonus, withheld without training | **Half built.** The bonus is granted ([#393](https://github.com/eddiefiggie/srd-rules-engine/issues/393)); the withholding is [#367](https://github.com/eddiefiggie/srd-rules-engine/issues/367) |
+| 8 — one suit, one Shield | **Built**, as refusals in the derivation |
+| 9 — the attack path reads the derived value | **Built.** Ten sites in `core.combat` and `core.read_surface` |
 
-The four sentences this rests on are asserted in `scripts/verify_d20_rules.py`, which now
-carries 295 clauses. That is the part of this workload that does not need re-doing: whoever
-builds #393 does not re-read pp. 177 and 92, and cannot quietly disagree with them.
+### Clause 4 was right about provenance and wrong about shape
 
-`untrained-shield-still-grants-ac` **stays disclosed** until #367 retires it, and the
-disclosure's stated reason is now wrong in the way 0060 and 0071 describe — it says the bonus
-"needs a derivation over what is worn, which nothing models", and what is missing after this
-record is the derivation being *built*, not designed. #393 carries the correction.
+This record read p. 254's stat-block AC as "another base AC calculation" that p. 177 permits.
+That is right about where the number *comes from* and wrong about what it **is**: a stat block
+states an AC, which is a result, while p. 177's alternatives are calculations.
+
+Built as written, it put the stated total beside worn armour as a rival base — and the first
+demonstration showed a creature in Plate reading as its unarmoured value, silently, because
+`armour_class` is a required field every ruleset already sets. The armour was inert.
+
+The correction: **they are the same claim at two levels of detail.** A total is the shorthand a
+ruleset uses when it has not described the armour, and p. 92's "a monster has training with any
+armor **in its stat block**" is the document contemplating a stat block that lists the armour.
+So the derivation prefers described armour and falls back to the stated total, and no existing
+creature's AC changes.
+
+Genuinely competing bases — a feature granting an alternative calculation, which is p. 177's
+actual case — remain [#394](https://github.com/eddiefiggie/srd-rules-engine/issues/394).
+
+### A disclosure that could never fire
+
+`untrained-shield-still-grants-ac` was appended only when `untrained_armour` found something,
+and that function reads **worn** items because p. 104 is about armour "you are wearing". p. 92's
+Shield is **held**. So the clause was told to a creature in untrained plate holding no Shield,
+and never to a creature holding an untrained Shield — the only creature it is about.
+
+It was pinned, it was disclosed, and it was unreachable by its own case. Found by writing the
+first test that tried to observe it firing. `untrained_shields` now names the right creature,
+and `tests/test_casting.py`'s assertion — which had been passing against worn armour since
+#367 — is corrected to say so.
+
+### Evidence
+
+Six corruption proofs, each red on the assertion written for it.
+
+| Corruption | Went red on |
+|---|---|
+| bases summed instead of chosen between | `test_a_shield_adds_to_the_base_rather_than_replacing_it` |
+| the stated total preferred over worn armour | `test_described_armour_beats_a_stated_total`, `test_worn_armour_supplies_the_base` |
+| the Dexterity cap clamped at 0 | `test_a_capped_base_caps_the_modifier_and_does_not_clamp_it` |
+| the one-suit refusal disabled | `test_two_suits_of_armour_are_refused` |
+| carriage ignored when collecting bases | `test_armour_contributes_only_while_worn` |
+| the disclosure gated back on `untrained_armour` | the two tests that observe it firing |
+
+The first is the one this record exists for: it makes a character in Plate with a Shield 28.
+The last reproduces the unreachable disclosure exactly.

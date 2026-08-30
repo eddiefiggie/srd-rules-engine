@@ -56,6 +56,7 @@ from srd_rules_engine.core.duration import (
     rounds_in_minutes,
 )
 from srd_rules_engine.core.equipment import (
+    ArmourClassBase,
     Carriage,
     Carried,
     DetachedObject,
@@ -766,6 +767,96 @@ class Combatant:
     def carried_weight(self) -> float:
         """Everything worn, held and stowed, in pounds (p. 178)."""
         return carried_weight(self.equipment)
+
+    @property
+    def armour_class_bases(self) -> tuple[ArmourClassBase, ...]:
+        """Every base AC calculation **a rule gave** this creature (p. 177, p. 92, #393, 0077).
+
+        Worn armour, one per suit. Empty for a creature the ruleset described by its total
+        rather than by what it wears.
+
+        **The stored `armour_class` is not in this list, and working out why was the build's
+        one real correction.** 0077 clause 4 reads p. 254's stat-block AC as "another base AC
+        calculation" that p. 177 permits, and that is right about its *provenance* and wrong
+        about its *shape*: a stat block states an AC, which is the result, while p. 177's
+        alternatives are calculations. Treating the stored number as a competing base put it
+        beside worn armour and made the armour inert — a creature in Plate whose ruleset had
+        set `armour_class` to its unarmoured value read as unarmoured, silently.
+
+        So the two are not rivals. A stat-block total is the shorthand a ruleset uses when it
+        has not described the armour; describing the armour is saying the same thing more
+        precisely, and p. 92's "a monster has training with any armor **in its stat block**"
+        is the document contemplating exactly that. `effective_armour_class` prefers the
+        described armour and falls back to the stated total.
+
+        **Genuinely competing bases are still coming** — a feature granting an alternative
+        calculation is p. 177's actual case — and that is
+        [#394](https://github.com/eddiefiggie/srd-rules-engine/issues/394). This property is
+        where they will arrive, which is why it returns a tuple for what is today at most one.
+        """
+        return tuple(
+            item.armour_class_base
+            for item in items_in(self.equipment, Carriage.WORN)
+            if item.armour_class_base is not None
+        )
+
+    @property
+    def armour_class_bonus(self) -> int:
+        """p. 92's Shield: what the creature holds that adds on top of the base.
+
+        **Not conditional on training yet**, which is
+        [#367](https://github.com/eddiefiggie/srd-rules-engine/issues/367)'s remaining half and
+        stays disclosed as `untrained-shield-still-grants-ac`. p. 92 gives the benefit "only
+        if you have training with it", and the withholding is now *expressible* — there is a
+        contribution to withhold — which is the whole of what #393 unblocked.
+        """
+        bonuses = [
+            item.armour_class_bonus
+            for item in items_in(self.equipment, Carriage.HELD)
+            if item.armour_class_bonus
+        ]
+        if len(bonuses) > 1:
+            # p. 92: "wield only one Shield at a time". The document names nothing else that
+            # adds to AC by being held, so two held bonuses are two Shields — and summing
+            # them would grant what that sentence forbids.
+            raise ValueError(
+                f"{self.name} is holding {len(bonuses)} things that add to Armour Class, and "
+                "p. 92 allows one Shield at a time"
+            )
+        return bonuses[0] if bonuses else 0
+
+    @property
+    def effective_armour_class(self) -> int:
+        """The number an attack roll meets (p. 177, #393, 0077).
+
+        `armour_class` is what the creature *has*; this is what a blow is compared against —
+        the shape `effective_speeds` and `effective_defences` already use.
+
+        **The base is chosen and the bonus is added.** p. 177: "you choose which calculation
+        to use; **you can't use more than one**." A Shield is not a calculation, so its `+2`
+        rides on top of whichever base won, and a character in Plate with a Shield is 20
+        rather than 28.
+
+        **Described armour beats a stated total**, for the reason `armour_class_bases` gives:
+        they are the same claim at two levels of detail rather than two competing bases. A
+        creature nobody dressed keeps its stat-block number, which is every creature in the
+        tree today — so this changes no existing outcome and adds a path for one that is
+        dressed.
+
+        **More than one described suit is refused** rather than picked between, and p. 92 is
+        why: "A creature can wear only one suit of armor at a time." Reaching here with two is
+        a state the equipment transitions do not permit, so the refusal is a floor under them
+        rather than a rule with its own path (0062).
+        """
+        bases = self.armour_class_bases
+        if len(bases) > 1:
+            raise ValueError(
+                f"{self.name} is wearing {len(bases)} suits of armour, and p. 92 allows one "
+                "at a time. There is no rule for combining base AC calculations — p. 177 says "
+                "a creature cannot use more than one"
+            )
+        base = bases[0] if bases else ArmourClassBase(flat=self.armour_class, adds_dexterity=False)
+        return base.value(self.modifier("dex")) + self.armour_class_bonus
 
     @property
     def effective_defences(self) -> Defences:
