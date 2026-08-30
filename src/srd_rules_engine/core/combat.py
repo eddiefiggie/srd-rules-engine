@@ -750,11 +750,14 @@ def unarmed_strike_resolver() -> Resolver:
     """p. 190's Damage option, and only that one.
 
     **The other two are not here and are not forgotten.** p. 190 offers three effects, and
-    Grapple and Shove both turn on "the target is no more than one size larger than you" —
-    a comparison this engine cannot make, because nothing has a `Size`
-    ([#259](https://github.com/eddiefiggie/srd-rules-engine/issues/259)). Offering them
-    without that check would decide a rule the document conditions, so they are disclosed in
-    the bounds below and filed rather than approximated.
+    Grapple and Shove both turn on "the target is no more than one size larger than you".
+    That comparison **is** now available — 0051 gave creatures a `Size` and
+    `Size.categories_above` answers exactly this question — so what blocked them has moved.
+    What remains is the rest of each effect: Grapple applies a condition and sets an escape
+    DC, Shove pushes a creature 5 feet away from the shover, and neither is a size test.
+    They are filed rather than approximated
+    ([#335](https://github.com/eddiefiggie/srd-rules-engine/issues/335)), and disclosed in the
+    bounds below meanwhile.
 
     **The Proficiency Bonus is unconditional here, and that is the difference from a weapon.**
     p. 89 adds it only "if you have proficiency with" the weapon; p. 190 states the bonus flat
@@ -824,8 +827,8 @@ def unarmed_strike_resolver() -> Resolver:
             ),
             may_not_claim=(
                 "that the target was grappled or shoved — p. 190 offers those as two other "
-                "effects of an Unarmed Strike, and this engine offers neither, because both "
-                "turn on a size comparison it cannot make",
+                "effects of an Unarmed Strike, and this engine offers neither: the size "
+                "comparison they turn on is available and the effects themselves are not",
                 "that the damage was anything but Bludgeoning, or any amount other than the "
                 "one recorded",
             ),

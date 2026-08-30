@@ -56,6 +56,7 @@ from srd_rules_engine.core.equipment import (
 from srd_rules_engine.core.position import MovementMode, distance_feet, within
 from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.sight import LightLevel, Senses
+from srd_rules_engine.core.size import CarryingCapacity, Size
 from srd_rules_engine.core.spellcasting import CastingTime, component_refusal
 from srd_rules_engine.core.state import Combatant, EncounterState
 
@@ -117,6 +118,17 @@ UTILIZE_REACHES_FOUR_MOVES: Final = "utilize-reaches-only-the-engines-object-mov
 #: silence", and the engine models neither (#246). A spell carrying one is offered anyway, so
 #: the rule that went unchecked is named rather than inferred from a silent pass.
 VERBAL_UNCHECKED: Final = "verbal-component-gagged-or-silenced-unchecked"
+
+#: p. 178: "While dragging, lifting, or pushing weight in excess of the maximum weight you can
+#: carry, your Speed can be no more than 5 feet." The engine computes the bound and does not
+#: apply the cap, for two reasons that each suffice. The clause turns on whether the creature
+#: is *dragging, lifting, or pushing* — a narrative fact nothing here holds, and not the same
+#: fact as carrying too much. And p. 12 leaves the subsystem to a person: "the GM **might**
+#: require you to abide by the rules for carrying capacity."
+#:
+#: Disclosed only when the weight is actually over the bound, which is the moment the rule
+#: would have bitten — the same timing `SIGHT_QUALIFIER` uses.
+CARRYING_CAPACITY_SPEED_CAP: Final = "carrying-capacity-speed-cap-is-not-applied"
 
 #: A standalone object interaction — p. 13's free one — and the Utilize action that buys
 #: another (p. 13, p. 191, 0045 clauses 2-3).
@@ -520,10 +532,20 @@ class Situation:
     #: here is not short of a hand for an S,M spell. The count is reported; the rule that
     #: consumes it is #245.
     free_hands: int | None
-    #: What the creature is carrying, in pounds (p. 178). Reported without a verdict, because
-    #: whether it is too much needs the creature `Size` p. 178's table is keyed on and this
-    #: engine has none (#259).
+    #: What the creature is carrying, in pounds (p. 178).
     carried_weight: float
+    #: p. 188's size category, or `None` because no ruleset stated one — see `Combatant.size`.
+    #: A refusal rather than a default: p. 14 sources a size from a species or a stat block,
+    #: and neither ships here, so Medium would be this engine inventing a rule value (R31).
+    size: Size | None
+    #: p. 178's two bounds in pounds, or `None` when the size above is. Read at the creature's
+    #: **carrying** size, which p. 86 and p. 357 move one row up for the creatures that have
+    #: the trait — `derivation()` says which row was used, because the result alone cannot.
+    carrying_capacity: CarryingCapacity | None
+    #: Whether `carried_weight` exceeds the Carry column, or `None` when unsized. The verdict
+    #: is arithmetic and the **consequence is not applied** — `CARRYING_CAPACITY_SPEED_CAP`
+    #: appears in `unenforced_clauses` whenever this is `True`.
+    over_carrying_capacity: bool | None
     #: Elapsed campaign time in minutes (decision 0020). Ordinal `round_number` is not
     #: reported here and does not convert into it — p. 13 says a round represents *about*
     #: 6 seconds, which is the document declining an exact conversion.
@@ -1375,6 +1397,8 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
     # visible in the menu and the disclosure has done its work.
     if actor.id not in state.object_interactions_this_turn:
         unenforced.append(OBJECT_INTERACTION_CAP)
+    if actor.over_carrying_capacity:
+        unenforced.append(CARRYING_CAPACITY_SPEED_CAP)
 
     return Situation(
         hit_points=actor.hit_points,
@@ -1417,6 +1441,9 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
         concentrating_on=actor.concentration.rule_id,
         free_hands=actor.free_hands,
         carried_weight=actor.carried_weight,
+        size=actor.size,
+        carrying_capacity=actor.carrying_capacity,
+        over_carrying_capacity=actor.over_carrying_capacity,
         elapsed_minutes=state.clock.elapsed_minutes,
         minutes_until_recovery=(
             max(0, actor.death_saves.recovers_at_minute - state.clock.elapsed_minutes)

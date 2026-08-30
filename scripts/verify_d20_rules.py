@@ -1559,6 +1559,66 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"This entry details the attacks a creature can make, as well as any additional "
         r"abili-?\s*ties it can use, as part of the Attack action",
     ),
+    # --- 0051: Size, and the one table keyed on it --------------------------------------
+    (
+        188,
+        "the six categories, and that a creature BELONGS TO one - which is why `None` on a "
+        "combatant means nobody stated it rather than that the creature has no size",
+        r"A creature or an object belongs to a size category: Tiny, Small, Medium, Large, "
+        r"Huge, or Gargantuan",
+    ),
+    (
+        14,
+        "where a size comes from, and both sources are content this repository does not ship "
+        "- so Medium is a species' answer and never the engine's (R31)",
+        r"A character.s size is determined by species, and a monster.s size is specified in "
+        r"the monster.s stat block",
+    ),
+    (
+        14,
+        "the order the categories are in, which `Size.rank` rests on",
+        r"lists the sizes from smallest \(Tiny\) to largest \(Gargantuan\)",
+    ),
+    (
+        178,
+        "the table is keyed on the Strength SCORE, not the modifier - a factor of seven, and "
+        "both readings produce a believable load",
+        r"Your size and Strength score determine the maximum weight in pounds that you can "
+        r"carry",
+    ),
+    (
+        178,
+        "p. 178's table, both columns and all six rows - and Small/Medium printed as ONE row, "
+        "which is what makes counting as one size larger worthless to a Small creature",
+        r"Creature Size Carry Drag/Lift/Push Tiny Str\. . 7\.5 lb\. Str\. . 15 lb\. "
+        r"Small/Medium Str\. . 15 lb\. Str\. . 30 lb\. Large Str\. . 30 lb\. Str\. . 60 lb\. "
+        r"Huge Str\. . 60 lb\. Str\. . 120 lb\. Gargantuan Str\. . 120 lb\. Str\. . 240 lb\.",
+    ),
+    (
+        178,
+        "the consequence that is disclosed and NOT applied (#336) - note it fires on dragging, "
+        "lifting or pushing rather than on carrying too much",
+        r"While dragging, lifting, or pushing weight in excess of the maximum weight you can "
+        r"carry, your Speed can be no more than 5 feet",
+    ),
+    (
+        12,
+        "and that the subsystem is a person's call at all, which is the second reason the cap "
+        "is not applied",
+        r"the GM might require you to abide by the rules for carrying capacity",
+    ),
+    (
+        86,
+        "Powerful Build, scoped to carrying capacity by its own sentence - which is why the "
+        "flag is not a general 'counts as larger'",
+        r"You also count as one size larger when determining your carrying capacity",
+    ),
+    (
+        357,
+        "and the mule says it again, which is why it is one flag and not two (0035)",
+        r"The mule counts as one size larger for the purpose of determining its carrying "
+        r"capacity",
+    ),
 )
 
 #: Clauses about the document as a whole rather than about one page, as

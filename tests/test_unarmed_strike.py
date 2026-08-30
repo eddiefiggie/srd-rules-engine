@@ -249,9 +249,14 @@ def test_grapple_and_shove_are_disclosed_rather_than_approximated(tmp_path: Path
     assert any("grappled or shoved" in claim for claim in ruling.bounds.may_not)
 
 
-def test_the_size_dependency_is_named_in_the_module() -> None:
-    """A prose disclosure, guarded — this repository has watched three of them decay."""
+def test_the_grapple_and_shove_dependency_is_named_in_the_module() -> None:
+    """A prose disclosure, guarded — this repository has watched three of them decay.
+
+    It pointed at #259 while a `Size` was what Grapple and Shove waited on. 0051 built one,
+    so the wait moved to the effects themselves and the pointer moved with it. A guard left
+    naming a closed issue is the decay it exists to catch.
+    """
     module = (
         Path(__file__).resolve().parents[1] / "src" / "srd_rules_engine" / "core" / "combat.py"
     ).read_text()
-    assert "#259" in module, "the Size dependency Grapple and Shove wait on is no longer named"
+    assert "#335" in module, "the issue Grapple and Shove now wait on is no longer named"

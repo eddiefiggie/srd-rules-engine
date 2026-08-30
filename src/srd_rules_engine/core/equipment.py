@@ -49,10 +49,14 @@ boundary:
 - **Attunement** (p. 177) — a bond formed over time, capped at three. Not modelled at all.
 - **Item charges, item destruction, and spells cast from items** — each needs more of an item
   than the fields below, and each is its own unimplemented shape.
-- **Carrying capacity** (p. 178) — the weights are here and the *capacity* is not, because
-  p. 178's table is keyed on a creature `Size` this engine does not have
-  ([#259](https://github.com/eddiefiggie/srd-rules-engine/issues/259)). `carried_weight`
-  answers what is carried; nothing yet answers whether it is too much.
+- **Carrying capacity's consequence** (p. 178). The bound itself is built —
+  `Combatant.carrying_capacity` reads p. 178's table at the `Size`
+  [0051](../../../docs/decisions/0051-a-size-is-stated-or-it-is-unknown.md) added, and
+  `over_carrying_capacity` says whether the weight below exceeds it. What is *not* applied is
+  the sentence that follows: "your Speed can be no more than 5 feet". It turns on the creature
+  dragging, lifting or pushing rather than on carrying too much, and p. 12 leaves the whole
+  subsystem to a person — so it is disclosed at the read surface and filed
+  ([#336](https://github.com/eddiefiggie/srd-rules-engine/issues/336)) rather than applied.
 - **A weapon is equipment and is not one yet.** 0039 clause 5 decided it;
   [#258](https://github.com/eddiefiggie/srd-rules-engine/issues/258) builds it. Until then a
   `Weapon` remains closure data on `attack_resolver` and a creature holding a sword is not
@@ -224,8 +228,9 @@ def carried_weight(equipment: tuple[Carried, ...]) -> float:
 
     All three carriages, because p. 178 asks for "the maximum weight in pounds that you can
     carry" and worn armour is carried as surely as a stowed rope is. Whether the total is too
-    much is not answered here: that needs the Size p. 178's table is keyed on, which this
-    engine does not have (#259).
+    much is not answered here and is not unanswerable: it needs the creature's `Size`, which
+    is a fact about the creature rather than about its gear (0039 clause 6), so the comparison
+    lives on `Combatant` and this stays a sum over equipment.
     """
     return sum(carried.item.weight for carried in equipment)
 

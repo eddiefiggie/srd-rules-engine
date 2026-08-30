@@ -188,6 +188,10 @@ def situation_payload(situation: object) -> dict[str, Any] | None:
         # ruleset that did not say leaves the question unanswerable rather than answered zero.
         "free_hands",
         "carried_weight",
+        # p. 178. `bool | None`, and the `None` is load-bearing exactly as `free_hands` is:
+        # a creature nobody sized has no capacity to be over, which is not the same fact as
+        # being under one.
+        "over_carrying_capacity",
         # 0041 clauses 3 and 4. Both JSON-safe as they stand — tuples of item ids, and the
         # first is `tuple[str, ...] | None` where the `None` is load-bearing in the same way
         # `free_hands` above is: a creature with no position cannot be told what is within
@@ -235,6 +239,26 @@ def situation_payload(situation: object) -> dict[str, Any] | None:
     # conclusion the engine has not earned.
     light = situation.light_level  # type: ignore[attr-defined]
     out["light_level"] = None if light is None else str(light)
+    # p. 188, #259. A `Size | None`, where the `None` says no ruleset stated one rather than
+    # that the creature is sizeless — p. 14 sources a size from a species or a stat block and
+    # neither ships here, so Medium would be the engine inventing the answer (R31).
+    size = situation.size  # type: ignore[attr-defined]
+    out["size"] = None if size is None else str(size)
+    # p. 178's two bounds, with the sentence that reached them. The derivation travels because
+    # the result alone cannot show the step that matters: p. 86 and p. 357 read the table one
+    # row up, so a Medium creature's numbers can legitimately be a Large row's.
+    capacity = situation.carrying_capacity  # type: ignore[attr-defined]
+    out["carrying_capacity"] = (
+        None
+        if capacity is None
+        else {
+            "carry": capacity.carry,
+            "drag_lift_push": capacity.drag_lift_push,
+            "read_at_size": str(capacity.size),
+            "strength_score": capacity.strength_score,
+            "derivation": capacity.derivation(),
+        }
+    )
     out["senses"] = {
         str(sense): situation.senses.range_of(sense)  # type: ignore[attr-defined]
         for sense in situation.senses.held  # type: ignore[attr-defined]

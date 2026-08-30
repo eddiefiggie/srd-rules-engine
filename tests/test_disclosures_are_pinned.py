@@ -29,6 +29,7 @@ from srd_rules_engine.core.actions import ActionBudget
 from srd_rules_engine.core.conditions import EFFECTS, Condition, Conditions
 from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.read_surface import (
+    CARRYING_CAPACITY_SPEED_CAP,
     OBJECT_INTERACTION_CAP,
     UTILIZE_REACHES_FOUR_MOVES,
 )
@@ -71,6 +72,10 @@ OTHER_DISCLOSURES: frozenset[str] = frozenset(
         OBJECT_INTERACTION_CAP,
         # 0045 clause 5: p. 14's GM escalation and p. 177's Breaking Objects are beyond it.
         UTILIZE_REACHES_FOUR_MOVES,
+        # 0051 clause 5: p. 178's "your Speed can be no more than 5 feet" is computed against
+        # and not applied, because its trigger is dragging, lifting or pushing rather than
+        # carrying too much, and p. 12 leaves the subsystem to a person (#336).
+        CARRYING_CAPACITY_SPEED_CAP,
     }
 )
 
@@ -93,10 +98,18 @@ def test_the_condition_disclosures_are_exactly_these() -> None:
 
 
 def test_the_other_disclosures_are_exactly_these() -> None:
+    """**This half of the pin is weaker than it reads, and #334 holds the repair.** It compares
+    a literal set against a constant built from the same names, so it catches an edit to
+    `OTHER_DISCLOSURES` and is blind to a disclosure that exists in the source and was never
+    added here — which has already happened once, to `VERBAL_UNCHECKED`. The condition half
+    above derives `actual` from `EFFECTS` and is a real guard; this one is not, until the set
+    is derived from what the read surface actually appends.
+    """
     assert {
         SIGHT_QUALIFIER,
         OBJECT_INTERACTION_CAP,
         UTILIZE_REACHES_FOUR_MOVES,
+        CARRYING_CAPACITY_SPEED_CAP,
     } == OTHER_DISCLOSURES
 
 

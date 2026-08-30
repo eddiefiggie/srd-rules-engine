@@ -194,6 +194,17 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # rule that was not built. Both call sites take it: the attack's range bound and the
         # reach an Opportunity Attack is determined at.
         "weapon-reach": "core.equipment.Weapon.reach_in_use",
+        # p. 188, #259, 0051. The category itself, carried by the creature and `None` when
+        # nobody stated one. p. 188's entry folds three mechanics and the neighbouring
+        # entries own the other two: the space a creature occupies is `occupied-space`
+        # (p. 185) and an object's Hit Points are `breaking-objects` (p. 177), both still
+        # unbuilt. What is claimed here is exactly what is built — a creature belongs to one
+        # of six ordered categories, and rules can ask how far apart two of them are.
+        "size": "core.size.Size",
+        # p. 178, #259, 0051. The table, read at the carrying size p. 86 and p. 357 move one
+        # row up. The Speed consequence is disclosed rather than applied — it turns on
+        # dragging, lifting or pushing, and p. 12 leaves the subsystem to a person.
+        "carrying-capacity": "core.size.carrying_capacity",
         "mastery-graze": "core.combat.Weapon.graze",
         # p. 90, #320. p. 89's extra attack, re-routed into the Attack action: offered under
         # its own key, costing nothing, and capped with the Bonus Action route at the one

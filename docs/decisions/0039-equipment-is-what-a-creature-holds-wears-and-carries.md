@@ -200,7 +200,7 @@ would have looked like common sense.
 | 3 — worn, held or stowed, as one closed field | **Built** as `Carriage`, defaulting to stowed — the direction that cannot invent a free hand or armour nobody put on |
 | 4 — hands are counted, and one free hand serves both S and M | **Built, and the clause gained a finding.** The count is `int \| None` because **no SRD rule states how many hands a creature has** — the record assumed one could be held and did not say where the number comes from. p. 105's shared-hand sentence is now an asserted verifier clause. The check that reads it is still [#245](https://github.com/eddiefiggie/srd-rules-engine/issues/245) |
 | 5 — a weapon is equipment | **Built.** `Weapon` is a keyword-only subtype of `Item` and rides on `Combatant.equipment`; [0040](0040-a-weapon-is-an-item-and-proficiency-is-the-wielders.md) settled the shape and [#258](https://github.com/eddiefiggie/srd-rules-engine/issues/258) built it |
-| 6 — Size is the creature's, not the equipment's | **Decided, not built.** [#259](https://github.com/eddiefiggie/srd-rules-engine/issues/259), which is what `carrying-capacity` is actually blocked on |
+| 6 — Size is the creature's, not the equipment's | **Built.** `Combatant.size`, and `carried_weight` stays a sum over equipment while the comparison lives on the creature ([0051](0051-a-size-is-stated-or-it-is-unknown.md), [#259](https://github.com/eddiefiggie/srd-rules-engine/issues/259)) |
 | 7 — what is still unchecked, disclosed | **Built.** `core.equipment`'s docstring names attunement, item charges, carrying capacity, weapons and armour training, each pointing at its issue; guarded |
 
 **#256 is closed by this record.** #245 keeps its spell-side half, #247 keeps armour training,
