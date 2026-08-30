@@ -157,6 +157,7 @@ def topple_resolver() -> Resolver:
 
         test = D20Test(
             kind=TestKind.SAVE,
+            ability=debt.ability,
             target=debt.dc,
             target_basis=debt.dc_basis,
             modifiers=(

@@ -1723,6 +1723,39 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "modifier is not the better save and the engine may not choose (#344)",
         r"Saving Throws Affected\. You have Disadvantage on Dexterity saving throws",
     ),
+    # --- 0054: what the roller's own state does to a saving throw -------------------------
+    (
+        186,
+        "Paralyzed fails Strength and Dexterity saves outright - and names those two only, "
+        "which is why a Paralyzed creature still rolls Constitution",
+        r"Paralyzed \[Condition\].{0,400}?Saving Throws Affected\. You automatically fail "
+        r"Strength and Dexterity saving throws",
+    ),
+    (
+        189,
+        "Stunned says it in the same words",
+        r"Stunned \[Condition\].{0,400}?Saving Throws Affected\. You automatically fail "
+        r"Strength and Dexterity saving throws",
+    ),
+    (
+        191,
+        "and so does Unconscious",
+        r"Unconscious \[Condition\].{0,400}?Saving Throws Affected\. You automatically fail "
+        r"Strength and Dexterity saving throws",
+    ),
+    (
+        181,
+        "the Dodge action's Advantage on DEXTERITY saves, and the two things that take it "
+        "back - which is why `is_dodging` re-asks rather than trusting a flag",
+        r"you make Dexterity saving throws with Advantage\. You lose these benefits if you "
+        r"have the Incapacitated condition or if your Speed is 0",
+    ),
+    (
+        17,
+        "a Death Saving Throw is tied to NO ability score, which is why none of the rules "
+        "above reaches it - and why an Unconscious creature still rolls one",
+        r"Unlike other saving throws, this one isn.t tied to an ability score",
+    ),
 )
 
 #: Clauses about the document as a whole rather than about one page, as
