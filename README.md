@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `08302026.14` — **a disclosure can be wrong about why.** [#360](https://github.com/eddiefiggie/srd-rules-engine/issues/360), the last three of 0058's seven unread fields — and **two of their disclosures were wrong**, written two builds ago in this repository. `checks-requiring-sight-not-identified` said the automatic failure had nothing to key on; `EncounterState.perception_of` has enforced it since #138, by naming `Condition.BLINDED` directly and **quoting the very sentence the field is transcribed from**. One rule written down twice, in two modules, with nothing holding the copies together — so a second condition carrying the flag would have worked in the table and done nothing at the check. `perception_of` reads the aggregate now ([0060](docs/decisions/0060-a-disclosure-can-be-wrong-about-why.md)), while `can_see` still names the condition and correctly: that is p. 178's *other* clause. **A disclosure is a claim, and claims can be wrong** — the second time in four builds one has been found misdiagnosed, after 0056 found Frightened's saying a clause needed a direction when it needed two distances, an error that had already propagated into two issues. The pin says no machine can judge whether a clause's rule is unbuilt; this is the other half — the *reason* is not checked either, and a wrong one is worse than a vague one because it redirects whoever reads it. **The guard can be defeated by satisfying it.** An accessor was written for the hearing flag so the next person would find the question asked — and a corruption proof showed it made an unconsumed field look consumed, because an accessor is a *read*. Removed, with the rule recorded where the temptation lives: an accessor is written when a consumer needs it, not before. **Two vacuous assertions were caught by proofs**, one checking `not can_see(...)` for a Blinded creature — true for a *sighted* one too, since nobody stated the light and 0025 clause 2 refuses to assume daylight. Five of the original seven fields are read now; two remain disclosed with accurate reasons. 116 of 210, unchanged — the fifth record to say so. 278 clauses verified against the document. 5 corruptions, each red on its own test, two of which failed first and found real defects. 1953 tests.
+**Current build:** `08302026.15` — **a shape resolves, and a clause may not.** [#356](https://github.com/eddiefiggie/srd-rules-engine/issues/356)'s second half: R17's instrument counts **shapes** and cannot see a shape that resolves while a *sentence* of it reaches no roll. **Five consecutive builds fixed exactly that and published no change** — 0054, 0056, 0057, 0059 and 0060, each correct by R17's own terms and each saying so in its own words, which by the fifth had stopped being a note. So the instrument gains a second figure: **17 clauses are disclosed but unenforced**, derived from both halves — condition clauses from `EFFECTS`, the rest from the AST walk that pins them, because a published number nobody derives is the hand-maintained pin #334 was ([0061](docs/decisions/0061-a-shape-resolves-and-a-clause-may-not.md)). **It is the one figure that improves by going down**, and its guard fails when a clause is built and the number stands still — the direction that made those five builds look like they changed nothing. A second guard asserts the two figures **measure different things**: at least one claimed shape carries an unenforced clause, and if none ever did the second figure would be redundant and this record wrong. The number is not a quality score — 0058 raised it from ten to seventeen without the engine losing anything, by naming seven gaps that had existed silently, so a rise is either a regression or an honesty improvement and the diff is still where the judgement happens. 116 of 210 — unchanged for the sixth build, and now the second figure says why. 278 clauses verified against the document. 3 corruptions, each red on its own test. 1955 tests.
 
 ---
 
@@ -141,6 +141,14 @@ to see exactly which. Entries sit at independently-failable granularity, so each
 fifteen conditions counts separately — an engine that resolves Prone and nothing else
 reports 1/15 rather than reporting conditions done.
 
+**17 clauses are disclosed but unenforced**, and that is the instrument's second figure
+([0061](docs/decisions/0061-a-shape-resolves-and-a-clause-may-not.md)). A shape can resolve
+while a *sentence* of it reaches no roll: `frightened` was implemented for forty builds while
+"you can't willingly move closer to the source of fear" was enforced by nothing. Coverage
+counts shapes and cannot see that, so `unenforced_clauses` counts the sentences and this
+publishes the total. **It is the one figure that improves by going down** — five consecutive
+builds reduced it while `116 of 210` did not move once.
+
 Enumeration is mechanical: `scripts/derive_effect_shapes.py` reads the Rules Glossary's
 155 entry headings straight off the official PDF, so nothing in the list is recalled from
 memory. Classification — which entries are effect shapes and which merely define a term —
@@ -222,6 +230,7 @@ from the records themselves by `scripts/render_record_index.py` — a hand-writt
 - [0058 — A field nothing reads is a rule modelled and not applied](docs/decisions/0058-a-field-nothing-reads-is-a-rule-not-applied.md) — settles [#357](https://github.com/eddiefiggie/srd-rules-engine/issues/357)
 - [0059 — Initiative draws a pair for everyone](docs/decisions/0059-initiative-draws-a-pair-for-everyone.md) — settles [#359](https://github.com/eddiefiggie/srd-rules-engine/issues/359)
 - [0060 — A disclosure can be wrong about why](docs/decisions/0060-a-disclosure-can-be-wrong-about-why.md) — settles [#360](https://github.com/eddiefiggie/srd-rules-engine/issues/360)
+- [0061 — A shape resolves, and a clause may not](docs/decisions/0061-a-shape-resolves-and-a-clause-may-not.md) — settles [#356](https://github.com/eddiefiggie/srd-rules-engine/issues/356)
 <!-- /record-index -->
 
 **Next up:** [#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250) — longer casting times, where the Magic action is taken each
@@ -277,4 +286,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-08-30 — build `08302026.14`._
+_Last updated: 2026-08-30 — build `08302026.15`._
