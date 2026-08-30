@@ -206,6 +206,9 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "mastery-topple": "core.topple.topple_resolver",
         # p. 90, #318 and #319. One mechanism, two sides: a token granted by a hit,
         # scoped and expiring differently for each, and spent by the roll it applies to.
+        # p. 90, #323. A melee hit opens a second swing at a creature beside the first;
+        # the offer measures both distances and the cap is its own, not p. 89's.
+        "mastery-cleave": "core.read_surface.cleave_attack_key",
         "mastery-vex": "core.pending_rolls.PendingAdvantage",
         "mastery-sap": "core.pending_rolls.PendingAdvantage",
         # Position, movement and range in feet (#17, #20).

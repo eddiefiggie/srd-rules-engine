@@ -362,6 +362,16 @@ class Weapon(Item):
     #:
     #: Usable only by a wielder whose `mastery_weapons` holds this weapon (p. 90, 0047).
     sap: bool = False
+    #: Cleave (p. 90): "If you hit a creature with a **melee** attack roll using this weapon,
+    #: you can make a melee attack roll with the weapon against a second creature within 5
+    #: feet of the first that is also within your reach… You can make this extra attack only
+    #: once per turn."
+    #:
+    #: **A melee hit, not any hit.** The clause says so twice, and a Thrown weapon carrying
+    #: Cleave would otherwise open one from across the room.
+    #:
+    #: Usable only by a wielder whose `mastery_weapons` holds this weapon (p. 90, 0047).
+    cleave: bool = False
     #: Ammunition (p. 89): the **id of the item this weapon fires**, or `None` for a weapon
     #: without the property. "You can use a weapon that has the Ammunition property to make a
     #: ranged attack **only if you have ammunition to fire from it**."

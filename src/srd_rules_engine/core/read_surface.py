@@ -53,7 +53,7 @@ from srd_rules_engine.core.equipment import (
     reachable_objects,
     unplaced_objects,
 )
-from srd_rules_engine.core.position import MovementMode, distance_feet
+from srd_rules_engine.core.position import MovementMode, distance_feet, within
 from srd_rules_engine.core.reactions import SIGHT_QUALIFIER
 from srd_rules_engine.core.sight import LightLevel, Senses
 from srd_rules_engine.core.spellcasting import CastingTime, component_refusal
@@ -250,6 +250,34 @@ def bonus_attack_declared(action_key: str | None) -> tuple[str, str] | None:
     if not weapon_id or not target_id:
         return None
     return weapon_id, target_id
+
+
+#: p. 90's Cleave: a second swing at a creature beside the one just hit (#323).
+CLEAVE_ATTACK: Final = "cleave-attack"
+
+
+def cleave_attack_key(weapon_id: str, target_id: str) -> str:
+    """The key p. 90's Cleave attack is offered under.
+
+    Its own prefix for the reason the other extra attacks have one: it differs in what it
+    deals. The damage drops a positive ability modifier under p. 89's exception, and the roll
+    is not one the Attack action bought — neither of which an ordinary attack key implies.
+    """
+    return f"{CLEAVE_ATTACK}:{weapon_id}:{target_id}"
+
+
+def cleave_attack_declared(action_key: str | None) -> tuple[str, str] | None:
+    """The weapon and target a Cleave key names, or `None` if it is not one."""
+    if action_key is None or not action_key.startswith(f"{CLEAVE_ATTACK}:"):
+        return None
+    weapon_id, _, target_id = action_key[len(CLEAVE_ATTACK) + 1 :].rpartition(":")
+    if not weapon_id or not target_id:
+        return None
+    return weapon_id, target_id
+
+
+#: p. 90's Cleave puts the second creature "within 5 feet of the first".
+CLEAVE_SPREAD_FEET: Final = 5
 
 
 #: p. 90's Nick: the same extra attack, taken as part of the Attack action (#320).
@@ -608,6 +636,9 @@ def legal_actions(state: EncounterState, actor_id: str) -> tuple[LegalAction, ..
     # buying it, which is the whole condition. Nesting it inside cost nothing to write and
     # made it unreachable.
     actions.extend(_light_bonus_attacks(state, actor))
+    # p. 90's Cleave, outside the `has_action` branch for p. 89's reason: the Action was
+    # already spent on the attack that opened it, and this one costs nothing of its own.
+    actions.extend(_cleave_attacks(state, actor))
 
     actions.extend(_castable(state, actor))
     # p. 13's free interaction, and p. 191's action for a second. Outside the `has_action`
@@ -1073,6 +1104,64 @@ def _swaps(
             )
         )
 
+    return tuple(offered)
+
+
+def _cleave_attacks(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ...]:
+    """p. 90's Cleave, offered only when every clause of it holds (#323).
+
+    > If you hit a creature with a melee attack roll using this weapon, you can make a melee
+    > attack roll with the weapon against a **second creature within 5 feet of the first that
+    > is also within your reach**… You can make this extra attack **only once per turn**.
+
+    Four conditions, each asked here rather than left to fail at adjudication (R18): a melee
+    hit landed this turn with a Cleave weapon the wielder may use, the Cleave is unspent, the
+    weapon is still held, and a second creature is inside **both** measured distances.
+
+    **Two positional tests with different origins**, and an implementation checking only the
+    wielder's reach would offer a swing at somebody standing behind them. Unknown positions
+    offer nothing rather than inventing a distance, which is the direction 0030 clause 1 keeps
+    to — and it is the opposite of `_attackable`'s, because there a missing position removes a
+    bound the document imposes while here it removes the only thing making the target
+    eligible.
+    """
+    if state.has_cleaved(actor.id):
+        return ()
+
+    held = {weapon.id: weapon for weapon in actor.weapons_held}
+    offered: list[LegalAction] = []
+    for weapon_id, first_id in state.cleave_openings(actor.id):
+        weapon = held.get(weapon_id)
+        if weapon is None or not state.has(first_id):
+            continue
+        first = state.combatant(first_id)
+        reach = weapon.reach_in_use(actor.reach)
+        for target in state.combatants:
+            if target.id in (actor.id, first_id) or target.is_down:
+                continue
+            if actor.position is None or target.position is None or first.position is None:
+                continue
+            # `within` rather than `distance_feet`, whose own docstring says it is "for the
+            # record, never for a comparison": it rounds down, so two creatures 5.9 feet
+            # apart would read as 5 and a swing the document forbids would be offered.
+            if not within(first.position, target.position, CLEAVE_SPREAD_FEET):
+                continue
+            if not within(actor.position, target.position, reach):
+                continue
+            offered.append(
+                LegalAction(
+                    key=cleave_attack_key(weapon.id, target.id),
+                    label=f"Cleave into {target.name} with {weapon.id}",
+                    detail={
+                        **_attack_detail(actor, weapon, target),
+                        "beside": first_id,
+                        # p. 90 drops the ability modifier from this attack's damage unless it
+                        # is negative — p. 89's exception, in a second sentence.
+                        "ability_modifier_on_damage": min(0, actor.modifier(weapon.ability)),
+                        "costs": "nothing: an extra attack the hit opened",
+                    },
+                )
+            )
     return tuple(offered)
 
 

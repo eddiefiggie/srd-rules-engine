@@ -1404,7 +1404,7 @@
    "tag": null,
    "reference": "Equipment, p. 90 (Cleave)",
    "kind": "weapon-mastery",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "mastery-graze",
