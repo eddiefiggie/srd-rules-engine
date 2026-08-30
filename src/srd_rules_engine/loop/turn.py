@@ -46,6 +46,7 @@ from __future__ import annotations
 from collections.abc import Generator, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
+from fractions import Fraction
 from typing import Final, TypeVar
 
 from srd_rules_engine.core import (
@@ -233,6 +234,25 @@ Response = Declared | Narrated | FactsSupplied | SaveAbilityChosen | ReactionDec
 
 
 @dataclass(frozen=True)
+class DayEnd:
+    """What a campaign day's end produced (p. 181, p. 185, #399, 0081).
+
+    Shaped like `TurnEnd`, because it is the same kind of thing: a phase that resolves
+    obligations nobody declared. `rulings` holds the Malnutrition saves; Dehydration produces
+    none, because p. 181 throws no die and a state transition is not a ruling.
+    """
+
+    state: EncounterState
+    rulings: tuple[Ruling, ...] = ()
+    narrations: tuple[str | None, ...] = ()
+    unresolvable: tuple[Obligation, ...] = ()
+
+    @property
+    def missing_narration(self) -> bool:
+        return any(text is None for text in self.narrations)
+
+
+@dataclass(frozen=True)
 class MoveOutcome:
     """What a driven move produced: the reactions it provoked, and whether it happened.
 
@@ -378,7 +398,14 @@ class ObligationOwed(Exception):
 
 @dataclass
 class TurnLoop:
-    """Owns the turn. Invokes the driver only at the points R8 defines."""
+    """Owns the agent seam. Invokes the driver only at the points R8 defines.
+
+    **Not "owns the turn", which it said until #399 and had not been since `move` landed.**
+    Two of its five phases are not turn-shaped: a move is a movement (0072) and a day's end is
+    campaign-scale (0081). What it actually owns is the seam and the narration debt `_owed`
+    tracks — and that debt is why a non-turn occasion belongs here rather than on a second
+    driver, which would let a creature owe a narration to one object and act through another.
+    """
 
     adjudicator: Adjudicator
     budget: int | None = DEFAULT_BUDGET
@@ -474,6 +501,52 @@ class TurnLoop:
                 consequential_narrations=consequential_narrations,
                 unresolvable=unresolvable,
             )
+
+    # --- A campaign day's end: a phase the loop owns (0081) ---------------------------
+
+    def end_day(
+        self,
+        state: EncounterState,
+        *,
+        water: Mapping[str, Fraction],
+        food: Mapping[str, Fraction] | None = None,
+    ) -> Generator[Request, Response, DayEnd]:
+        """Everything a campaign day's end decides (p. 181, p. 185, #399, 0081).
+
+        **The fifth occasion, and the first that is not encounter-scale.** The other four are
+        phases of a turn — its start, its declaration slot, its end, and a move. A day ending
+        is none of those and may happen with no combat at all, which is what made #399 a gate
+        rather than a wiring job.
+
+        **Two rules and two shapes.** p. 181's Dehydration inflicts a level outright, so
+        `EncounterState.with_day_ended` applies it as bookkeeping and no die is thrown
+        (0080). p. 185's Malnutrition compels a DC 10 Constitution saving throw, which is an
+        outcome — so it is **compelled** by the same state transition and **rolled** here,
+        through `Adjudicator.adjudicate` like every other result (R1, R4).
+
+        **Nothing here creates a second path to an outcome.** It creates another occasion on
+        which the existing path is taken — 0023's sentence, and the fifth time it has been
+        the answer.
+
+        **It lives on `TurnLoop` despite not being a turn**, and the reason is `_owed`: the
+        narration debt R29 enforces is held per loop. A second driver would let a creature owe
+        a narration to one object and act through another, which is a hole in the guarantee
+        rather than a tidier design. The class's docstring said "Owns the turn" and has not
+        been true since `move` landed (0072); it says what it owns now.
+        """
+        state = state.with_day_ended(water=water, food=food)
+        (
+            state,
+            rulings,
+            narrations,
+            unresolvable,
+        ) = yield from self._concentration_saves(state)
+        return DayEnd(
+            state=state,
+            rulings=rulings,
+            narrations=narrations,
+            unresolvable=unresolvable,
+        )
 
     # --- Movement: a phase the loop owns (0072) ---------------------------------------
 

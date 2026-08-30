@@ -213,6 +213,39 @@ WATER_PER_DAY: Final[Mapping[Size, Fraction]] = MappingProxyType(
 )
 
 
+#: p. 185's *Food Needs per Day*, in pounds. The same six rows as water and the same
+#: quarter — see `WATER_PER_DAY` for why these are exact rather than floating (#399).
+FOOD_PER_DAY: Final[Mapping[Size, Fraction]] = MappingProxyType(
+    {
+        Size.TINY: Fraction(1, 4),
+        Size.SMALL: Fraction(1),
+        Size.MEDIUM: Fraction(1),
+        Size.LARGE: Fraction(4),
+        Size.HUGE: Fraction(16),
+        Size.GARGANTUAN: Fraction(64),
+    }
+)
+
+
+def undernourished(size: Size, pounds_eaten: Fraction) -> bool:
+    """Whether p. 185 compels this creature a saving throw at the day's end (#399).
+
+    > A creature that **eats but consumes less than half** the required food for a day must
+    > succeed on a DC 10 Constitution saving throw or gain 1 Exhaustion level.
+
+    **"Eats but consumes less than half"**, so eating *nothing* is not this rule — it is the
+    five-day starvation clause, which compels no save and gains a level outright. That clause
+    needs consecutive days counted and is
+    [#401](https://github.com/eddiefiggie/srd-rules-engine/issues/401); this returns `False`
+    for a creature that ate nothing, which is **not** the same as saying it is unharmed.
+
+    Strictly less than half, as with water: exactly half is enough.
+    """
+    if pounds_eaten <= 0:
+        return False
+    return bool(pounds_eaten < FOOD_PER_DAY[size] / 2)
+
+
 def dehydrated(size: Size, gallons_drunk: Fraction) -> bool:
     """Whether p. 181 gives this creature an Exhaustion level at the day's end (#315).
 
