@@ -158,11 +158,71 @@ def test_dexterity_reaches_the_derived_value_through_the_base() -> None:
 # --- p. 92's one-at-a-time ---------------------------------------------------------------
 
 
-def test_two_suits_of_armour_are_refused() -> None:
-    """p. 92: "A creature can wear only one suit of armor at a time." There is no rule for
-    combining bases — p. 177 says a creature cannot use more than one."""
-    with pytest.raises(ValueError, match="allows one"):
+#: A worn item that grants a base and is **not** armour. p. 177's "another base AC
+#: calculation" comes from a rule — a class feature in the document — and no such feature
+#: ships here; this is the nearest thing the engine can express, and it is what separates
+#: p. 92's rule from p. 177's (#394).
+BRACERS = Item(
+    id="fixture:bracers", weight=1, is_armour=False, armour_class_base=ArmourClassBase(flat=13)
+)
+
+
+def test_two_suits_of_armour_are_refused_by_p92() -> None:
+    """p. 92: "A creature can wear only one suit of armor at a time." About what a creature
+    **wears**, and it names the suits."""
+    with pytest.raises(ValueError, match="2 suits of armour"):
         assert _combatant(_worn(PLATE), _worn(HIDE)).effective_armour_class
+
+
+def test_two_base_calculations_are_refused_by_p177_and_not_picked_between() -> None:
+    """p. 177: "you choose which calculation to use; **you can't use more than one**."
+
+    **Refusing is the safe direction and picking is not.** Taking the highest optimises
+    invisibly — an optimised AC looks exactly like a chosen one — and taking the first depends
+    on the order a ruleset happened to list the creature's equipment. The document did not
+    leave this open; it assigned it, so there is nothing here for the engine to decide.
+    """
+    with pytest.raises(ValueError, match="base AC calculations"):
+        assert _combatant(_worn(PLATE), _worn(BRACERS)).effective_armour_class
+
+
+def test_p92_and_p177_are_different_rules_and_refuse_for_different_reasons() -> None:
+    """They were **one check** until #394, and coincided only while worn armour was the
+    engine's single source of a base. One suit of plate and a pair of bracers is one suit and
+    two calculations — and the old check called it "wearing 2 suits of armour", which was
+    false and cited the rule that was not broken.
+    """
+    one_suit_two_bases = _combatant(_worn(PLATE), _worn(BRACERS))
+    assert len([i for i in (PLATE, BRACERS) if i.is_armour]) == 1, "p. 92 is not violated"
+    assert len(one_suit_two_bases.armour_class_bases) == 2, "p. 177 is"
+
+    with pytest.raises(ValueError, match=r"p\. 177") as refusal:
+        assert one_suit_two_bases.effective_armour_class
+    assert "suits of armour" not in str(refusal.value)
+
+
+def test_the_selection_is_unreachable_with_anything_to_select_from() -> None:
+    """#394's property, asserted as the structural fact it is rather than as a behaviour.
+
+    `effective_armour_class` refuses **before** it reads a base, so by the time one is taken
+    there is at most one to take. Picking is therefore impossible rather than avoided — and a
+    corruption replacing the selection with `max(...)` is *unobservable*, which is why that
+    proof came back green and is recorded rather than counted (0079).
+    """
+    for count in range(3):
+        creature = _combatant(*[_worn(item) for item in (PLATE, BRACERS)][:count])
+        if count > 1:
+            with pytest.raises(ValueError):
+                assert creature.effective_armour_class
+        else:
+            assert len(creature.armour_class_bases) <= 1
+            assert isinstance(creature.effective_armour_class, int)
+
+
+def test_a_single_non_armour_base_is_used_like_any_other() -> None:
+    """One calculation is no choice, so nothing is refused — and the base need not come from
+    armour. This is the shape a class feature would arrive in."""
+    assert _combatant(_worn(BRACERS), dex=14).effective_armour_class == 15
 
 
 def test_two_shields_are_refused() -> None:
