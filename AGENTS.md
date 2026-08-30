@@ -253,6 +253,22 @@ only removals is half a guard. What it cannot do is decide whether a clause's ru
 genuinely unbuilt; that is the judgement `tests/test_decision_records.py` also declines, so the
 pin makes every change *deliberate* and a reviewer asks the question at the diff.
 
+**Both halves of that pin derive their set; one of them did not, and it went blind for its
+whole life.** The condition half always read `EFFECTS`. The other half compared a literal set
+against a constant built from the same names — an assertion true by construction over the very
+thing it claimed to check, so it caught an edit to the pin and was blind to a disclosure that
+existed in the source and had never been added. `VERBAL_UNCHECKED` sat in exactly that state
+from the day it shipped: the engine had stopped enforcing p. 105's gagged-or-silenced refusal,
+the pin claimed to hold every disclosure, and nothing disagreed
+([#334](https://github.com/eddiefiggie/srd-rules-engine/issues/334)). It now walks the AST of
+every `core` module, collects what is appended to the disclosure list, and **raises on an
+argument shape it cannot read** rather than skipping it — a walk that silently ignores what it
+cannot parse goes quiet in the same way the assertion it replaced did.
+
+The lesson generalises past this one file: *a pin whose expected set is written out by hand
+beside the thing it pins is a pin over itself.* Derive the actual set from the source, or the
+guard only ever agrees with whoever last edited it.
+
 **Take a clause off in the same change that builds its rule**, and assert the two together.
 That pairing has now retired three clauses — `drops-what-it-holds` ([#280](https://github.com/eddiefiggie/srd-rules-engine/issues/280)), the two
 the object-interaction cap replaced ([#288](https://github.com/eddiefiggie/srd-rules-engine/issues/288)), and `remains-prone-when-this-ends`,
