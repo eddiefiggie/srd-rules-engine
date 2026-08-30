@@ -201,9 +201,13 @@ def test_initiative_covers_every_combatant_and_applies_its_modifier() -> None:
 
     # From initiative's own band (#82), not index 0 — sharing the d20's band is what let a
     # combatant's initiative alias onto a die of the same seed.
-    faces = roll(7, count=2, sides=20, offset=INITIATIVE_BAND.start)
+    # Two dice per combatant since #359, so the second creature's pair starts at index 2.
+    # Neither holds a condition that modifies Initiative, so each takes the first of its pair
+    # and the second is drawn and unused — which is what keeps one creature's offset
+    # independent of another's conditions.
+    faces = roll(7, count=4, sides=20, offset=INITIATIVE_BAND.start)
     assert rolled["pc"] == faces[0] + 2, "dex 14 is +2"
-    assert rolled["boar"] == faces[1] + 0, "dex 10 is +0"
+    assert rolled["boar"] == faces[2] + 0, "dex 10 is +0"
 
 
 def test_the_ability_initiative_uses_is_a_parameter_not_a_constant() -> None:
@@ -628,7 +632,17 @@ def test_no_weapon_list_ships_in_this_module() -> None:
     # indistinguishable from an invented one — which is the failure this guard names.
     # `HEAVY_SCORE_THRESHOLD` left this module with `Weapon` in #258 and is now guarded in
     # `core.equipment` — where the same reasoning applies to it unchanged.
-    allowed = {"INITIATIVE_DIE", "WEAPON_PROPERTY_VERIFICATION", "UNARMED_STRIKE_VERIFICATION"}
+    #
+    # `DICE_PER_COMBATANT` joined them in #359. Two, because p. 8's Advantage means two dice —
+    # and it is a **seed-layout** decision rather than a rule value a resolver reads: the pair
+    # is drawn for every combatant so one creature's offset never depends on another's
+    # conditions.
+    allowed = {
+        "DICE_PER_COMBATANT",
+        "INITIATIVE_DIE",
+        "WEAPON_PROPERTY_VERIFICATION",
+        "UNARMED_STRIKE_VERIFICATION",
+    }
     assert constants == allowed, (
         f"{constants - allowed} are module constants; a rule value hiding in one "
         "reads exactly like a verified one"

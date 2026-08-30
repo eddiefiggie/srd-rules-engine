@@ -218,26 +218,23 @@ EFFECTS: Final[dict[Condition, ConditionEffects]] = {
     Condition.INCAPACITATED: ConditionEffects(
         cannot_act=True,
         concentration_broken=True,
-        # Two clauses held and not applied. Speech is not modelled at all (#360), and
-        # `initiative_order` rolls one die per combatant and consults no conditions (#359).
+        # Speech is not modelled at all (#360). `initiative` is applied since #359 —
+        # `initiative_order` rolls two dice per combatant and picks by this.
         cannot_speak=True,
         initiative=Advantage.DISADVANTAGE,
-        unenforced_clauses=("cannot-speak", "initiative-disadvantage-not-applied"),
+        unenforced_clauses=("cannot-speak",),
     ),
     Condition.INVISIBLE: ConditionEffects(
         attack_rolls_against=Advantage.DISADVANTAGE,
         own_attack_rolls=Advantage.ADVANTAGE,
-        # Held and not applied, the same gap Incapacitated's carries (#359).
+        # Applied since #359, through `initiative_order`'s pair of dice.
         initiative=Advantage.ADVANTAGE,
         # `unless-seen-exception` left this list in #193, when the condition surface
         # could be told whether one creature sees another. The other clause needs a
         # notion of "an effect that requires its target to be seen", which nothing here
         # marks — a resolver knows whether its own rule needs sight and records it
         # nowhere.
-        unenforced_clauses=(
-            "concealed-from-effects-requiring-sight",
-            "initiative-advantage-not-applied",
-        ),
+        unenforced_clauses=("concealed-from-effects-requiring-sight",),
     ),
     Condition.PARALYZED: ConditionEffects(
         attack_rolls_against=Advantage.ADVANTAGE,
@@ -599,6 +596,19 @@ class Conditions:
                 pass
 
         return _combine(advantage, disadvantage)
+
+    @property
+    def initiative_advantage(self) -> Advantage:
+        """What this creature's Initiative roll has (p. 184, #359).
+
+        Two conditions state it and they disagree: Incapacitated gives Disadvantage and
+        Invisible gives Advantage, so a creature holding both rolls flat — p. 8's cancellation,
+        through the same `_combine` every other aggregate here uses.
+        """
+        return _combine(
+            any(effects.initiative is Advantage.ADVANTAGE for effects in self.effects),
+            any(effects.initiative is Advantage.DISADVANTAGE for effects in self.effects),
+        )
 
     @property
     def resists_all_damage(self) -> bool:
