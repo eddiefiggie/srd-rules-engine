@@ -37,6 +37,7 @@ from srd_rules_engine.core.conditions import (
     MAX_EXHAUSTION,
     Condition,
     Conditions,
+    Grapple,
     save_ends_rule_id,
 )
 from srd_rules_engine.core.d20 import Advantage
@@ -364,6 +365,29 @@ class ForcedSave:
     #: What the obligation says it is. Written where the trigger fired, because that is the
     #: only place that knows what happened — the loop sees a debt, not an attack.
     label: str
+    #: The abilities the **target** may choose between, when a rule gives it the choice
+    #: (0053). Empty for every save the document names outright, which is all of them but
+    #: two: p. 179's Concentration and p. 90's Topple each state one ability, and neither is
+    #: touched by this field existing.
+    #:
+    #: > p. 190: The target must succeed on a **Strength or Dexterity saving throw (it chooses
+    #: > which)**...
+    #:
+    #: Two hits in the whole document, both on p. 190 — Grapple and Shove, the same sentence
+    #: twice. When this is non-empty, `ability` is empty until the choice arrives and the save
+    #: is **unsettled**: no resolver may roll it, because rolling it would mean the engine
+    #: picked, which is the one thing p. 190 gives to the creature.
+    ability_choices: tuple[str, ...] = ()
+    #: Who compelled it, for a rule whose *consequence* turns on the source (0053).
+    #:
+    #: `ForcedSave` otherwise holds what the **save** needs — a DC, its derivation, an
+    #: ability. This is what the **condition** needs: p. 190's Grapple applies Grappled, and
+    #: p. 182 gives that condition "Disadvantage on attack rolls against any target other than
+    #: **the grappler**". The save is rolled by the target and resolved on its own
+    #: declaration, so by then the attacker's identity is recoverable from nothing else.
+    #:
+    #: `None` for p. 179's Concentration and p. 90's Topple, whose consequences name nobody.
+    source_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.dc < 1:
@@ -373,6 +397,48 @@ class ForcedSave:
                 "a forced save carries the derivation of its DC. A target number without one "
                 "is a number the reader cannot check, which is what R30 exists to refuse"
             )
+        if self.ability_choices:
+            if len(set(self.ability_choices)) != len(self.ability_choices):
+                raise ValueError(
+                    f"a choice of saves offers each ability once, and {self.ability_choices} "
+                    "repeats one. A menu with a duplicate is a menu that cannot say what was "
+                    "picked"
+                )
+            if len(self.ability_choices) < 2:
+                raise ValueError(
+                    "a choice between fewer than two abilities is not a choice. A save the "
+                    "document names outright carries no `ability_choices` at all"
+                )
+            if self.ability and self.ability not in self.ability_choices:
+                raise ValueError(
+                    f"{self.ability!r} was settled on a save that offers "
+                    f"{self.ability_choices}. The chosen ability has to be one the rule "
+                    "offered, or the choice was not the creature's"
+                )
+        elif not self.ability:
+            raise ValueError(
+                "a forced save with no choice states its ability. An empty one means the "
+                "engine would pick, which is exactly what `ability_choices` exists to prevent"
+            )
+
+    @property
+    def is_settled(self) -> bool:
+        """Whether the ability to roll is known.
+
+        Unsettled means a creature owes the engine a choice — never that the engine may make
+        one. `TurnLoop` asks; `Adjudicator` refuses.
+        """
+        return bool(self.ability)
+
+    def with_ability(self, ability: str) -> ForcedSave:
+        """This save with the target's choice settled (0053 clause 3)."""
+        if ability not in self.ability_choices:
+            raise ValueError(
+                f"{ability!r} is not one of the abilities this save offered "
+                f"({', '.join(self.ability_choices) or 'none'}). p. 190 lets the target choose "
+                "between the two the rule names, and nothing else"
+            )
+        return replace(self, ability=ability)
 
 
 @dataclass(frozen=True)
@@ -1528,6 +1594,35 @@ class EncounterState:
         remaining.remove(debt)
         return self._evolve(forced_saves_owed=tuple(remaining))
 
+    def with_forced_save_choice(self, combatant_id: str, ability: str) -> EncounterState:
+        """Settle the ability on the oldest save this creature owes (0053 clause 3).
+
+        The oldest, for the reason `with_forced_save_discharged` drops the oldest: the queue
+        is per triggering instance, and the loop asks about the debt it is holding.
+
+        **The choice reaches state before adjudication rather than riding the declaration.**
+        A `Declaration` is the artefact the agent is accountable for and a compelled save has
+        none of its own — `_obligation_declaration` authors it — so a choice carried there
+        would be the engine putting words in an agent's mouth. Recorded here, the resolver
+        reads the same debt it always read, and R4 is untouched: the engine still rolls.
+        """
+        debt = self.forced_save_for(combatant_id)
+        if debt is None:
+            raise ValueError(
+                f"{combatant_id!r} owes no save, so there is no choice to settle. The debt is "
+                "recorded when the trigger fires, and a choice with nothing to attach to "
+                "means the loop and the queue have come apart"
+            )
+        if not debt.ability_choices:
+            raise ValueError(
+                f"{combatant_id!r} owes a {debt.rule_id!r} save, which names its own ability "
+                f"({debt.ability!r}). Settling a choice on a save that offers none would let a "
+                "caller re-ability a save the document already decided"
+            )
+        remaining = list(self.forced_saves_owed)
+        remaining[remaining.index(debt)] = debt.with_ability(ability)
+        return self._evolve(forced_saves_owed=tuple(remaining))
+
     def with_action_spent(
         self, combatant_id: str, action: ActionKind, *, weapon_id: str | None = None
     ) -> EncounterState:
@@ -2007,6 +2102,7 @@ class EncounterState:
         *,
         duration: Duration | None = None,
         source_id: str | None = None,
+        grapple: Grapple | None = None,
     ) -> EncounterState:
         """Apply a condition, with the duration the effect that imposed it stated.
 
@@ -2031,6 +2127,12 @@ class EncounterState:
             exhaustion_levels=held.exhaustion_levels,
             sources=sources,
             durations=durations,
+            # Carried forward, not rebuilt from the argument: applying *any* condition to a
+            # grappled creature would otherwise erase the grapple's escape DC, which is the
+            # number p. 182's escape check is rolled against. `grapple` overrides only when
+            # the effect that imposed this condition stated terms — which is the Grapple
+            # option and nothing else.
+            grapple=grapple if grapple is not None else held.grapple,
         )
         return self._evolve(combatants=self._replacing(replace(target, conditions=updated)))
 

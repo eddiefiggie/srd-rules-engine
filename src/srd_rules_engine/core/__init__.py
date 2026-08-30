@@ -211,9 +211,11 @@ from srd_rules_engine.core.read_surface import (
     cast_key,
     dash_key,
     dash_mode,
+    grapple_key,
     issue_token,
     legal_actions,
     read,
+    shove_prone_key,
     verify,
 )
 from srd_rules_engine.core.report import (
@@ -291,6 +293,16 @@ from srd_rules_engine.core.turn_actions import (
     turn_action_resolvers,
     turn_action_rules,
 )
+from srd_rules_engine.core.unarmed_strike import (
+    GRAPPLE_RULE_ID,
+    SHOVE_RULE_ID,
+    grapple_resolver,
+    grapple_save_resolver,
+    shove_resolver,
+    shove_save_resolver,
+    unarmed_option_resolvers,
+    unarmed_option_rules,
+)
 
 __all__ = [
     "ATTACK",
@@ -317,6 +329,7 @@ __all__ = [
     "ESCAPE_SKILLS",
     "FACT_WRITE",
     "FALLING_VERIFICATION",
+    "GRAPPLE_RULE_ID",
     "HOURS_PER_DAY",
     "MAX_FALLING_DICE",
     "MAX_SAFE_INTEGER",
@@ -330,6 +343,7 @@ __all__ = [
     "REPLACEMENT_OFFSET",
     "SAVE_ENDS_PREFIX",
     "SAVE_ENDS_VERIFICATION",
+    "SHOVE_RULE_ID",
     "SKILLS_VERIFICATION",
     "SKILL_ABILITY",
     "STABLE_RECOVERY_HIT_POINTS",
@@ -469,6 +483,9 @@ __all__ = [
     "fact_write_payload",
     "falling_dice",
     "falling_resolver",
+    "grapple_key",
+    "grapple_resolver",
+    "grapple_save_resolver",
     "grapples_released",
     "hours",
     "initiative_order",
@@ -501,6 +518,9 @@ __all__ = [
     "save_ends_rule_id",
     "save_ends_rules",
     "session_report",
+    "shove_prone_key",
+    "shove_resolver",
+    "shove_save_resolver",
     "spell_resolver",
     "spell_resolvers",
     "spell_slot_expended",
@@ -513,6 +533,8 @@ __all__ = [
     "topple_save_dc",
     "turn_action_resolvers",
     "turn_action_rules",
+    "unarmed_option_resolvers",
+    "unarmed_option_rules",
     "unarmed_strike_resolver",
     "unarmed_strike_rule",
     "verify",

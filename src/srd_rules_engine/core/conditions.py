@@ -731,6 +731,10 @@ class Conditions:
             exhaustion_levels=self.exhaustion_levels,
             sources={c: s for c, s in self.sources.items() if c not in ending},
             durations={c: d for c, d in self.durations.items() if c in remaining},
+            # The terms survive every ending but their own. Dropping them unconditionally
+            # would erase a grapple's escape DC whenever any *other* condition ended on the
+            # creature — a Prone lifting and taking the grapple's number with it.
+            grapple=self.grapple if Condition.GRAPPLED in remaining else None,
         )
 
     def unretirable(self) -> tuple[Condition, ...]:

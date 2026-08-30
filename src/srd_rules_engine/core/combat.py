@@ -749,15 +749,14 @@ def ammunition_recovery_resolver() -> Resolver:
 def unarmed_strike_resolver() -> Resolver:
     """p. 190's Damage option, and only that one.
 
-    **The other two are not here and are not forgotten.** p. 190 offers three effects, and
-    Grapple and Shove both turn on "the target is no more than one size larger than you".
-    That comparison **is** now available — 0051 gave creatures a `Size` and
-    `Size.categories_above` answers exactly this question — so what blocked them has moved.
-    What remains is the rest of each effect: Grapple applies a condition and sets an escape
-    DC, Shove pushes a creature 5 feet away from the shover, and neither is a size test.
-    They are filed rather than approximated
-    ([#335](https://github.com/eddiefiggie/srd-rules-engine/issues/335)), and disclosed in the
-    bounds below meanwhile.
+    **The other two are built and are not here.** p. 190 offers three effects and this is one
+    of them; Grapple and Shove live in `core.unarmed_strike`, because neither is an attack
+    roll — each compels a saving throw and rolls nothing for the attacker, so they share none
+    of the machinery below. What they share with this resolver is p. 190, and the read surface
+    offers all three side by side.
+
+    They took three records to become possible: 0051 for the size test, 0052 for the way out
+    of a grapple, and 0053 for the target's choice of saving throw.
 
     **The Proficiency Bonus is unconditional here, and that is the difference from a weapon.**
     p. 89 adds it only "if you have proficiency with" the weapon; p. 190 states the bonus flat
@@ -826,9 +825,9 @@ def unarmed_strike_resolver() -> Resolver:
                 "similar forceful blow",
             ),
             may_not_claim=(
-                "that the target was grappled or shoved — p. 190 offers those as two other "
-                "effects of an Unarmed Strike, and this engine offers neither: the size "
-                "comparison they turn on is available and the effects themselves are not",
+                "that the target was grappled or shoved — p. 190 makes those two other "
+                "options of an Unarmed Strike, and this ruling is the Damage one. Both are "
+                "offered under their own keys and neither happened here",
                 "that the damage was anything but Bludgeoning, or any amount other than the "
                 "one recorded",
             ),

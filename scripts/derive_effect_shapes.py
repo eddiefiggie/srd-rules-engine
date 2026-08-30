@@ -197,7 +197,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Temporary Hit Points": ("effect", False),
     "Tremorsense": ("sense", False),
     "Truesight": ("sense", False),
-    "Unarmed Strike": ("action", False),
+    "Unarmed Strike": ("action", True),
     "Unoccupied Space": ("targeting", False),
     "Vulnerability": ("effect", True),
     "Weapon": ("vocabulary", False),

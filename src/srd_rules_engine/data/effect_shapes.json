@@ -1092,7 +1092,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 190",
    "kind": "action",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "unconscious",

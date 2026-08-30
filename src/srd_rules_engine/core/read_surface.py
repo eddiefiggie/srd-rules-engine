@@ -432,6 +432,64 @@ UNARMED_STRIKE_ID: Final = "unarmed-strike"
 #: rule says otherwise**", and this rule says otherwise by naming its own distance.
 UNARMED_REACH_FEET: Final = 5
 
+GRAPPLE_PREFIX: Final = "unarmed-strike:grapple"
+SHOVE_PRONE_PREFIX: Final = "unarmed-strike:shove-prone"
+
+#: p. 190's third Shove effect, offered by nothing.
+#:
+#: > **Shove.** ... or you either **push it 5 feet away** or cause it to have the Prone
+#: > condition.
+#:
+#: The attacker chooses between the two, and only one of them is here. Pushing a creature
+#: "5 feet away" is forced movement in a direction relative to another creature — the primitive
+#: `cannot-willingly-approach-the-source` is disclosed as missing for Frightened and the one
+#: [#324](https://github.com/eddiefiggie/srd-rules-engine/issues/324)'s Push mastery waits on.
+#: Building it for one effect of one option would build it narrowly (#345).
+#:
+#: Disclosed only to a creature that could actually Shove, since that is the only one the
+#: missing half can bite.
+SHOVE_PUSH_UNBUILT: Final = "shove-cannot-push-only-knock-prone"
+
+
+def grapple_key(target_id: str) -> str:
+    """p. 190's Grapple option, against one target."""
+    return f"{GRAPPLE_PREFIX}:{target_id}"
+
+
+def shove_prone_key(target_id: str) -> str:
+    """p. 190's Shove option, taking the Prone effect of the two it offers."""
+    return f"{SHOVE_PRONE_PREFIX}:{target_id}"
+
+
+def grapple_declared(action_key: str | None) -> str | None:
+    """Who a Grapple declaration targets, or `None` if it is not one."""
+    prefix, _, target_id = (action_key or "").rpartition(":")
+    return target_id if prefix == GRAPPLE_PREFIX and target_id else None
+
+
+def shove_prone_declared(action_key: str | None) -> str | None:
+    """Who a Shove-to-Prone declaration targets, or `None` if it is not one."""
+    prefix, _, target_id = (action_key or "").rpartition(":")
+    return target_id if prefix == SHOVE_PRONE_PREFIX and target_id else None
+
+
+def no_more_than_one_size_larger(actor: Combatant, target: Combatant) -> bool:
+    """p. 190's shared qualifier, for Grapple and Shove alike.
+
+    > This grapple is possible only if the target is **no more than one size larger than you**.
+
+    **`False` when either creature has no stated size**, which is the refusal 0051 built the
+    `None` for: p. 14 sources a size from a species or a stat block, neither of which ships
+    here, so a comparison against an unstated size is a comparison the engine cannot make.
+    Offering the option anyway would decide a rule the document conditions — the direction R31
+    exists to refuse — and it is the same call `unarmed_strike_resolver` has been making by
+    declining to offer these two at all.
+    """
+    if actor.size is None or target.size is None:
+        return False
+    return target.size.categories_above(actor.size) <= 1
+
+
 CAST: Final = "cast"
 
 
@@ -909,6 +967,38 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
                     "target": target.id,
                     "weapon": UNARMED_STRIKE_ID,
                     "armour_class": target.armour_class,
+                },
+            )
+        )
+        # p. 190: "choose one of the following options for its effect". Damage is the entry
+        # above; these are the other two, each its own key because the choice is the
+        # attacker's and an enumerated menu is how this engine offers one it does not make.
+        #
+        # Both are gated on the size test the document states for both, and it answers `False`
+        # when either creature has no stated size — the refusal 0051 built rather than a
+        # comparison against a Medium nobody stated.
+        if not no_more_than_one_size_larger(actor, target):
+            continue
+        # p. 190 asks for a free hand in the Grapple sentence and not in the Shove one. An
+        # unstated hand count is not a free hand (0039), so `free_hands` of `None` declines.
+        if actor.free_hands:
+            offered.append(
+                LegalAction(
+                    key=grapple_key(target.id),
+                    label=f"Grapple {target.name}",
+                    detail={
+                        "target": target.id,
+                        "save_dc": 8 + actor.modifier("str") + actor.proficiency_bonus,
+                    },
+                )
+            )
+        offered.append(
+            LegalAction(
+                key=shove_prone_key(target.id),
+                label=f"Shove {target.name} prone",
+                detail={
+                    "target": target.id,
+                    "save_dc": 8 + actor.modifier("str") + actor.proficiency_bonus,
                 },
             )
         )
@@ -1501,6 +1591,14 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
         unenforced.append(CARRYING_CAPACITY_SPEED_CAP)
     if any(held.conditions.grappler_id == actor.id for held in state.combatants):
         unenforced.append(RELEASE_ONLY_ON_YOUR_TURN)
+    # Asked of the offered set rather than recomputed from the creature, so the disclosure
+    # and the offer cannot drift: a Shove that is offered is a Shove whose push half is
+    # missing, and there is exactly one place that decides whether one is offered. `read`
+    # calls `legal_actions` too, so this is a second pass over the combatants rather than a
+    # cached answer — `situation` is public and callable on its own, and a disclosure that
+    # depended on being handed the menu would be wrong whenever it was not.
+    if any(a.key.startswith(SHOVE_PRONE_PREFIX) for a in legal_actions(state, actor_id)):
+        unenforced.append(SHOVE_PUSH_UNBUILT)
 
     return Situation(
         hit_points=actor.hit_points,
