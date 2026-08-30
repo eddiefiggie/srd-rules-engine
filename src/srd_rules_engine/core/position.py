@@ -41,6 +41,7 @@ own alternative and is not implemented.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
@@ -50,6 +51,7 @@ from srd_rules_engine.core.rules import (
     VerificationMethod,
     VerificationState,
 )
+from srd_rules_engine.core.turn_span import TurnBoundary
 
 #: p. 186: "A creature has a reach of 5 feet unless a rule says otherwise."
 DEFAULT_REACH_FEET: Final = 5
@@ -135,6 +137,65 @@ class MovementMode(StrEnum):
     FLY = "fly"
     BURROW = "burrow"
     CRAWL = "crawl"
+
+
+#: p. 90's Slow, as a rule id. A literal repeated at both ends is one that drifts.
+SLOW_RULE_ID: Final = "mastery-slow"
+
+#: p. 90's Slow: "you can reduce its Speed by 10 feet".
+SLOW_REDUCTION_FEET: Final = 10
+
+#: p. 90's cap: "If the creature is hit more than once by weapons that have this property,
+#: the Speed reduction doesn't exceed 10 feet." **The cap belongs to Slow**, not to speed
+#: reductions in general — a future rule reducing a Speed by 15 is not bounded by this
+#: sentence, so the sum is capped per rule rather than per creature (#322).
+SLOW_REDUCTION_CAP_FEET: Final = 10
+
+
+@dataclass(frozen=True)
+class SpeedReduction:
+    """A Speed reduction that stands until a named turn boundary (p. 90, #322, 0050).
+
+    **Not a condition**, though it is retired the way one is. p. 90 gives it no name the
+    Rules Glossary tags `[Condition]`, and nothing else reads it.
+
+    **Not spent, unlike a `PendingAdvantage`.** 0049's tokens are consumed by the roll they
+    apply to; this one simply stands for its window. The two share `core.turn_span`'s
+    boundary and nothing else, which is why they are separate structures.
+    """
+
+    #: Which rule imposed it, and therefore which cap it counts against.
+    rule_id: str
+    feet: int
+    #: Whose turn bounds it, in which round, and at which end of that turn. p. 90's Slow ends
+    #: at the **start** of the attacker's next turn, so the creature whose turn ends it is not
+    #: the creature carrying it.
+    expires_after_actor_id: str
+    expires_in_round: int
+    expires_at: TurnBoundary
+
+    def __post_init__(self) -> None:
+        if self.feet <= 0:
+            raise ValueError(
+                "a Speed reduction takes feet away; zero takes nothing and a negative one "
+                "would be a rule granting speed, which p. 90 does not"
+            )
+
+
+def slow_feet_taken(reductions: Sequence[SpeedReduction]) -> int:
+    """How many feet p. 90's Slow takes from a Speed, across every source (#322).
+
+    > If the creature is hit more than once by weapons that have this property, the Speed
+    > reduction **doesn't exceed 10 feet**.
+
+    A cap on the sum rather than a cap per source, and one that counts only Slow's own
+    reductions — the sentence bounds *this* property, so a future rule taking 15 feet is not
+    quietly limited by it. Two Slow hits from different wielders therefore take 10 feet
+    between them and each keeps its own expiry, so the creature stays slowed until the later
+    boundary passes.
+    """
+    slow = sum(r.feet for r in reductions if r.rule_id == SLOW_RULE_ID)
+    return min(slow, SLOW_REDUCTION_CAP_FEET)
 
 
 @dataclass(frozen=True)

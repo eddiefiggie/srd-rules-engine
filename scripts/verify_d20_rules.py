@@ -806,6 +806,18 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         90,
+        "Slow needs damage and reduces the Speed by 10 feet to the START of your next turn",
+        r"If you hit a creature with this weapon and deal damage to it, you can reduce its "
+        r"Speed by 10 feet until the start of your next turn",
+    ),
+    (
+        90,
+        "and Slow's reduction is capped across sources rather than per hit",
+        r"If the creature is hit more than once by weapons that have this property, the "
+        r"Speed reduction doesn.t exceed 10 feet",
+    ),
+    (
+        90,
         "Cleave opens a second melee swing beside the first, once a turn",
         r"you can make a melee attack roll with the weapon against a second creature within "
         r"5 feet of the first that is also within your reach",

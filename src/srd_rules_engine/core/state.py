@@ -71,9 +71,11 @@ from srd_rules_engine.core.position import (
     DEFAULT_REACH_FEET,
     MovementMode,
     Position,
+    SpeedReduction,
     Speeds,
     distance_feet,
     movement_cost,
+    slow_feet_taken,
 )
 from srd_rules_engine.core.sight import (
     Lighting,
@@ -93,6 +95,7 @@ from srd_rules_engine.core.spellcasting import (
     SpellSlots,
     concentration_save,
 )
+from srd_rules_engine.core.turn_span import TurnBounded
 
 #: p. 17: "On your third success, you become Stable... On your third failure, you die."
 DEATH_SAVE_THRESHOLD: Final = 3
@@ -220,10 +223,30 @@ def _swept(state: EncounterState) -> EncounterState:
     the hygiene that keeps the queue from growing, and a hygiene step that lags is a queue
     that never empties.
     """
-    live = state.live_pending_advantage()
-    if len(live) == len(state.pending_advantage):
+    order = tuple(c.id for c in state.combatants)
+
+    def alive(token: TurnBounded) -> bool:
+        return is_live(
+            token,
+            round_number=state.round_number,
+            turn_index=state.turn_index,
+            order=order,
+        )
+
+    live = tuple(token for token in state.pending_advantage if alive(token))
+    # p. 90's Slow retires here too, through the **same** function (#322, 0050). Its liveness
+    # is applied rather than derived — `Combatant.effective_speeds` sees no encounter — so the
+    # sweep is the rule for it and only hygiene for the advantage above. Sharing one function
+    # is what keeps a sweep from being remembered for one and forgotten for the other.
+    slowed = tuple(
+        replace(c, speed_reductions=kept)
+        for c in state.combatants
+        if (kept := tuple(r for r in c.speed_reductions if alive(r))) != c.speed_reductions
+    )
+    if len(live) == len(state.pending_advantage) and not slowed:
         return state
-    return state._evolve(pending_advantage=live)
+    combatants = tuple(next((s2 for s2 in slowed if s2.id == c.id), c) for c in state.combatants)
+    return state._evolve(pending_advantage=live, combatants=combatants)
 
 
 @dataclass(frozen=True)
@@ -305,6 +328,21 @@ class Combatant:
     hazards: Hazards = field(default_factory=Hazards)
     #: p. 186: "A creature has a reach of 5 feet unless a rule says otherwise."
     reach: int = DEFAULT_REACH_FEET
+    #: Speed reductions standing over this creature (p. 90, #322, 0050).
+    #:
+    #: **On the creature rather than on the encounter**, unlike 0049's advantage tokens, and
+    #: the reason is the reading path. Speed is read through `effective_speeds`, a `Combatant`
+    #: property that by design sees no encounter — so deriving liveness here would mean
+    #: threading the turn order into every reader of a creature's Speed, and putting
+    #: turn-order knowledge inside a property about one creature. `conditions` already
+    #: modifies Speed from exactly this seam and is retired by a turn phase; this joins them.
+    #:
+    #: The cost is that liveness is **applied rather than derived**, which 0049 clause 3
+    #: declined for advantage. The failure directions differ: a missed sweep there would grant
+    #: Advantage past its window, and here it leaves a creature slowed past its own. Neither
+    #: is good and only the first invents something. `EncounterState._swept` retires both
+    #: through one function so a sweep cannot be missed for one and not the other.
+    speed_reductions: tuple[SpeedReduction, ...] = ()
     #: Movement spent this turn. Reset when the turn advances, not carried.
     movement_used: int = 0
     #: Skills this creature is proficient in (p. 188, #138). A set, because proficiency is
@@ -526,7 +564,14 @@ class Combatant:
         `speeds` is what the creature has; this is what it can use now. Everything asking
         how far it may move, or whether it stays in the air, reads this one.
         """
-        return self.conditions.speeds_after(self.speeds)
+        reduced = self.conditions.speeds_after(self.speeds)
+        # p. 90's Slow acts on "its **Speed**", which p. 188 makes the walking one — a
+        # reduction reaching a Fly or Swim Speed would be a rule the sentence does not state.
+        # Floored at zero, because a Speed is a distance and not a debt.
+        taken = slow_feet_taken(self.speed_reductions)
+        if not taken:
+            return reduced
+        return replace(reduced, walk=max(0, reduced.walk - taken))
 
     @property
     def falls_if_flying(self) -> bool:
@@ -2154,6 +2199,12 @@ class EncounterState:
             for who, weapon_id, first_target_id in sorted(self.cleave_openings_this_turn)
             if who == combatant_id
         )
+
+    def with_speed_reduction(self, combatant_id: str, reduction: SpeedReduction) -> EncounterState:
+        """Impose a Speed reduction that stands until its boundary (p. 90, #322)."""
+        target = self.combatant(combatant_id)
+        slowed = replace(target, speed_reductions=(*target.speed_reductions, reduction))
+        return self._evolve(combatants=self._replacing(slowed))
 
     def with_extra_attack(self, combatant_id: str) -> EncounterState:
         """Record p. 89's one extra Light attack as taken (#320).

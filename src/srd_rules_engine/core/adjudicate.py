@@ -64,6 +64,7 @@ from srd_rules_engine.core.memory_port import (
     resolve as resolve_fact,
 )
 from srd_rules_engine.core.pending_rolls import PendingAdvantage
+from srd_rules_engine.core.position import SpeedReduction
 from srd_rules_engine.core.read_surface import LegalAction, Verdict, legal_actions, verify
 from srd_rules_engine.core.rules import Ruleset
 from srd_rules_engine.core.spellcasting import MAX_SPELL_LEVEL
@@ -287,6 +288,10 @@ class EffectKind(StrEnum):
     #: `EXTRA_ATTACK_MADE`, because "you can make **this** extra attack only once per
     #: turn" caps Cleave alone — spending it must not spend the Light property's.
     CLEAVE_TAKEN = "cleave-taken"
+    #: A Speed reduction standing until a turn boundary (p. 90, #322). Its own kind
+    #: because it is neither a condition nor a spend: nothing consumes it, and it ends
+    #: by the encounter passing a boundary it names rather than by anything acting.
+    SPEED_REDUCED = "speed-reduced"
     #: One piece of ammunition expended by an attack (p. 89, #273). `item_id` names which.
     #: "Each attack expends one piece of ammunition" — a cost that applies because the attack
     #: happened, so it rides in `Proposal.always` beside the action charge rather than in a
@@ -450,6 +455,9 @@ class Effect:
     #: rather than rebuilt, because a token is identified by every field it has — the
     #: same holder may hold two with different scopes and expiries.
     pending_advantage: PendingAdvantage | None = None
+    #: `SPEED_REDUCED` only: the reduction imposed, whole (#322). `amount` carries its feet
+    #: for a reader; this carries the boundary that ends it.
+    speed_reduction: SpeedReduction | None = None
     #: `SAVE_COMPELLED` only: the save that is owed, whole (0048, #321). The DC and its
     #: derivation are carried rather than recomputed later, because the attack they came
     #: from — and the ability its wielder chose for it — is gone by the time it is rolled.
@@ -640,6 +648,31 @@ def cleave_opened(
         description=description,
         weapon_id=weapon_id,
         source_id=first_target_id,
+    )
+
+
+def speed_reduced(
+    target_id: str,
+    reduction: SpeedReduction,
+    *,
+    description: str,
+    when: When | None = None,
+    when_subject_id: str | None = None,
+) -> Effect:
+    """A Speed reduction imposed until its boundary (p. 90, #322).
+
+    `when` carries p. 90's Slow condition — "and deal damage to it" — and its subject is the
+    creature that was hit, which here *is* the effect's target. It is passed explicitly all
+    the same, because the default would make the pairing look accidental.
+    """
+    return Effect(
+        kind=EffectKind.SPEED_REDUCED,
+        target_id=target_id,
+        amount=reduction.feet,
+        description=description,
+        speed_reduction=reduction,
+        when=when,
+        when_subject_id=when_subject_id,
     )
 
 
@@ -1753,6 +1786,9 @@ def _apply(
         elif effect.kind is EffectKind.CLEAVE_OPENED:
             assert effect.weapon_id is not None and effect.source_id is not None
             state = state.with_cleave_opening(effect.target_id, effect.weapon_id, effect.source_id)
+        elif effect.kind is EffectKind.SPEED_REDUCED:
+            assert effect.speed_reduction is not None  # the constructor requires one
+            state = state.with_speed_reduction(effect.target_id, effect.speed_reduction)
         elif effect.kind is EffectKind.CLEAVE_TAKEN:
             state = state.with_cleave_taken(effect.target_id)
         elif effect.kind is EffectKind.ADVANTAGE_PENDING:

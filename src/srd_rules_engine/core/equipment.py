@@ -372,6 +372,17 @@ class Weapon(Item):
     #:
     #: Usable only by a wielder whose `mastery_weapons` holds this weapon (p. 90, 0047).
     cleave: bool = False
+    #: Slow (p. 90): "If you hit a creature with this weapon **and deal damage to it**, you
+    #: can reduce its Speed by 10 feet until the **start** of your next turn. If the creature
+    #: is hit more than once by weapons that have this property, the Speed reduction doesn't
+    #: exceed 10 feet."
+    #:
+    #: Its trigger requires damage, like Vex's and unlike Topple's and Sap's; its window is
+    #: Sap's, measured against the **attacker's** next turn; and its cap is across sources
+    #: rather than per source, which is the clause a per-hit reduction gets wrong.
+    #:
+    #: Usable only by a wielder whose `mastery_weapons` holds this weapon (p. 90, 0047).
+    slow: bool = False
     #: Ammunition (p. 89): the **id of the item this weapon fires**, or `None` for a weapon
     #: without the property. "You can use a weapon that has the Ammunition property to make a
     #: ranged attack **only if you have ammunition to fire from it**."
