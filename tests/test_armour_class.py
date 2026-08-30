@@ -52,7 +52,12 @@ LEATHER = Item(
 SHIELD = Item(id="fixture:shield", weight=6, is_armour=True, armour_class_bonus=2)
 
 
-def _combatant(*carried: Carried, dex: int = 14, stated: int = 13) -> Combatant:
+def _combatant(
+    *carried: Carried, dex: int = 14, stated: int = 13, trained: bool = True
+) -> Combatant:
+    """Trained by default, because p. 92's training clause is #367's and not this file's —
+    every case below is about the *arithmetic*, and an untrained Shield contributing nothing
+    would make half of them pass for the wrong reason."""
     return Combatant(
         id="pc",
         name="Pc",
@@ -62,6 +67,7 @@ def _combatant(*carried: Carried, dex: int = 14, stated: int = 13) -> Combatant:
         abilities={"str": 10, "dex": dex, "con": 10, "int": 10, "wis": 10, "cha": 10},
         proficiency_bonus=2,
         equipment=carried,
+        armour_training=frozenset(c.item.id for c in carried) if trained else frozenset(),
     )
 
 
@@ -204,20 +210,24 @@ def test_a_shield_contributes_only_while_held() -> None:
 # --- What is still owed --------------------------------------------------------------------
 
 
-def test_the_untrained_shield_clause_is_still_disclosed() -> None:
-    """p. 92: "You gain the Armor Class benefit of a Shield only if you have training with
-    it." The bonus is granted regardless, and that stays disclosed until
-    [#367](https://github.com/eddiefiggie/srd-rules-engine/issues/367).
-
-    What #393 changed is that the withholding is now **expressible** — there is a contribution
-    to withhold. The clause's stated reason said the bonus "needs a derivation over what is
-    worn, which nothing models", and that half is answered.
+def test_an_untrained_shield_adds_nothing() -> None:
+    """p. 92: "You gain the Armor Class benefit of a Shield **only if you have training with
+    it**" (#367). Built in the same change that retired
+    `untrained-shield-still-grants-ac` — the clause was the stand-in for this rule, and it
+    waited on #393 giving it a contribution to withhold rather than on effort.
     """
-    from srd_rules_engine.core.read_surface import UNTRAINED_SHIELD_STILL_GRANTS_AC, situation
-    from srd_rules_engine.core.state import EncounterState
+    untrained = _combatant(_held(SHIELD), stated=13, trained=False)
+    trained = _combatant(_held(SHIELD), stated=13)
 
-    untrained = _combatant(_held(SHIELD), stated=13)
-    state = EncounterState.new([untrained]).with_initiative({"pc": 10})
+    assert untrained.effective_armour_class == 13
+    assert trained.effective_armour_class == 15
 
-    assert untrained.effective_armour_class == 15, "granted, for now"
-    assert UNTRAINED_SHIELD_STILL_GRANTS_AC in situation(state, "pc").unenforced_clauses
+
+def test_two_shields_are_refused_even_when_neither_is_trained() -> None:
+    """p. 92's "wield only one Shield at a time" is about **wielding**, so the refusal is
+    asked before training is consulted. Filtering first would let an untrained Shield hide a
+    second one."""
+    other = Item(id="fixture:buckler", weight=3, is_armour=True, armour_class_bonus=2)
+
+    with pytest.raises(ValueError, match="one Shield at a time"):
+        assert _combatant(_held(SHIELD), _held(other), trained=False).effective_armour_class

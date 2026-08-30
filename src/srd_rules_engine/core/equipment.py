@@ -385,28 +385,10 @@ def untrained_armour(equipment: tuple[Carried, ...], training: frozenset[str]) -
     )
 
 
-def untrained_shields(equipment: tuple[Carried, ...], training: frozenset[str]) -> tuple[str, ...]:
-    """Every AC-adding item this creature holds without training with it (p. 92, #393).
-
-    > You gain the Armor Class benefit of a Shield only if you have training with it.
-
-    **Held, not worn**, which is the whole difference from `untrained_armour` and the reason
-    that function could not serve this clause: p. 92's Light/Medium/Heavy drawbacks are about
-    armour "you **wear**", and a Shield is something you wield. A disclosure gated on
-    `untrained_armour` never fired for a creature holding an untrained Shield, which is the
-    only creature it was ever about.
-
-    **An AC bonus is how a Shield is recognised**, because p. 177's *category* is content this
-    repository does not ship (0040 clause 2). The document names nothing else that adds to AC
-    by being held, so the bonus identifies it without the table.
-    """
-    return tuple(
-        carried.item.id
-        for carried in equipment
-        if carried.carriage is Carriage.HELD
-        and carried.item.armour_class_bonus
-        and carried.item.id not in training
-    )
+# `untrained_shields` lived here from #393 to #367, for one build. It enumerated who p. 92's
+# Shield clause *would* bite so R32's disclosure could name the right creature; #367 built the
+# withholding, `Combatant.armour_class_bonus` filters by training itself, and a helper with no
+# reader is the decay 0058 names. Removed with the disclosure it served.
 
 
 def items_in(equipment: tuple[Carried, ...], carriage: Carriage) -> tuple[Item, ...]:

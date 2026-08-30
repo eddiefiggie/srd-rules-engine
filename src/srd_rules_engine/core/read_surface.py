@@ -54,7 +54,6 @@ from srd_rules_engine.core.equipment import (
     reachable_objects,
     unplaced_objects,
     untrained_armour,
-    untrained_shields,
 )
 from srd_rules_engine.core.forced_movement import push_distances
 from srd_rules_engine.core.position import MovementMode, distance_feet, within
@@ -141,25 +140,16 @@ VERBAL_UNCHECKED: Final = "verbal-component-gagged-or-silenced-unchecked"
 RELEASE_ONLY_ON_YOUR_TURN: Final = "grapple-release-offered-only-on-the-grapplers-turn"
 
 
-#: p. 177: "If you use a Shield and lack training with it, you don't gain its AC bonus"
-#: (#367). **The derivation exists since #393** — `Combatant.effective_armour_class`, with a
-#: Shield's `+2` riding on top of whichever base won (p. 92, p. 177, 0077). So there is a
-#: contribution to withhold, and this clause is now about the *withholding* rather than about
-#: the absence of anything to withhold.
-#:
-#: Its stated reason was wrong twice over. It said the bonus "needs a derivation over what is
-#: worn, which nothing models" — first the design was undecided rather than impossible (0077),
-#: and now it is built. What remains is p. 92's one sentence: "You gain the Armor Class
-#: benefit of a Shield only if you have training with it." Training is already held by item id
-#: (0040 clause 2), so this never needed the armour *category* it appeared to.
-#: p. 92 makes a Shield a `+2` **bonus** rather than a base calculation, so there is a
-#: contribution to withhold as soon as AC is derived — and training is already held by item
-#: id (0040 clause 2), so this never needed the armour *category* it appeared to.
-#:
-#: `Item.is_armour` deliberately does not distinguish a Shield from worn armour — the category
-#: is content (0040 clause 2) — and the clause needs a shield's AC bonus to withhold, which
-#: nothing models: Armour Class is a stored number rather than a derivation over what is worn.
-UNTRAINED_SHIELD_STILL_GRANTS_AC: Final = "untrained-shield-still-grants-ac"
+# **`untrained-shield-still-grants-ac` was retired here** (#367), in the change that built
+# its rule. p. 177's Armor Training entry states three drawbacks and this was the last: the
+# casting prohibition landed with 0063, the Disadvantage with 0064, and the Shield's bonus is
+# now withheld by `Combatant.armour_class_bonus`.
+#
+# It waited on #393 rather than on effort — there was no contribution to withhold while
+# Armour Class was a stored total — and it never needed p. 177's armour *category*, which is
+# what it appeared to be blocked on for four builds. Training is by item id (0040 clause 2),
+# and that was always enough.
+
 
 #: A standalone object interaction — p. 13's free one — and the Utilize action that buys
 #: another (p. 13, p. 191, 0045 clauses 2-3).
@@ -2047,15 +2037,6 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
         unenforced.append(OBJECT_INTERACTION_CAP)
     if any(held.conditions.grappler_id == actor.id for held in state.combatants):
         unenforced.append(RELEASE_ONLY_ON_YOUR_TURN)
-    # Disclosed only to a creature actually **holding** an untrained Shield, which is the only
-    # one this clause can bite (#367, #393).
-    #
-    # **It was gated on `untrained_armour` and could never fire**, because that function reads
-    # worn items and p. 92's Shield is held. The clause existed, was pinned, and was
-    # unreachable by the case it names — the vacuous shape `AGENTS.md` describes, found by
-    # writing the first test that tried to observe it.
-    if untrained_shields(actor.equipment, actor.armour_training):
-        unenforced.append(UNTRAINED_SHIELD_STILL_GRANTS_AC)
     if any(a.key.startswith(f"{PUSH_ATTACK}:") for a in legal_actions(state, actor_id)):
         unenforced.append(PUSH_DISTANCES_IN_STEPS)
 

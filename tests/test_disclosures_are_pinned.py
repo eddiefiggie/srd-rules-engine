@@ -53,7 +53,6 @@ from srd_rules_engine.core.read_surface import (
     OBJECT_INTERACTION_CAP,
     PUSH_DISTANCES_IN_STEPS,
     RELEASE_ONLY_ON_YOUR_TURN,
-    UNTRAINED_SHIELD_STILL_GRANTS_AC,
     UTILIZE_REACHES_FOUR_MOVES,
     VERBAL_UNCHECKED,
 )
@@ -157,7 +156,16 @@ OTHER_DISCLOSURES: frozenset[str] = frozenset(
         # site. The Shield clause needs an AC derived from what is worn, which nothing
         # models — so `untrained-armour-disadvantage-not-applied` is deliberately absent and
         # this is what remains (#367).
-        UNTRAINED_SHIELD_STILL_GRANTS_AC,
+        # **`untrained-shield-still-grants-ac` is deliberately absent** (#367). p. 177's
+        # Armor Training entry states three drawbacks and the engine now enforces all three:
+        # the casting prohibition (0063), the Disadvantage on any Strength or Dexterity D20
+        # Test (0064), and the Shield's bonus, which `Combatant.armour_class_bonus` withholds
+        # from a creature without training.
+        #
+        # It was the longest-lived of the three and looked blocked on p. 177's armour
+        # *category* — content this repository does not ship. It was not: training is by item
+        # id (0040 clause 2), and what was actually missing was a **derivation** to withhold
+        # from, which #393 built. Removed in the change that built its rule.
         # **`shove-cannot-push-only-knock-prone` is deliberately absent** (#345). It was
         # here for one build, while p. 190's Shove could knock a target Prone and not push it.
         # 0055 built the push and the clause came off in the change that built it, which is
@@ -289,7 +297,6 @@ def test_the_walk_finds_every_site_and_not_merely_one() -> None:
         VERBAL_UNCHECKED,
         RELEASE_ONLY_ON_YOUR_TURN,
         PUSH_DISTANCES_IN_STEPS,
-        UNTRAINED_SHIELD_STILL_GRANTS_AC,
     ):
         assert disclosure in found, f"{disclosure!r} is appended in the core and was not found"
 

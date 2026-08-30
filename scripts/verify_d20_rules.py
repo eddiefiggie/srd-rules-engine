@@ -501,6 +501,27 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"If a spell has movable effects, they aren.t restricted by its range unless the "
         r"spell.s description says otherwise",
     ),
+    # --- Armour training (#367) ----------------------------------------------------------
+    (
+        177,
+        "p. 177's Armor Training entry **whole**, and both of the drawbacks this engine had "
+        "already built: the Disadvantage on **any D20 Test** involving Strength or Dexterity "
+        "(0064) and the casting prohibition (0063). **Neither sentence was asserted anywhere "
+        "until #367**, so two shipped rules rested on a page nobody had read — the case the "
+        "standing rule added at build 08302026.32 is about",
+        r"If you wear Light, Medium, or Heavy armor and lack training with it, you have "
+        r"Disadvantage on any D20 Test that involves Strength or Dexterity, and you can.t "
+        r"cast spells\.\s*If you use a Shield and lack training with it, you don.t gain its "
+        r"AC bonus",
+    ),
+    (
+        92,
+        'the same drawbacks in "Equipment", where the Shield clause is its own paragraph — '
+        "and the sentence that makes the *category* content this repository does not ship: a "
+        "character's class determines training, and a monster's stat block does",
+        r"A character.s class and other features determine the character.s armor training\. "
+        r"A monster has training with any armor in its stat block",
+    ),
     # --- Armour Class (#380) -------------------------------------------------------------
     (
         177,
