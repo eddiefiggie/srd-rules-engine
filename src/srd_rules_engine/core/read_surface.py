@@ -145,16 +145,6 @@ CARRYING_CAPACITY_SPEED_CAP: Final = "carrying-capacity-speed-cap-is-not-applied
 #: since that is the only creature the clause can bite (#341).
 RELEASE_ONLY_ON_YOUR_TURN: Final = "grapple-release-offered-only-on-the-grapplers-turn"
 
-#: p. 177, *Armor Training*, states three drawbacks and 0063 builds one (#367).
-#:
-#: > If you wear Light, Medium, or Heavy armor and lack training with it, you have
-#: > **Disadvantage on any D20 Test that involves Strength or Dexterity**, and you can't cast
-#: > spells.
-#:
-#: The casting half is built. This one reaches attacks and checks as well as saves, and
-#: `D20Test.ability` is passed by the six save sites only — so a central rule would need the
-#: field threaded through every test-building site first.
-UNTRAINED_ARMOUR_DISADVANTAGE: Final = "untrained-armour-disadvantage-not-applied"
 
 #: p. 177: "If you use a Shield and lack training with it, you don't gain its AC bonus" (#367).
 #:
@@ -1751,7 +1741,6 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
     # Disclosed only to a creature actually wearing untrained armour, which is the only one
     # either clause can bite (#367).
     if untrained_armour(actor.equipment, actor.armour_training):
-        unenforced.append(UNTRAINED_ARMOUR_DISADVANTAGE)
         unenforced.append(UNTRAINED_SHIELD_STILL_GRANTS_AC)
     if any(a.key.startswith(f"{PUSH_ATTACK}:") for a in legal_actions(state, actor_id)):
         unenforced.append(PUSH_DISTANCES_IN_STEPS)

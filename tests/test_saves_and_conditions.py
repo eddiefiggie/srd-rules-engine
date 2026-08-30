@@ -341,7 +341,7 @@ def test_advantage_a_rule_granted_cancels_against_restrained(tmp_path: Path) -> 
     Asserted on the transform, because no rule in the engine yet grants Advantage on a save
     the way a spell or feature would; the mechanism is what has to be right before one does.
     """
-    from srd_rules_engine.core.adjudicate import Proposal, _as_this_creature_saves
+    from srd_rules_engine.core.adjudicate import Proposal, _as_this_creature_rolls
     from srd_rules_engine.core.d20 import D20Test
 
     restrained = ogre(conditions=Conditions(applied=frozenset({Condition.RESTRAINED})))
@@ -356,7 +356,7 @@ def test_advantage_a_rule_granted_cancels_against_restrained(tmp_path: Path) -> 
         )
     )
 
-    after = _as_this_creature_saves(state, "ogre", granted)
+    after = _as_this_creature_rolls(state, "ogre", granted)
     assert after.test is not None
     assert after.test.has_advantage and after.test.has_disadvantage, "both, so p. 8 can cancel"
 
@@ -387,26 +387,32 @@ def test_a_save_of_no_ability_is_left_exactly_as_the_rule_built_it() -> None:
     that was there and was removed: a corruption proof showed it carried no weight, since
     `Conditions` was already refusing underneath it.
     """
-    from srd_rules_engine.core.adjudicate import Proposal, _as_this_creature_saves
+    from srd_rules_engine.core.adjudicate import Proposal, _as_this_creature_rolls
     from srd_rules_engine.core.d20 import D20Test
 
     restrained = ogre(conditions=Conditions(applied=frozenset({Condition.RESTRAINED})))
     state = EncounterState.new([hero(), restrained]).with_initiative({"pc": 20, "ogre": 5})
     proposal = Proposal(test=D20Test(kind=TestKind.SAVE, target=10, target_basis="b"))
 
-    assert _as_this_creature_saves(state, "ogre", proposal) is proposal
+    assert _as_this_creature_rolls(state, "ogre", proposal) is proposal
 
 
-def test_an_attack_roll_is_not_touched_by_any_of_it() -> None:
-    """All three rules say *saving throws*. A Restrained creature's attack rolls are hampered
-    by p. 187's other clause, which is a different field and a different code path."""
-    from srd_rules_engine.core.adjudicate import Proposal, _as_this_creature_saves
+def test_an_attack_roll_is_not_touched_by_the_save_only_rules() -> None:
+    """p. 187's Restrained and p. 181's Dodge both say *saving throws*, so neither reaches an
+    attack roll — a Restrained creature's attacks are hampered by p. 187's **other** clause,
+    which is a different field and a different code path.
+
+    p. 177's untrained-armour Disadvantage is not save-only and does reach one, which is
+    `tests/test_untrained_armour.py`'s business (0064). This ogre wears nothing.
+    """
+    from srd_rules_engine.core.adjudicate import Proposal, _as_this_creature_rolls
     from srd_rules_engine.core.d20 import D20Test
 
     restrained = ogre(conditions=Conditions(applied=frozenset({Condition.RESTRAINED})))
+    assert not restrained.equipment, "wearing nothing, so p. 177 cannot reach this either"
     state = EncounterState.new([hero(), restrained]).with_initiative({"pc": 20, "ogre": 5})
     proposal = Proposal(
         test=D20Test(kind=TestKind.ATTACK, ability="dex", target=10, target_basis="b")
     )
 
-    assert _as_this_creature_saves(state, "ogre", proposal) is proposal
+    assert _as_this_creature_rolls(state, "ogre", proposal) is proposal
