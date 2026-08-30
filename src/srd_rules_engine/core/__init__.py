@@ -131,7 +131,6 @@ from srd_rules_engine.core.duration import (
 from srd_rules_engine.core.equipment import Carriage, Carried, Item
 from srd_rules_engine.core.grappling import (
     ESCAPE_SKILLS,
-    MOVABLE_UNENFORCED,
     can_be_escaped,
     ended_by_circumstance,
     escape_declared,
@@ -345,7 +344,6 @@ __all__ = [
     "MAX_SAFE_INTEGER",
     "MINUTES_PER_DAY",
     "MINUTES_PER_HOUR",
-    "MOVABLE_UNENFORCED",
     "PERCEPTION_RULE_ID",
     "PERCEPTION_VERIFICATION",
     "READER_VERSION",

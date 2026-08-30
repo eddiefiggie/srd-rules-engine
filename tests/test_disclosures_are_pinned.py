@@ -46,7 +46,6 @@ from srd_rules_engine.core import EncounterState, read
 from srd_rules_engine.core.actions import ActionBudget
 from srd_rules_engine.core.conditions import (
     EFFECTS,
-    MOVABLE_UNENFORCED,
     Condition,
     Conditions,
 )
@@ -93,14 +92,11 @@ CONDITION_DISCLOSURES: dict[Condition, tuple[str, ...]] = {
     # at all, and what was actually missing was a refusal. `with_movement` makes one now, and
     # `test_the_retired_fear_disclosure_is_enforced_now` asserts the removal and the rule
     # together (0056).
-    # p. 182's *Movable*: the grappler can drag or carry you, at 1 extra foot per foot unless
-    # you are Tiny or two or more sizes smaller than it. Nothing lets one creature's movement
-    # carry another, and the exemption is a size comparison against the grappler (#340).
-    #
-    # The other two clauses of the condition are built: Speed 0 is `speed_zero`, and
-    # "Disadvantage on attack rolls against any target other than the grappler" is relational
-    # and answered by `own_attack_rolls(target_id=...)` rather than by a flat field.
-    Condition.GRAPPLED: (MOVABLE_UNENFORCED,),
+    # **Grappled discloses nothing** (#340, 0066). All three of p. 182's clauses are built and
+    # none of them is a flat field: Speed 0 is `speed_zero`; "Disadvantage on attack rolls
+    # against any target other than the grappler" is relational and answered by
+    # `own_attack_rolls(target_id=...)`; and *Movable* is the grappler's rule, answered by
+    # `with_movement`'s `carrying` and by `carried_without_extra_cost`.
     # p. 184: hidden from effects that require sight. #150's mapping is unfilled.
     Condition.INVISIBLE: ("concealed-from-effects-requiring-sight",),
     # p. 186: turned to inanimate substance, and weight times ten with ageing stopped. Neither
