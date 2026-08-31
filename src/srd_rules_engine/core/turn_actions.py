@@ -42,6 +42,8 @@ from typing import Final
 from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.adjudicate import (
     Declaration,
+    Effect,
+    EffectKind,
     Proposal,
     Resolver,
     action_spent,
@@ -449,3 +451,114 @@ def study_resolver(*, dc: int, basis: str, skill: Skill | None = None) -> Resolv
         basis=basis,
         skill=skill,
     )
+
+
+# --- p. 184's first aid, the other way a knocked-out creature wakes (0083, #428) ---------
+
+FIRST_AID_RULE_ID: Final = "srd:rules-glossary/knocking-out-a-creature/first-aid"
+
+#: p. 184: "someone uses an action to administer first aid to it, which requires a successful
+#: **DC 10 Wisdom (Medicine) check**." The DC is the document's, unlike p. 187's Search and
+#: p. 189's Study — so no caller supplies one here, and none may.
+FIRST_AID_DC: Final = 10
+
+FIRST_AID_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference=(
+        'SRD v5.2.1, Rules Glossary -> Knocking Out a Creature ("The creature remains '
+        "Unconscious until it regains any Hit Points or until someone uses an action to "
+        "administer first aid to it, which requires a successful DC 10 Wisdom (Medicine) "
+        'check"), p. 184'
+    ),
+    date="2026-08-31",
+    method=VerificationMethod.ASSERTED,
+)
+
+
+def first_aid_rule() -> Rule:
+    return Rule(
+        id=FIRST_AID_RULE_ID,
+        summary=(
+            "A creature uses its Action to administer first aid to a creature knocked out by "
+            "a subduing blow, making a DC 10 Wisdom (Medicine) check. On a success the "
+            "target stops being Unconscious."
+        ),
+        provenance=RuleProvenance.SRD,
+        verification=FIRST_AID_VERIFICATION,
+    )
+
+
+def first_aid_resolver(*, patient_id: str) -> Resolver:
+    """p. 184's first aid: an Action and a DC 10 Wisdom (Medicine) check.
+
+    **The DC is the document's**, which is worth saying because p. 187's Search and p. 189's
+    Study both leave theirs to the caller. Here p. 184 states it, so no caller supplies one
+    and none may — a difficulty a rule gives is not a difficulty a situation sets.
+
+    **Medicine, and only Medicine.** p. 184 names the skill outright, unlike the tables on
+    pp. 187 and 189 which only *suggest*. So there is no skill parameter and no open set: a
+    creature without the proficiency rolls its bare Wisdom modifier, which is what p. 188
+    gives it.
+
+    **Success ends only the Unconscious p. 184 caused** (0083). A creature Unconscious for
+    another reason is not woken by a bandage, and p. 191's entry never says when the condition
+    ends — so the ending belongs to the cause, and `EffectKind.FIRST_AID_GIVEN` is how the
+    ruling names which one it means.
+    """
+
+    def resolve(
+        *,
+        state: EncounterState,
+        declaration: Declaration,
+        facts: Mapping[str, Resolution],
+    ) -> Proposal:
+        actor = state.combatant(declaration.actor_id)
+        patient = state.combatant(patient_id)
+
+        return Proposal(
+            always=(
+                action_spent(
+                    actor.id,
+                    ActionKind.ACTION,
+                    description="the Action spent administering first aid (p. 176, p. 184)",
+                ),
+            ),
+            test=D20Test(
+                kind=TestKind.CHECK,
+                ability="wis",
+                target=FIRST_AID_DC,
+                target_basis=f"DC {FIRST_AID_DC}, stated by p. 184 rather than by the situation",
+                modifiers=(
+                    Modifier(
+                        source=f"skill:{Skill.MEDICINE.value}",
+                        value=actor.check_bonus(Skill.MEDICINE),
+                    ),
+                ),
+            ),
+            on_success=(
+                Effect(
+                    kind=EffectKind.FIRST_AID_GIVEN,
+                    target_id=patient_id,
+                    amount=0,
+                    description=(
+                        f"{patient.name} was knocked out and is roused by first aid (p. 184)"
+                    ),
+                ),
+            ),
+            # p. 184 states nothing for a failure — no damage, no worsening, no bar on trying
+            # again. An effect here would be a consequence the document does not give.
+            on_failure=(),
+            citations=("srd:rules-glossary/knocking-out-a-creature",),
+            may_claim=(
+                f"that {actor.name} tended to {patient.name}, and how it went",
+                f"that {patient.name} is awake, if the check succeeded",
+            ),
+            may_not_claim=(
+                f"that {patient.name} regained any hit points — p. 184 restores none",
+                f"that {patient.name} woke for any other reason it might be Unconscious; "
+                "this rouses only a creature a subduing blow knocked out",
+                "that a failure cost anything; p. 184 states no consequence for one",
+            ),
+        )
+
+    return resolve

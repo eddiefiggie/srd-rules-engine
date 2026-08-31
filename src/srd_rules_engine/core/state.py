@@ -154,6 +154,10 @@ MALNUTRITION_SAVE_DC: Final = 10
 #: reports the same total by a route that is wrong for the next rule to read.
 LOCKED_EXHAUSTION_RULES: Final = frozenset({DEHYDRATION_RULE_ID, MALNUTRITION_RULE_ID})
 
+#: p. 184. The rule id an Unconscious applied by a subduing blow carries, so that p. 184's
+#: two endings can find it and no other Unconscious is touched (0083, #428).
+KNOCKED_OUT_RULE_ID: Final = "srd:rules-glossary/knocking-out-a-creature"
+
 
 @dataclass(frozen=True)
 class Hazards:
@@ -2395,7 +2399,9 @@ class EncounterState:
             # than declared as a sibling effect, because whether the blow subdued at all is
             # only known once the damage is against the hit points — a resolver has no number
             # and `_roll_declared` has the rolled one, not the taken one.
-            return state.with_condition(combatant_id, Condition.UNCONSCIOUS)
+            return state.with_condition(
+                combatant_id, Condition.UNCONSCIOUS, caused_by=KNOCKED_OUT_RULE_ID
+            )
 
         if amount == 0 or reduced.hit_points > 0 or target.death_saves.dead:
             return state
@@ -2469,6 +2475,23 @@ class EncounterState:
             combatants=self._replacing(replace(target, temporary_hit_points=amount))
         )
 
+    def with_first_aid(self, combatant_id: str) -> EncounterState:
+        """p. 184: first aid wakes a creature a subduing blow knocked out (0083).
+
+        Ends **only** the Unconscious p. 184 caused, for the reason `with_healing` does — the
+        other endings of that condition belong to whatever applied them, and a bandage answers
+        for none of them.
+
+        A no-op on a creature nobody knocked out. p. 184 states what first aid does for one
+        that was; it states nothing about anyone else, and inventing a consequence would be a
+        rule the document does not give.
+        """
+        target = self.combatant(combatant_id)
+        woken = target.conditions.ended_where_caused_by(Condition.UNCONSCIOUS, KNOCKED_OUT_RULE_ID)
+        if woken == target.conditions:
+            return self
+        return self._evolve(combatants=self._replacing(replace(target, conditions=woken)))
+
     def with_poison_delivered(self, combatant_id: str, item_id: str) -> EncounterState:
         """p. 197: the coating is spent once it goes through a wound.
 
@@ -2531,9 +2554,23 @@ class EncounterState:
             raise ValueError("healing is not negative; damage is a separate change")
         target = self.combatant(combatant_id)
         healed = min(target.max_hit_points, target.hit_points + amount)
+        conditions = target.conditions
+        if amount > 0:
+            # p. 184: a creature knocked out "remains Unconscious until it regains **any** Hit
+            # Points". Any — so one point wakes it, the way one point clears the death saves
+            # above.
+            #
+            # **Only the Unconscious p. 184 caused** (0083). p. 191 states the condition's
+            # effects and never says when it ends, so the ending belongs to whatever applied
+            # it — and a creature Unconscious for another reason is not woken by a cure wound.
+            # Without `causes` these two are the same condition and this would end both.
+            conditions = conditions.ended_where_caused_by(
+                Condition.UNCONSCIOUS, KNOCKED_OUT_RULE_ID
+            )
         restored = replace(
             target,
             hit_points=healed,
+            conditions=conditions,
             death_saves=DeathSaves() if amount > 0 else target.death_saves,
         )
         return self._evolve(combatants=self._replacing(restored))
@@ -2718,8 +2755,14 @@ class EncounterState:
         duration: Duration | None = None,
         source_id: str | None = None,
         grapple: Grapple | None = None,
+        caused_by: str | None = None,
     ) -> EncounterState:
         """Apply a condition, with the duration the effect that imposed it stated.
+
+        `caused_by` names the **rule**, where the condition ends differently depending on
+        what applied it (0083). p. 191's Unconscious states its effects and never says when
+        it ends, so p. 184's "until it regains any Hit Points" is a fact about the *cause*
+        rather than about the condition.
 
         `None` means the effect named no span this engine can count, and it is recorded as
         such rather than as permanent — `Conditions.unretirable` reports it, so a condition
@@ -2743,10 +2786,18 @@ class EncounterState:
         sources = dict(held.sources)
         if source_id is not None:
             sources[condition] = sources.get(condition, frozenset()) | {source_id}
+        # The same accumulation, for the same reason and one question along: a condition does
+        # not stack, so a second application adds its *cause* to the one condition. A creature
+        # knocked out by p. 184 and then put to sleep holds one Unconscious with two causes,
+        # and it ends only when neither still holds.
+        causes = dict(held.causes)
+        if caused_by is not None:
+            causes[condition] = causes.get(condition, frozenset()) | {caused_by}
         updated = Conditions(
             held=held.applied | {condition},
             exhaustion_levels=held.exhaustion_levels,
             sources=sources,
+            causes=causes,
             durations=durations,
             # Carried forward, not rebuilt from the argument: applying *any* condition to a
             # grappled creature would otherwise erase the grapple's escape DC, which is the
