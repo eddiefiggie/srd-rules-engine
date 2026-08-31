@@ -500,7 +500,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 182",
    "kind": "state",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "falling",

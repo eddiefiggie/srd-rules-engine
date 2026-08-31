@@ -85,6 +85,9 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # p. 187 entire: the 1-hit-point precondition, the spend, and the interruption
         # rule (#409). Its Special Feature recharge has no antecedent — no feature in
         # this engine has one — and the hour is a span the caller asserts.
+        # p. 182: the Proficiency Bonus doubled, reaching every one of `check_bonus`'s
+        # six consumers at once (#424).
+        "expertise": "core.state.Combatant.expertise",
         "short-rest": "loop.turn.TurnLoop.short_rest",
         "hit-point-dice": "core.rests.hit_die_resolver",
         "falling": "core.hazards.falling_resolver",

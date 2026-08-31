@@ -584,9 +584,22 @@ class Combatant:
     #: Movement spent this turn. Reset when the turn advances, not carried.
     movement_used: int = 0
     #: Skills this creature is proficient in (p. 188, #138). A set, because proficiency is
-    #: held or not — p. 182's Expertise doubles the bonus and is a class feature this engine
-    #: ships no data for, so a count would represent something the document does not give.
+    #: held or not: p. 188 gives the bonus once, and a count would represent something the
+    #: document does not give.
     skills: frozenset[Skill] = frozenset()
+    #: Skills this creature has Expertise in (p. 182, #424). A **subset of `skills`**, which
+    #: `__post_init__` enforces: "If you gain Expertise, you gain it in one skill in which you
+    #: have proficiency", so Expertise over a skill the creature is not proficient in is a
+    #: state the document does not describe rather than a bonus to compute.
+    #:
+    #: A set, and for a second reason beyond proficiency's: p. 182 says "You can't have
+    #: Expertise in the same skill proficiency more than once", so the shape of the field is
+    #: the rule. A count would make stacking expressible.
+    #:
+    #: **Which skills** is character data, exactly as `skills` is — p. 182 calls Expertise "a
+    #: feature", and the features that grant it are class data this engine ships none of. The
+    #: *mechanic* is here; the roster is the ruleset's.
+    expertise: frozenset[Skill] = frozenset()
     #: Active conditions, with implication already resolved (R14, R18).
     conditions: Conditions = field(default_factory=Conditions)
     #: What is left of the action economy this turn (p. 176-177, 186).
@@ -799,6 +812,19 @@ class Combatant:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "abilities", MappingProxyType(dict(self.abilities)))
+
+        # p. 182: "If you gain Expertise, you gain it in one skill **in which you have
+        # proficiency**." Expertise over a skill the creature is not proficient in is not a
+        # smaller bonus, it is a state the document does not describe — and `check_bonus`
+        # would silently return the bare ability modifier for it, which reads as "no
+        # Expertise" rather than as the malformed creature it is.
+        if not self.expertise <= self.skills:
+            missing = sorted(skill.value for skill in self.expertise - self.skills)
+            raise ValueError(
+                f"{self.name} has Expertise in {', '.join(missing)} without proficiency. "
+                "p. 182 grants Expertise only in a skill you are already proficient in, so "
+                "this is a creature the document cannot describe"
+            )
 
         # p. 179: "Your Concentration **ends** if you have the Incapacitated condition or you
         # die." Ends, not suspends — the event is spent when it happens, and the spell does
@@ -1257,9 +1283,23 @@ class Combatant:
         Which ability is the skill's, not the caller's: a Wisdom (Perception) check is a
         Wisdom check whoever rolls it, and `SKILL_ABILITY` is p. 9's table rather than a
         memory of it.
+
+        p. 182's Expertise doubles the Proficiency Bonus for a skill the creature has it in —
+        "your Proficiency Bonus is doubled for that check". It doubles the **bonus**, not the
+        total: the ability modifier is untouched, which is the arithmetic an implementation
+        gets wrong by doubling whatever it has added up so far.
+
+        p. 182's "unless the bonus is doubled by another feature" has no antecedent here — no
+        other feature in this engine doubles a Proficiency Bonus — so there is nothing to
+        refuse and nothing is silently stacked.
         """
         bonus = self.modifier(SKILL_ABILITY[skill])
-        return bonus + self.proficiency_bonus if skill in self.skills else bonus
+        if skill not in self.skills:
+            return bonus
+        proficiency = (
+            self.proficiency_bonus * 2 if skill in self.expertise else self.proficiency_bonus
+        )
+        return bonus + proficiency
 
 
 def _recovers_by(participant: Combatant, clock: Clock) -> bool:
