@@ -686,6 +686,26 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- p. 182's Expertise (#424) -----------------------------------------------------
+    (
+        182,
+        "the Proficiency BONUS is doubled, not the check — the arithmetic an implementation "
+        "gets wrong by scaling whatever it has added up so far",
+        r"When you make an ability check with a skill proficiency in which you have "
+        r"Expertise, your Proficiency Bonus is doubled for that check",
+    ),
+    (
+        182,
+        "and it is granted only in a skill already held, which is why Expertise without "
+        "proficiency is refused rather than quietly worth nothing",
+        r"If you gain Expertise, you gain it in one skill in which you have proficiency",
+    ),
+    (
+        182,
+        "and it cannot be held twice, which the shape of a set makes unrepresentable rather "
+        "than needing a guard",
+        r"You can.t have Expertise in the same skill proficiency more than once",
+    ),
     # --- p. 197's four exposures: asserted although unbuilt, so #141 does not re-read ---
     (
         197,
