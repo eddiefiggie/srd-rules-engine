@@ -2610,6 +2610,25 @@ class EncounterState:
         if amount < 0:
             raise ValueError("healing is not negative; damage is a separate change")
         target = self.combatant(combatant_id)
+
+        # p. 180: "A dead creature has no Hit Points and **can't regain them** unless it is
+        # first revived by magic such as the Raise Dead or Revivify spell" (#438).
+        #
+        # A no-op rather than a refusal, because healing a corpse is a thing a caller may
+        # legitimately try — a cleric pouring a potion into a dead friend is a *scene*, and
+        # p. 180 answers it with "nothing happens" rather than with an error.
+        #
+        # **This is total, and that is honest rather than complete.** p. 180's exception is
+        # revival magic, and there are no spells (#21) — so Raise Dead does not exist to be
+        # excepted. Whoever builds one needs a way past this line, and will find it here
+        # rather than discovering a wall.
+        #
+        # It was reachable and wrong until #438: `death_saves=DeathSaves()` below resets the
+        # counts because p. 17 resets them "when you regain any Hit Points", and `dead` lives
+        # in the same structure — so a Cure Wounds cleared the death along with the failures.
+        if target.death_saves.dead:
+            return self
+
         healed = min(target.max_hit_points, target.hit_points + amount)
         conditions = target.conditions
         if amount > 0:

@@ -693,6 +693,14 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- p. 180's Dead (#438) ----------------------------------------------------------
+    (
+        180,
+        "a dead creature CANNOT REGAIN hit points, and the only exception is revival magic — "
+        "which does not exist here, so the refusal is total and says so",
+        r"A dead creature has no Hit Points and can.t regain them unless it is first revived "
+        r"by magic such as the Raise Dead or Revivify spell",
+    ),
     # --- p. 186's Ready: asserted although unbuilt, so #436 does not re-read it --------
     (
         187,
