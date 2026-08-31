@@ -41,6 +41,7 @@ landed, which is what an unguarded prose claim beside working code does.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Final
 
 from srd_rules_engine.core.actions import ActionKind
@@ -58,6 +59,7 @@ from srd_rules_engine.core.adjudicate import (
     ammunition_recovered,
     ammunition_spent,
     attack_made,
+    automatically_failed,
     carriage_changed,
     cleave_opened,
     cleave_taken,
@@ -248,6 +250,33 @@ def initiative_order(state: EncounterState, *, seed: int) -> Mapping[str, int]:
     }
 
 
+def _impeded_underwater(state: EncounterState, actor: Combatant, weapon: Weapon) -> bool:
+    """p. 16's Impeded Weapons, the half that is Disadvantage (#446).
+
+    > When making a **melee** attack roll with a weapon underwater, a creature that **lacks a
+    > Swim Speed** has Disadvantage on the attack roll **unless the weapon deals Piercing
+    > damage**. A ranged attack roll with a weapon underwater ... has Disadvantage against a
+    > target **within** normal range.
+
+    Three conditions on the melee clause and one on the ranged, and the melee exemption is
+    read off the **weapon's own damage type** — statically, as p. 197's Injury poison reads
+    it, because a weapon deals the type it deals.
+
+    A Swim Speed exempts a creature entirely from the melee clause and **not** from the
+    ranged one: p. 16 attaches the speed to the first sentence only, and carrying it across
+    would be a rule the document does not state, in the direction that helps the swimmer.
+    """
+    if not state.underwater:
+        return False
+    if weapon.melee:
+        if weapon.damage_type is DamageType.PIERCING:
+            return False
+        return actor.speeds.swim is None
+    # Ranged, within normal range — beyond it is the automatic miss, decided by the caller
+    # before this is asked.
+    return True
+
+
 def _initiative_advantage(combatant: Combatant) -> Advantage:
     """What this creature's Initiative roll has, from every source (p. 184, p. 189, #440).
 
@@ -410,6 +439,16 @@ def attack_resolver() -> Resolver:
         # it is a prohibition, and an attack that cannot be made has no target number to move.
         cover = _cover_from(state, actor, target)
         beyond_normal = _out_of_range(weapon, actor, target, thrown=is_thrown)
+        # p. 16's Impeded Weapons (#446). Two clauses, and they land in different places: the
+        # melee one is Disadvantage, and the ranged one beyond normal range is an
+        # **automatic miss** — which is neither Disadvantage nor the refusal p. 90 earns.
+        impeded = _impeded_underwater(state, actor, weapon)
+        # p. 16: "A ranged attack roll with a weapon underwater automatically misses a
+        # target beyond the weapon's normal range." Decided here and applied at the return,
+        # so the attack keeps every cost of having been made — p. 16 misses it, it does not
+        # forbid it, and `always` is where those costs live.
+        auto_miss_underwater = state.underwater and not weapon.melee and beyond_normal
+
         # p. 184's exception to Invisible, asked in both directions (#193). Each needs
         # CERTAINTY to move away from the answer that cannot manufacture an outcome, so an
         # UNSTATED view leaves both where 0030 clause 1 puts them.
@@ -456,7 +495,7 @@ def attack_resolver() -> Resolver:
         pending_advantage_held = any(t.state is Advantage.ADVANTAGE for t in pending)
         pending_disadvantage_held = any(t.state is Advantage.DISADVANTAGE for t in pending)
 
-        return Proposal(
+        proposal = Proposal(
             # p. 176: "On your turn, you can take one action." p. 177 makes an attack one:
             # "When you take the Attack action, you can make **one attack roll**." So one
             # Action buys one attack roll here, and #252 is where that finally cost
@@ -690,6 +729,9 @@ def attack_resolver() -> Resolver:
                 has_disadvantage=(
                     weapon.heavy_disadvantage(actor.abilities)
                     or beyond_normal
+                    # p. 16, and it does not stack with the others — the d20 takes a single
+                    # flag, which is the cancellation rule holding by construction.
+                    or impeded
                     or attacker_state is Advantage.DISADVANTAGE
                     or defender_state is Advantage.DISADVANTAGE
                     or dodging
@@ -790,6 +832,36 @@ def attack_resolver() -> Resolver:
             may_not_claim=(
                 f"that {target.name} is dead, unless its hit points reached 0",
                 "any damage number other than the one the Ruling carries",
+            ),
+        )
+        if not auto_miss_underwater:
+            return proposal
+        # p. 16 settles it without a roll (#446, and #224's kind). Built by replacement
+        # rather than as a second construction, so the swap effects, the action charge and
+        # every other cost of having attacked stay exactly what an ordinary attack pays —
+        # the shot **was** taken, and p. 16 misses it rather than forbidding it.
+        return replace(
+            proposal,
+            test=None,
+            on_success=(),
+            on_failure=(),
+            on_natural_20=(),
+            on_natural_1=(),
+            outcome=(
+                automatically_failed(
+                    actor.id,
+                    description=(
+                        f"{weapon.id} was fired underwater at a target beyond its normal "
+                        f"range of {weapon.normal_range} feet, and p. 16 misses "
+                        "automatically"
+                    ),
+                ),
+            ),
+            may_claim=(f"that {actor.name} loosed the shot and the water stopped it",),
+            may_not_claim=(
+                "that anything was rolled — p. 16 settles this without a die",
+                f"that {target.name} was touched by it in any way",
+                "that a better shot would have carried; p. 16 misses outright",
             ),
         )
 

@@ -1700,7 +1700,7 @@
    "tag": null,
    "reference": "Playing the Game, p. 16 (Impeded Weapons)",
    "kind": "test-modifier",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "instant-death",

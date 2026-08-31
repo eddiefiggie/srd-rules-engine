@@ -1383,6 +1383,17 @@ class EncounterState:
     #: wrong one for a dungeon. The engine cannot tell those apart and does not pretend to;
     #: what 0026 changed is only *who* may say so, and when.
     obstructions: tuple[Obstruction, ...] = ()
+    #: p. 16: whether this is "a fight underwater" (#446).
+    #:
+    #: **Encounter-scoped**, because the document scopes it that way — "a fight underwater
+    #: follows these rules", and "**anything** underwater has Resistance to Fire damage". A
+    #: per-creature flag would let one combatant be wet and another dry in the same brawl,
+    #: which p. 16 never contemplates.
+    #:
+    #: State rather than an argument, for the reason `obstructions` and `lighting` are:
+    #: everything that reads it would otherwise have to be told, and one caller forgetting
+    #: is a rule silently not applied.
+    underwater: bool = False
     #: Objects no creature has — dropped, thrown, or let go of by a rule (0041 clause 3).
     #: State rather than an argument, for the reason `obstructions` and `lighting` are: an
     #: input a caller hands over at the moment an outcome is computed is an input the caller
@@ -2277,6 +2288,16 @@ class EncounterState:
         by_id = {c.id: c for c in updated}
         return tuple(by_id.get(c.id, c) for c in self.combatants)
 
+    def _resistant_to_fire_underwater(self, target: Combatant) -> bool:
+        """p. 16: "Anything underwater has Resistance to Fire damage" (#446).
+
+        Read at the point of damage rather than written onto the creature's `Defences`,
+        because it is a fact about **where the fight is** and not about the creature. Writing
+        it on would survive the encounter ending, and would have to be taken off again by
+        whatever noticed the water had gone.
+        """
+        return self.underwater
+
     def damage_after_defences(
         self, combatant_id: str, amount: int, damage_type: DamageType | None = None
     ) -> DamageOutcome:
@@ -2292,7 +2313,14 @@ class EncounterState:
         result to `with_damage` — needs an "already adjusted" flag, and a flag that skips
         defences is a flag that skips defences.
         """
-        return after_defences(amount, damage_type, self.combatant(combatant_id).effective_defences)
+        defences = self.combatant(combatant_id).effective_defences
+        if self._resistant_to_fire_underwater(self.combatant(combatant_id)):
+            # p. 16, added to what the creature already has rather than replacing it. A
+            # creature already Resistant to Fire gains nothing — p. 17 says Resistance "is
+            # not cumulative", and `Defences` holds sets, so that rule holds by construction
+            # rather than by a check here.
+            defences = replace(defences, resistances=defences.resistances | {DamageType.FIRE})
+        return after_defences(amount, damage_type, defences)
 
     def with_damage(
         self,

@@ -104,6 +104,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # so it is combined with the two that are at the roll rather than inside them.
         # p. 187 (#442): the person whose turn it is decides the order when two things
         # coincide. Both adjudicating turn phases ask, and only when there is a choice.
+        # p. 16 entire (#446): the melee Disadvantage with its Piercing and Swim Speed
+        # exemptions, the ranged Disadvantage within normal range, the automatic miss
+        # beyond it (#224's shape, #448's kind), and Fire Resistance for anything wet.
+        "underwater-combat-penalties": "core.combat._impeded_underwater",
         "simultaneous-effects": "loop.turn.TurnLoop._ordered",
         "surprise": "core.combat._initiative_advantage",
         "dead": "core.state.EncounterState.with_healing",
