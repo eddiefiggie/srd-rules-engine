@@ -686,6 +686,40 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- p. 197's four exposures: asserted although unbuilt, so #141 does not re-read ---
+    (
+        197,
+        "Injury poison's exposure is a DAMAGE TYPE condition, which this engine already "
+        "resolves — so it needs no memory-port fact at all, and #141's blocker does not "
+        "reach it",
+        r"A creature that takes Piercing or Slashing damage from an object coated with the "
+        r"poison is exposed to its effects",
+    ),
+    (
+        197,
+        "and it states its own action cost, which is a Bonus Action the engine models",
+        r"Injury poison can be applied as a Bonus Action to a weapon, a piece of ammunition, "
+        r"or similar object",
+    ),
+    (
+        197,
+        "Inhaled poison's exposure is an AREA and a duration, not a fact: a 5-foot Cube whose "
+        "cloud dissipates immediately",
+        r"Blowing the powder or releasing the gas subjects creatures in a 5-foot Cube to its "
+        r"effect\.\s*The resulting cloud dissipates immediately afterward",
+    ),
+    (
+        197,
+        "an explicit NON-interaction with p. 189's breath-holding, which this engine models — "
+        "connecting the two is the obvious and wrong inference",
+        r"Holding one.s breath is ineffective against inhaled poisons",
+    ),
+    (
+        197,
+        "and Contact and Ingested are the two that genuinely are narrative facts, which is "
+        "what the exposure fact type is for",
+        r"A creature that touches contact poison with exposed skin suffers its effects",
+    ),
     # --- The three attitudes, and p. 184's Influence (#142) ----------------------------
     (
         182,
