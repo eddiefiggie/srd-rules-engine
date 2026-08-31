@@ -44,6 +44,7 @@ from srd_rules_engine.core.read_surface import (
     legal_actions,
     read,
     situation,
+    subdue_attack_key,
     verify,
 )
 from srd_rules_engine.core.spellcasting import Concentration, SpellSlots
@@ -162,6 +163,10 @@ def test_the_active_combatant_is_offered_actions() -> None:
         # added the second half — so a creature with a blade in hand is offered both, and one
         # with empty hands is still offered the strike.
         attack_key(UNARMED_STRIKE_ID, "boar"),
+        # p. 184's Knocking Out a Creature, for the strike (#428). p. 184 says "with a melee
+        # attack" and p. 190 puts the strike at 5 feet, so a punch qualifies — and knocking
+        # someone out with one is the canonical use of the rule.
+        subdue_attack_key(UNARMED_STRIKE_ID, "boar"),
         attack_key(FIXTURE_BLADE.id, "boar"),
         # p. 177's one equip or unequip, offered against the attack that permits it (#283,
         # 0042 clause 3). The blade is held, so its two unequip destinations are offered and
@@ -169,6 +174,8 @@ def test_the_active_combatant_is_offered_actions() -> None:
         # and nothing is on the ground, so those two sources contribute nothing here.
         attack_swap_key(FIXTURE_BLADE.id, "boar", FIXTURE_BLADE.id, swap=ATTACK_STOW),
         attack_swap_key(FIXTURE_BLADE.id, "boar", FIXTURE_BLADE.id, swap=ATTACK_DROP),
+        # And for the blade. One per melee weapon, in the order `legal_actions` builds them.
+        subdue_attack_key(FIXTURE_BLADE.id, "boar"),
         # p. 13's free object interaction, offered without an attack (#288, 0045 clause 2).
         # The same moves as the swap above, and 0042 shipped their absence as an accepted
         # cost: "the engine offers no way to sheathe a sword on a quiet turn." No `equip`

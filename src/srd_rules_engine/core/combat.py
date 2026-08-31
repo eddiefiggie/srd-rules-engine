@@ -120,6 +120,7 @@ from srd_rules_engine.core.read_surface import (
     opportunity_attack_declared,
     push_attack_declared,
     push_attack_feet,
+    subdue_attack_declared,
 )
 from srd_rules_engine.core.read_surface import UNARMED_REACH_FEET as UNARMED_REACH_FEET
 from srd_rules_engine.core.read_surface import UNARMED_STRIKE_ID as UNARMED_STRIKE_ID
@@ -351,6 +352,17 @@ def attack_resolver() -> Resolver:
         )
         assert isinstance(wielded.item, Weapon)
         weapon = wielded.item
+        # p. 184's Knocking Out a Creature (#428). Read off the key, and refused for a ranged
+        # weapon: p. 184 says "with a **melee attack**", and the menu never offers one — but a
+        # declaration is checkable input rather than a promise, which is the same reason
+        # `_push` bounds its distance here as well as at the offer.
+        subduing = subdue_attack_declared(declaration.intent.action_key) is not None
+        if subduing and not weapon.melee:
+            raise ValueError(
+                f'p. 184 knocks a creature out "with a melee attack", and {weapon.id} is '
+                "ranged. The menu offers this only for melee weapons; a declaration naming "
+                "it for a ranged one is naming a rule the document does not state"
+            )
         # p. 89's extra attack, by whichever route. Every rule that asks "is this the extra
         # attack" — its damage exception, and its exclusion from the Multiattack tally — is
         # about p. 89 and not about the action carrying it, so p. 90's Nick answers yes to
@@ -676,6 +688,10 @@ def attack_resolver() -> Resolver:
                     # in the direction that helps them. The *attack roll* keeps it either way.
                     modifier=(min(0, ability) if is_extra else ability) + weapon.bonus,
                     source=weapon.id,
+                    # p. 184's Knocking Out a Creature (#428). Carried on the damage because
+                    # p. 184 changes what *this damage does*, and `with_damage` is the only
+                    # place that knows whether it would have reached 0.
+                    subduing=subduing,
                 ),
                 # After the damage, and the ordering guard is what enforces it: p. 197
                 # exposes a creature that **takes** the damage, so the predicate reads what
@@ -1270,6 +1286,11 @@ def _weapon_and_target(
     # bought with a Reaction rather than with the Action, so it carries its own key and this
     # is where the two part company (0072 clause 4).
     opportunity = opportunity_attack_declared(key)
+    # p. 184's Knocking Out a Creature: an ordinary melee attack whose hit leaves the target
+    # at 1 Hit Point and Unconscious rather than at 0 (#428). Its own key for Push's reason —
+    # "you **can** instead" is a choice, and a menu is how this engine offers one it does not
+    # make.
+    subdue = subdue_attack_declared(key)
     thrown = attack_throw_declared(key)
     swap = attack_swap_declared(key)
     # p. 177's swap keys name the same attack with one weapon moved, so the weapon and target
@@ -1280,6 +1301,7 @@ def _weapon_and_target(
         or nick
         or cleave
         or push
+        or subdue
         or opportunity
         or thrown
         or (swap[:2] if swap else None)

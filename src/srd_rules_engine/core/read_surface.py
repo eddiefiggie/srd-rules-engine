@@ -288,6 +288,32 @@ def bonus_attack_declared(action_key: str | None) -> tuple[str, str] | None:
 #: p. 90's Cleave: a second swing at a creature beside the one just hit (#323).
 CLEAVE_ATTACK: Final = "cleave-attack"
 
+#: p. 184's Knocking Out a Creature: a melee attack that leaves the target at 1 Hit Point and
+#: Unconscious rather than at 0 (#428).
+#:
+#: Its own prefix, following Push, Nick and Cleave — an attack that changes what a hit *does*
+#: is offered as its own entry, so the menu shows the choice rather than hiding it in a
+#: parameter. That matters more here than for a mastery: p. 184 gives the choice to the
+#: attacker, and an option the read surface never offered is an option the agent cannot take.
+#:
+#: **Melee only.** p. 184 says "with a melee attack", and offering it for a bow would be a
+#: rule the document does not state.
+SUBDUE_ATTACK: Final = "subdue-attack"
+
+
+def subdue_attack_key(weapon_id: str, target_id: str) -> str:
+    """The key a subduing attack is offered under (p. 184)."""
+    return f"{SUBDUE_ATTACK}:{weapon_id}:{target_id}"
+
+
+def subdue_attack_declared(action_key: str | None) -> tuple[str, str] | None:
+    """The weapon and target a subduing-attack key names, or `None` if it is not one."""
+    if action_key is None or not action_key.startswith(f"{SUBDUE_ATTACK}:"):
+        return None
+    weapon_id, _, target_id = action_key[len(SUBDUE_ATTACK) + 1 :].rpartition(":")
+    return (weapon_id, target_id) if weapon_id and target_id else None
+
+
 #: p. 90's Push: an attack whose hit shoves the target away (#324, 0055).
 #:
 #: Its own prefix rather than a suffix on the ordinary attack key, following Nick and Cleave —
@@ -1224,6 +1250,20 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
                 },
             )
         )
+        # p. 184's Knocking Out a Creature, for the strike too. p. 184 says "with a **melee
+        # attack**", and p. 190 puts the Unarmed Strike at 5 feet — so a punch qualifies, and
+        # knocking someone out with one is the canonical use of the rule (#428).
+        offered.append(
+            LegalAction(
+                key=subdue_attack_key(UNARMED_STRIKE_ID, target.id),
+                label=f"Unarmed Strike against {target.name}, to knock out rather than kill",
+                detail={
+                    "target": target.id,
+                    "weapon": UNARMED_STRIKE_ID,
+                    "subduing": True,
+                },
+            )
+        )
         # p. 190: "choose one of the following options for its effect". Damage is the entry
         # above; these are the other two, each its own key because the choice is the
         # attacker's and an enumerated menu is how this engine offers one it does not make.
@@ -1297,6 +1337,10 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
             # and how far — "you **can** push the creature **up to** 10 feet" — so both halves
             # of that choice are on the menu rather than assumed.
             offered.extend(_pushes(actor, weapon, target))
+            # p. 184's Knocking Out a Creature. The choice is the attacker's — "you **can**
+            # instead reduce the creature to 1 Hit Point" — so it is on the menu rather than
+            # assumed, and an option never offered is one the agent cannot take (R18).
+            offered.extend(_subdues(weapon, target))
 
     offered.extend(_throwable(state, actor))
     offered.extend(improvised_attacks(state, actor))
@@ -1657,6 +1701,29 @@ def _interactions(state: EncounterState, actor: Combatant) -> tuple[LegalAction,
             },
         )
         for verb, item, source in _interaction_options(state, actor)
+    )
+
+
+def _subdues(weapon: Weapon, target: Combatant) -> tuple[LegalAction, ...]:
+    """p. 184's subduing attack, offered for a melee weapon (#428).
+
+    **Melee only**, because p. 184 says "with a melee attack" and offering it for a bow would
+    be a rule the document does not state.
+
+    **Offered whatever the target's hit points**, because p. 184's condition is on what the
+    damage *would* do — "when you would reduce a creature to 0 Hit Points" — and the damage
+    is not rolled yet. Withholding the option from a healthy target would be the read surface
+    predicting a roll, and withholding it from a target already at 0 would be an inference:
+    p. 184 says nothing about a creature that is already down.
+    """
+    if not weapon.melee:
+        return ()
+    return (
+        LegalAction(
+            key=subdue_attack_key(weapon.id, target.id),
+            label=f"Attack {target.name} with {weapon.id}, to knock out rather than kill",
+            detail={"target": target.id, "weapon": weapon.id, "subduing": True},
+        ),
     )
 
 
