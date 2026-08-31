@@ -90,6 +90,9 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # p. 17's Monster Death and Massive Damage, both in `with_damage` and both tested
         # since the death saves shipped. Claimed late, by an audit rather than by a build
         # (#426) — the direction `AGENTS.md` says no guard catches.
+        # p. 184 entire (0083): the subduing blow, and both endings — healing and first
+        # aid — each scoped to the Unconscious p. 184 caused rather than to every one.
+        "knocking-out-a-creature": "core.state.EncounterState.with_first_aid",
         "instant-death": "core.state.EncounterState.with_damage",
         "expertise": "core.state.Combatant.expertise",
         "short-rest": "loop.turn.TurnLoop.short_rest",

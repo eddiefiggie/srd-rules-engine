@@ -378,6 +378,28 @@ class Conditions:
     #: every reader wants; this is what removal has to work against, because taking a
     #: condition out of the closure would strand the ones it was implying.
     applied: frozenset[Condition] = field(default_factory=frozenset)
+    #: **Which rule** caused each applied condition (0083, #428). Distinct from `sources`,
+    #: which says *who* imposed it: p. 182's Grappled turns on the grappler's identity, and
+    #: p. 184's Unconscious turns on the rule, because it ends differently depending on what
+    #: put the creature there.
+    #:
+    #: p. 191's Unconscious entry states the condition's **effects** and never says when it
+    #: ends, so the ending belongs to whatever applied it. Without this, a creature knocked
+    #: out by p. 184 and one Unconscious from something else are indistinguishable, and
+    #: honouring p. 184's "until it regains any Hit Points" would end every other kind too.
+    #:
+    #: **Rule ids, as `exhaustion_levels` uses** (0028 clause 1): a closed enum of causes is a
+    #: branch in every consumer (0019), and nothing suggests the document's list is closed.
+    #:
+    #: **A set per condition, as `sources` is.** p. 179: "A condition doesn't stack with
+    #: itself; a recipient either has a condition or doesn't." A condition is binary and its
+    #: causes are not — two rules may both have applied one, and it ends only when neither
+    #: still holds.
+    #:
+    #: **Keyed by `applied`, never by `held`**, which `durations` also is. An implied
+    #: condition has no cause of its own: p. 184's Unconscious implies Incapacitated and
+    #: Prone, and neither of those is knocked-out-ness. They lift when their source does.
+    causes: Mapping[Condition, frozenset[str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if len(self.exhaustion_levels) > MAX_EXHAUSTION:
@@ -409,6 +431,22 @@ class Conditions:
                 "and range belong to a grapple, so terms with no grapple describe nothing — "
                 "the same refusal `durations` makes for a span nobody applied"
             )
+        uncaused = set(self.causes) - set(self.applied)
+        if uncaused:
+            raise ValueError(
+                f"causes name {sorted(uncaused)}, which this creature was not given. A cause "
+                "belongs to the application that imposed the condition, so one for a "
+                "condition nobody applied has nothing to have caused — and an *implied* "
+                "condition never has a cause of its own (0083)"
+            )
+        if any(not rules for rules in self.causes.values()):
+            raise ValueError(
+                "a condition listed in `causes` names at least one rule. An empty set is "
+                "not 'caused by nothing'; it is a condition whose entry should be absent"
+            )
+        object.__setattr__(
+            self, "causes", MappingProxyType({c: frozenset(r) for c, r in self.causes.items()})
+        )
         unknown = set(self.durations) - set(self.applied)
         if unknown:
             raise ValueError(
@@ -844,12 +882,38 @@ class Conditions:
             held=frozenset(remaining),
             exhaustion_levels=self.exhaustion_levels,
             sources={c: s for c, s in self.sources.items() if c not in ending},
+            # Kept for what survives rather than dropped for what ended, because p. 191
+            # re-applies Prone on its own behalf above: a Prone that comes back that way was
+            # not caused by whatever caused the Unconscious, and carrying the cause across
+            # would say it was.
+            causes={c: r for c, r in self.causes.items() if c in remaining and c not in ending},
             durations={c: d for c, d in self.durations.items() if c in remaining},
             # The terms survive every ending but their own. Dropping them unconditionally
             # would erase a grapple's escape DC whenever any *other* condition ended on the
             # creature — a Prone lifting and taking the grapple's number with it.
             grapple=self.grapple if Condition.GRAPPLED in remaining else None,
         )
+
+    def ended_where_caused_by(self, condition: Condition, rule_id: str) -> Conditions:
+        """End this condition if that rule is the only thing still causing it (0083).
+
+        The whole point of `causes`, and the arithmetic that makes it worth having. A
+        condition does not stack (p. 179), so a creature knocked out by p. 184 *and* put to
+        sleep by something else holds **one** Unconscious with two causes. Healing it satisfies
+        p. 184 and says nothing about the other, so the condition stays and only the cause
+        leaves — and an implementation that ended the condition outright would wake a sleeper
+        with a bandage.
+
+        A no-op when the rule did not cause it, which is the ordinary case: most healing
+        happens to creatures nobody knocked out.
+        """
+        rules = self.causes.get(condition, frozenset())
+        if rule_id not in rules:
+            return self
+        remaining = rules - {rule_id}
+        if remaining:
+            return replace(self, causes={**self.causes, condition: remaining})
+        return self.without(frozenset({condition}))
 
     def unretirable(self) -> tuple[Condition, ...]:
         """Held conditions this engine cannot end on its own, named rather than left to

@@ -716,7 +716,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 184",
    "kind": "effect",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "lightly-obscured",

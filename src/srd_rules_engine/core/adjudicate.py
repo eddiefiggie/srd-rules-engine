@@ -187,6 +187,13 @@ class EffectKind(StrEnum):
     #: creature's speed **after modifiers** and in the mode it chose — p. 180 offers the
     #: choice ("you can use that speed instead of your Speed… You choose which speed to use
     #: each time you take it"), so the number is settled where the choice is offered.
+    #: p. 184: first aid administered to a creature knocked out, ending its Unconscious.
+    #:
+    #: Its own kind rather than a `CONDITION_ENDED`, because p. 184 ends **only the Unconscious
+    #: that a subduing blow caused** — a creature Unconscious for another reason is not woken
+    #: by a bandage, and a plain condition-ended effect cannot say which one it means (0083).
+    #: `amount` is unused.
+    FIRST_AID_GIVEN = "first-aid-given"
     #: p. 197: a coated object delivered its poison through a wound, so the coating is spent.
     #:
     #: "The poison remains potent until **delivered through a wound** or washed off." Its own
@@ -2043,6 +2050,8 @@ def _apply(
         landed.append(effect)
         if effect.kind is EffectKind.HEALING:
             state = state.with_healing(effect.target_id, effect.amount)
+        elif effect.kind is EffectKind.FIRST_AID_GIVEN:
+            state = state.with_first_aid(effect.target_id)
         elif effect.kind is EffectKind.POISON_DELIVERED:
             state = state.with_poison_delivered(effect.target_id, effect.description)
         elif effect.kind is EffectKind.HIT_DIE_SPENT:
