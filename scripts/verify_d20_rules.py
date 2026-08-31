@@ -716,6 +716,12 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         197,
+        "and the expiry, which an implementation drops by building the exposure half and "
+        "stopping: without it one smeared dagger poisons every creature it ever hits",
+        r"The poison remains potent until delivered through a wound or washed off",
+    ),
+    (
+        197,
         "and Contact and Ingested are the two that genuinely are narrative facts, which is "
         "what the exposure fact type is for",
         r"A creature that touches contact poison with exposed skin suffers its effects",

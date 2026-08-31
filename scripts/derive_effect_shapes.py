@@ -38,7 +38,7 @@ trap set:
   broke, and the half of this script that never needed the PDF.
 
 **Last run green against SRD v5.2.1: 2026-08-31**, reproducing `effect_shapes.json`
-byte-for-byte — 210 shapes, 129 implemented, 22 vocabulary. Update this line when you re-run
+byte-for-byte — 210 shapes, 130 implemented, 22 vocabulary. Update this line when you re-run
 it, because nothing else can.
 
 Usage: python3 scripts/derive_effect_shapes.py /path/to/SRD_CC_v5.2.1.pdf [--check]
@@ -307,6 +307,10 @@ VOCABULARY_REASONS: dict[str, str] = {
 #: written for, one constant away from where it was looking.
 IMPLEMENTED_SECTION_SHAPES: frozenset[str] = frozenset(
     {
+        # p. 197, and the only one of the four delivery types whose exposure this engine can
+        # observe: Piercing or Slashing damage from a coated object (#141). The other three
+        # are exposed by a touch, a swallow and a cloud.
+        "poison-injury",
         "natural-20-auto-hit",
         "advantage-does-not-stack",
         "damage-application-order",

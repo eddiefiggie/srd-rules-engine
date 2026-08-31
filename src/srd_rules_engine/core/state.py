@@ -2397,6 +2397,33 @@ class EncounterState:
             combatants=self._replacing(replace(target, temporary_hit_points=amount))
         )
 
+    def with_poison_delivered(self, combatant_id: str, item_id: str) -> EncounterState:
+        """p. 197: the coating is spent once it goes through a wound.
+
+        "The poison remains potent until **delivered through a wound** or washed off." So a
+        delivery removes it, and a coated dagger is a one-shot rather than a permanently
+        venomous weapon — which is what an implementation ends up with by building the
+        exposure half and stopping.
+
+        Keyed by item id because a creature may carry two of the same kind of thing with only
+        one of them smeared. Washing off is the caller's: p. 197 offers no observable moment
+        for it, the way `burning` being doused is not observable either.
+
+        Silent when nothing matches. A delivery whose item has already left the creature's
+        hands is not an error — the poison went where the document says it goes, and there is
+        nothing left to spend.
+        """
+        target = self.combatant(combatant_id)
+        cleaned = tuple(
+            replace(held, poison=None)
+            if held.item.id == item_id and held.poison is not None
+            else held
+            for held in target.equipment
+        )
+        if cleaned == target.equipment:
+            return self
+        return self._evolve(combatants=self._replacing(replace(target, equipment=cleaned)))
+
     def with_hit_dice_spent(self, combatant_id: str, count: int) -> EncounterState:
         """Record that a Short Rest spent this many Hit Point Dice (p. 187, 0082).
 

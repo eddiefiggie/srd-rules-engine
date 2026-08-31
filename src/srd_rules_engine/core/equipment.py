@@ -73,6 +73,7 @@ from enum import StrEnum
 from typing import Final
 
 from srd_rules_engine.core.damage import DamageType
+from srd_rules_engine.core.poison import Poison
 from srd_rules_engine.core.position import REACH_PROPERTY_FEET, Position, within
 
 
@@ -296,6 +297,14 @@ class Carried:
     #: removes the entry rather than leaving a zero — nought arrows is not a kind of carrying,
     #: and an empty quiver is a different item from the arrows that were in it.
     quantity: int = 1
+    #: p. 197: a poison applied to this item, "a weapon, a piece of ammunition, or similar
+    #: object". `None` is the ordinary case.
+    #:
+    #: **On the relation rather than on the item**, which is the third instance of 0044
+    #: clause 1's shape: coating is something a creature did to what it carries, and two
+    #: creatures may hold the same dagger with only one of them having smeared it.
+    #:
+    poison: Poison | None = None
     #: How many hands this creature has committed to it, when that differs from the item's
     #: own requirement (p. 90). `None` means the item decides.
     #:
