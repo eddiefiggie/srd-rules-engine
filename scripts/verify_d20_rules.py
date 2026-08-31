@@ -680,9 +680,26 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         185,
-        "and it restores every lost hit point, alongside spent Hit Point Dice and a reduced "
-        "maximum — two of the three this engine cannot yet express",
+        "and it restores every lost hit point AND every spent Hit Point Die — one sentence "
+        "carrying two benefits, of which the engine expressed only the first until #407. "
+        "The third clause of it, a reduced maximum returning to normal, has no antecedent: "
+        "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
+    ),
+    # --- The resource that sentence restores (#407) ------------------------------------
+    (
+        183,
+        "p. 183 states the mechanic of Hit Point Dice as the SPEND, which is why holding the "
+        "resource is not claiming the shape: the Short Rest that spends one is #406, and a "
+        "shape claimed at half is the overstatement #371 and #264 each found",
+        r"A creature can spend Hit Dice during a Short Rest to regain Hit Points",
+    ),
+    (
+        183,
+        "and the die SIZE is deferred to Character Creation and to stat blocks rather than "
+        "stated here, which is why no table of sizes ships (R31)",
+        r"Hit Point Dice, or Hit Dice for short, help determine a player character.s Hit "
+        r"Point maximum, as explained in .Character Creation\.?.",
     ),
     # --- Exhaustion levels, and who may remove them (#178) -----------------------------
     (
