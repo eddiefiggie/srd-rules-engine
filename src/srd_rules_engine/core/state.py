@@ -189,6 +189,86 @@ class Hazards:
 
 
 @dataclass(frozen=True)
+class HitDice:
+    """A creature's Hit Point Dice, and how many of them are spent (p. 183).
+
+    p. 183 states three things and this object carries the third: Hit Dice help determine a
+    player character's Hit Point maximum "as explained in 'Character Creation'"; most
+    monsters have them; and **"A creature can spend Hit Dice during a Short Rest to regain
+    Hit Points."** The first is character creation, which this engine does not do. The second
+    is ruleset data. The third is the mechanic, and it is why the resource exists here.
+
+    **No table of die sizes ships, for the reason `SpellSlots` ships no table of slot
+    counts.** p. 183 defers the size to Character Creation and to stat blocks, so compiling
+    one here would be the inferred rule value R31 forbids. A ruleset supplies `size`.
+
+    **Spending is not this object's job.** p. 187 rolls the die and adds a Constitution
+    modifier, which is an outcome, so it belongs to a Ruling rather than to a value object
+    that could hand out hit points on its own (R1, R4). What lives here is the count, and
+    `spend` records that one was used — the arithmetic of *how much came back* is not
+    expressible from this side at all, which is deliberate.
+
+    **The Short Rest that spends them is not built** ([#406](https://github.com/eddiefiggie/srd-rules-engine/issues/406)
+    holds the occasion). p. 185's Long Rest restores them, and that half is built, so a
+    creature can regain spent dice before anything can spend one. That asymmetry is honest
+    rather than useful: it is the same order `SpellSlots.restored` arrived in, which existed
+    from #95 with nothing to trigger it.
+    """
+
+    #: The die each one is, as its number of faces — 8 for a d8. Ruleset data.
+    size: int
+    #: How many the creature has in total.
+    total: int
+    #: How many of them are currently spent. p. 185 returns this to zero.
+    spent: int = 0
+
+    def __post_init__(self) -> None:
+        if self.size < 1:
+            raise ValueError(
+                f"a Hit Point Die has {self.size} faces, which is not a die. The size is "
+                "ruleset data (p. 183 defers it to Character Creation and to stat blocks); "
+                "no range is asserted here, because the document states none"
+            )
+        if self.total < 0:
+            raise ValueError(f"a creature cannot have {self.total} Hit Point Dice")
+        if not 0 <= self.spent <= self.total:
+            raise ValueError(
+                f"{self.spent} of {self.total} Hit Point Dice are spent, which is not a "
+                "state a creature can be in"
+            )
+
+    @property
+    def remaining(self) -> int:
+        """How many are available to spend (R18 wants this computable)."""
+        return self.total - self.spent
+
+    def spend(self, count: int = 1) -> HitDice:
+        """Record that `count` dice were used, or refuse.
+
+        Refusing rather than clamping: p. 187 lets a creature spend "one or more of your Hit
+        Point Dice", and a request for more than it holds is a caller error rather than a
+        quantity to round down. 0044's reasoning for ammunition, applied to the other
+        countable thing a creature carries.
+        """
+        if count < 1:
+            raise ValueError(f"spending {count} Hit Point Dice is not spending one")
+        if count > self.remaining:
+            raise ValueError(
+                f"{count} Hit Point Dice cannot be spent; {self.remaining} of {self.total} remain"
+            )
+        return replace(self, spent=self.spent + count)
+
+    def restored(self) -> HitDice:
+        """p. 185: finishing a Long Rest returns **all** spent dice, not half of them.
+
+        Named to match `SpellSlots.restored`, which the same method on `EncounterState`
+        calls in the same breath — one sentence of p. 185 and one of p. 104, arriving
+        together because a Long Rest is where both land.
+        """
+        return replace(self, spent=0)
+
+
+@dataclass(frozen=True)
 class DeathSaves:
     """How close a creature at 0 hit points is to either end of it.
 
@@ -514,6 +594,12 @@ class Combatant:
     #: Spell slots, for a creature that has any. `None` for one that does not, which is a
     #: different thing from having none left.
     slots: SpellSlots | None = None
+    #: Hit Point Dice (p. 183), for a creature whose ruleset recorded them. `None` is
+    #: **unrecorded**, not zero — p. 183 says player characters have them and "most monsters
+    #: also have Hit Dice", so a creature nobody gave any is far more likely to be one the
+    #: data does not describe than one the document says has none. 0051's reading of Size,
+    #: applied to the other quantity a stat block states.
+    hit_dice: HitDice | None = None
     #: What this creature has, and where (0039 clauses 1 and 3). Ruleset data, carried by the
     #: creature, for the reason `spells` is below: legality is a fact about the creature and
     #: `legal_actions(state, actor_id)` may not take a second argument (0026 clause 1).
@@ -2631,11 +2717,14 @@ class EncounterState:
     def with_long_rest(self, combatant_id: str) -> EncounterState:
         """Finish a Long Rest, and apply the benefits this engine can express (p. 185).
 
-        **Two of the four, and the other two are absent rather than skipped.**
+        **Two of the four, and the other two are absent rather than skipped.** Of the two
+        that apply, *Regain All HP* is now whole where an antecedent exists for it.
 
-        * *Regain All HP* — every lost hit point comes back. The same sentence restores
-          spent Hit Point Dice and a reduced hit point maximum, and this engine models
-          neither, so two thirds of one benefit is missing and disclosed.
+        * *Regain All HP* — every lost hit point comes back, **and every spent Hit Point
+          Die** ([#407](https://github.com/eddiefiggie/srd-rules-engine/issues/407)). The
+          same sentence also returns a reduced hit point maximum to normal, and nothing in
+          this engine reduces one, so that third of the benefit has no antecedent rather
+          than being skipped.
         * *Exhaustion Reduced* — "its level decreases by 1". This is 0028's general removal
           rule, and it is the reason this method exists: without a rest, Exhaustion was a
           mechanic that only ever accumulated (#185).
@@ -2677,6 +2766,10 @@ class EncounterState:
             hit_points=target.max_hit_points,
             # p. 104, not p. 185. A caster with no slots is left as one.
             slots=target.slots.restored() if target.slots is not None else None,
+            # p. 185, the same sentence as the hit points: "you regain all lost Hit Points
+            # and all spent Hit Point Dice". A creature whose dice nobody recorded is left
+            # unrecorded rather than given some.
+            hit_dice=target.hit_dice.restored() if target.hit_dice is not None else None,
         )
         held = restored.conditions.exhaustion_levels
         removable = [i for i, rule in enumerate(held) if rule not in LOCKED_EXHAUSTION_RULES]
