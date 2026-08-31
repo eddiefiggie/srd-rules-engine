@@ -51,7 +51,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Final
 
-from srd_rules_engine.core.adjudicate import Declaration, Proposal, Resolver
+from srd_rules_engine.core.adjudicate import (
+    Declaration,
+    Proposal,
+    Resolver,
+    automatically_failed,
+)
 from srd_rules_engine.core.d20 import Advantage, D20Test, Modifier, TestKind
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.rules import (
@@ -127,23 +132,38 @@ def perception_resolver(target_id: str, *, dc: int, basis: str) -> Resolver:
         observer = state.combatant(observer_id)
 
         if check.automatic_failure:
-            # p. 177 has already settled it, so there is nothing to adjudicate — and
-            # nothing to *record* either, which is why this refuses rather than proposing.
+            # p. 177 has already settled it, and this records that it did (#224).
             #
-            # A proposal here would have to be testless with no effects, and
-            # `Proposal.__post_init__` refuses that shape: "a proposal with no test and no
-            # outcome decides nothing." That guard is right for the case it was written for
-            # and wrong for this one — an automatic failure decides something and changes
-            # no state. Relaxing it is a change to what a Proposal means, which is a
-            # decision rather than a fix, so it is filed rather than made here (#224).
+            # It used to **refuse**, on the reasoning that a proposal here "would have to be
+            # testless with no effects, and `Proposal.__post_init__` refuses that shape". The
+            # guard refuses a proposal with no test **and no outcome**; an effect in `outcome`
+            # satisfies it. What was actually missing was an `EffectKind` that changes no
+            # state — and `INFLUENCED` had already stopped that being unthinkable.
             #
-            # Meanwhile the answer is not lost: `EncounterState.perception_of` reports it,
-            # which is a read stating a rule value (R19) and cannot be argued with. The
-            # caller learns the check fails before proposing one.
-            raise ValueError(
-                f"{observer.name} automatically fails this check, so there is nothing to "
-                f"roll: {check.because}. Ask `EncounterState.perception_of` before "
-                "declaring — this outcome is settled by the rules rather than by a die"
+            # `EncounterState.perception_of` still reports the failure as a read (R19), and
+            # still does so before anything is declared. What this adds is the **ledger
+            # entry**: a session review can now tell "the observer never looked" from "the
+            # observer looked and the rules failed it", which is what R30 wanted and #224
+            # was filed for.
+            return Proposal(
+                outcome=(
+                    automatically_failed(
+                        observer_id,
+                        description=(
+                            f"{observer.name} automatically fails this check: {check.because}"
+                        ),
+                    ),
+                ),
+                citations=("srd:rules-glossary/blinded", "srd:rules-glossary/search"),
+                may_claim=(
+                    f"that {observer.name} looked and perceived nothing",
+                    f"why it could not: {check.because}",
+                ),
+                may_not_claim=(
+                    "that anything was rolled — the rules settled this without a die",
+                    f"that {observer.name} learned anything at all about the target",
+                    "that a better roll would have helped; p. 177 fails the check outright",
+                ),
             )
 
         bonus = observer.check_bonus(Skill.PERCEPTION)

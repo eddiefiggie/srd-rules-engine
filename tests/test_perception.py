@@ -23,8 +23,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-import pytest
-
 from srd_rules_engine.core import (
     Combatant,
     EncounterState,
@@ -32,7 +30,7 @@ from srd_rules_engine.core import (
     perception_resolver,
     perception_rule,
 )
-from srd_rules_engine.core.adjudicate import Declaration, Intent
+from srd_rules_engine.core.adjudicate import Declaration, Effect, EffectKind, Intent
 from srd_rules_engine.core.conditions import Condition, Conditions
 from srd_rules_engine.core.d20 import Advantage, passive_score
 from srd_rules_engine.core.position import Position
@@ -287,21 +285,47 @@ def test_the_check_reaches_a_d20_test_with_the_disadvantage_applied() -> None:
     assert [m.value for m in proposal.test.modifiers] == [4], "p. 186's +2 Wisdom, +2 proficiency"
 
 
-def test_the_resolver_refuses_a_check_the_rules_have_already_failed() -> None:
-    """p. 177 settled it, so there is nothing to roll — and nothing this engine can record
-    either. A testless proposal with no effects is the shape `Proposal.__post_init__`
-    refuses ("decides nothing"), and that guard is right for Falling and wrong here, where a
-    rule decides something and changes no state.
+def test_a_check_the_rules_have_already_failed_is_recorded_rather_than_refused() -> None:
+    """p. 177 settled it, and this records that it did (#224).
 
-    Relaxing it is a change to what a Proposal means, so it is filed (#224) rather than made
-    on the way past. The answer is not lost: `perception_of` reports it as a read, which is
-    a rule value stated rather than an outcome invented (R19).
+    It used to **refuse**, on the reasoning that a testless proposal with no effects is the
+    shape `Proposal.__post_init__` rejects. That reasoning had a false step: the guard
+    refuses a proposal with no test **and no outcome**, and an effect in `outcome` satisfies
+    it. What was missing was an `EffectKind` that changes no state, which `INFLUENCED` had
+    already stopped being unthinkable.
+
+    The gain is the **ledger entry**. `perception_of` reported the failure as a read all
+    along (R19), and still does — but a session review could not tell "the observer never
+    looked" from "the observer looked and the rules failed it", which is the R30 gap #224
+    was filed for.
     """
     state = looking(light=LightLevel.DARKNESS)
     resolve = perception_resolver("imp", dc=15, basis="an invented difficulty")
 
-    with pytest.raises(ValueError, match="automatically fails this check"):
-        resolve(state=state, declaration=declare(), facts={})
+    proposal = resolve(state=state, declaration=declare(), facts={})
+
+    assert proposal.test is None, "the rules settled it, so no die is thrown"
+    (effect,) = proposal.outcome
+    assert isinstance(effect, Effect)
+    assert effect.kind is EffectKind.AUTOMATIC_FAILURE
+    assert "automatically fails" in effect.description
+    assert any("without a die" in claim for claim in proposal.may_not_claim)
+
+
+def test_the_automatic_failure_changes_no_state() -> None:
+    """The property that made #224 look impossible: a rule decided something, and nothing in
+    the encounter moved. `_apply` has no branch for this kind — which is the honest shape
+    rather than an omission, and is `INFLUENCED`'s shape exactly."""
+    from srd_rules_engine.core.adjudicate import _apply, automatically_failed
+
+    state = looking(light=LightLevel.DARKNESS)
+    after, landed, withheld = _apply(
+        state, (automatically_failed("watcher", description="p. 177 settled it"),), seed=1
+    )
+
+    assert after == state, "nothing moved"
+    assert len(landed) == 1, "and it is still recorded as having landed"
+    assert withheld == ()
 
 
 def test_the_difficulty_comes_from_the_caller_and_says_so() -> None:
