@@ -686,6 +686,31 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- Cover: asserted although unbuilt, so #416 does not re-read it -----------------
+    (
+        179,
+        "the three degrees and their benefits, and that only the MOST PROTECTIVE applies "
+        "rather than the degrees adding — the clause an implementation most easily gets "
+        "wrong by summing them (#416)",
+        r"Half Cover \(\+2 bonus to AC and Dexterity saving throws\), Three-Quarters Cover "
+        r"\(\+5 bonus to AC and Dexterity saving throws\), and Total Cover \(can.t be "
+        r"targeted directly\)",
+    ),
+    (
+        15,
+        "and the sentence that makes cover DIRECTIONAL, which is the whole of why #416 is a "
+        "gate: a bonus that is a property of the target alone grants it against every "
+        "attacker",
+        r"A target can benefit from cover only when an attack or other effect originates on "
+        r"the opposite side of the cover",
+    ),
+    (
+        15,
+        "what earns each degree — a judgement about how much of the target is covered, which "
+        "has no geometry to compute it from while grid movement is a non-goal, so the degree "
+        "is stated as 0051 has a Size stated",
+        r"Another creature or an object that covers at least half of the target",
+    ),
     # --- p. 18's Temporary Hit Points, and p. 177's Bloodied (#412) --------------------
     (
         18,
