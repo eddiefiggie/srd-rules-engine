@@ -900,9 +900,16 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         187,
-        "and what is NOT built: an interrupted rest confers no benefits, over benefits this "
-        "engine has already applied through a Ruling (#409)",
+        "an interrupted rest confers no benefits (#409) — built, and it needed no "
+        "un-applying at all",
         r"An interrupted Short Rest confers no benefits",
+    ),
+    (
+        187,
+        "and THE sentence that made that true: benefits are conferred WHEN YOU FINISH. An "
+        "interruption stops the rest before the finish, so nothing was ever applied and "
+        "there is nothing to take back — which is what #409 assumed would be the hard part",
+        r"Benefits of the Rest\.\s*When you finish the rest, you gain the following benefits",
     ),
     # --- The resource that sentence restores (#407) ------------------------------------
     (

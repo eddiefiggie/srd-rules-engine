@@ -85,10 +85,11 @@ def _rest(
     combatant: Combatant | None = None,
     seed: int = SEED,
     seen: list[HitDieRequest] | None = None,
+    interrupted: bool = False,
 ) -> ShortRest:
     """Drive a rest that says yes `spends` times and then stops."""
     state = EncounterState.new([combatant or _rester()])
-    gen = _loop(tmp_path, seed=seed).short_rest(state, "pc")
+    gen = _loop(tmp_path, seed=seed).short_rest(state, "pc", interrupted=interrupted)
     remaining = spends
     try:
         request = next(gen)
@@ -173,6 +174,50 @@ def test_the_loop_ends_when_the_dice_run_out(tmp_path: Path) -> None:
     rested = outcome.state.combatant("pc")
     assert rested.hit_dice is not None
     assert rested.hit_dice.remaining == 0
+
+
+# --- p. 187's interruptions (#409) ------------------------------------------------------
+
+
+def test_an_interrupted_rest_offers_nothing_and_confers_nothing(tmp_path: Path) -> None:
+    """p. 187: "An interrupted Short Rest confers no benefits."
+
+    **It needed no un-applying**, which is what #409 assumed it would. The sentence one line
+    above the spend settles it: "Benefits of the Rest. *When you finish the rest*, you gain
+    the following benefits." Benefits are conferred at the finish, and an interruption stops
+    the rest before it gets there — so nothing was ever applied and there is nothing to take
+    back. This occasion *is* the finish; it does not simulate the hour.
+    """
+    seen: list[HitDieRequest] = []
+    outcome = _rest(tmp_path, spends=3, interrupted=True, seen=seen)
+
+    assert seen == [], "no die is even offered, because the rest never finished"
+    assert outcome.rulings == ()
+    assert outcome.spent == 0
+    assert outcome.state.combatant("pc").hit_points == 4, "not one hit point was regained"
+    held = outcome.state.combatant("pc").hit_dice
+    assert held is not None and held.remaining == 3, "and not one die was spent"
+
+
+def test_an_interrupted_rest_is_not_a_rest_the_creature_declined(tmp_path: Path) -> None:
+    """The two produce the same empty result and are different facts. `ReactionDeclined`'s
+    reasoning, applied to the whole occasion: the ledger should not have to guess whether a
+    rest was broken or simply unspent."""
+    broken = _rest(tmp_path, spends=3, interrupted=True)
+    declined = _rest(tmp_path, spends=0)
+
+    assert broken.interrupted
+    assert not declined.interrupted
+    assert (broken.rulings, broken.spent) == (declined.rulings, declined.spent)
+
+
+def test_the_hit_point_precondition_is_asked_before_the_interruption(tmp_path: Path) -> None:
+    """A creature at 0 hit points could not have started a rest for anything to interrupt, so
+    p. 187's precondition is the first question and refuses whichever way the second is
+    answered."""
+    state = EncounterState.new([_rester(hp=0)])
+    with pytest.raises(ValueError, match="at least 1"):
+        next(_loop(tmp_path).short_rest(state, "pc", interrupted=True))
 
 
 # --- What a spend actually does ---------------------------------------------------------
