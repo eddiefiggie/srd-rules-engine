@@ -66,6 +66,8 @@ from srd_rules_engine.loop.turn import (
     HitDieRequest,
     Narrated,
     NarrationRequest,
+    OrderChosen,
+    OrderRequest,
     ReactionDeclined,
     ReactionRequest,
     Request,
@@ -292,6 +294,10 @@ class SliceDriver:
             # that changes nothing — an unasserted reaction firing here would alter a ledger
             # this fixture's tests read end to end.
             return ReactionDeclined()
+        if isinstance(request, OrderRequest):
+            # p. 187 (#442). The slice never has two things at once; the engine's enumeration
+            # order is the answer that changes nothing about what these tests read.
+            return OrderChosen(request.pending[0].rule_id)
         if isinstance(request, HitDieRequest):
             # p. 187's offer (0082), declined for the reason the Reaction above is: the
             # slice does not rest, and a spend firing unasserted would alter a ledger this

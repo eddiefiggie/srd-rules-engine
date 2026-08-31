@@ -29,6 +29,8 @@ from srd_rules_engine.loop.turn import (
     HitDieRequest,
     Narrated,
     NarrationRequest,
+    OrderChosen,
+    OrderRequest,
     ReactionDeclined,
     ReactionRequest,
     Request,
@@ -91,6 +93,9 @@ class ScriptedDriver:
     #: reason `save_abilities` does — declining by default would make every unscripted test
     #: silently assert that nobody reacts, which is the assertion most likely to be wrong.
     reactions: Sequence[Declaration | None] = ()
+    #: p. 187's Simultaneous Effects, one entry per time two things coincide (#442). Empty
+    #: takes the engine's enumeration order, which is what a test not about ordering wants.
+    orders: Sequence[str | None] = ()
     #: p. 187's offer, one entry per time it is made: `True` spends a Hit Point Die (0082).
     #: Running out declines, because a Short Rest that ends early is a legal rest.
     hit_dice: Sequence[bool] = ()
@@ -100,6 +105,7 @@ class ScriptedDriver:
     _save_abilities: Iterator[str | None] = field(init=False)
     _reactions: Iterator[Declaration | None] = field(init=False)
     _hit_dice: Iterator[bool] = field(init=False)
+    _orders: Iterator[str | None] = field(init=False)
 
     def __post_init__(self) -> None:
         self._declarations = iter(self.declarations)
@@ -108,6 +114,7 @@ class ScriptedDriver:
         self._save_abilities = iter(self.save_abilities)
         self._reactions = iter(self.reactions)
         self._hit_dice = iter(self.hit_dice)
+        self._orders = iter(self.orders)
 
     def __call__(self, request: Request) -> Response:
         if isinstance(request, DeclarationRequest):
@@ -119,6 +126,17 @@ class ScriptedDriver:
         if isinstance(request, ReactionRequest):
             declared = _next(self._reactions, "reaction")
             return ReactionDeclined() if declared is None else Declared(declared)
+        if isinstance(request, OrderRequest):
+            # p. 187 (#442). A script that says nothing takes the engine's enumeration order,
+            # which is what every existing test expects — the point of the rule is that a
+            # *person* may say otherwise, not that the order is random.
+            # `next` with a fallback rather than `_next`, which raises when a script runs
+            # out. Every other question the loop asks is one the script must answer; this one
+            # has a defensible silence, because p. 187's point is that a person **may** say
+            # otherwise — not that the enumeration order is forbidden. A test not about
+            # ordering should not have to script one.
+            chosen = next(self._orders, None)
+            return OrderChosen(chosen or request.pending[0].rule_id)
         if isinstance(request, HitDieRequest):
             # p. 187's offer (0082). The script says how many dice to spend, and the offer
             # is repeated until it stops saying yes — so a script that runs out declines,
@@ -186,6 +204,14 @@ class HumanCliDriver:
                     rule_id=rule_id,
                 )
             )
+        if isinstance(request, OrderRequest):
+            # p. 187 (#442): the person whose turn it is decides. Listed rather than free
+            # text, because the answer must be one of the things actually owed.
+            self.show(f"{request.actor_id} owes these at the same moment (p. 187):")
+            for owed in request.pending:
+                self.show(f"  {owed.rule_id} — {owed.label}")
+            first = self.ask("Which happens first? ").strip()
+            return OrderChosen(first or request.pending[0].rule_id)
         if isinstance(request, HitDieRequest):
             # p. 187 offers again after every roll, so this is asked once per die. A blank
             # line stops the rest, which is the same shape as declining a Reaction.

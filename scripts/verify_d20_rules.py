@@ -693,6 +693,16 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- p. 187's Simultaneous Effects (#442) ------------------------------------------
+    (
+        187,
+        "the person WHOSE TURN IT IS decides the order when two things coincide — so the "
+        "engine taking `pending[0]` was choosing something the document gives away, and it "
+        "is consequential: a death save and Burning's damage at one instant",
+        r"If two or more things happen at the same time on a turn, the person at the game "
+        r"table.player or GM.\s*whose turn it is decides the order in which those things "
+        r"happen",
+    ),
     # --- p. 189's Surprise (#440) ------------------------------------------------------
     (
         189,
