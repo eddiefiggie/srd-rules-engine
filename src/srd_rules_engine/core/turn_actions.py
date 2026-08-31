@@ -36,6 +36,7 @@ cost anything** — which is why `dodging()` used to spend the Action itself and
 from __future__ import annotations
 
 from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Final
 
 from srd_rules_engine.core.actions import ActionKind
@@ -48,6 +49,7 @@ from srd_rules_engine.core.adjudicate import (
     disengaged,
     dodging_taken,
 )
+from srd_rules_engine.core.d20 import D20Test, Modifier, TestKind
 from srd_rules_engine.core.memory_port import Resolution
 from srd_rules_engine.core.position import MovementMode
 from srd_rules_engine.core.read_surface import DASH, DISENGAGE, DODGE, dash_mode
@@ -58,6 +60,7 @@ from srd_rules_engine.core.rules import (
     VerificationMethod,
     VerificationState,
 )
+from srd_rules_engine.core.skills import SKILL_ABILITY, Skill
 from srd_rules_engine.core.state import EncounterState
 
 DASH_RULE_ID: Final = DASH
@@ -258,3 +261,191 @@ def turn_action_resolvers() -> dict[str, Resolver]:
         DODGE_RULE_ID: dodge_resolver(),
         DISENGAGE_RULE_ID: disengage_resolver(),
     }
+
+
+# --- The two actions that make a check the document gives no DC for (p. 187, p. 189) ----
+
+SEARCH_RULE_ID: Final = "srd:rules-glossary/search"
+STUDY_RULE_ID: Final = "srd:rules-glossary/study"
+
+#: p. 187's Search table, and p. 189's Areas of Knowledge. **Suggested, not required** —
+#: both entries say the table "suggests which skills are applicable", so these are held so a
+#: caller can be *offered* them and never to refuse one that is absent.
+#:
+#: Every skill the document lists for Search is a Wisdom skill and every one it lists for
+#: Study is an Intelligence skill, which is what makes the ability check below a reading of
+#: the tables rather than a rule imported from outside them.
+SEARCH_SKILLS: Final[Mapping[Skill, str]] = MappingProxyType(
+    {
+        Skill.INSIGHT: "a creature's state of mind",
+        Skill.MEDICINE: "a creature's ailment or cause of death",
+        Skill.PERCEPTION: "a concealed creature or object",
+        Skill.SURVIVAL: "tracks or food",
+    }
+)
+
+STUDY_SKILLS: Final[Mapping[Skill, str]] = MappingProxyType(
+    {
+        Skill.ARCANA: "spells, magic items, eldritch symbols, magical traditions, planes of "
+        "existence, and certain creatures",
+        Skill.HISTORY: "historic events and people, ancient civilizations, wars, and certain "
+        "creatures",
+        Skill.INVESTIGATION: "traps, ciphers, riddles, and gadgetry",
+        Skill.NATURE: "terrain, flora, weather, and certain creatures",
+        Skill.RELIGION: "deities, religious hierarchies and rites, holy symbols, cults, and "
+        "certain creatures",
+    }
+)
+
+INSPECTION_VERIFICATION: Final = Verification(
+    state=VerificationState.VERIFIED,
+    reference=(
+        'SRD v5.2.1, Rules Glossary: Search p. 187 ("you make a Wisdom check to discern '
+        'something that isn\'t obvious"), Study p. 189 ("you make an Intelligence check to '
+        'study your memory, a book, a clue, or another source of knowledge"), with both '
+        "skill tables"
+    ),
+    date="2026-08-31",
+    method=VerificationMethod.ASSERTED,
+)
+
+
+def search_rule() -> Rule:
+    return Rule(
+        id=SEARCH_RULE_ID,
+        summary=(
+            "The Search action makes a Wisdom check to discern something that is not "
+            "obvious. The document suggests Insight, Medicine, Perception and Survival "
+            "depending on what is being detected, and states no DC."
+        ),
+        provenance=RuleProvenance.SRD,
+        verification=INSPECTION_VERIFICATION,
+    )
+
+
+def study_rule() -> Rule:
+    return Rule(
+        id=STUDY_RULE_ID,
+        summary=(
+            "The Study action makes an Intelligence check to call to mind an important piece "
+            "of information. The document suggests Arcana, History, Investigation, Nature "
+            "and Religion depending on the area of knowledge, and states no DC."
+        ),
+        provenance=RuleProvenance.SRD,
+        verification=INSPECTION_VERIFICATION,
+    )
+
+
+def _inspection_resolver(
+    *,
+    rule_id: str,
+    label: str,
+    page: int,
+    ability: str,
+    suggested: Mapping[Skill, str],
+    citation: str,
+    dc: int,
+    basis: str,
+    skill: Skill | None,
+) -> Resolver:
+    """Search and Study are one mechanism differing in ability and table.
+
+    p. 187 and p. 189 are the same sentence twice: take the action, make a check of a named
+    ability to learn something. Building them separately would be two implementations of one
+    rule, which 0013's `mechanism-not-exemplar` criterion is about — they stay two *shapes*
+    because the document gives each its own entry, its own ability and its own table.
+
+    **The DC is the caller's and is recorded with its derivation.** Neither entry states one,
+    which is `perception_resolver`'s situation exactly: "a DC the document does not state must
+    say where it came from" (R5). Setting it is interpretation, which is the agent's half;
+    rolling against it is the outcome, which is never.
+
+    **The skill is optional, because the tables only suggest.** Both entries say the table
+    "suggests which skills are applicable", so a check with no skill is a plain ability check
+    and is legal. What is refused is a skill of the *wrong ability* — a Proficiency Bonus in
+    an Intelligence skill cannot reach a Wisdom check, and every skill in the document's own
+    table for each action is of that action's ability. That refusal is a modelling judgement
+    read off the tables rather than a sentence the document states, and it is disclosed as
+    one here rather than presented as a rule.
+    """
+
+    if skill is not None and SKILL_ABILITY[skill] != ability:
+        raise ValueError(
+            f"{skill.value} is a {SKILL_ABILITY[skill]} skill and p. {page}'s {label} is "
+            f"an {ability} check, so its Proficiency Bonus cannot apply. Every skill the "
+            f"document suggests for {label} is an {ability} skill; a check with no skill at "
+            "all is legal and is what an unsuggested area of expertise gets"
+        )
+
+    def resolve(
+        *,
+        state: EncounterState,
+        declaration: Declaration,
+        facts: Mapping[str, Resolution],
+    ) -> Proposal:
+        actor = state.combatant(declaration.actor_id)
+        bonus = actor.check_bonus(skill) if skill is not None else actor.modifier(ability)
+        source = f"skill:{skill.value}" if skill is not None else f"ability:{ability}"
+
+        return Proposal(
+            always=(
+                action_spent(
+                    actor.id,
+                    ActionKind.ACTION,
+                    description=f"the Action spent on the {label} (p. 176, p. {page})",
+                ),
+            ),
+            test=D20Test(
+                kind=TestKind.CHECK,
+                ability=ability,
+                target=dc,
+                target_basis=basis,
+                modifiers=(Modifier(source=source, value=bonus),),
+            ),
+            citations=(citation,),
+            may_claim=(
+                f"that {actor.name} took the {label} and the check came out as the roll says",
+                f"what a success establishes: {suggested.get(skill, 'what was looked for')}"
+                if skill is not None
+                else f"that {actor.name} learned what the check was set to establish",
+            ),
+            may_not_claim=(
+                f"that {actor.name} learned anything the check did not establish",
+                f"that the DC was the rules' rather than the caller's — p. {page} states "
+                "none, and this one came from: " + basis,
+                "that a failure means the thing is not there; it means it was not found",
+            ),
+        )
+
+    return resolve
+
+
+def search_resolver(*, dc: int, basis: str, skill: Skill | None = None) -> Resolver:
+    """p. 187's Search: a Wisdom check to discern something that is not obvious."""
+    return _inspection_resolver(
+        rule_id=SEARCH_RULE_ID,
+        label="Search",
+        page=187,
+        ability="wis",
+        suggested=SEARCH_SKILLS,
+        citation="srd:rules-glossary/search",
+        dc=dc,
+        basis=basis,
+        skill=skill,
+    )
+
+
+def study_resolver(*, dc: int, basis: str, skill: Skill | None = None) -> Resolver:
+    """p. 189's Study: an Intelligence check to call to mind an important piece of
+    information."""
+    return _inspection_resolver(
+        rule_id=STUDY_RULE_ID,
+        label="Study",
+        page=189,
+        ability="int",
+        suggested=STUDY_SKILLS,
+        citation="srd:rules-glossary/study",
+        dc=dc,
+        basis=basis,
+        skill=skill,
+    )

@@ -908,7 +908,7 @@
    "tag": "Action",
    "reference": "Rules Glossary, p. 187",
    "kind": "action",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "shape-shifting",
@@ -996,7 +996,7 @@
    "tag": "Action",
    "reference": "Rules Glossary, p. 189",
    "kind": "action",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "stunned",
