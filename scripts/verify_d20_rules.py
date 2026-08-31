@@ -178,6 +178,13 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"dies if the remainder equals or exceeds their Hit Point maximum",
     ),
     (
+        17,
+        "p. 17's Instant Death has THREE clauses, and the third has no antecedent: nothing "
+        "in this engine reduces a hit point maximum, so 'reaches 0' is unreachable rather "
+        "than unbuilt (#426)",
+        r"Hit Point Maximum of 0\.\s*A creature dies if its Hit Point maximum reaches 0",
+    ),
+    (
         18,
         "a natural 1 costs two failures and a natural 20 restores a hit point",
         r"When you roll a 1 on the d20 for a Death Saving Throw, you suffer two failures\."

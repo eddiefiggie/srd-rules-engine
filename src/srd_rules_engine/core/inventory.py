@@ -87,6 +87,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # this engine has one — and the hour is a span the caller asserts.
         # p. 182: the Proficiency Bonus doubled, reaching every one of `check_bonus`'s
         # six consumers at once (#424).
+        # p. 17's Monster Death and Massive Damage, both in `with_damage` and both tested
+        # since the death saves shipped. Claimed late, by an audit rather than by a build
+        # (#426) — the direction `AGENTS.md` says no guard catches.
+        "instant-death": "core.state.EncounterState.with_damage",
         "expertise": "core.state.Combatant.expertise",
         "short-rest": "loop.turn.TurnLoop.short_rest",
         "hit-point-dice": "core.rests.hit_die_resolver",
