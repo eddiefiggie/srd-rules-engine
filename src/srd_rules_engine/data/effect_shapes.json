@@ -612,7 +612,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 183",
    "kind": "resource",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "hit-points",

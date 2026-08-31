@@ -686,6 +686,39 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- p. 187's Short Rest, the sixth occasion (#406, 0082) --------------------------
+    (
+        187,
+        "a creature at 0 hit points cannot START a Short Rest either — the same precondition "
+        "p. 185 puts on a Long Rest, and the one an implementation drops",
+        r"To start a Short Rest, you must have at least 1 Hit Point",
+    ),
+    (
+        187,
+        "the spend is a ROLL plus the Constitution modifier, so the engine rolls it (R4) and "
+        "a resolver stating a total would be a caller supplying one",
+        r"For each Hit Point Die you spend in this way, roll the die and add your "
+        r"Constitution modifier to it",
+    ),
+    (
+        187,
+        "and the floor is the document's, not a guard: a negative Constitution modifier can "
+        "total less than one on a small die",
+        r"You regain Hit Points equal to the total \(minimum of 1 Hit Point\)",
+    ),
+    (
+        187,
+        "THE sentence that made #406 a gate: the decision comes after each roll, so a Short "
+        "Rest is neither a drain nor a declaration slot but an offer repeated until the "
+        "caller stops",
+        r"You can decide to spend an additional Hit Point Die after each roll",
+    ),
+    (
+        187,
+        "and what is NOT built: an interrupted rest confers no benefits, over benefits this "
+        "engine has already applied through a Ruling (#409)",
+        r"An interrupted Short Rest confers no benefits",
+    ),
     # --- The resource that sentence restores (#407) ------------------------------------
     (
         183,

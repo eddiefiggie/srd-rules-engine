@@ -26,6 +26,7 @@ from srd_rules_engine.loop.turn import (
     DeclarationRequest,
     Declared,
     FactsSupplied,
+    HitDieRequest,
     Narrated,
     NarrationRequest,
     ReactionDeclined,
@@ -34,6 +35,8 @@ from srd_rules_engine.loop.turn import (
     Response,
     SaveAbilityChosen,
     SaveAbilityRequest,
+    SpendDeclined,
+    SpendHitDie,
     TurnEnd,
     TurnOutcome,
     TurnStart,
@@ -88,11 +91,15 @@ class ScriptedDriver:
     #: reason `save_abilities` does — declining by default would make every unscripted test
     #: silently assert that nobody reacts, which is the assertion most likely to be wrong.
     reactions: Sequence[Declaration | None] = ()
+    #: p. 187's offer, one entry per time it is made: `True` spends a Hit Point Die (0082).
+    #: Running out declines, because a Short Rest that ends early is a legal rest.
+    hit_dice: Sequence[bool] = ()
     _declarations: Iterator[Declaration] = field(init=False)
     _narrations: Iterator[str | None] = field(init=False)
     _facts: Iterator[Sequence[Fact]] = field(init=False)
     _save_abilities: Iterator[str | None] = field(init=False)
     _reactions: Iterator[Declaration | None] = field(init=False)
+    _hit_dice: Iterator[bool] = field(init=False)
 
     def __post_init__(self) -> None:
         self._declarations = iter(self.declarations)
@@ -100,6 +107,7 @@ class ScriptedDriver:
         self._facts = iter(self.facts)
         self._save_abilities = iter(self.save_abilities)
         self._reactions = iter(self.reactions)
+        self._hit_dice = iter(self.hit_dice)
 
     def __call__(self, request: Request) -> Response:
         if isinstance(request, DeclarationRequest):
@@ -111,6 +119,16 @@ class ScriptedDriver:
         if isinstance(request, ReactionRequest):
             declared = _next(self._reactions, "reaction")
             return ReactionDeclined() if declared is None else Declared(declared)
+        if isinstance(request, HitDieRequest):
+            # p. 187's offer (0082). The script says how many dice to spend, and the offer
+            # is repeated until it stops saying yes — so a script that runs out declines,
+            # rather than raising the way a missing declaration does. A rest that ends early
+            # is a legal rest; a turn with no declaration is a driver defect.
+            return (
+                SpendHitDie()
+                if _next(self._hit_dice, "hit die", default=False)
+                else (SpendDeclined())
+            )
         return FactsSupplied(tuple(_next(self._facts, "facts", default=())))
 
 
@@ -168,6 +186,16 @@ class HumanCliDriver:
                     rule_id=rule_id,
                 )
             )
+        if isinstance(request, HitDieRequest):
+            # p. 187 offers again after every roll, so this is asked once per die. A blank
+            # line stops the rest, which is the same shape as declining a Reaction.
+            self.show(
+                f"{request.resting_id} is on a Short Rest with {request.remaining} Hit "
+                f"Point Dice left, on {request.hit_points} of {request.max_hit_points} "
+                "hit points (p. 187)"
+            )
+            spend = self.ask("Spend a Hit Point Die? [y/N] ").strip().lower()
+            return SpendHitDie() if spend.startswith("y") else SpendDeclined()
         self.show(f"Blocked on: {', '.join(request.unresolved)}")
         return FactsSupplied(tuple(self.facts_for(request)))
 

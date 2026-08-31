@@ -2307,6 +2307,29 @@ class EncounterState:
             )
         return state.with_death_save(combatant_id, failures=2 if critical else 1)
 
+    def with_hit_dice_spent(self, combatant_id: str, count: int) -> EncounterState:
+        """Record that a Short Rest spent this many Hit Point Dice (p. 187, 0082).
+
+        Reached only through a Ruling, as `EffectKind.HIT_DIE_SPENT`. A caller that could
+        decrement dice directly would be spending a resource with no roll, no seed and no
+        ledger entry behind it, which is #119's finding about conditions applied to the
+        other countable thing a creature holds.
+
+        **Refuses for a creature whose dice nobody recorded.** `None` is unrecorded rather
+        than zero (p. 183), so spending one is a question about a creature the ruleset did
+        not describe. Inventing a die here would answer it.
+        """
+        target = self.combatant(combatant_id)
+        if target.hit_dice is None:
+            raise ValueError(
+                f"{target.name} has no Hit Point Dice recorded, so none can be spent. "
+                "p. 183 says player characters have them and most monsters do; a creature "
+                "with none stated is one the ruleset did not describe, not one with zero"
+            )
+        return self._evolve(
+            combatants=self._replacing(replace(target, hit_dice=target.hit_dice.spend(count)))
+        )
+
     def with_healing(self, combatant_id: str, amount: int) -> EncounterState:
         """Heal, and clear any death saves the healing made irrelevant.
 

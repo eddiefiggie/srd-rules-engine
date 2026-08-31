@@ -53,6 +53,7 @@ from srd_rules_engine.core import (
     BURNING_RULE_ID,
     CONCENTRATION_RULE_ID,
     DEATH_SAVE_RULE_ID,
+    HIT_DIE_RULE_ID,
     SUFFOCATION_RULE_ID,
     Adjudicator,
     Declaration,
@@ -135,6 +136,34 @@ class ReactionRequest:
 
 
 @dataclass(frozen=True)
+class HitDieRequest:
+    """p. 187's offer: this creature may spend a Hit Point Die, and may say no (0082).
+
+    **The third kind of occasion**, and the reason #406 was a gate. The other two are a
+    *drain* — `end_day`, Concentration, Topple, where the engine compels and the creature
+    has no choice — and a *declaration slot*, which asks **once**. p. 187 is neither: "You
+    can decide to spend an additional Hit Point Die **after each roll**", so the offer is
+    repeated, each iteration produces a Ruling, and the caller ends it by declining.
+
+    Closest to `ReactionRequest`, which is also an offer rather than an obligation, and
+    unlike it in the one way that matters: a Reaction is offered once per move, and this is
+    offered again after every roll it produces.
+
+    `remaining` and `hit_points` are what a caller needs to decide, and are on the request
+    so the decision does not require a second read of state between two rulings that are
+    both this occasion's.
+    """
+
+    state: EncounterState
+    resting_id: str
+    #: Hit Point Dice still available to spend.
+    remaining: int
+    #: Where the creature's hit points stand, out of its maximum, before this spend.
+    hit_points: int
+    max_hit_points: int
+
+
+@dataclass(frozen=True)
 class SaveOption:
     """One ability a compelled save may be rolled with, and what rolling it would look like.
 
@@ -184,6 +213,7 @@ Request = (
     | BlockedFactRequest
     | SaveAbilityRequest
     | ReactionRequest
+    | HitDieRequest
 )
 
 
@@ -227,7 +257,37 @@ class ReactionDeclined:
     """
 
 
-Response = Declared | Narrated | FactsSupplied | SaveAbilityChosen | ReactionDeclined
+@dataclass(frozen=True)
+class SpendHitDie:
+    """The rester spends one (p. 187, 0082).
+
+    Carries nothing. p. 187 offers exactly one decision — another die, or stop — and the
+    *how much* is the engine's (R4). A count here would let a caller spend three at once,
+    which the document forbids in the only sentence that matters: the decision comes after
+    each roll, so three spends are three decisions and three rulings.
+    """
+
+
+@dataclass(frozen=True)
+class SpendDeclined:
+    """The rester stops, keeping whatever dice are left (p. 187, 0082).
+
+    A named answer rather than a `Declared` carrying nothing, for `ReactionDeclined`'s
+    reason: "I stop" and "I have nothing to declare" are different facts, and the ledger
+    should not have to guess which happened. Declining is a first-class answer here because
+    p. 187 makes the spend optional — "You **can** spend one or more".
+    """
+
+
+Response = (
+    Declared
+    | Narrated
+    | FactsSupplied
+    | SaveAbilityChosen
+    | ReactionDeclined
+    | SpendHitDie
+    | SpendDeclined
+)
 
 
 # --- What a turn produced -----------------------------------------------------------
@@ -246,6 +306,27 @@ class DayEnd:
     rulings: tuple[Ruling, ...] = ()
     narrations: tuple[str | None, ...] = ()
     unresolvable: tuple[Obligation, ...] = ()
+
+    @property
+    def missing_narration(self) -> bool:
+        return any(text is None for text in self.narrations)
+
+
+@dataclass(frozen=True)
+class ShortRest:
+    """What a Short Rest produced (p. 187, #406, 0082).
+
+    One Ruling per die spent, in the order they were spent, because each is its own outcome
+    with its own roll and its own seed. A rest where the creature declined immediately
+    produces none, and that is not a defect — p. 187 makes the spend optional, so a rest
+    with no spend is a legal rest that decided nothing.
+    """
+
+    state: EncounterState
+    rulings: tuple[Ruling, ...] = ()
+    narrations: tuple[str | None, ...] = ()
+    #: How many dice were spent, which is `len(rulings)` unless one was refused.
+    spent: int = 0
 
     @property
     def missing_narration(self) -> bool:
@@ -546,6 +627,96 @@ class TurnLoop:
             rulings=rulings,
             narrations=narrations,
             unresolvable=unresolvable,
+        )
+
+    # --- A Short Rest: an offer, repeated until the caller stops (0082) ---------------
+
+    def short_rest(
+        self, state: EncounterState, resting_id: str
+    ) -> Generator[Request, Response, ShortRest]:
+        """p. 187's Short Rest, offering a Hit Point Die until the rester stops (#406, 0082).
+
+        **The sixth occasion, and the first of a third kind.** The other five are either a
+        *drain* — `end_day`, and the Concentration and Topple saves, where the engine
+        compels and nobody is choosing — or a *declaration slot*, which asks once. p. 187 is
+        neither: "You can decide to spend an additional Hit Point Die **after each roll**",
+        so this offers, adjudicates, and offers again, and the caller ends it by declining.
+
+        **Nothing here creates a second path to an outcome.** Each spend is a testless
+        `Proposal` (0027 clause 6) resolved by `Adjudicator.adjudicate` like every other
+        result (R1), and the engine rolls the die (R4) — the resolver states `1d8 + Con` and
+        never a total. It is the sixth time 0023's sentence has been the answer.
+
+        **It lives on `TurnLoop` for 0081's reason**: `_owed` is the narration debt R29
+        enforces and it is held per loop, so an occasion that produces rulings and demands
+        narrations belongs to the object tracking that debt. A `RestLoop` would be the
+        tidier diagram and the same hole a `CampaignLoop` would have been.
+
+        **A creature at 0 hit points cannot start one.** p. 187: "To start a Short Rest, you
+        must have at least 1 Hit Point" — the same precondition as p. 185's Long Rest, and
+        the one an implementation drops because every benefit reads as unconditional.
+
+        **What p. 187 states and this does not model**, disclosed rather than skipped:
+
+        * *Special Feature* recharge — no feature in this engine has one.
+        * The hour, and interruptions. "An interrupted Short Rest confers no benefits", and
+          nothing advances an hour of downtime or observes a rest being broken, so the rest
+          is as long as the caller says it was. Filed as
+          [#409](https://github.com/eddiefiggie/srd-rules-engine/issues/409).
+
+        **The loop ends on the dice, not on the hit points.** A creature at full hit points
+        is still offered a spend, because p. 187 does not forbid one and the minimum is 1
+        Hit Point regained — a die spent for nothing is a legal choice the document permits,
+        and refusing to offer it would be this engine inventing a rule.
+        """
+        resting = state.combatant(resting_id)
+        if resting.is_down:
+            raise ValueError(
+                f"{resting.name} has 0 hit points and cannot start a Short Rest — p. 187 "
+                "requires at least 1, exactly as p. 185's Long Rest does"
+            )
+
+        rulings: list[Ruling] = []
+        narrations: list[str | None] = []
+        spent = 0
+
+        while True:
+            resting = state.combatant(resting_id)
+            held = resting.hit_dice
+            if held is None or held.remaining < 1:
+                break
+
+            response = yield HitDieRequest(
+                state=state,
+                resting_id=resting_id,
+                remaining=held.remaining,
+                hit_points=resting.hit_points,
+                max_hit_points=resting.max_hit_points,
+            )
+            if isinstance(response, SpendDeclined):
+                break
+            if not isinstance(response, SpendHitDie):
+                raise TypeError(
+                    f"a HitDieRequest is answered with SpendHitDie or SpendDeclined, not "
+                    f"{type(response).__name__}"
+                )
+
+            ruling, state = self.adjudicator.adjudicate(state, _hit_die_declaration(resting_id))
+            if ruling.status is Status.REJECTED:
+                # The rest ends rather than spinning: a refused spend is refused for a
+                # reason that will still hold on the next pass, and offering again would
+                # loop forever on it.
+                break
+
+            spent += 1
+            rulings.append(ruling)
+            narrations.append((yield from self._narrate(resting_id, ruling)))
+
+        return ShortRest(
+            state=state,
+            rulings=tuple(rulings),
+            narrations=tuple(narrations),
+            spent=spent,
         )
 
     # --- Movement: a phase the loop owns (0072) ---------------------------------------
@@ -1122,6 +1293,27 @@ def _obligation_declaration(obligation: Obligation) -> Declaration:
         actor_id=obligation.actor_id,
         intent=Intent(improvised=True, label=obligation.label),
         rule_id=obligation.rule_id,
+    )
+
+
+def _hit_die_declaration(resting_id: str) -> Declaration:
+    """The declaration a Hit Point Die spend is adjudicated under (p. 187, 0082).
+
+    Authored by the engine, like `_obligation_declaration` — but for a different reason,
+    and the difference is worth keeping. An obligation is engine-authored because **nobody
+    is choosing**; this one is because the choice has already been made, by the caller
+    answering `HitDieRequest`, and it is a choice with exactly one shape. There is nothing
+    for an agent to phrase differently, so asking it to phrase one would be inviting a
+    declaration that could disagree with the offer it answers.
+
+    Marked improvised for `_obligation_declaration`'s reason: a Short Rest is not among the
+    read surface's enumerated legal actions, because those are what a creature may do on its
+    turn and this is not a turn.
+    """
+    return Declaration(
+        actor_id=resting_id,
+        intent=Intent(improvised=True, label="spend a Hit Point Die on a Short Rest"),
+        rule_id=HIT_DIE_RULE_ID,
     )
 
 
