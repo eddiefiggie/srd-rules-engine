@@ -1,4 +1,6 @@
-"""Parse the **Status of implementation** tables in `docs/decisions/`, and README's (#291, #312).
+"""Parse the **Status of implementation** tables in `docs/decisions/`, and README's.
+
+(#291, #312, #404.)
 
 The pure half of `check_status_rows.py`, separated for the reason
 `srd_rules_engine.build_stamp` is separated from `check_build_stamp_advanced.py`: the
@@ -98,6 +100,33 @@ ISSUE_REF = re.compile(r"/issues/(\d+)|#(\d+)\b")
 #: "unbuilt clauses" are excluded, and "unbuilt.", "unbuilt;" and "unbuilt ([#301])" are not.
 UNBUILT = re.compile(r"not built|unbuilt(?=\s*$|\s*[^\w\s])", re.IGNORECASE)
 
+#: What a claim says when it asserts outstanding work by describing the **issue** rather than
+#: the clause (#404). `UNBUILT` knows two spellings of "nobody built this"; these are the same
+#: assertion pointed at the other end of the citation, and the guard was blind to them.
+#:
+#: Three of #404's four sites had this shape. README's M1 cell said the live-agent half "is
+#: still open" over #42, closed four days earlier, and 0027 clause 5 said Suffocation's field
+#: "would have no consumer while #178 is open" over a closed #178 and a field that exists —
+#: while the row's state cell said `**Built.**`. That last one is why this is not folded into
+#: `UNBUILT` and why it does not consult the state cell: **a claim that a cited issue is open
+#: is false the moment that issue closes, whatever the row says about building.** The two
+#: predicates answer different questions and a row can fail either.
+#:
+#: The verb is required, which is what keeps the false positives out. README's M0 cell says
+#: "None is open." — a true sentence citing no issue, so it reaches the closed-issue test with
+#: nothing to test and cannot fire. `label:gate` query links and the phrase "open work" are
+#: not matched at all, because neither puts `open` in predicate position after a copula.
+#:
+#: **Present tense only, deliberately.** "#230 was open and unclaimed when this shipped" is
+#: narration about history and is *true* over a closed issue — the same distinction the module
+#: docstring draws for 0027's dated append, arriving here as a tense rather than as a table
+#: boundary. Admitting `was` would make the honest way to record a closed blocker unwritable,
+#: and the dishonest sentence is always the present-tense one.
+OPEN_CLAIM = re.compile(
+    r"\b(?:is|are|remains?|stays?)\s+(?:still\s+)?open\b|\bstill\s+open\b",
+    re.IGNORECASE,
+)
+
 
 def issues_in(text: str) -> tuple[int, ...]:
     """Every issue number cited in that text, deduplicated, in citation order.
@@ -133,6 +162,21 @@ class Claim:
         """Whether this claim says the clause is decided and nobody has built it."""
         return bool(UNBUILT.search(self.text))
 
+    @property
+    def asserts_open(self) -> bool:
+        """Whether this claim says an issue it cites is still open (#404)."""
+        return bool(OPEN_CLAIM.search(self.text))
+
+    @property
+    def outstanding(self) -> bool:
+        """Whether this claim asserts work nobody has finished, in either spelling.
+
+        The union the guard judges. Kept separate from its two halves because they are
+        different assertions: `unbuilt` is about the clause and `asserts_open` is about the
+        issue, and a row can be honest about one while stale about the other.
+        """
+        return self.unbuilt or self.asserts_open
+
 
 @dataclass(frozen=True)
 class StatusRow:
@@ -153,6 +197,11 @@ class StatusRow:
     def unbuilt(self) -> bool:
         """Whether any claim in the row says the clause is unbuilt."""
         return any(claim.unbuilt for claim in self.claims)
+
+    @property
+    def outstanding(self) -> bool:
+        """Whether any claim in the row asserts unfinished work, in either spelling (#404)."""
+        return any(claim.outstanding for claim in self.claims)
 
 
 #: Words whose full stop ends an abbreviation rather than a sentence. `p.` is the one that

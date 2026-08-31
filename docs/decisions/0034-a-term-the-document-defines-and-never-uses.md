@@ -252,7 +252,7 @@ that `spell-attack`'s claim rests on its own mechanism rather than on being an a
 | 3 — a declassification resting on an absence must assert the absence | **Built for this instance.** A document-wide clause table in `scripts/verify_d20_rules.py` asserts `weapon attack` at exactly 3 occurrences, with `spell attack` at 20 or more as the control, plus five presence clauses (pp. 177, 188, 191, 106, 217) and a CI check anchoring the table. Both corruptions were run. A standing obligation on future declassifications, enforced by review |
 | 4 — the denominator moves to 210 | **Built.** README publishes 96 of 210 and the d20 test 12 of 13, both derived from the inventory by `tests/test_readme_reports_real_coverage.py` |
 | 5 — the numerator does not move | **Built** by not moving. `ENGINE_SHAPES` is unchanged in this diff |
-| 6 — exactly one entry moves | **Built** by not moving anything else. [#230](https://github.com/eddiefiggie/srd-rules-engine/issues/230) stays open and unclaimed |
+| 6 — exactly one entry moves | **Built** by not moving anything else. [#230](https://github.com/eddiefiggie/srd-rules-engine/issues/230) was open and unclaimed when this shipped, and closed later with [0035](0035-two-names-for-one-thing-are-one-shape.md), which moved `save` on its own reasoning rather than this record's |
 
 **#229 is closed with a third answer rather than one of its two** — the term has no
 consumers, so it is neither a second shape nor a double count.

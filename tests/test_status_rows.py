@@ -311,3 +311,75 @@ def test_every_bare_reference_in_the_corpus_is_a_plausible_issue() -> None:
     assert bare_only, "no row cites an issue bare, which was true of neither corpus"
     for number in bare_only:
         assert 0 < number < 10_000, f"#{number} is not a plausible issue"
+
+
+def test_an_issue_asserted_open_is_an_outstanding_claim() -> None:
+    """The spelling `UNBUILT` did not know (#404). Three of that issue's four sites asserted
+    outstanding work by describing the **issue** rather than the clause, and the guard read
+    straight past all three."""
+    for text in (
+        "the live-agent half is [#42](i) and is still open",
+        "[#230](i) stays open and unclaimed",
+        "would have no consumer while [#178](i) is open",
+        "both remain open",
+        "#1 and #2 are open",
+    ):
+        claim = Claim(text)
+        assert claim.asserts_open, text
+        assert claim.outstanding, text
+        assert not claim.unbuilt, f"{text!r} is the other predicate, not this one"
+
+
+def test_a_closed_blocker_narrated_in_the_past_is_not_a_claim() -> None:
+    """**Present tense only.** 0034 clause 6 records that #230 "was open and unclaimed when
+    this shipped", which is true over a closed issue and is the honest way to write it. A
+    pattern admitting `was` would make that sentence unwritable and push the next author back
+    to the present tense the guard exists to catch."""
+    for text in (
+        "[#230](i) was open and unclaimed when this shipped",
+        "both were open at the time",
+        "it stayed open for two days",
+    ):
+        assert not Claim(text).asserts_open, text
+
+
+def test_open_needs_a_verb_before_it() -> None:
+    """What keeps the false positives out. README's M0 cell says "None is open." — true, and
+    citing no issue, so it reaches the closed-issue test with nothing to test; the rest are
+    the phrases that would fire on a bare `open`."""
+    for text in ("open work is filed as issues", "the [`gate`](…?q=is%3Aissue) query", "reopen"):
+        assert not Claim(text).asserts_open, text
+    assert Claim("None is open.").asserts_open, "the phrase does match"
+    assert Claim("None is open.").issues == (), "and cites nothing, so it cannot fire"
+
+
+def test_the_two_predicates_answer_different_questions() -> None:
+    """Why this is not folded into `UNBUILT`. 0027 clause 5 said Suffocation's field "would
+    have no consumer while #178 is open" in a row whose state cell said **Built.** — stale on
+    the issue while honest about the clause, so a union that consulted only one would miss
+    it."""
+    built_but_stale = Claim("**Built.** waited while [#178](i) is open")
+    assert not built_but_stale.unbuilt
+    assert built_but_stale.asserts_open
+    assert built_but_stale.outstanding
+
+    unbuilt_and_current = Claim("**Decided, not built.** [#401](i)")
+    assert unbuilt_and_current.unbuilt
+    assert not unbuilt_and_current.asserts_open
+    assert unbuilt_and_current.outstanding
+
+
+def test_the_corpus_asserts_no_issue_is_open_in_a_status_table() -> None:
+    """The corpus control. #404 found five sites by hand and one — 0034 clause 6 — only after
+    this pattern existed, which is the argument for keeping the assertion pointed at the real
+    tree rather than at fixtures alone. A present-tense "is open" is a claim that decays the
+    moment the issue closes, so the corpus should carry none."""
+    rows = all_rows(DECISIONS, README)
+    assert rows, "the parser is reading nothing"
+    live = [
+        (row.record, row.clause[:40], claim.text[:80])
+        for row in rows
+        for claim in row.claims
+        if claim.asserts_open and claim.issues
+    ]
+    assert not live, live

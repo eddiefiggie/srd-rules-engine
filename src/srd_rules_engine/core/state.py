@@ -168,11 +168,11 @@ class Hazards:
     than in `core.death`: this is the state, that is the rules, and `core.hazards` imports
     `core.adjudicate`, which imports this module. The value object has to sit below both.
 
-    Only `burning` today. Suffocation belongs here and is not built — it inflicts Exhaustion
-    *levels*, and nothing can raise one through a ruling
-    ([#178](https://github.com/eddiefiggie/srd-rules-engine/issues/178)). A field with no
-    consumer would be a stub with a citation attached, which this repository has one of
-    already and does not need two.
+    `burning` and `suffocating`. The second waited on
+    [#178](https://github.com/eddiefiggie/srd-rules-engine/issues/178) — Suffocation inflicts
+    Exhaustion *levels*, and nothing could raise one through a ruling until that closed. It
+    arrived with its consumer rather than ahead of one, `core.hazards.suffocation_resolver`,
+    so it is not the stub-with-a-citation this docstring declined to add.
 
     **Nothing applies or removes this through a ruling yet.** p. 178 puts fire out when it is
     "doused, submerged, or suffocated", or by an action that also makes the creature Prone —
