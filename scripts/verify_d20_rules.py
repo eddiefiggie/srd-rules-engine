@@ -693,6 +693,21 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- p. 16's Underwater Combat: asserted although unbuilt, so #446 does not re-read -
+    (
+        16,
+        "the melee clause turns on a Swim Speed and exempts PIERCING weapons, and the ranged "
+        "clause AUTOMATICALLY MISSES beyond normal range — which is neither Disadvantage nor "
+        "a refusal, and is #224's unbuilt shape (#446)",
+        r"A ranged attack roll with a weapon underwater automatically misses a target beyond "
+        r"the weapon.s normal range, and the attack roll has Disadvantage against a target "
+        r"within normal range",
+    ),
+    (
+        16,
+        "and everything underwater resists Fire, which `Defences` can already express",
+        r"Fire Resistance Anything underwater has Resistance to Fire damage",
+    ),
     # --- p. 190's Teleportation: asserted although unbuilt, so #444 does not re-read ----
     (
         190,
