@@ -686,6 +686,54 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- p. 18's Temporary Hit Points, and p. 177's Bloodied (#412) --------------------
+    (
+        18,
+        "the buffer is lost FIRST and the remainder carries over, with the document's own "
+        "worked example — the one case an implementation cannot argue with",
+        r"If you have Temporary Hit Points and take damage, those points are lost first, and "
+        r"any leftover damage carries over to your Hit Points",
+    ),
+    (
+        18,
+        "and they are a buffer against LOSING Hit Points rather than against taking damage, "
+        "which is the reading p. 179's Concentration save and p. 18's death-save failure "
+        "both turn on (#413). p. 17's Resistance says 'halve the damage'; this says nothing "
+        "of the kind",
+        r"Temporary Hit Points, which are a buffer against losing actual Hit Points",
+    ),
+    (
+        18,
+        "they do not stack, and the CREATURE decides which set to keep — so a grant over an "
+        "existing set refuses rather than taking the larger",
+        r"If you have Temporary Hit Points and receive more of them, you decide whether to "
+        r"keep the ones you have or to gain the new ones",
+    ),
+    (
+        18,
+        "they are not healing: a creature at full Hit Points may receive them, and death "
+        "saves are not reset because p. 17 resets on regaining HIT POINTS",
+        r"Temporary Hit Points can.t be added to your Hit Points, healing can.t restore "
+        r"them, and receiving Temporary Hit Points doesn.t count as healing",
+    ),
+    (
+        18,
+        "and at 0 Hit Points they do not restore consciousness",
+        r"If you have 0 Hit Points, receiving Temporary Hit Points doesn.t restore you to "
+        r"consciousness\.\s*Only true healing can save you",
+    ),
+    (
+        18,
+        "their duration is stated here rather than on p. 185, which lists what a Long Rest "
+        "restores and never mentions them",
+        r"Temporary Hit Points last until they.re depleted or you finish a Long Rest",
+    ),
+    (
+        177,
+        "p. 177's Bloodied is a derived read on the current total — 'while', not a state "
+        "something applies and something else removes",
+        r"A creature is Bloodied while it has half its Hit Points or fewer remaining",
+    ),
     # --- Search and Study: one mechanism, two entries, no DC (#411) --------------------
     (
         187,

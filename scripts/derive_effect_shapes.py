@@ -38,7 +38,7 @@ trap set:
   broke, and the half of this script that never needed the PDF.
 
 **Last run green against SRD v5.2.1: 2026-08-31**, reproducing `effect_shapes.json`
-byte-for-byte — 210 shapes, 122 implemented, 22 vocabulary. Update this line when you re-run
+byte-for-byte — 210 shapes, 124 implemented, 22 vocabulary. Update this line when you re-run
 it, because nothing else can.
 
 Usage: python3 scripts/derive_effect_shapes.py /path/to/SRD_CC_v5.2.1.pdf [--check]
@@ -130,7 +130,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Attitude": ("state", False),
     "Attunement": ("state", False),
     "Blindsight": ("sense", True),
-    "Bloodied": ("state", False),
+    "Bloodied": ("state", True),
     "Bonus Action": ("action", True),
     "Breaking Objects": ("effect", False),
     "Bright Light": ("environment", True),
@@ -226,7 +226,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Target": ("targeting", False),
     "Telepathy": ("sense", False),
     "Teleportation": ("effect", False),
-    "Temporary Hit Points": ("effect", False),
+    "Temporary Hit Points": ("effect", True),
     "Tremorsense": ("sense", False),
     "Truesight": ("sense", False),
     "Unarmed Strike": ("action", True),
