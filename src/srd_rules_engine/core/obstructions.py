@@ -107,12 +107,38 @@ def most_protective(degrees: Iterable[Cover]) -> Cover:
 
 @dataclass(frozen=True)
 class Obstruction(Box):
-    """A `Box` in feet that provides Total Cover.
+    """A `Box` in feet that provides cover, to the degree it is given (#416).
 
-    It adds two things to the box: `blocks`, and whether it also blocks **sight**. The
-    corners, their normalisation and `contains` are the box's, shared with `LitVolume` since
-    #161 — the same geometry, several different facts about it.
+    It adds to the box: `blocks`, the degree of cover it provides, and whether it also
+    blocks **sight**. The corners, their normalisation and `contains` are the box's, shared
+    with `LitVolume` since #161 — the same geometry, several different facts about it.
+
+    **The degree is stated, never measured.** p. 15 earns Half Cover with "an object that
+    covers at least half of the target" and Three-Quarters with "at least three-quarters", and
+    supplies **no method for measuring a fraction**. So whoever places the barrier says what
+    it gives, exactly as `blocks_sight` is stated per barrier because the document answers
+    that per barrier too. The engine deciding a fraction from a box would be a rule value
+    R31 forbids, arrived at by geometry the document never describes.
     """
+
+    #: What this barrier gives a target behind it (p. 15, p. 179). Defaults to `TOTAL`,
+    #: which is what every obstruction meant before this field existed — a wall, and the
+    #: value `core.areas` and `core.combat` have always read.
+    #:
+    #: `Cover.NONE` is refused: a box that gives no cover is not an obstruction, and one in
+    #: the list would silently do nothing while looking like it does something.
+    degree: Cover = Cover.TOTAL
+    #: `Cover.NONE` is **legitimate and not refused**, which was not obvious. A barrier that
+    #: gives no cover but blocks sight is smoke: p. 181's Heavily Obscured is a fact about
+    #: seeing, and p. 15 earns cover by what an object *covers*. The two are separate
+    #: questions and a barrier may answer them differently, exactly as Wall of Force answers
+    #: `blocks_sight` no and gives Total Cover.
+    #:
+    #: A first attempt refused it in a `__post_init__`, which
+    #: `test_neither_type_redefines_the_shared_geometry` correctly rejected — the geometry
+    #: duplicated and drifted from `Box` once already, and the guard forbids the method
+    #: outright rather than trusting each subclass to only add. The refusal turned out to be
+    #: wrong on the rules as well as on the structure.
 
     #: Whether this barrier blocks sight (0029). `None` until somebody says, and `None` means
     #: the question is unanswered rather than answered "no".
@@ -183,12 +209,41 @@ def line_is_blocked(start: Position, end: Position, obstructions: Sequence[Obstr
     return any(obstruction.blocks(start, end) for obstruction in obstructions)
 
 
-def total_cover(start: Position, end: Position, obstructions: Sequence[Obstruction]) -> Cover:
-    """The only degree this engine decides.
+def cover_between(start: Position, end: Position, obstructions: Sequence[Obstruction]) -> Cover:
+    """The cover a target at `end` has from something at `start` (p. 15, p. 179).
 
-    Total Cover follows from the line being blocked (p. 15: "an object that covers the whole
-    target"). Half and Three-Quarters depend on what fraction of a target is covered, and the
-    document supplies no method for measuring that — so they are never returned here, and a
-    caller that has determined a degree by some other means applies it itself.
+    **Directional by construction**, which is p. 15's requirement: "A target can benefit from
+    cover only when an attack or other effect originates on the **opposite side** of the
+    cover." The line test answers for this pair of positions and no other, so a creature
+    behind a wall has cover from the archer outside and none from the one beside it — without
+    anything being stored anywhere.
+
+    **The most protective degree, never the sum** (p. 15): "only the most protective degree of
+    cover applies; the degrees aren't added together." A target behind a creature giving Half
+    and a trunk giving Three-Quarters has Three-Quarters, not +7 — a number the rules never
+    produce.
+
+    Each obstruction states its own degree; this decides only which of them are **between**
+    the two points. That split is the whole of R31 here: the geometry is the engine's and the
+    fraction is the ruleset's.
     """
-    return Cover.TOTAL if line_is_blocked(start, end, obstructions) else Cover.NONE
+    return most_protective(
+        obstruction.degree for obstruction in obstructions if obstruction.blocks(start, end)
+    )
+
+
+def total_cover(start: Position, end: Position, obstructions: Sequence[Obstruction]) -> Cover:
+    """Whether the line is blocked outright, ignoring lesser degrees.
+
+    Kept beside `cover_between` because two callers want exactly this and nothing else:
+    `core.areas` blocks a line of *effect* with Total Cover (p. 177), and a Fireball is
+    stopped by a wall and not by a creature giving Half Cover.
+    """
+    return (
+        Cover.TOTAL
+        if any(
+            obstruction.degree is Cover.TOTAL and obstruction.blocks(start, end)
+            for obstruction in obstructions
+        )
+        else Cover.NONE
+    )

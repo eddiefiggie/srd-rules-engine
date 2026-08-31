@@ -92,6 +92,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # (#426) — the direction `AGENTS.md` says no guard catches.
         # p. 184 entire (0083): the subduing blow, and both endings — healing and first
         # aid — each scoped to the Unconscious p. 184 caused rather than to every one.
+        # pp. 15 and 179 entire (#416). Total Cover refuses targeting and has since #20;
+        # Half and Three-Quarters are stated per obstruction, because the document
+        # supplies no method for measuring what fraction of a target is covered.
+        "cover": "core.obstructions.cover_between",
         "knocking-out-a-creature": "core.state.EncounterState.with_first_aid",
         "instant-death": "core.state.EncounterState.with_damage",
         "expertise": "core.state.Combatant.expertise",

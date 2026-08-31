@@ -834,9 +834,16 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     (
         15,
         "what earns each degree — a judgement about how much of the target is covered, which "
-        "has no geometry to compute it from while grid movement is a non-goal, so the degree "
-        "is stated as 0051 has a Size stated",
+        "the document supplies no method for measuring, so the degree is STATED on the "
+        "obstruction as 0051 has a Size stated (#416)",
         r"Another creature or an object that covers at least half of the target",
+    ),
+    (
+        15,
+        "and the degrees do not add, which is the clause an implementation gets wrong by "
+        "summing bonuses: p. 15's own example would give +7, a number the rules never make",
+        r"If a target is behind multiple sources of cover, only the most protective degree "
+        r"of cover applies; the degrees aren.t added together",
     ),
     # --- p. 18's Temporary Hit Points, and p. 177's Bloodied (#412) --------------------
     (
