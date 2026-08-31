@@ -57,6 +57,12 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "passive-perception": "core.d20.passive_score",
         # The one hazard that fires on no occasion, so it needed no phase (#140, 0027
         # clause 7). The other four are blocked on occasions this engine does not have.
+        # p. 183's mechanic is the SPEND — "A creature can spend Hit Dice during a Short
+        # Rest to regain Hit Points" — so holding the resource was not claiming it (#407),
+        # and #406's occasion is what completes it. `short-rest` itself stays unclaimed:
+        # p. 187's interruption clause is a stated mechanic whose antecedents this engine
+        # *can* observe, and it is unbuilt (#409).
+        "hit-point-dice": "core.rests.hit_die_resolver",
         "falling": "core.hazards.falling_resolver",
         # Burning fires at the turn's start, the phase 0027 clauses 1-4 built. The other
         # three hazards each inflict an Exhaustion level, which nothing can raise through a

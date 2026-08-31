@@ -63,6 +63,7 @@ from srd_rules_engine.loop.turn import (
     DeclarationRequest,
     Declared,
     FactsSupplied,
+    HitDieRequest,
     Narrated,
     NarrationRequest,
     ReactionDeclined,
@@ -71,6 +72,7 @@ from srd_rules_engine.loop.turn import (
     Response,
     SaveAbilityChosen,
     SaveAbilityRequest,
+    SpendDeclined,
     TurnLoop,
     TurnOutcome,
 )
@@ -290,6 +292,11 @@ class SliceDriver:
             # that changes nothing — an unasserted reaction firing here would alter a ledger
             # this fixture's tests read end to end.
             return ReactionDeclined()
+        if isinstance(request, HitDieRequest):
+            # p. 187's offer (0082), declined for the reason the Reaction above is: the
+            # slice does not rest, and a spend firing unasserted would alter a ledger this
+            # fixture's tests read end to end.
+            return SpendDeclined()
         return self._supply(request)
 
     def _declare(self, request: DeclarationRequest) -> Declaration:

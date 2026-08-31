@@ -37,8 +37,8 @@ trap set:
   `*_SHAPES` tables holds rows of the arity its own sweep unpacks — which is the whole of what
   broke, and the half of this script that never needed the PDF.
 
-**Last run green against SRD v5.2.1: 2026-08-30**, reproducing `effect_shapes.json`
-byte-for-byte — 210 shapes, 117 implemented, 22 vocabulary. Update this line when you re-run
+**Last run green against SRD v5.2.1: 2026-08-31**, reproducing `effect_shapes.json`
+byte-for-byte — 210 shapes, 120 implemented, 22 vocabulary. Update this line when you re-run
 it, because nothing else can.
 
 Usage: python3 scripts/derive_effect_shapes.py /path/to/SRD_CC_v5.2.1.pdf [--check]
@@ -174,7 +174,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Heavily Obscured": ("environment", True),
     "Heroic Inspiration": ("vocabulary", False),
     "High Jump": ("movement", False),
-    "Hit Point Dice": ("resource", False),
+    "Hit Point Dice": ("resource", True),
     "Hit Points": ("state", True),
     "Hover": ("movement", True),
     "Illusions": ("effect", False),

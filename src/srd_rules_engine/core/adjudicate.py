@@ -187,6 +187,17 @@ class EffectKind(StrEnum):
     #: creature's speed **after modifiers** and in the mode it chose — p. 180 offers the
     #: choice ("you can use that speed instead of your Speed… You choose which speed to use
     #: each time you take it"), so the number is settled where the choice is offered.
+    #: A Hit Point Die spent on a Short Rest (p. 187, 0082). `amount` is how many.
+    #:
+    #: Its own kind rather than bookkeeping on the caller's side, for #119's reason: before
+    #: that, conditions reached state through a method callers invoked directly, with no
+    #: roll, no seed, no citation and no ledger entry behind them. A die spent that way
+    #: would be a resource leaving a creature with nothing recording that it did.
+    #:
+    #: **The healing is a sibling effect, not this one.** p. 187 spends the die and rolls
+    #: it, and the two are separable: a spend that healed would make the roll unreachable
+    #: from the ledger, which is the whole of what a Ruling is for.
+    HIT_DIE_SPENT = "hit-die-spent"
     DASHED = "dashed"
     #: The Dodge action taken (p. 181). Carries no number: the benefits are stated, and
     #: whether they hold is re-asked whenever they are read rather than frozen here.
@@ -998,8 +1009,48 @@ class DamageDice:
             raise ValueError(f"{self.count}d{self.sides} is not a damage expression")
 
 
+@dataclass(frozen=True)
+class HealingDice:
+    """Healing a resolver **declares** and the engine rolls. Never a total (p. 187, 0082).
+
+    `DamageDice`'s counterpart, and it exists for exactly the same sentence of R4: a
+    resolver returning `Effect(kind=HEALING, amount=6)` for a Hit Point Die would be a
+    caller supplying a roll. p. 187 says "roll the die and add your Constitution modifier
+    to it", so the resolver states `1d8 + 2` and the engine rolls it.
+
+    **Not a `DamageDice` with a sign flipped.** Damage passes through a target's defences —
+    p. 17's Immunity, Resistance and Vulnerability all act on it inside `with_damage` — and
+    healing passes through none of them. Sharing the type would put a `damage_type` on
+    healing, which is a field with no meaning and an invitation to a defence being consulted
+    on a Hit Point Die.
+
+    **`minimum` is a rule, not a safety net.** p. 187: "You regain Hit Points equal to the
+    total (**minimum of 1 Hit Point**)." A creature with a negative Constitution modifier
+    can roll a 1 on a d6 and total less than one, and the document says what happens then.
+    It defaults to 0 because no other rule here states such a floor, and inventing one for
+    all healing would be R31's inferred rule value.
+    """
+
+    target_id: str
+    count: int
+    sides: int
+    modifier: int = 0
+    source: str = "healing"
+    #: The floor the rule states, if it states one. p. 187 states 1.
+    minimum: int = 0
+
+    def __post_init__(self) -> None:
+        if self.count < 0 or self.sides < 1:
+            raise ValueError(f"{self.count}d{self.sides} is not a healing expression")
+        if self.minimum < 0:
+            raise ValueError(
+                f"a minimum of {self.minimum} hit points regained is not a floor the "
+                "document states; healing is not negative"
+            )
+
+
 #: What a proposal may put in a branch: a stated effect, or dice for the engine to roll.
-Declared = Effect | DamageDice
+Declared = Effect | DamageDice | HealingDice
 
 
 @dataclass(frozen=True)
@@ -1065,6 +1116,11 @@ def _refuse_undecidable_conditional(branch_name: str, branch: Sequence[Declared]
     for declared in branch:
         if isinstance(declared, DamageDice):
             damaged.add(declared.target_id)
+            continue
+        # Healing carries no predicate and settles no damage, so it neither satisfies a
+        # `when` nor can hold one. Falling through to the attribute reads below would raise
+        # on a type that has none of them.
+        if isinstance(declared, HealingDice):
             continue
         if declared.kind is EffectKind.DAMAGE:
             damaged.add(declared.target_id)
@@ -1840,6 +1896,28 @@ def _roll_declared(
         if isinstance(declared, Effect):
             settled.append(declared)
             continue
+        if isinstance(declared, HealingDice):
+            # No doubling: p. 179 doubles "the attack's damage dice", and a Hit Point Die
+            # is not an attack's. A Critical Hit reaching this branch would be a resolver
+            # defect, and silently doubling the healing is how it would stay one.
+            faces = dice(seed, count=declared.count, sides=declared.sides, offset=offset)
+            offset += declared.count
+            healed = max(declared.minimum, sum(faces) + declared.modifier)
+            floor = f", minimum {declared.minimum}" if declared.minimum else ""
+            settled.append(
+                Effect(
+                    kind=EffectKind.HEALING,
+                    target_id=declared.target_id,
+                    amount=healed,
+                    description=(
+                        f"{declared.source}: {declared.count}d{declared.sides}"
+                        f"{_signed(declared.modifier)}{floor} -> "
+                        f"{' + '.join(str(f) for f in faces) or '0'}"
+                        f"{_signed(declared.modifier)} = {healed}"
+                    ),
+                )
+            )
+            continue
         count = declared.count * 2 if critical is Critical.HIT else declared.count
         faces = dice(seed, count=count, sides=declared.sides, offset=offset)
         offset += count
@@ -1935,6 +2013,8 @@ def _apply(
         landed.append(effect)
         if effect.kind is EffectKind.HEALING:
             state = state.with_healing(effect.target_id, effect.amount)
+        elif effect.kind is EffectKind.HIT_DIE_SPENT:
+            state = state.with_hit_dice_spent(effect.target_id, effect.amount)
         elif effect.kind is EffectKind.DEATH_SAVE_SUCCESS:
             state = state.with_death_save(effect.target_id, successes=effect.amount, seed=seed)
         elif effect.kind is EffectKind.DEATH_SAVE_FAILURE:
