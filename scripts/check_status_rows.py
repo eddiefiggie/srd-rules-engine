@@ -81,7 +81,7 @@ def main() -> int:
         f"      but #{n} is CLOSED"
         for row in rows
         for claim in row.claims
-        if claim.unbuilt
+        if claim.outstanding
         for n in claim.issues
         if states[n] == "CLOSED"
     ]
@@ -91,7 +91,7 @@ def main() -> int:
             print("Status rows citing an issue that does not exist:\n", file=sys.stderr)
             print("\n".join(missing), file=sys.stderr)
         if stale:
-            print("\nStatus rows claiming unbuilt work over a CLOSED issue:\n", file=sys.stderr)
+            print("\nStatus rows claiming unfinished work over a CLOSED issue:\n", file=sys.stderr)
             print("\n".join(stale), file=sys.stderr)
         print(
             "\nA closed issue reads as finished work rather than as absent work "
@@ -101,10 +101,10 @@ def main() -> int:
         )
         return 1
 
-    unbuilt = sum(claim.unbuilt for row in rows for claim in row.claims)
+    outstanding = sum(claim.outstanding for row in rows for claim in row.claims)
     print(
         f"  ok  {len(rows)} Status rows across {len({r.record for r in rows})} files; "
-        f"{unbuilt} claims say unbuilt work and every issue they cite is open"
+        f"{outstanding} claims say work is unfinished and every issue they cite is open"
     )
     return 0
 

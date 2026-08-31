@@ -108,11 +108,20 @@ record's.
 | 4 — unknown size refuses | **Built** |
 | 5 — `Fraction` | **Built.** `core.size.WATER_PER_DAY` |
 | 6 — the table's home | **Built**, and re-exported from `core.hazards` |
-| 7 — Malnutrition | **Not built.** [#399](https://github.com/eddiefiggie/srd-rules-engine/issues/399) holds the occasion; the starvation half additionally needs days without food counted |
+| 7a — Malnutrition's save | **Built** 2026-08-30. `TurnLoop.end_day` compels p. 185's DC 10 Constitution save through the one entry point ([0081](0081-a-campaign-days-end-is-the-fifth-occasion.md)) |
+| 7b — Malnutrition's starvation | **Not built.** p. 185's second rule grants an Exhaustion level automatically after five days with nothing, and consecutive days without food are counted by nothing ([#401](https://github.com/eddiefiggie/srd-rules-engine/issues/401)) |
 
 The `dehydration` shape is **claimed**; `malnutrition` is not. `scripts/verify_d20_rules.py`
-carries 300 clauses, including p. 185's — asserted although unbuilt, so whoever takes #399
-does not re-read it and cannot quietly disagree with it.
+carries 300 clauses, including p. 185's — asserted although the starvation half is unbuilt, so
+whoever takes #401 does not re-read it and cannot quietly disagree with it.
+
+_Updated 2026-08-31 ([#404](https://github.com/eddiefiggie/srd-rules-engine/issues/404)).
+Clause 7 was one row saying `**Not built.**` over #399, which closed the day before with the
+occasion shipped — the **Status rows cite open issues** job was red on `main` for it. It is two
+rows now, because p. 185 is two rules and they are blocked on different things, which 0027
+clause 8 had already found and this record had not caught up with. Splitting it rather than
+restating it is what keeps the unbuilt half visible: a single row corrected to "built" would
+have closed the CI failure and lost the starvation count in the same edit._
 
 ### Evidence
 
