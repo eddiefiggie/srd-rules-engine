@@ -693,6 +693,28 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- p. 183's Help: asserted although unbuilt, so #434 does not re-read it ---------
+    (
+        183,
+        "Help's ability-check half scopes its Advantage to a SKILL OR TOOL, which "
+        "`PendingAdvantage.against_id` cannot express — it answers which target, not which "
+        "skill — and tools are not modelled at all (#434)",
+        r"That ally has Advantage on the next ability check they make with the chosen skill "
+        r"or tool",
+    ),
+    (
+        183,
+        "and its attack half grants to an UNNAMED ally — the holder is whichever ally "
+        "attacks first, where Vex grants to the attacker and Sap to the creature hit, both "
+        "known when the token is made",
+        r"giving Advantage to the next attack roll by one of your allies against that enemy",
+    ),
+    (
+        183,
+        "and the two expiries differ by a word: the ability-check benefit expires if unused "
+        "BEFORE the start of your next turn, the attack benefit AT it",
+        r"This benefit expires if the ally doesn.t use it before the start of your next turn",
+    ),
     # --- p. 183's Hide (#432) ----------------------------------------------------------
     (
         183,
