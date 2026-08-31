@@ -64,6 +64,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # *can* observe, and it is unbuilt (#409).
         # p. 187 and p. 189: one mechanism, two entries, and neither states a DC —
         # the caller supplies it with its derivation, as `perception_resolver` does (#411).
+        # p. 190's entry is an index; the mechanic is p. 18's five clauses (0033, #414).
+        "temporary-hit-points": "core.state.EncounterState.with_temporary_hit_points",
+        # p. 177: a derived read on the current total, so nothing stores it.
+        "bloodied": "core.state.Combatant.is_bloodied",
         "search": "core.turn_actions.search_resolver",
         "study": "core.turn_actions.study_resolver",
         "hit-point-dice": "core.rests.hit_die_resolver",

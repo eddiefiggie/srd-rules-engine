@@ -172,7 +172,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 177",
    "kind": "state",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "bonus-action",
@@ -1068,7 +1068,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 190",
    "kind": "effect",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "tremorsense",

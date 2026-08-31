@@ -594,6 +594,11 @@ class Combatant:
     #: Spell slots, for a creature that has any. `None` for one that does not, which is a
     #: different thing from having none left.
     slots: SpellSlots | None = None
+    #: p. 18's buffer. Not hit points, and deliberately a plain count rather than a value
+    #: object: p. 18 gives them no properties of their own beyond a number that absorbs
+    #: damage and expires. `0` is the ordinary state, and unlike `hit_dice` there is nothing
+    #: to be *unrecorded* about — a creature nobody granted any simply has none.
+    temporary_hit_points: int = 0
     #: Hit Point Dice (p. 183), for a creature whose ruleset recorded them. `None` is
     #: **unrecorded**, not zero — p. 183 says player characters have them and "most monsters
     #: also have Hit Dice", so a creature nobody gave any is far more likely to be one the
@@ -1090,6 +1095,24 @@ class Combatant:
     def is_down(self) -> bool:
         """At 0 hit points a combatant stops acting."""
         return self.hit_points <= 0
+
+    @property
+    def is_bloodied(self) -> bool:
+        """p. 177: "A creature is Bloodied while it has half its Hit Points or fewer remaining."
+
+        **A derived read, and nothing stores it.** *While* is the operative word: the entry
+        states a condition on the current total rather than a state something applies and
+        something else removes. Storing a flag would let it disagree with the hit points it
+        is about, which is the one way this rule can be got wrong.
+
+        **Temporary Hit Points are not counted.** p. 18 says they "can't be added to your Hit
+        Points", so a creature on 4 of 20 with 30 Temporary Hit Points is Bloodied — the
+        buffer is deep and its Hit Points are still half or fewer.
+
+        Compared doubled rather than by halving, so an odd maximum needs no rounding rule the
+        document does not supply: 10 of 21 is Bloodied because 20 <= 21.
+        """
+        return self.hit_points * 2 <= self.max_hit_points
 
     @property
     def is_dodging(self) -> bool:
@@ -2233,7 +2256,32 @@ class EncounterState:
         amount = self.damage_after_defences(combatant_id, amount, damage_type).amount
         before = target.hit_points
 
-        reduced = replace(target, hit_points=max(0, before - amount))
+        # p. 18, "Lose Temporary Hit Points First": "If you have Temporary Hit Points and
+        # take damage, those points are lost first, and any leftover damage carries over to
+        # your Hit Points." The example is explicit — 5 Temporary Hit Points and 7 damage
+        # loses the 5 and then 2 Hit Points — so the buffer absorbs and the remainder falls
+        # through rather than the whole blow being cancelled.
+        #
+        # After defences, deliberately. p. 17's Resistance halves the *damage*, and the
+        # buffer then absorbs what is left of it; absorbing first would spend Temporary Hit
+        # Points on damage the creature was never going to take.
+        #
+        # **`amount` is not reduced, and that is the whole of the reading** (#413). p. 18
+        # calls Temporary Hit Points "a buffer against losing actual Hit Points" — they do
+        # not reduce the damage, they absorb where it lands. Everything below asks what the
+        # creature *took*: p. 179 compels a Concentration save on damage taken, and p. 18
+        # charges a Death Saving Throw failure for "any damage" at 0 Hit Points. Subtracting
+        # here would silently answer both — a fully-absorbed blow would break no
+        # Concentration and cost no failure — and neither is a sentence the document states.
+        # p. 17's Resistance is the contrast that settles it: it says "halve the damage", so
+        # a resisted blow really is smaller. p. 18 never says that.
+        absorbed = min(target.temporary_hit_points, amount)
+
+        reduced = replace(
+            target,
+            hit_points=max(0, before - (amount - absorbed)),
+            temporary_hit_points=target.temporary_hit_points - absorbed,
+        )
 
         # p. 179, "Damage": damage taken by a concentrating creature compels a Constitution
         # save. **Recorded here, rolled nowhere near here** (0036 clause 2). Detection
@@ -2306,6 +2354,48 @@ class EncounterState:
                 )
             )
         return state.with_death_save(combatant_id, failures=2 if critical else 1)
+
+    def with_temporary_hit_points(
+        self, combatant_id: str, amount: int, *, replacing: bool | None = None
+    ) -> EncounterState:
+        """Grant Temporary Hit Points, or refuse to choose between two sets (p. 18).
+
+        **They do not stack, and the choice is not the engine's.** p. 18: "Temporary Hit
+        Points can't be added together. If you have Temporary Hit Points and receive more of
+        them, **you decide** whether to keep the ones you have or to gain the new ones." So a
+        grant over an existing set refuses unless `replacing` says which was chosen — taking
+        the larger would be the engine deciding, and the document gives that to the creature.
+        Its example is the case that makes it matter: 12 offered over 10 may be kept at 10.
+
+        `replacing` is `None` when nothing is held, because there is nothing to choose
+        between.
+
+        **This is not healing** (p. 18, "They're Not Hit Points or Healing"). Three
+        consequences, and each is a way an implementation goes wrong:
+
+        * Hit points are untouched, so a creature at full Hit Points can receive them.
+        * Death Saving Throw counts are **not** reset. p. 17 resets them "when you regain
+          any Hit Points", and these are not Hit Points — `with_healing` resets and this
+          must not, which is the difference the two methods exist to keep.
+        * A creature at 0 Hit Points is not restored to consciousness: p. 18 says outright
+          that "Only true healing can save you."
+        """
+        if amount < 0:
+            raise ValueError("Temporary Hit Points are not negative; damage is a separate change")
+        target = self.combatant(combatant_id)
+
+        if target.temporary_hit_points > 0 and replacing is None:
+            raise ValueError(
+                f"{target.name} already has {target.temporary_hit_points} Temporary Hit "
+                f"Points and {amount} are offered. p. 18 says they cannot be added together "
+                "and that the creature decides which set to keep, so say which with "
+                "`replacing=` — the engine taking the larger would be choosing for it"
+            )
+        if replacing is False:
+            return self
+        return self._evolve(
+            combatants=self._replacing(replace(target, temporary_hit_points=amount))
+        )
 
     def with_hit_dice_spent(self, combatant_id: str, count: int) -> EncounterState:
         """Record that a Short Rest spent this many Hit Point Dice (p. 187, 0082).
@@ -2793,6 +2883,11 @@ class EncounterState:
             # and all spent Hit Point Dice". A creature whose dice nobody recorded is left
             # unrecorded rather than given some.
             hit_dice=target.hit_dice.restored() if target.hit_dice is not None else None,
+            # p. 18: "Temporary Hit Points last until they're depleted or you finish a Long
+            # Rest." Not on p. 185, which lists what a rest *restores* and never mentions
+            # them — the expiry is stated where the buffer is defined, and 0033's reading of
+            # a glossary entry as an index is the same shape.
+            temporary_hit_points=0,
         )
         held = restored.conditions.exhaustion_levels
         removable = [i for i, rule in enumerate(held) if rule not in LOCKED_EXHAUSTION_RULES]

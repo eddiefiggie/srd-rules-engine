@@ -468,9 +468,17 @@ CLAIMED_ON_TEXT_OUTSIDE_THE_ENTRY = {
 
 #: Asserted **unclaimed**, so this guard fails in both directions. Without it the test is
 #: satisfiable by claiming everything, which is exactly the vacuous claim 0033 rejects.
-#: Each is unclaimed for a reason that predates 0033 and is unaffected by it: these four have
-#: no implementation at all.
-NOT_CLAIMED_AND_NOT_BECAUSE_OF_THIS_RULE = ("bloodied", "occupied-space", "temporary-hit-points")
+#: Each is unclaimed for a reason that predates 0033 and is unaffected by it: it has no
+#: implementation at all.
+#:
+#: **Two left in #414, and they left by being built rather than by being reasoned about.**
+#: `bloodied` and `temporary-hit-points` sat here because nothing resolved them, not because
+#: 0033 said anything about them — so building p. 18's five clauses and p. 177's derived read
+#: is what removes them, and removing them in that same change is the pairing `AGENTS.md`
+#: requires. The set is down to one, which is thin: a counter-direction with a single member
+#: is one deletion from vacuous, and the next shape built out of it should be replaced rather
+#: than merely removed.
+NOT_CLAIMED_AND_NOT_BECAUSE_OF_THIS_RULE = ("occupied-space",)
 
 
 def test_a_definitional_glossary_body_does_not_decide_whether_a_shape_is_claimed(
