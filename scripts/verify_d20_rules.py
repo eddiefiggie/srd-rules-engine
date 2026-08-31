@@ -693,6 +693,31 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- p. 186's Ready: asserted although unbuilt, so #436 does not re-read it --------
+    (
+        187,
+        "a readied spell is cast and PAID FOR now, holding only its energy — the reverse of "
+        "0065's long cast, which spends its slot on completion. The two are opposite on the "
+        "exact axis that record settled (#436)",
+        r"When you Ready a spell, you cast it as normal \(expending any resources used to "
+        r"cast it\) but hold its energy, which you release with your Reaction when the "
+        r"trigger occurs",
+    ),
+    (
+        187,
+        "and holding it needs a Concentration bounded at a TURN BOUNDARY, which the built "
+        "Concentration machinery does not attach to one — and a break makes the spell "
+        "dissipate with no effect, which is #224's unbuilt shape",
+        r"holding on to the spell.s magic requires Concentration, which you can maintain up "
+        r"to the start of your next turn\.\s*If your Concentration is broken, the spell "
+        r"dissipates without taking effect",
+    ),
+    (
+        186,
+        "the trigger is a PERCEIVABLE CIRCUMSTANCE, which is narrative — so the caller says "
+        "when it fires, as it does a rest's interruption and a Cover degree",
+        r"First, you decide what perceivable circumstance will trigger your Reaction",
+    ),
     # --- p. 183's Help: asserted although unbuilt, so #434 does not re-read it ---------
     (
         183,
