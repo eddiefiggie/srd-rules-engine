@@ -38,7 +38,7 @@ trap set:
   broke, and the half of this script that never needed the PDF.
 
 **Last run green against SRD v5.2.1: 2026-08-31**, reproducing `effect_shapes.json`
-byte-for-byte — 210 shapes, 140 implemented, 22 vocabulary. Update this line when you re-run
+byte-for-byte — 210 shapes, 142 implemented, 22 vocabulary. Update this line when you re-run
 it, because nothing else can.
 
 Usage: python3 scripts/derive_effect_shapes.py /path/to/SRD_CC_v5.2.1.pdf [--check]
@@ -195,7 +195,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Monster": ("vocabulary", False),
     "Nonplayer Character": ("vocabulary", False),
     "Object": ("vocabulary", False),
-    "Occupied Space": ("targeting", False),
+    "Occupied Space": ("targeting", True),
     "Opportunity Attacks": ("action", True),
     "Passive Perception": ("test", True),
     "Per Day": ("resource", False),
@@ -234,7 +234,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Tremorsense": ("sense", False),
     "Truesight": ("sense", False),
     "Unarmed Strike": ("action", True),
-    "Unoccupied Space": ("targeting", False),
+    "Unoccupied Space": ("targeting", True),
     "Vulnerability": ("effect", True),
     "Weapon": ("vocabulary", False),
     # Not a `test`: the document defines the term on p. 191 and never uses it (0034, #229).

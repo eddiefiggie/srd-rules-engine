@@ -693,6 +693,34 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- p. 14's Creature Size and Space, and the two occupancy entries (#337, 0084) ----
+    (
+        14,
+        "a size determines the WIDTH OF A SQUARE SPACE, and the second sentence is what "
+        "bounds the field's reach: a space is what a creature CONTROLS, not a volume it "
+        "displaces — which is why it answers occupancy and not distance",
+        r"A creature belongs to a size category, which determines the width of the square "
+        r"space the creature occupies on a map",
+    ),
+    (
+        14,
+        "and the table itself, with Tiny at TWO AND A HALF feet — the row that decides the "
+        "type, since an int loses the half and a float rounds it",
+        r"Tiny 2. by 2. feet",
+    ),
+    (
+        185,
+        "a space is occupied if a creature is in it OR if it is completely filled by objects "
+        "— and the second clause is unbuilt, because this engine's objects are equipment "
+        "rather than occupants (0084 clause 9, #451)",
+        r"A space is occupied if a creature is in it or if it is completely filled by objects",
+    ),
+    (
+        191,
+        "and p. 191 states the negative in the same two terms",
+        r"A space is unoccupied if no creatures are in it and it isn.t completely filled by "
+        r"objects",
+    ),
     # --- p. 16's Underwater Combat: asserted although unbuilt, so #446 does not re-read -
     (
         16,

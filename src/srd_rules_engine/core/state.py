@@ -79,6 +79,7 @@ from srd_rules_engine.core.position import (
     distance_feet,
     movement_cost,
     slow_feet_taken,
+    space_contains,
     squared_distance,
 )
 from srd_rules_engine.core.sight import (
@@ -2297,6 +2298,46 @@ class EncounterState:
         whatever noticed the water had gone.
         """
         return self.underwater
+
+    def occupants_of(self, point: Position) -> tuple[Combatant, ...]:
+        """Every creature whose space contains `point` (p. 185, #337).
+
+        p. 185: "A space is occupied **if a creature is in it** or if it is completely filled
+        by objects." p. 191 states the negative in the same terms.
+
+        **Objects are not asked about**, and that is a gap rather than an omission: p. 185's
+        second clause needs an object that fills a space, and this engine's objects are
+        equipment a creature carries. `Obstruction` is the nearest thing and is a barrier
+        rather than an occupant — a wall gives Total Cover and a line of effect stops at it,
+        which are different questions from whether a creature may stand there. Disclosed on
+        `is_unoccupied`.
+
+        A creature whose size nobody stated occupies nothing, which is 0051's reading: an
+        unstated size is unknown rather than Medium, and inventing a space for it would put a
+        creature somewhere the ruleset never said it was.
+        """
+        return tuple(
+            other
+            for other in self.combatants
+            if other.position is not None
+            and other.size is not None
+            and space_contains(other.position, other.size.space_feet, point)
+        )
+
+    def is_unoccupied(self, point: Position) -> bool:
+        """p. 191: "A space is unoccupied if **no creatures are in it** and it isn't
+        completely filled by objects."
+
+        **The object half is not asked**, so this answers the creature half only and answers
+        `True` where p. 191 might say `False` — a space filled floor to ceiling with crates
+        reads as free. That direction is the honest one to be wrong in for a *read* (R19): it
+        reports what the engine can see rather than inventing an obstruction, and the caller
+        that placed the crates knows about them.
+
+        Named as the document names it rather than as `not occupied`, because p. 185 and
+        p. 191 are two entries and a reader looking for either should find it.
+        """
+        return not self.occupants_of(point)
 
     def damage_after_defences(
         self, combatant_id: str, amount: int, damage_type: DamageType | None = None

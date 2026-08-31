@@ -44,6 +44,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+from fractions import Fraction
 from typing import Final
 
 from srd_rules_engine.core.rules import (
@@ -330,6 +331,28 @@ def long_jump_feet(strength_score: int, *, running: bool = True) -> int:
     if strength_score < 0:
         raise ValueError(f"a Strength score is not {strength_score}")
     return strength_score if running else strength_score // 2
+
+
+def space_contains(centre: Position, width: Fraction, point: Position) -> bool:
+    """Whether `point` falls inside the square space of a creature at `centre` (p. 14, #337).
+
+    **Centred on the creature, which is an engine convention and is stated as one.** p. 14
+    describes the space as what a size "determines... on a map", and a map here means a grid —
+    which this project declines as a default (`AGENTS.md`). Without one there is no square to
+    align to, so the width is hung symmetrically about the creature's own point. The document
+    supplies no other anchor, and picking a corner would be the same invention with a worse
+    reading.
+
+    **A square, not a cube.** p. 14 gives a *width* and a square, and says nothing about
+    height — so `z` is not bounded here. A flying creature directly overhead is not in the
+    space below it, and the document does not say what would decide that; asking about `x` and
+    `y` only is the reading that adds nothing.
+
+    Inclusive at the boundary, because the alternative is a seam: two Medium creatures five
+    feet apart would otherwise both fail to contain the midpoint that separates them.
+    """
+    half = width / 2
+    return abs(Fraction(point.x - centre.x)) <= half and abs(Fraction(point.y - centre.y)) <= half
 
 
 def high_jump_feet(strength_modifier: int, *, running: bool = True) -> int:

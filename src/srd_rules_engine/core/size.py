@@ -75,6 +75,20 @@ class Size(StrEnum):
         """
         return _ORDER.index(self)
 
+    @property
+    def space_feet(self) -> Fraction:
+        """The width of the square space this creature occupies (p. 14, #337).
+
+        p. 14: a size category "determines **the width of the square space** the creature
+        occupies on a map", and a creature's space is "the area that it effectively controls
+        in combat and the area it needs to fight effectively".
+
+        That second sentence is what bounds the field'"'"'s reach. A space is a **control** area,
+        not a physical volume — which is why it answers occupancy and moving-around questions
+        and does not change how far away anything is (0084).
+        """
+        return SPACE_FEET[self]
+
     def categories_above(self, other: Size) -> int:
         """How many categories larger this size is than `other`, negative if smaller.
 
@@ -101,6 +115,31 @@ _ORDER: Final[tuple[Size, ...]] = (
 #: "Your size and Strength **score** determine the maximum weight in pounds that you can
 #: carry" — the score, not the modifier, which is the arithmetic an implementation working
 #: from memory of the game gets wrong.
+#: p. 14's *Creature Size and Space*: the width of the square space a creature occupies
+#: (#337). Transcribed rather than derived, for the reason the carrying table is — the
+#: document states a table, and the doubling that fits four of the six rows does not fit
+#: Small and Medium, which share a space exactly as they share a carrying multiplier.
+#:
+#: **`Fraction`, because Tiny is 2½ feet.** `Position` is integer feet and every other
+#: distance in this engine is an integer, so a float would round somewhere and an int would
+#: lose the half outright — and it is the one row where the width is not a multiple of five.
+#: `Fraction` is already this repository's answer for an exact non-integer quantity: p. 181's
+#: water ration is one.
+#:
+#: **The Squares column is not transcribed.** p. 14 prints both, and the squares are the grid
+#: variant this project declines as a default (`AGENTS.md` non-goals). They are derivable
+#: from the feet at five feet a square, which is what makes omitting them safe rather than
+#: lossy — the feet are the primitive and the squares are a presentation of them.
+SPACE_FEET: Final[dict[Size, Fraction]] = {
+    Size.TINY: Fraction(5, 2),
+    Size.SMALL: Fraction(5),
+    Size.MEDIUM: Fraction(5),
+    Size.LARGE: Fraction(10),
+    Size.HUGE: Fraction(15),
+    Size.GARGANTUAN: Fraction(20),
+}
+
+
 CARRY_MULTIPLIER: Final[dict[Size, float]] = {
     Size.TINY: 7.5,
     Size.SMALL: 15.0,

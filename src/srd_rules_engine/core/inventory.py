@@ -107,6 +107,12 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # p. 16 entire (#446): the melee Disadvantage with its Piercing and Swim Speed
         # exemptions, the ranged Disadvantage within normal range, the automatic miss
         # beyond it (#224's shape, #448's kind), and Fire Resistance for anything wet.
+        # pp. 185 and 191 (0084). A creature now has an extent, and it answers occupancy
+        # and deliberately nothing else — p. 14 calls a space what a creature *controls*,
+        # and the document says nothing about measuring between two extents without a
+        # grid. p. 185's object clause is unbuilt and disclosed (#451).
+        "occupied-space": "core.state.EncounterState.occupants_of",
+        "unoccupied-space": "core.state.EncounterState.is_unoccupied",
         "underwater-combat-penalties": "core.combat._impeded_underwater",
         "simultaneous-effects": "loop.turn.TurnLoop._ordered",
         "surprise": "core.combat._initiative_advantage",

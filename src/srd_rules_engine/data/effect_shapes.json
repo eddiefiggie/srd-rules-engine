@@ -772,7 +772,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 185",
    "kind": "targeting",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "opportunity-attacks",
@@ -1108,7 +1108,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 191",
    "kind": "targeting",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "utilize",
