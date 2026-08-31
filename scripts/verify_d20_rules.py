@@ -693,6 +693,15 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- p. 189's Surprise (#440) ------------------------------------------------------
+    (
+        189,
+        "Surprise's whole mechanic is Disadvantage on the INITIATIVE roll, and the entry "
+        "states nothing else — no lost turn, no condition. It is also not one of the "
+        "fifteen, which is why it lives on the creature rather than in `Conditions`",
+        r"If a creature is caught unawares by the start of combat, that creature is "
+        r"surprised, which causes it to have Disadvantage on its Initiative roll",
+    ),
     # --- p. 180's Dead (#438) ----------------------------------------------------------
     (
         180,

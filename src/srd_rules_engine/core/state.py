@@ -618,6 +618,17 @@ class Combatant:
     #: Spell slots, for a creature that has any. `None` for one that does not, which is a
     #: different thing from having none left.
     slots: SpellSlots | None = None
+    #: p. 189: caught unawares by the start of combat, which gives **Disadvantage on the
+    #: Initiative roll** and nothing else (#440).
+    #:
+    #: **Not a condition**, and the distinction is the document's: Surprise has its own
+    #: glossary entry and is not among p. 179's fifteen, so putting it in `Conditions` would
+    #: make that set sixteen and its completeness a different claim.
+    #:
+    #: **Caller-stated**, because "caught unawares by the start of combat" is a narrative
+    #: fact about what happened before the encounter — the same shape a rest's interruption
+    #: and a Cover degree have.
+    surprised: bool = False
     #: p. 183: the total of the Stealth check that hid this creature, which is the DC for a
     #: creature to find it with a Wisdom (Perception) check. `None` when not hidden.
     #:

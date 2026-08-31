@@ -1020,7 +1020,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 189",
    "kind": "effect",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "swimming",

@@ -241,11 +241,33 @@ def initiative_order(state: EncounterState, *, seed: int) -> Mapping[str, int]:
     return {
         combatant.id: pick(
             faces[index * DICE_PER_COMBATANT : (index + 1) * DICE_PER_COMBATANT],
-            combatant.conditions.initiative_advantage,
+            _initiative_advantage(combatant),
         )
         + combatant.modifier(INITIATIVE_ABILITY)
         for index, combatant in enumerate(state.combatants)
     }
+
+
+def _initiative_advantage(combatant: Combatant) -> Advantage:
+    """What this creature's Initiative roll has, from every source (p. 184, p. 189, #440).
+
+    Two conditions state it — p. 184 gives Incapacitated Disadvantage and Invisible
+    Advantage — and p. 189's Surprise states a third: "that creature is surprised, which
+    causes it to have Disadvantage on its Initiative roll."
+
+    **Surprise is not a condition**, so it cannot join `Conditions.initiative_advantage`: it
+    has its own glossary entry and is not among p. 179's fifteen, and admitting it would make
+    that set sixteen and its completeness a different claim. So the two are combined here,
+    through p. 8's cancellation like everything else — an Invisible creature that is
+    surprised rolls flat, because Advantage and Disadvantage cancel however many of each
+    there are.
+    """
+    from_conditions = combatant.conditions.initiative_advantage
+    if not combatant.surprised:
+        return from_conditions
+    if from_conditions is Advantage.ADVANTAGE:
+        return Advantage.NONE
+    return Advantage.DISADVANTAGE
 
 
 def _poison_delivery(

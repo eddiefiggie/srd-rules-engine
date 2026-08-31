@@ -100,6 +100,9 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # p. 180 (#438): a dead creature cannot regain hit points. Its remaining
         # sentences are all about revival magic, which has no antecedent — there are
         # no spells (#21), so Raise Dead does not exist to be excepted.
+        # p. 189 (#440): Disadvantage on Initiative and nothing else. Not a condition,
+        # so it is combined with the two that are at the roll rather than inside them.
+        "surprise": "core.combat._initiative_advantage",
         "dead": "core.state.EncounterState.with_healing",
         "hide": "core.hiding.hide_resolver",
         "cover": "core.obstructions.cover_between",
