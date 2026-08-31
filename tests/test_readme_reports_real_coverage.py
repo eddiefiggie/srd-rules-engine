@@ -183,13 +183,14 @@ def test_the_senses_and_light_slice_is_the_one_the_row_names() -> None:
     # The five-category group is no longer zeroed: Falling landed (#140), then Burning and
     # Suffocation, then Darkness and Heavily Obscured, then Lightly Obscured and Dim Light
     # with the Perception check (#138), then Bright Light once #228 found its mechanic on
-    # p. 11 rather than in its glossary entry, and then Dehydration — the fourth of the five
-    # hazards (#315, 0080) — so it is 11 of 23. That is the point rather than an
-    # inconvenience: the wrong figure was wrong *because* it described this set instead of the
-    # one the row names, and it stays wrong now for a second reason. Asserting the count keeps
-    # the slice real rather than merely absent.
+    # p. 11 rather than in its glossary entry, then Dehydration — the fourth of the five
+    # hazards (#315, 0080) — and then all three attitudes at once with the first core fact
+    # type (#142), so it is 14 of 23. That is the point rather than an inconvenience: the
+    # wrong figure was wrong *because* it described this set instead of the one the row
+    # names, and it stays wrong now for a second reason. Asserting the count keeps the slice
+    # real rather than merely absent.
     resolved, total = _slice(("sense", "environment", "hazard", "affliction", "attitude"))
-    assert (resolved, total) == (11, 23)
+    assert (resolved, total) == (14, 23)
 
     row = MILESTONE_ROW.search(_readme())
     assert row is not None

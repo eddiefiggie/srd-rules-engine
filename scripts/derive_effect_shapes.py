@@ -38,7 +38,7 @@ trap set:
   broke, and the half of this script that never needed the PDF.
 
 **Last run green against SRD v5.2.1: 2026-08-31**, reproducing `effect_shapes.json`
-byte-for-byte — 210 shapes, 124 implemented, 22 vocabulary. Update this line when you re-run
+byte-for-byte — 210 shapes, 129 implemented, 22 vocabulary. Update this line when you re-run
 it, because nothing else can.
 
 Usage: python3 scripts/derive_effect_shapes.py /path/to/SRD_CC_v5.2.1.pdf [--check]
@@ -93,7 +93,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Dehydration": ("hazard", True),
     "Malnutrition": ("hazard", False),
     **{n: ("targeting", True) for n in ("Cone", "Cube", "Cylinder", "Emanation", "Line", "Sphere")},
-    **{n: ("attitude", False) for n in ("Friendly", "Hostile", "Indifferent")},
+    **{n: ("attitude", True) for n in ("Friendly", "Hostile", "Indifferent")},
     "Attack": ("action", True),
     # Dash, Disengage and Dodge need only the action economy and movement, both of which
     # exist. The other eight wait on skills, attitudes, spellcasting or reaction triggers.
@@ -105,12 +105,14 @@ KINDS: dict[str, tuple[str, bool]] = {
     # p. 187 and p. 189: one mechanism, two entries, and neither states a DC — the caller
     # supplies it with its derivation, as `perception_resolver` does (#411).
     **{n: ("action", True) for n in ("Search", "Study")},
+    # p. 184, and the three attitudes that move its check (#142). The first core fact type
+    # this engine ships — attitude is a narrative fact carrying mechanical weight (R20).
+    "Influence": ("action", True),
     **{
         n: ("action", False)
         for n in (
             "Help",
             "Hide",
-            "Influence",
             "Magic",
             "Ready",
         )
@@ -127,7 +129,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Armor Class": ("state", True),
     "Armor Training": ("state", True),
     "Attack Roll": ("test", True),
-    "Attitude": ("state", False),
+    "Attitude": ("state", True),
     "Attunement": ("state", False),
     "Blindsight": ("sense", True),
     "Bloodied": ("state", True),
