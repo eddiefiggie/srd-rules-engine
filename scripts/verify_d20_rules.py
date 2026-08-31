@@ -693,6 +693,23 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- p. 190's Teleportation: asserted although unbuilt, so #444 does not re-read ----
+    (
+        190,
+        "a teleport expends NO movement and NEVER provokes an Opportunity Attack — both "
+        "behavioural contrasts against `TurnLoop.move`, which spends a speed and offers the "
+        "provocation (#444)",
+        r"This transportation doesn.t expend movement unless a rule tells you otherwise, and "
+        r"teleportation never provokes Opportunity Attacks",
+    ),
+    (
+        190,
+        "and its destination rule is blocked on #337: 'occupied' and 'nearest unoccupied "
+        "space' are questions about EXTENT, and every creature in core.position is a point",
+        r"If the destination space of your teleportation is occupied by another creature or "
+        r"blocked by a solid obstacle, you instead appear in the nearest unoccupied space of "
+        r"your choice",
+    ),
     # --- p. 187's Simultaneous Effects (#442) ------------------------------------------
     (
         187,
