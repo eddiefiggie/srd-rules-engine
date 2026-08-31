@@ -38,7 +38,7 @@ trap set:
   broke, and the half of this script that never needed the PDF.
 
 **Last run green against SRD v5.2.1: 2026-08-31**, reproducing `effect_shapes.json`
-byte-for-byte — 210 shapes, 139 implemented, 22 vocabulary. Update this line when you re-run
+byte-for-byte — 210 shapes, 140 implemented, 22 vocabulary. Update this line when you re-run
 it, because nothing else can.
 
 Usage: python3 scripts/derive_effect_shapes.py /path/to/SRD_CC_v5.2.1.pdf [--check]
@@ -309,6 +309,11 @@ VOCABULARY_REASONS: dict[str, str] = {
 #: written for, one constant away from where it was looking.
 IMPLEMENTED_SECTION_SHAPES: frozenset[str] = frozenset(
     {
+        # p. 16 entire (#446): the melee Disadvantage with its Piercing and Swim Speed
+        # exemptions, the ranged Disadvantage within normal range, the automatic miss beyond
+        # it — which needed #224's shape and #448's kind — and Fire Resistance for anything
+        # underwater.
+        "underwater-combat-penalties",
         # p. 197, and the only one of the four delivery types whose exposure this engine can
         # observe: Piercing or Slashing damage from a coated object (#141). The other three
         # are exposed by a touch, a swallow and a cloud.
