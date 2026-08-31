@@ -158,6 +158,13 @@ LOCKED_EXHAUSTION_RULES: Final = frozenset({DEHYDRATION_RULE_ID, MALNUTRITION_RU
 #: two endings can find it and no other Unconscious is touched (0083, #428).
 KNOCKED_OUT_RULE_ID: Final = "srd:rules-glossary/knocking-out-a-creature"
 
+#: p. 183. The rule id the Invisible granted by hiding carries, so ending the hiding touches
+#: only that Invisible and not one granted by anything else (0083).
+#:
+#: Here rather than in `core.hiding` because that module imports this one — the same split
+#: `Hazards` makes with `core.hazards`, and for the same reason.
+HIDE_RULE_ID: Final = "srd:rules-glossary/hide"
+
 
 @dataclass(frozen=True)
 class Hazards:
@@ -611,6 +618,13 @@ class Combatant:
     #: Spell slots, for a creature that has any. `None` for one that does not, which is a
     #: different thing from having none left.
     slots: SpellSlots | None = None
+    #: p. 183: the total of the Stealth check that hid this creature, which is the DC for a
+    #: creature to find it with a Wisdom (Perception) check. `None` when not hidden.
+    #:
+    #: The number **and** the marker, because p. 183 gives no hidden-ness apart from it: the
+    #: creature is hidden exactly while there is a DC to find it by. A separate boolean would
+    #: be a second place for one fact, able to disagree with itself.
+    hidden_dc: int | None = None
     #: p. 18's buffer. Not hit points, and deliberately a plain count rather than a value
     #: object: p. 18 gives them no properties of their own beyond a number that absorbs
     #: damage and expires. `0` is the ordinary state, and unlike `hit_dice` there is nothing
@@ -2474,6 +2488,49 @@ class EncounterState:
         return self._evolve(
             combatants=self._replacing(replace(target, temporary_hit_points=amount))
         )
+
+    def with_hidden(self, combatant_id: str, check_total: int) -> EncounterState:
+        """p. 183: the creature is hidden, and its check total is the DC to find it.
+
+        The Invisible condition is applied by the ruling's own effect rather than here —
+        p. 183 states it as a consequence of the check and `condition_applied` carries the
+        cause, so ending it later touches only the Invisible that *hiding* produced (0083).
+
+        This records the number, which nothing else can: the total is the roll, and R4 keeps
+        rolls with the engine.
+        """
+        target = self.combatant(combatant_id)
+        return self._evolve(combatants=self._replacing(replace(target, hidden_dc=check_total)))
+
+    def with_hiding_broken(self, combatant_id: str, reason: str) -> EncounterState:
+        """p. 183: the hiding ends, and the Invisible it granted goes with it.
+
+        p. 183 names four ways, and they are not alike in what the engine can observe:
+
+        * **an attack roll** and **a Verbal spell** — the engine sees both, and the paths
+          that resolve them call this.
+        * **an enemy finds you** — a Wisdom (Perception) check against `hidden_dc`, rolled
+          through the one entry point like any other; the caller applies the result.
+        * **a sound louder than a whisper** — a narrative fact this engine cannot observe, so
+          a caller says so. The same disclosed shape `hazards.burning` carries for being
+          doused.
+
+        Ends **only the Invisible that hiding caused**. A creature invisible by other means
+        stays so, which is the whole of why `Conditions.causes` exists (0083): p. 183's entry
+        never says when the condition ends, so the ending belongs to the cause.
+
+        A no-op on a creature that is not hidden. p. 183 says what ends hiding; it says
+        nothing about a creature with none to end.
+        """
+        target = self.combatant(combatant_id)
+        if target.hidden_dc is None:
+            return self
+        revealed = replace(
+            target,
+            hidden_dc=None,
+            conditions=target.conditions.ended_where_caused_by(Condition.INVISIBLE, HIDE_RULE_ID),
+        )
+        return self._evolve(combatants=self._replacing(revealed))
 
     def with_first_aid(self, combatant_id: str) -> EncounterState:
         """p. 184: first aid wakes a creature a subduing blow knocked out (0083).

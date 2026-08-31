@@ -98,6 +98,8 @@ from dataclasses import replace
 from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.adjudicate import (
     Declaration,
+    Effect,
+    EffectKind,
     Proposal,
     Resolver,
     action_spent,
@@ -315,6 +317,21 @@ def spell_resolver(spell: Spell, effects: Resolver) -> Resolver:
                         f"{caster.name} begins concentrating, ending whatever it was "
                         "concentrating on before (p. 179)"
                     ),
+                )
+            )
+
+        # p. 183: "You stop being hidden immediately after ... you cast a spell with a
+        # Verbal component." A cost of casting like the others, so it rides in `costs` and
+        # applies whatever the spell's own roll decides. A no-op for a caster that was not
+        # hidden, and never appended for a spell without the component — p. 183 names the
+        # component, not the casting.
+        if spell.verbal:
+            costs.append(
+                Effect(
+                    kind=EffectKind.HIDING_BROKEN,
+                    target_id=caster_id,
+                    amount=0,
+                    description=f"{spell.rule_id} has a Verbal component (p. 183)",
                 )
             )
 
