@@ -471,6 +471,9 @@ class Effect:
     #: whole story. It can equal `amount` — Resistance and Vulnerability to the same type
     #: halve and then double rather than cancelling, which returns an even amount to itself.
     rolled: int | None = None
+    #: Damage only. p. 184's subduing blow, carried from the `DamageDice` that declared it so
+    #: `with_damage` can floor the target at 1 Hit Point instead of 0 (#428).
+    subduing: bool = False
     #: Condition kinds only: which of the fifteen (#119).
     condition: Condition | None = None
     #: `CONDITION_APPLIED` only, and the reason this field exists at all. The duration
@@ -1023,6 +1026,11 @@ class DamageDice:
     source: str = "damage"
     #: Carried through to the Effect, where the target's defences act on it.
     damage_type: DamageType | None = None
+    #: p. 184: the attacker chose to knock the target out rather than kill it (#428). Carried
+    #: on the damage rather than declared as a sibling effect, because p. 184 changes what
+    #: *this damage does* — "you can instead reduce the creature to 1 Hit Point" — and a
+    #: separate effect would have to run after the reduction it is meant to prevent.
+    subduing: bool = False
 
     def __post_init__(self) -> None:
         if self.count < 0 or self.sides < 1:
@@ -1950,6 +1958,7 @@ def _roll_declared(
                 amount=total,
                 critical=critical is Critical.HIT,
                 damage_type=declared.damage_type,
+                subduing=declared.subduing,
                 description=(
                     f"{declared.source}: {count}d{declared.sides}"
                     f"{_signed(declared.modifier)}{crit} -> "
@@ -2022,6 +2031,7 @@ def _apply(
                 effect.amount,
                 critical=effect.critical,
                 damage_type=effect.damage_type,
+                subduing=effect.subduing,
             )
             continue
 

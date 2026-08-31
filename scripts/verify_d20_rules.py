@@ -693,6 +693,23 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- p. 184's Knocking Out a Creature (#428) ---------------------------------------
+    (
+        184,
+        "the subduing blow: MELEE only, and it leaves the creature at 1 rather than 0, which "
+        "is why p. 17's Monster Death and Massive Damage both stop applying without a branch "
+        "— each needs a reduction to 0 and there is none",
+        r"When you would reduce a creature to 0 Hit Points with a melee attack, you can "
+        r"instead reduce the creature to 1 Hit Point",
+    ),
+    (
+        184,
+        "and the recovery clause, which is NOT built: p. 191's Unconscious entry never says "
+        "when the condition ends, so honouring this needs a condition to carry its cause",
+        r"The creature remains Unconscious until it regains any Hit Points or until someone "
+        r"uses an action to administer first aid to it, which requires a successful DC 10 "
+        r"Wisdom \(Medicine\) check",
+    ),
     # --- p. 182's Expertise (#424) -----------------------------------------------------
     (
         182,

@@ -54,6 +54,7 @@ from srd_rules_engine.core.read_surface import (
     UNARMED_STRIKE_ID,
     attack_key,
     dash_key,
+    subdue_attack_key,
 )
 from srd_rules_engine.loop.drivers import DriverExhausted, ScriptedDriver, drive
 from srd_rules_engine.loop.turn import (
@@ -354,6 +355,9 @@ def test_a_terminal_outcome_carries_the_refusals_and_what_was_offered(
         # These fixture combatants hold no weapon, so no weapon attack is offered — but
         # p. 177's other half is, since #267: an Unarmed Strike needs nothing in hand.
         attack_key(UNARMED_STRIKE_ID, "boar"),
+        # p. 184's Knocking Out a Creature, offered per melee attack (#428). An
+        # Unarmed Strike is one, so a weaponless combatant is offered both forms.
+        subdue_attack_key(UNARMED_STRIKE_ID, "boar"),
         dash_key(MovementMode.WALK),
         "dodge",
         "disengage",
@@ -567,6 +571,9 @@ def test_the_loop_yields_typed_requests_and_never_calls_the_driver(tmp_path: Pat
         # p. 177's other half, since #267: an Unarmed Strike needs nothing in hand, so these
         # weaponless fixture combatants are still offered an attack.
         attack_key(UNARMED_STRIKE_ID, "boar"),
+        # p. 184's Knocking Out a Creature, offered per melee attack (#428). An
+        # Unarmed Strike is one, so a weaponless combatant is offered both forms.
+        subdue_attack_key(UNARMED_STRIKE_ID, "boar"),
         dash_key(MovementMode.WALK),
         "dodge",
         "disengage",

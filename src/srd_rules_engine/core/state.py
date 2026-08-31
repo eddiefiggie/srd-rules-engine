@@ -2272,8 +2272,23 @@ class EncounterState:
         *,
         critical: bool = False,
         damage_type: DamageType | None = None,
+        subduing: bool = False,
     ) -> EncounterState:
         """Apply damage, including what it costs a creature already at 0 hit points.
+
+        **p. 184's Knocking Out a Creature** (#428): "When you would reduce a creature to 0
+        Hit Points with a melee attack, you can instead reduce the creature to 1 Hit Point.
+        The creature then has the Unconscious condition."
+
+        It lives here for the reason the death thresholds do — a caller able to knock a
+        creature out *without* the condition would be a caller able to skip half the rule.
+
+        **Two clauses of p. 17 stop applying, and neither needed a branch.** Monster Death is
+        "the instant it drops to 0 Hit Points" and Massive Damage begins "when damage reduces
+        a character to 0 Hit Points" — a subdued creature is at **1**, so neither precondition
+        is met and both fall out of the arithmetic. That is the document's own reading rather
+        than an exemption invented here, and it is why a subduing blow can knock out a monster
+        (p. 184 says "a creature", not "a character").
 
         p. 18, "Damage at 0 Hit Points": any damage there is a Death Saving Throw failure,
         two if it came from a Critical Hit, and damage that "equals or exceeds your Hit
@@ -2316,10 +2331,20 @@ class EncounterState:
         # p. 17's Resistance is the contrast that settles it: it says "halve the damage", so
         # a resisted blow really is smaller. p. 18 never says that.
         absorbed = min(target.temporary_hit_points, amount)
+        remaining = before - (amount - absorbed)
+
+        # p. 184: "When you **would reduce** a creature to 0 Hit Points ... you can instead
+        # reduce the creature to 1 Hit Point."
+        #
+        # Conditioned on `before > 0`, because a creature already at 0 is not being *reduced*
+        # to 0 by this blow — p. 184 says nothing about one that is already down, and a bare
+        # floor of 1 would silently **heal** it. The subduing choice is then simply not
+        # available, and the blow lands as an ordinary one.
+        subdued = subduing and before > 0 and remaining <= 0
 
         reduced = replace(
             target,
-            hit_points=max(0, before - (amount - absorbed)),
+            hit_points=1 if subdued else max(0, remaining),
             temporary_hit_points=target.temporary_hit_points - absorbed,
         )
 
@@ -2365,6 +2390,13 @@ class EncounterState:
             )
 
         state = self._evolve(combatants=self._replacing(reduced), forced_saves_owed=owed)
+        if subdued:
+            # p. 184: "The creature then has the Unconscious condition." Applied here rather
+            # than declared as a sibling effect, because whether the blow subdued at all is
+            # only known once the damage is against the hit points — a resolver has no number
+            # and `_roll_declared` has the rolled one, not the taken one.
+            return state.with_condition(combatant_id, Condition.UNCONSCIOUS)
+
         if amount == 0 or reduced.hit_points > 0 or target.death_saves.dead:
             return state
 
