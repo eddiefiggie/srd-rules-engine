@@ -327,6 +327,12 @@ class ShortRest:
     narrations: tuple[str | None, ...] = ()
     #: How many dice were spent, which is `len(rulings)` unless one was refused.
     spent: int = 0
+    #: p. 187: "An interrupted Short Rest confers no benefits" (#409).
+    #:
+    #: Distinguished from a rest where the creature simply declined, because the two are
+    #: different facts and produce the same empty result otherwise — `ReactionDeclined`'s
+    #: reasoning, applied to the whole occasion rather than to one offer.
+    interrupted: bool = False
 
     @property
     def missing_narration(self) -> bool:
@@ -632,7 +638,7 @@ class TurnLoop:
     # --- A Short Rest: an offer, repeated until the caller stops (0082) ---------------
 
     def short_rest(
-        self, state: EncounterState, resting_id: str
+        self, state: EncounterState, resting_id: str, *, interrupted: bool = False
     ) -> Generator[Request, Response, ShortRest]:
         """p. 187's Short Rest, offering a Hit Point Die until the rester stops (#406, 0082).
 
@@ -659,10 +665,31 @@ class TurnLoop:
         **What p. 187 states and this does not model**, disclosed rather than skipped:
 
         * *Special Feature* recharge — no feature in this engine has one.
-        * The hour, and interruptions. "An interrupted Short Rest confers no benefits", and
-          nothing advances an hour of downtime or observes a rest being broken, so the rest
-          is as long as the caller says it was. Filed as
-          [#409](https://github.com/eddiefiggie/srd-rules-engine/issues/409).
+        * The hour. "A Short Rest is a 1-hour period of downtime", and nothing advances it,
+          so the rest is as long as the caller says it was.
+
+        **An interrupted rest confers nothing, and that needed no un-applying** (#409). p. 187
+        lists three interruptions — Rolling Initiative, casting a non-cantrip spell, taking
+        any damage — and says "An interrupted Short Rest confers no benefits". That reads like
+        a problem, because the benefits here are hit points applied through Rulings and
+        written to the ledger, and taking them back is not a state transition this engine has.
+
+        It is not a problem, and the sentence that settles it is one line above the spend:
+        **"Benefits of the Rest. *When you finish the rest*, you gain the following
+        benefits."** The benefits are conferred at the **finish**, and an interruption stops
+        the rest before it gets there — so there is nothing to un-apply, because nothing was
+        ever applied. This method *is* the finish; it does not simulate the hour.
+
+        So an interrupted rest returns immediately, having offered no die and produced no
+        ruling. `interrupted` is on the result rather than left to be inferred from an empty
+        one, because "the rest was broken" and "the creature chose to spend nothing" are
+        different facts and the ledger should not have to guess which happened.
+
+        **Whether a rest was interrupted is the caller's to state.** Two of the three
+        interruptions are things this engine can observe within an encounter, and a rest is
+        not an encounter — nothing advances during one, so there is no moment at which the
+        engine could notice. That is the same shape as `end_day` taking consumption from the
+        caller.
 
         **The loop ends on the dice, not on the hit points.** A creature at full hit points
         is still offered a spend, because p. 187 does not forbid one and the minimum is 1
@@ -675,6 +702,12 @@ class TurnLoop:
                 f"{resting.name} has 0 hit points and cannot start a Short Rest — p. 187 "
                 "requires at least 1, exactly as p. 185's Long Rest does"
             )
+
+        if interrupted:
+            # p. 187, and it is a *result* rather than an error: a rest happened and conferred
+            # nothing. Returned after the hit-point precondition, because a creature at 0 hit
+            # points could not have started one to be interrupted.
+            return ShortRest(state=state, interrupted=True)
 
         rulings: list[Ruling] = []
         narrations: list[str | None] = []

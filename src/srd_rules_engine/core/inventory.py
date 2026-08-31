@@ -82,6 +82,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "bloodied": "core.state.Combatant.is_bloodied",
         "search": "core.turn_actions.search_resolver",
         "study": "core.turn_actions.study_resolver",
+        # p. 187 entire: the 1-hit-point precondition, the spend, and the interruption
+        # rule (#409). Its Special Feature recharge has no antecedent — no feature in
+        # this engine has one — and the hour is a span the caller asserts.
+        "short-rest": "loop.turn.TurnLoop.short_rest",
         "hit-point-dice": "core.rests.hit_die_resolver",
         "falling": "core.hazards.falling_resolver",
         # Burning fires at the turn's start, the phase 0027 clauses 1-4 built. The other
