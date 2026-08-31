@@ -11,9 +11,11 @@ R22's `DefaultKind` had never been applied to a core type. This is the first.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
-from srd_rules_engine.core.adjudicate import Declaration, EffectKind, Intent
+from srd_rules_engine.core.adjudicate import Declaration, Effect, EffectKind, Intent
 from srd_rules_engine.core.attitude import (
     ATTITUDE_FACT,
     ATTITUDE_TYPE,
@@ -215,3 +217,54 @@ def test_the_failure_branch_carries_no_effect_and_discloses_the_bar() -> None:
 
     assert proposal.on_failure == ()
     assert any("24 hours" in claim for claim in proposal.may_not_claim)
+
+
+def test_an_influenced_effect_can_actually_be_applied(tmp_path: Path) -> None:
+    """The bug this shipped with (#448), and the test that would have caught it.
+
+    Every test above asserts the **proposal**. None applied one, and `_apply` raises on an
+    effect kind it has no branch for — a guard added with #119, because Death had been the
+    fallback and every kind added since would silently have become one. `INFLUENCED` was in
+    neither the branches nor the exemption, so **every Influence ruling raised on
+    adjudication.**
+
+    Its own docstring said `_apply` "has no branch for it because there is nothing to apply —
+    which is the honest shape, not an omission". True of the intent, false of the code, and
+    the guard does not read docstrings.
+    """
+    from srd_rules_engine.core.adjudicate import _apply
+
+    state = _pair()
+    after, landed, withheld = _apply(
+        state,
+        (
+            Effect(
+                kind=EffectKind.INFLUENCED,
+                target_id="guard",
+                amount=1,
+                description="the guard was willing",
+            ),
+        ),
+        seed=1,
+    )
+
+    assert after == state, "p. 184 moves nothing the engine holds"
+    assert len(landed) == 1, "and the compliance is still recorded"
+    assert withheld == ()
+
+
+def test_every_recorded_only_kind_really_changes_nothing() -> None:
+    """The set is an exemption from a guard, so it needs its own guard: a kind put there by
+    mistake would silently stop applying. Asserted over the whole set rather than over its
+    members, so a third one added later is checked without anyone remembering to."""
+    from srd_rules_engine.core.adjudicate import RECORDED_ONLY, _apply
+
+    state = _pair()
+    for kind in RECORDED_ONLY:
+        after, landed, _ = _apply(
+            state,
+            (Effect(kind=kind, target_id="guard", amount=0, description="x"),),
+            seed=1,
+        )
+        assert after == state, f"{kind} changed state and is not recorded-only"
+        assert len(landed) == 1, f"{kind} was not recorded"

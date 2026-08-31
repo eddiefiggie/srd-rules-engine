@@ -187,6 +187,24 @@ class EffectKind(StrEnum):
     #: creature's speed **after modifiers** and in the mode it chose — p. 180 offers the
     #: choice ("you can use that speed instead of your Speed… You choose which speed to use
     #: each time you take it"), so the number is settled where the choice is offered.
+    #: A test the rules settled without a roll, and it failed (#224). `amount` is unused.
+    #:
+    #: p. 177: a Blinded creature "automatically fails any ability check that requires
+    #: sight". p. 16: a ranged attack underwater "automatically misses a target beyond the
+    #: weapon's normal range". Both are a rule **deciding** an outcome, and neither changes
+    #: any state — nothing is damaged, no condition applied, nothing spent.
+    #:
+    #: **It changes no state**, and `_apply` handles it through `RECORDED_ONLY` — which is
+    #: `INFLUENCED`'s shape, once #448 put that kind there too. What it produces is the
+    #: *record*: without it an automatic failure leaves no Ruling at all, and a session
+    #: review cannot tell "the observer never looked"
+    #: from "the observer looked and the rules failed it" (R30).
+    #:
+    #: **#224 asked what `Proposal` needed to change and the answer was nothing.** Its guard
+    #: refuses a proposal with no test *and no outcome*; an effect in `outcome` satisfies it.
+    #: The obstacle was never the guard — it was the assumption that every `EffectKind` is a
+    #: state transition, which `INFLUENCED` had already stopped being true.
+    AUTOMATIC_FAILURE = "automatic-failure"
     #: p. 183: the creature is hidden, and `amount` is the check total — which p. 183 makes
     #: the DC for a creature to find it with a Wisdom (Perception) check.
     HIDDEN = "hidden"
@@ -216,8 +234,9 @@ class EffectKind(StrEnum):
     #: the guard stood aside has produced an outcome no rule resolved.
     #:
     #: So this is a marked outcome in the ledger, the way `DEATH_SAVE_SUCCESS` is a mark
-    #: rather than hit points. `_apply` has no branch for it because there is nothing to
-    #: apply — which is the honest shape, not an omission.
+    #: rather than hit points. `_apply` has nothing to apply for it, and says so through
+    #: `RECORDED_ONLY` — it was in neither that set nor a branch until #448, and raised on
+    #: every adjudication.
     INFLUENCED = "influenced"
     #: A Hit Point Die spent on a Short Rest (p. 187, 0082). `amount` is how many.
     #:
@@ -657,6 +676,24 @@ def condition_applied(
         grapple=grapple,
         when=when,
         caused_by=caused_by,
+    )
+
+
+def automatically_failed(target_id: str, *, description: str) -> Effect:
+    """A test the rules settled without a roll, and it failed (#224).
+
+    A resolver builds this rather than an `Effect` directly, so `amount=0` is written once
+    here — the same reason `condition_applied` exists.
+
+    `description` carries the sentence that settled it. A record saying only "failed" would
+    be indistinguishable from a roll that came up short, and the whole value of this effect
+    is that a reader can tell the two apart.
+    """
+    return Effect(
+        kind=EffectKind.AUTOMATIC_FAILURE,
+        target_id=target_id,
+        amount=0,
+        description=description,
     )
 
 
@@ -1115,6 +1152,31 @@ class HidingTotal:
     """
 
     target_id: str
+
+
+#: Effect kinds that change no state and exist to be **recorded** (#448).
+#:
+#: Every other kind reaches state through a branch in `_apply`, and an unhandled one raises
+#: rather than falling through — a guard added with #119, because Death had been the fallback
+#: and every kind added since would silently have become one.
+#:
+#: These two are not unhandled; they are **handled by there being nothing to do**, and the
+#: distinction has to be explicit or the guard cannot tell them apart:
+#:
+#: * `INFLUENCED` — p. 184's Influence moves nothing the engine holds. A successful check
+#:   makes the monster comply; its attitude is untouched. What compliance needs is to be
+#:   *recorded* rather than narrated into existence, which is the whole of R1.
+#: * `AUTOMATIC_FAILURE` — p. 177's Blinded fails a sight-based check outright and p. 16's
+#:   underwater ranged attack misses outright. A rule decided; nothing moved.
+#:
+#: **`INFLUENCED` was in neither place until #448**, so every Influence ruling would have
+#: raised on adjudication. Its own docstring claimed `_apply` "has no branch for it because
+#: there is nothing to apply — which is the honest shape, not an omission", and that was true
+#: of the intent and false of the code: the guard does not read docstrings. Found by trying to
+#: reuse the pattern it described.
+RECORDED_ONLY: Final[frozenset[EffectKind]] = frozenset(
+    {EffectKind.INFLUENCED, EffectKind.AUTOMATIC_FAILURE}
+)
 
 
 #: What a proposal may put in a branch: a stated effect, or dice for the engine to roll.
@@ -2237,6 +2299,9 @@ def _apply(
             # and no way for an effect to claim a source its ruling did not have.
             assert rule_id is not None, "an outcome always names the rule that produced it"
             state = state.with_exhaustion(effect.target_id, rule_id, effect.amount)
+        elif effect.kind in RECORDED_ONLY:
+            # Nothing to apply, and that is the kind's whole point. See `RECORDED_ONLY`.
+            pass
         else:
             # Death was this branch until #119, which is the hazard: every kind added since
             # would have silently become a death. An unhandled kind now says so instead.
