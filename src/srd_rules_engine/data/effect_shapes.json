@@ -1708,7 +1708,7 @@
    "tag": null,
    "reference": "Playing the Game, p. 17 (Instant Death)",
    "kind": "effect",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "damage-modifier-no-stacking",

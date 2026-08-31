@@ -38,7 +38,7 @@ trap set:
   broke, and the half of this script that never needed the PDF.
 
 **Last run green against SRD v5.2.1: 2026-08-31**, reproducing `effect_shapes.json`
-byte-for-byte — 210 shapes, 132 implemented, 22 vocabulary. Update this line when you re-run
+byte-for-byte — 210 shapes, 133 implemented, 22 vocabulary. Update this line when you re-run
 it, because nothing else can.
 
 Usage: python3 scripts/derive_effect_shapes.py /path/to/SRD_CC_v5.2.1.pdf [--check]
@@ -311,6 +311,11 @@ IMPLEMENTED_SECTION_SHAPES: frozenset[str] = frozenset(
         # observe: Piercing or Slashing damage from a coated object (#141). The other three
         # are exposed by a touch, a swallow and a cloud.
         "poison-injury",
+        # p. 17's Instant Death, built since the death saves shipped and unclaimed until an
+        # audit read the inventory against the code (#426). Two of its three clauses are in
+        # `with_damage` with tests; the third, a hit point maximum reaching 0, has no
+        # antecedent because nothing here reduces one.
+        "instant-death",
         "natural-20-auto-hit",
         "advantage-does-not-stack",
         "damage-application-order",
