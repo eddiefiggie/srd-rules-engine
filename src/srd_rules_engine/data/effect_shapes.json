@@ -932,7 +932,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 187",
    "kind": "convention",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "size",

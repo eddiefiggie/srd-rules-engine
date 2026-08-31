@@ -136,6 +136,34 @@ class ReactionRequest:
 
 
 @dataclass(frozen=True)
+class OrderRequest:
+    """p. 187's Simultaneous Effects: which of these happens first (#442).
+
+    > If two or more things happen at the same time on a turn, the person at the game table —
+    > player or GM — whose turn it is decides the order in which those things happen. For
+    > example, if two effects occur at the start of a player character's turn, the player
+    > decides which of the effects happens first.
+
+    **The engine was choosing.** `start_turn` took `pending[0]`, which is list order — and
+    p. 187 gives that choice to the person whose turn it is. It is not an idle one: a
+    creature at 0 hit points that is also Burning owes a Death Saving Throw and Burning's
+    damage at the same moment, and which resolves first decides whether it is alive to take
+    the second.
+
+    Ordering is not an outcome, so this is not R4 — the engine still rolls everything. It is
+    R18's other half: a choice the rules give to a person is one the engine must ask for
+    rather than make, which is `SaveAbilityRequest`'s shape exactly (0053).
+    """
+
+    state: EncounterState
+    #: Whose turn it is, and therefore who decides — p. 187 names the person by their turn.
+    actor_id: str
+    #: The obligations owed at this instant, in the order the engine happened to enumerate
+    #: them. That order is **not** a suggestion; it is what p. 187 refuses to let stand.
+    pending: tuple[Obligation, ...]
+
+
+@dataclass(frozen=True)
 class HitDieRequest:
     """p. 187's offer: this creature may spend a Hit Point Die, and may say no (0082).
 
@@ -214,6 +242,7 @@ Request = (
     | SaveAbilityRequest
     | ReactionRequest
     | HitDieRequest
+    | OrderRequest
 )
 
 
@@ -258,6 +287,18 @@ class ReactionDeclined:
 
 
 @dataclass(frozen=True)
+class OrderChosen:
+    """Which owed obligation happens first (p. 187, #442).
+
+    Names a `rule_id` from the request's `pending`. There is no refusal, because p. 187
+    offers none — the things happen either way, and only their order is the person's to
+    decide. A driver naming something not owed is a driver bug and is named as one.
+    """
+
+    rule_id: str
+
+
+@dataclass(frozen=True)
 class SpendHitDie:
     """The rester spends one (p. 187, 0082).
 
@@ -287,6 +328,7 @@ Response = (
     | ReactionDeclined
     | SpendHitDie
     | SpendDeclined
+    | OrderChosen
 )
 
 
@@ -922,12 +964,12 @@ class TurnLoop:
         Save-ends, and Suffocation. The death save is not here and never was: p. 17 puts it
         at the turn's start, which is `start_turn_obligations`.
 
-        **Save-ends first.** A creature that is suffocating and holds a save-ends condition
-        owes both, and the save may end a condition whose effects would otherwise still be
-        described as holding when the Exhaustion lands. The reverse order decides nothing
-        differently today — an Exhaustion level changes no save's DC — so this is a stable
-        order rather than a rule, and it is stated because a reader would otherwise assume
-        one exists.
+        **Save-ends is enumerated first, and that is no longer the order it resolves in.**
+        A creature that is suffocating and holds a save-ends condition owes both, and p. 187
+        gives the order to the person whose turn it is (#442) — so this order is what the
+        caller is *offered*, not what happens. It was previously described here as "a stable
+        order rather than a rule", which was honest and is now beside the point: the rule
+        exists, and it is p. 187.
         """
         if not state.has(actor_id):
             return ()
@@ -997,7 +1039,20 @@ class TurnLoop:
             pending = self.start_turn_obligations(state, actor_id)
             if not pending:
                 break
-            obligation = pending[0]
+            # p. 187: "If two or more things happen at the same time on a turn, the person
+            # ... whose turn it is decides the order" (#442). Taking `pending[0]` is list
+            # order, and it is not idle: a creature at 0 hit points that is also Burning owes
+            # a Death Saving Throw and Burning's damage at the same instant, and which goes
+            # first decides whether it is alive to take the second.
+            #
+            # Asked only when there is a choice. One obligation is not two things happening
+            # at the same time, and asking anyway would be ceremony the document does not
+            # ask for.
+            obligation = (
+                pending[0]
+                if len(pending) == 1
+                else (yield from self._ordered(state, actor_id, pending))
+            )
 
             ruling, state = self.adjudicator.adjudicate(state, _obligation_declaration(obligation))
             # Discharged whether it succeeded, failed, or was refused. p. 17 gives one death
@@ -1066,7 +1121,16 @@ class TurnLoop:
             pending = self.end_turn_obligations(state, actor_id)
             if not pending:
                 break
-            obligation = pending[0]
+            # p. 187 again (#442). It says "at the same time **on a turn**", not at its
+            # start, so the end owes the same question — and `end_turn_obligations` already
+            # said its own order was "a stable order rather than a rule ... stated because a
+            # reader would otherwise assume one exists". p. 187 is the rule, and it gives the
+            # choice away.
+            obligation = (
+                pending[0]
+                if len(pending) == 1
+                else (yield from self._ordered(state, actor_id, pending))
+            )
 
             ruling, state = self.adjudicator.adjudicate(state, _obligation_declaration(obligation))
             # Discharged whether it succeeded, failed, or was refused. p. 63 gives one
@@ -1089,6 +1153,30 @@ class TurnLoop:
         )
 
     # --- The fourth occasion: saves damage compelled (0036) ---------------------------
+
+    def _ordered(
+        self, state: EncounterState, actor_id: str, pending: tuple[Obligation, ...]
+    ) -> Generator[Request, Response, Obligation]:
+        """Ask whose turn it is which of these happens first (p. 187, #442).
+
+        Only the *first* is chosen here. The caller re-reads what is outstanding after each
+        obligation resolves — an obligation resolved may change what is owed, which is why
+        the loop re-reads rather than snapshotting — so a creature owing three is asked
+        twice and never asked about one.
+        """
+        response = yield OrderRequest(state=state, actor_id=actor_id, pending=pending)
+        if not isinstance(response, OrderChosen):
+            raise TypeError(
+                f"an OrderRequest is answered with OrderChosen, not {type(response).__name__}"
+            )
+        for obligation in pending:
+            if obligation.rule_id == response.rule_id:
+                return obligation
+        owed = ", ".join(o.rule_id for o in pending)
+        raise ValueError(
+            f"{response.rule_id!r} is not owed at this moment, so p. 187 has nothing to "
+            f"order it among. Owed: {owed}"
+        )
 
     def _concentration_saves(
         self, state: EncounterState

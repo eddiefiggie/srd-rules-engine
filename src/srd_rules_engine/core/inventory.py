@@ -102,6 +102,9 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # no spells (#21), so Raise Dead does not exist to be excepted.
         # p. 189 (#440): Disadvantage on Initiative and nothing else. Not a condition,
         # so it is combined with the two that are at the roll rather than inside them.
+        # p. 187 (#442): the person whose turn it is decides the order when two things
+        # coincide. Both adjudicating turn phases ask, and only when there is a choice.
+        "simultaneous-effects": "loop.turn.TurnLoop._ordered",
         "surprise": "core.combat._initiative_advantage",
         "dead": "core.state.EncounterState.with_healing",
         "hide": "core.hiding.hide_resolver",
