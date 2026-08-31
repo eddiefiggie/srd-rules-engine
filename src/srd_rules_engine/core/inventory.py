@@ -65,6 +65,14 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # p. 187 and p. 189: one mechanism, two entries, and neither states a DC —
         # the caller supplies it with its derivation, as `perception_resolver` does (#411).
         # p. 190's entry is an index; the mechanic is p. 18's five clauses (0033, #414).
+        # p. 184 and the three attitudes that move its check (#142). The first core fact
+        # type this engine ships: attitude is a narrative fact carrying mechanical weight,
+        # so it arrives through the typed port rather than being derived (R20, R22).
+        "attitude": "core.attitude.ATTITUDE_TYPE",
+        "friendly": "core.attitude.Attitude.FRIENDLY",
+        "indifferent": "core.attitude.Attitude.INDIFFERENT",
+        "hostile": "core.attitude.Attitude.HOSTILE",
+        "influence": "core.attitude.influence_resolver",
         "temporary-hit-points": "core.state.EncounterState.with_temporary_hit_points",
         # p. 177: a derived read on the current total, so nothing stores it.
         "bloodied": "core.state.Combatant.is_bloodied",

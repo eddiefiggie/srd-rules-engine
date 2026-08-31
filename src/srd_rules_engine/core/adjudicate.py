@@ -187,6 +187,19 @@ class EffectKind(StrEnum):
     #: creature's speed **after modifiers** and in the mode it chose — p. 180 offers the
     #: choice ("you can use that speed instead of your Speed… You choose which speed to use
     #: each time you take it"), so the number is settled where the choice is offered.
+    #: Whether a monster did as it was urged (p. 184, #142). `amount` is 1 for compliance
+    #: and 0 for refusal.
+    #:
+    #: **It changes no state, and that is the point.** p. 184's Influence moves nothing the
+    #: engine holds — a successful check makes the monster comply, not like you, and its
+    #: attitude is untouched. What compliance needs is to be *recorded* rather than narrated
+    #: into existence, which is the whole of R1: an agent that decides off its own bat that
+    #: the guard stood aside has produced an outcome no rule resolved.
+    #:
+    #: So this is a marked outcome in the ledger, the way `DEATH_SAVE_SUCCESS` is a mark
+    #: rather than hit points. `_apply` has no branch for it because there is nothing to
+    #: apply — which is the honest shape, not an omission.
+    INFLUENCED = "influenced"
     #: A Hit Point Die spent on a Short Rest (p. 187, 0082). `amount` is how many.
     #:
     #: Its own kind rather than bookkeeping on the caller's side, for #119's reason: before

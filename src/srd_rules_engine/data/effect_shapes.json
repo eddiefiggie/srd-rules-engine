@@ -140,7 +140,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 177",
    "kind": "state",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "attunement",
@@ -532,7 +532,7 @@
    "tag": "Attitude",
    "reference": "Rules Glossary, p. 182",
    "kind": "attitude",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "frightened",
@@ -628,7 +628,7 @@
    "tag": "Attitude",
    "reference": "Rules Glossary, p. 183",
    "kind": "attitude",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "hover",
@@ -676,7 +676,7 @@
    "tag": "Attitude",
    "reference": "Rules Glossary, p. 184",
    "kind": "attitude",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "influence",
@@ -684,7 +684,7 @@
    "tag": "Action",
    "reference": "Rules Glossary, p. 184",
    "kind": "action",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "initiative",

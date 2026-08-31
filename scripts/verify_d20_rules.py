@@ -686,6 +686,49 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- The three attitudes, and p. 184's Influence (#142) ----------------------------
+    (
+        182,
+        "Friendly gives ADVANTAGE on the check, stated as a property of the check rather "
+        "than a bonus somebody has to size",
+        r"A Friendly creature views you favorably\.\s*You have Advantage on an ability check "
+        r"to influence a Friendly creature",
+    ),
+    (
+        183,
+        "and Hostile gives Disadvantage, which is the same sentence reversed",
+        r"A Hostile creature views you unfavorably\.\s*You have Disadvantage on an ability "
+        r"check to influence a Hostile creature",
+    ),
+    (
+        184,
+        "Indifferent states NO effect on the check, which is what makes it the neutral case "
+        "rather than a third modifier — and it states the DEFAULT, so R22's classification "
+        "is srd-prescribed rather than engine-chosen",
+        r"An Indifferent creature has no desire to help or hinder you\.\s*Indifferent is the "
+        r"default attitude of a monster",
+    ),
+    (
+        184,
+        "the DC is the higher of 15 and the monster's Intelligence SCORE — not its modifier, "
+        "which every other DC-adjacent number in this engine is",
+        r"which has a default DC equal to 15 or the monster.s Intelligence score, whichever "
+        r"is higher",
+    ),
+    (
+        184,
+        "two of the three determinations throw no die, so compliance and refusal are "
+        "outcomes recorded rather than narrated into existence (0027 clause 6)",
+        r"If your urging aligns with the monster.s desires, no ability check is necessary; "
+        r"the monster fulfills your request in a way it prefers",
+    ),
+    (
+        184,
+        "and THE sentence that dissolved #142's fourth design question: the monster complies, "
+        "and nothing about its attitude moves — so no EffectKind writes a fact",
+        r"On a successful check, the monster does as urged\.\s*On a failed check, you must "
+        r"wait 24 hours",
+    ),
     # --- Cover: asserted although unbuilt, so #416 does not re-read it -----------------
     (
         179,
