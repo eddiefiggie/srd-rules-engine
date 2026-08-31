@@ -38,7 +38,7 @@ trap set:
   broke, and the half of this script that never needed the PDF.
 
 **Last run green against SRD v5.2.1: 2026-08-31**, reproducing `effect_shapes.json`
-byte-for-byte — 210 shapes, 134 implemented, 22 vocabulary. Update this line when you re-run
+byte-for-byte — 210 shapes, 135 implemented, 22 vocabulary. Update this line when you re-run
 it, because nothing else can.
 
 Usage: python3 scripts/derive_effect_shapes.py /path/to/SRD_CC_v5.2.1.pdf [--check]
@@ -146,7 +146,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Climb Speed": ("movement", True),
     "Concentration": ("state", True),
     "Condition": ("effect", False),
-    "Cover": ("targeting", False),
+    "Cover": ("targeting", True),
     "Crawling": ("movement", True),
     "Creature": ("vocabulary", False),
     "Creature Type": ("state", False),

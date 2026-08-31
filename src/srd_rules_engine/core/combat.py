@@ -87,7 +87,7 @@ from srd_rules_engine.core.equipment import RECOVERY_MINUTES, Carriage, Carried,
 from srd_rules_engine.core.equipment import Weapon as Weapon
 from srd_rules_engine.core.forced_movement import displaced
 from srd_rules_engine.core.memory_port import Resolution
-from srd_rules_engine.core.obstructions import Cover, total_cover
+from srd_rules_engine.core.obstructions import Cover, cover_between, total_cover
 from srd_rules_engine.core.pending_rolls import (
     SAP_RULE_ID,
     VEX_RULE_ID,
@@ -384,6 +384,9 @@ def attack_resolver() -> Resolver:
             is_opportunity=is_opportunity,
         )
         _refuse_if_behind_total_cover(state, actor, target)
+        # p. 15's +2 or +5, read after the Total Cover refusal because Total is not a bonus —
+        # it is a prohibition, and an attack that cannot be made has no target number to move.
+        cover = _cover_from(state, actor, target)
         beyond_normal = _out_of_range(weapon, actor, target, thrown=is_thrown)
         # p. 184's exception to Invisible, asked in both directions (#193). Each needs
         # CERTAINTY to move away from the answer that cannot manufacture an outcome, so an
@@ -639,8 +642,8 @@ def attack_resolver() -> Resolver:
             ),
             test=D20Test(
                 kind=TestKind.ATTACK,
-                target=target.effective_armour_class,
-                target_basis=f"armour class {target.effective_armour_class}, worn by {target.name}",
+                target=target.effective_armour_class + cover.bonus,
+                target_basis=_ac_basis(target, cover),
                 # p. 89 lets a Finesse wielder choose, and `weapon.ability` is what the
                 # attack actually used — which is what p. 177's untrained-armour clause keys
                 # on ("any D20 Test that involves Strength or Dexterity").
@@ -993,6 +996,9 @@ def unarmed_strike_resolver() -> Resolver:
             )
         target = state.combatant(declared[1])
         _refuse_if_behind_total_cover(state, actor, target)
+        # p. 15's +2 or +5, read after the Total Cover refusal because Total is not a bonus —
+        # it is a prohibition, and an attack that cannot be made has no target number to move.
+        cover = _cover_from(state, actor, target)
 
         strength = actor.modifier("str")
         # p. 190: "Bludgeoning damage equal to 1 plus your Strength modifier." Floored at 0,
@@ -1011,8 +1017,8 @@ def unarmed_strike_resolver() -> Resolver:
             ),
             test=D20Test(
                 kind=TestKind.ATTACK,
-                target=target.effective_armour_class,
-                target_basis=f"armour class {target.effective_armour_class}, worn by {target.name}",
+                target=target.effective_armour_class + cover.bonus,
+                target_basis=_ac_basis(target, cover),
                 # p. 190's Unarmed Strike is Strength, always — there is no weapon to choose.
                 ability="str",
                 critical_on_hit=_hit_is_automatically_critical(actor, target),
@@ -1130,6 +1136,9 @@ def improvised_attack_resolver() -> Resolver:
 
         target = state.combatant(target_id)
         _refuse_if_behind_total_cover(state, actor, target)
+        # p. 15's +2 or +5, read after the Total Cover refusal because Total is not a bonus —
+        # it is a prohibition, and an attack that cannot be made has no target number to move.
+        cover = _cover_from(state, actor, target)
         strength = actor.modifier("str")
 
         return Proposal(
@@ -1142,8 +1151,8 @@ def improvised_attack_resolver() -> Resolver:
             ),
             test=D20Test(
                 kind=TestKind.ATTACK,
-                target=target.effective_armour_class,
-                target_basis=f"armour class {target.effective_armour_class}, worn by {target.name}",
+                target=target.effective_armour_class + cover.bonus,
+                target_basis=_ac_basis(target, cover),
                 ability="str",
                 critical_on_hit=_hit_is_automatically_critical(actor, target),
                 # p. 183: "**Don't add your Proficiency Bonus** to attack rolls with an
@@ -1473,6 +1482,38 @@ def _refuse_what_the_menu_would_not_offer(
             'Ammunition weapon "only if you have ammunition to fire from it", and drawing it '
             "needs a free hand for a one-handed weapon"
         )
+
+
+def _cover_from(state: EncounterState, actor: Combatant, target: Combatant) -> Cover:
+    """What cover the target has from this attacker (p. 15, p. 179, #416).
+
+    Directional, and that is the line test rather than anything stored: p. 15 gives the
+    benefit "only when an attack or other effect originates on the **opposite side** of the
+    cover", so a creature behind a wall has cover from the archer outside and none from the
+    one beside it.
+
+    An encounter tracking no positions or no obstructions answers `NONE` rather than
+    inventing a barrier — the same refusal `_refuse_if_behind_total_cover` makes.
+    """
+    if actor.position is None or target.position is None or not state.obstructions:
+        return Cover.NONE
+    return cover_between(actor.position, target.position, state.obstructions)
+
+
+def _ac_basis(target: Combatant, cover: Cover) -> str:
+    """The target number's derivation, with cover named when it applied (R5).
+
+    A DC that moved must say why. p. 15's bonus is "to AC **and Dexterity saving throws**",
+    and this is the AC half; the saves half has no caller yet and is disclosed on
+    `Cover.bonus` rather than silently absent.
+    """
+    base = f"armour class {target.effective_armour_class}, worn by {target.name}"
+    if cover.bonus == 0:
+        return base
+    return (
+        f"{base}, plus {cover.bonus} for {cover.value} cover "
+        f"(p. 15) — {target.effective_armour_class + cover.bonus} in all"
+    )
 
 
 def _refuse_if_behind_total_cover(
