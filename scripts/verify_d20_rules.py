@@ -686,6 +686,35 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- Search and Study: one mechanism, two entries, no DC (#411) --------------------
+    (
+        187,
+        "p. 187's Search names the ability and states NO difficulty, which is why the DC is "
+        "the caller's and carries its derivation (R5)",
+        r"When you take the Search action, you make a Wisdom check to discern something that "
+        r"isn.t obvious",
+    ),
+    (
+        187,
+        "and its table SUGGESTS rather than requires, which is why a check with no skill is "
+        "legal and a skill absent from the table is not refused",
+        r"The Search table suggests which skills are applicable when you take this action",
+    ),
+    (
+        189,
+        "p. 189's Study is the same sentence with a different ability, and likewise states "
+        "no difficulty",
+        r"When you take the Study action, you make an Intelligence check to study your "
+        r"memory, a book, a clue, or another source of knowledge",
+    ),
+    (
+        189,
+        "and its table likewise suggests. The five areas are Arcana, History, Investigation, "
+        "Nature and Religion — every one an Intelligence skill, which is the reading the "
+        "wrong-ability refusal rests on",
+        r"The Areas of Knowledge table suggests which skills are applicable to various areas "
+        r"of knowledge",
+    ),
     # --- p. 187's Short Rest, the sixth occasion (#406, 0082) --------------------------
     (
         187,

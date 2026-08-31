@@ -62,6 +62,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # and #406's occasion is what completes it. `short-rest` itself stays unclaimed:
         # p. 187's interruption clause is a stated mechanic whose antecedents this engine
         # *can* observe, and it is unbuilt (#409).
+        # p. 187 and p. 189: one mechanism, two entries, and neither states a DC —
+        # the caller supplies it with its derivation, as `perception_resolver` does (#411).
+        "search": "core.turn_actions.search_resolver",
+        "study": "core.turn_actions.study_resolver",
         "hit-point-dice": "core.rests.hit_die_resolver",
         "falling": "core.hazards.falling_resolver",
         # Burning fires at the turn's start, the phase 0027 clauses 1-4 built. The other
