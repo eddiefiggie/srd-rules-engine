@@ -68,6 +68,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # p. 184 and the three attitudes that move its check (#142). The first core fact
         # type this engine ships: attitude is a narrative fact carrying mechanical weight,
         # so it arrives through the typed port rather than being derived (R20, R22).
+        # p. 197, and the only one of the four whose exposure the engine can observe:
+        # Piercing or Slashing damage from a coated object (#141). The other three are
+        # exposed by a touch, a swallow and a cloud, and none is a thing this engine sees.
+        "poison-injury": "core.poison.Poison.delivers",
         "attitude": "core.attitude.ATTITUDE_TYPE",
         "friendly": "core.attitude.Attitude.FRIENDLY",
         "indifferent": "core.attitude.Attitude.INDIFFERENT",

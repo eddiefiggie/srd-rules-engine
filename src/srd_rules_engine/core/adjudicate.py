@@ -187,6 +187,13 @@ class EffectKind(StrEnum):
     #: creature's speed **after modifiers** and in the mode it chose — p. 180 offers the
     #: choice ("you can use that speed instead of your Speed… You choose which speed to use
     #: each time you take it"), so the number is settled where the choice is offered.
+    #: p. 197: a coated object delivered its poison through a wound, so the coating is spent.
+    #:
+    #: "The poison remains potent until **delivered through a wound** or washed off." Its own
+    #: kind, and not optional: without it a coated dagger poisons every creature it ever hits,
+    #: which is a rule the document states and an implementation drops by looking only at the
+    #: exposure half. `amount` is unused.
+    POISON_DELIVERED = "poison-delivered"
     #: Whether a monster did as it was urged (p. 184, #142). `amount` is 1 for compliance
     #: and 0 for refusal.
     #:
@@ -2026,6 +2033,8 @@ def _apply(
         landed.append(effect)
         if effect.kind is EffectKind.HEALING:
             state = state.with_healing(effect.target_id, effect.amount)
+        elif effect.kind is EffectKind.POISON_DELIVERED:
+            state = state.with_poison_delivered(effect.target_id, effect.description)
         elif effect.kind is EffectKind.HIT_DIE_SPENT:
             state = state.with_hit_dice_spent(effect.target_id, effect.amount)
         elif effect.kind is EffectKind.DEATH_SAVE_SUCCESS:

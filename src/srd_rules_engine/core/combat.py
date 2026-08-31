@@ -247,6 +247,65 @@ def initiative_order(state: EncounterState, *, seed: int) -> Mapping[str, int]:
     }
 
 
+def _poison_delivery(
+    wielded: Carried, weapon: Weapon, *, attacker_id: str, target_id: str
+) -> tuple[Effect, ...]:
+    """p. 197's Injury exposure, when the swung weapon is coated (#141).
+
+    Two effects or none, and both are conditioned on damage actually being taken:
+
+    * the Constitution save the poison compels, and
+    * the coating being spent — "the poison remains potent until **delivered through a
+      wound**", so a wound that never lands leaves it on the blade.
+
+    **`When.DAMAGE_TAKEN` is doing real work here.** p. 197 says a creature that *takes*
+    Piercing or Slashing damage is exposed, and p. 17's Immunity is the case that separates
+    taking from being hit: a creature immune to Piercing takes none from a rapier, so nothing
+    goes through the wound and there is no wound. That is 0032 clause 2's reasoning, and the
+    same shape #173 is about for Falling.
+
+    **The damage type is checked statically**, off the weapon, because a weapon deals the type
+    it deals. A coated club delivers nothing, and that is the case an implementation drops by
+    firing the save on any hit at all.
+    """
+    poison = wielded.poison
+    if poison is None or not poison.delivers(weapon.damage_type):
+        return ()
+
+    return (
+        Effect(
+            kind=EffectKind.SAVE_COMPELLED,
+            target_id=target_id,
+            amount=0,
+            when=When.DAMAGE_TAKEN,
+            forced_save=ForcedSave(
+                combatant_id=target_id,
+                rule_id=poison.rule_id,
+                ability=poison.save_ability,
+                dc=poison.save_dc,
+                dc_basis=(
+                    f"DC {poison.save_dc}, stated by {poison.name} — p. 197 compels a "
+                    "Constitution saving throw for every poison it prints"
+                ),
+                label=f"exposed to {poison.name} through a wound (p. 197)",
+                source_id=attacker_id,
+            ),
+            description=(
+                f"{poison.name} delivered through a wound (p. 197): Piercing or Slashing "
+                "damage from a coated object exposes the creature"
+            ),
+        ),
+        Effect(
+            kind=EffectKind.POISON_DELIVERED,
+            target_id=attacker_id,
+            amount=0,
+            description=wielded.item.id,
+            when=When.DAMAGE_TAKEN,
+            when_subject_id=target_id,
+        ),
+    )
+
+
 def attack_resolver() -> Resolver:
     """The resolver for an attack, whichever weapon the creature swung (0040 clause 4).
 
@@ -618,6 +677,12 @@ def attack_resolver() -> Resolver:
                     modifier=(min(0, ability) if is_extra else ability) + weapon.bonus,
                     source=weapon.id,
                 ),
+                # After the damage, and the ordering guard is what enforces it: p. 197
+                # exposes a creature that **takes** the damage, so the predicate reads what
+                # this branch's `DamageDice` settled to. Placed before it, the effect is
+                # false before the branch runs and would never apply — which the guard
+                # refuses outright rather than letting it fail silently (0032 clause 2).
+                *_poison_delivery(wielded, weapon, attacker_id=actor.id, target_id=target_id),
                 # p. 90's Cleave, opened by a **melee** hit with a weapon the wielder may use
                 # the property of (#323, 0047 clause 6). Recorded rather than resolved: the
                 # second swing is a separate attack roll the wielder chooses to make, so it

@@ -1612,7 +1612,7 @@
    "tag": null,
    "reference": "Gameplay Toolbox, p. 198 (Purple Worm Poison)",
    "kind": "affliction",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "trap-trigger",
