@@ -97,6 +97,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # supplies no method for measuring what fraction of a target is covered.
         # p. 183 (#432). Its two conditions, the Invisible it grants scoped by cause,
         # the check total recorded as the DC to find the hider, and the four endings.
+        # p. 180 (#438): a dead creature cannot regain hit points. Its remaining
+        # sentences are all about revival magic, which has no antecedent — there are
+        # no spells (#21), so Raise Dead does not exist to be excepted.
+        "dead": "core.state.EncounterState.with_healing",
         "hide": "core.hiding.hide_resolver",
         "cover": "core.obstructions.cover_between",
         "knocking-out-a-creature": "core.state.EncounterState.with_first_aid",
