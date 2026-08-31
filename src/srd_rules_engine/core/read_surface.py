@@ -288,6 +288,22 @@ def bonus_attack_declared(action_key: str | None) -> tuple[str, str] | None:
 #: p. 90's Cleave: a second swing at a creature beside the one just hit (#323).
 CLEAVE_ATTACK: Final = "cleave-attack"
 
+#: p. 183's Hide. Its own key rather than a variant, because it is an Action of its own
+#: rather than something an attack does differently (#432).
+HIDE: Final = "hide"
+
+
+#: p. 183, stated by the document rather than by the situation. Here rather than in
+#: `core.hiding` because the read surface reports it in the offer's detail, and that module
+#: imports this one.
+HIDE_DC: Final = 15
+
+
+def hide_key() -> str:
+    """The key p. 183's Hide is offered under."""
+    return HIDE
+
+
 #: p. 184's Knocking Out a Creature: a melee attack that leaves the target at 1 Hit Point and
 #: Unconscious rather than at 0 (#428).
 #:
@@ -1342,6 +1358,18 @@ def _attackable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, .
             # assumed, and an option never offered is one the agent cannot take (R18).
             offered.extend(_subdues(weapon, target))
 
+    # p. 183's Hide, offered only when its two conditions hold — Heavily Obscured or behind
+    # Three-Quarters or Total Cover, **and** out of every enemy's line of sight. Withholding
+    # it otherwise is R18 doing its job: an action the rules forbid is not a legal action, and
+    # offering it would invite a declaration the resolver has to refuse.
+    if _may_hide(state, actor):
+        offered.append(
+            LegalAction(
+                key=hide_key(),
+                label=f"Hide (DC {HIDE_DC} Dexterity (Stealth), p. 183)",
+                detail={"dc": HIDE_DC, "bonus": actor.check_bonus(Skill.STEALTH)},
+            )
+        )
     offered.extend(_throwable(state, actor))
     offered.extend(improvised_attacks(state, actor))
     offered.extend(_draw_and_use(state, actor))
@@ -1702,6 +1730,17 @@ def _interactions(state: EncounterState, actor: Combatant) -> tuple[LegalAction,
         )
         for verb, item, source in _interaction_options(state, actor)
     )
+
+
+def _may_hide(state: EncounterState, actor: Combatant) -> bool:
+    """Whether p. 183 permits this creature to try hiding.
+
+    Imported late, because `core.hiding` reads the sight chain and the obstructions and this
+    module sits below neither — the same shape `core.combat` imports its own resolvers with.
+    """
+    from srd_rules_engine.core.hiding import refusal_to_hide
+
+    return refusal_to_hide(state, actor) is None
 
 
 def _subdues(weapon: Weapon, target: Combatant) -> tuple[LegalAction, ...]:

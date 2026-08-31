@@ -199,14 +199,25 @@ def blocking(
 
 
 def line_is_blocked(start: Position, end: Position, obstructions: Sequence[Obstruction]) -> bool:
-    """p. 177: whether every straight line from `start` to `end` is blocked.
+    """Whether **Total Cover** lies between the two points (p. 177, p. 179).
 
-    A location is modelled as a *point*, so there is exactly one such line — a narrowing the
-    document does not make, since a creature occupies a space and a wall might block some
-    lines to it and not others. Stated rather than smoothed over: a target half behind a
-    pillar is reported as fully blocked or not blocked at all.
+    Its callers are all about a line of *effect*: `core.areas` will not reach a participant
+    through one, and `core.spellcasting` refuses an origin behind one — p. 177 says a point
+    of origin needs "an unblocked path to it, so it can't be behind Total Cover."
+
+    **Degree-aware since #416**, and it had to become so in the same change that introduced
+    degrees. Before that every `Obstruction` meant Total Cover, so "is anything on the line"
+    and "is Total Cover on the line" were the same question. They are not any more, and a
+    Half-Cover barrier stopping a Fireball would be a rule nothing in the document states.
+
+    `blocking` is deliberately **not** filtered this way: sight asks each barrier on the line
+    whether it is opaque (0029 clause 4), and a partial barrier may still be — smoke gives no
+    cover and blocks sight, a Wall of Force gives Total Cover and blocks none.
     """
-    return any(obstruction.blocks(start, end) for obstruction in obstructions)
+    return any(
+        obstruction.degree is Cover.TOTAL and obstruction.blocks(start, end)
+        for obstruction in obstructions
+    )
 
 
 def cover_between(start: Position, end: Position, obstructions: Sequence[Obstruction]) -> Cover:
@@ -235,15 +246,9 @@ def cover_between(start: Position, end: Position, obstructions: Sequence[Obstruc
 def total_cover(start: Position, end: Position, obstructions: Sequence[Obstruction]) -> Cover:
     """Whether the line is blocked outright, ignoring lesser degrees.
 
-    Kept beside `cover_between` because two callers want exactly this and nothing else:
-    `core.areas` blocks a line of *effect* with Total Cover (p. 177), and a Fireball is
-    stopped by a wall and not by a creature giving Half Cover.
+    Kept beside `cover_between` because callers want exactly this and nothing else — a
+    Fireball is stopped by a wall and not by a creature giving Half Cover — and expressed
+    through `line_is_blocked` so the two cannot drift apart into different answers to one
+    question.
     """
-    return (
-        Cover.TOTAL
-        if any(
-            obstruction.degree is Cover.TOTAL and obstruction.blocks(start, end)
-            for obstruction in obstructions
-        )
-        else Cover.NONE
-    )
+    return Cover.TOTAL if line_is_blocked(start, end, obstructions) else Cover.NONE

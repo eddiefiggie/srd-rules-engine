@@ -565,10 +565,15 @@ def test_the_target_is_read_from_the_action_key_never_from_the_label(tmp_path: P
     # what must land on the named target. `ATTACK_MADE` joined `ACTION_SPENT` here with #289,
     # for the same reason — it records that the actor spent one of the rolls p. 257's Attack
     # action bought, and an effect about the attacker is not an effect on a bystander.
+    # `HIDING_BROKEN` joined them with p. 183's Hide, and for the same reason again: "you
+    # stop being hidden immediately after ... you make an attack roll" is a fact about the
+    # attacker, and it rides in `always` because p. 183 ends the hiding on the roll being
+    # *made* rather than on it landing.
     ACTOR_BOOKKEEPING = {
         EffectKind.ACTION_SPENT,
         EffectKind.ATTACK_MADE,
         EffectKind.OBJECT_INTERACTED,
+        EffectKind.HIDING_BROKEN,
     }
     assert [e.target_id for e in ruling.effects if e.kind not in ACTOR_BOOKKEEPING] == ["boar"], (
         "and nothing else the attack did landed on anyone the key did not name"

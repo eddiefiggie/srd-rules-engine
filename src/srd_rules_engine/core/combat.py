@@ -450,6 +450,16 @@ def attack_resolver() -> Resolver:
             # charge. Equips precede the charge and unequips follow it, which is the derived
             # ordering `_swap_effects` documents.
             always=(
+                # p. 183: "You stop being hidden immediately after any of the following
+                # occurs: ... you make an attack roll." Made, not landed — so it rides in
+                # `always` beside the action charge, and a miss reveals the hider exactly as
+                # a hit does. A no-op for a creature that was not hidden.
+                Effect(
+                    kind=EffectKind.HIDING_BROKEN,
+                    target_id=actor.id,
+                    amount=0,
+                    description="an attack roll was made (p. 183)",
+                ),
                 *before,
                 # p. 90: "You can make this extra attack **only once per turn**", spent by
                 # making it rather than by landing it — the document caps the *attack*, not
@@ -1009,6 +1019,16 @@ def unarmed_strike_resolver() -> Resolver:
 
         return Proposal(
             always=(
+                # p. 183: "You stop being hidden immediately after any of the following
+                # occurs: ... you make an attack roll." Made, not landed — so it rides in
+                # `always` beside the action charge, and a miss reveals the hider exactly as
+                # a hit does. A no-op for a creature that was not hidden.
+                Effect(
+                    kind=EffectKind.HIDING_BROKEN,
+                    target_id=actor.id,
+                    amount=0,
+                    description="an attack roll was made (p. 183)",
+                ),
                 action_spent(
                     actor.id,
                     ActionKind.ACTION,
@@ -1143,6 +1163,16 @@ def improvised_attack_resolver() -> Resolver:
 
         return Proposal(
             always=(
+                # p. 183: "You stop being hidden immediately after any of the following
+                # occurs: ... you make an attack roll." Made, not landed — so it rides in
+                # `always` beside the action charge, and a miss reveals the hider exactly as
+                # a hit does. A no-op for a creature that was not hidden.
+                Effect(
+                    kind=EffectKind.HIDING_BROKEN,
+                    target_id=actor.id,
+                    amount=0,
+                    description="an attack roll was made (p. 183)",
+                ),
                 action_spent(
                     actor.id,
                     ActionKind.ACTION,

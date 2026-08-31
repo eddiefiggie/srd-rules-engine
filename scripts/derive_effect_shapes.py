@@ -38,7 +38,7 @@ trap set:
   broke, and the half of this script that never needed the PDF.
 
 **Last run green against SRD v5.2.1: 2026-08-31**, reproducing `effect_shapes.json`
-byte-for-byte — 210 shapes, 135 implemented, 22 vocabulary. Update this line when you re-run
+byte-for-byte — 210 shapes, 136 implemented, 22 vocabulary. Update this line when you re-run
 it, because nothing else can.
 
 Usage: python3 scripts/derive_effect_shapes.py /path/to/SRD_CC_v5.2.1.pdf [--check]
@@ -108,11 +108,13 @@ KINDS: dict[str, tuple[str, bool]] = {
     # p. 184, and the three attitudes that move its check (#142). The first core fact type
     # this engine ships — attitude is a narrative fact carrying mechanical weight (R20).
     "Influence": ("action", True),
+    # p. 183 (#432): both conditions, the check whose total becomes a DC, and all four
+    # endings — two observed by the engine, one a Perception check, one a caller's fact.
+    "Hide": ("action", True),
     **{
         n: ("action", False)
         for n in (
             "Help",
-            "Hide",
             "Magic",
             "Ready",
         )

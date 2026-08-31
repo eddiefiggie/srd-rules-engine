@@ -596,7 +596,7 @@
    "tag": "Action",
    "reference": "Rules Glossary, p. 183",
    "kind": "action",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "high-jump",

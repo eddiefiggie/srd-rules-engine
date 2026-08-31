@@ -187,6 +187,11 @@ class EffectKind(StrEnum):
     #: creature's speed **after modifiers** and in the mode it chose — p. 180 offers the
     #: choice ("you can use that speed instead of your Speed… You choose which speed to use
     #: each time you take it"), so the number is settled where the choice is offered.
+    #: p. 183: the creature is hidden, and `amount` is the check total — which p. 183 makes
+    #: the DC for a creature to find it with a Wisdom (Perception) check.
+    HIDDEN = "hidden"
+    #: p. 183: the hiding ended, by one of the four things that end it.
+    HIDING_BROKEN = "hiding-broken"
     #: p. 184: first aid administered to a creature knocked out, ending its Unconscious.
     #:
     #: Its own kind rather than a `CONDITION_ENDED`, because p. 184 ends **only the Unconscious
@@ -488,6 +493,11 @@ class Effect:
     #: so the ruling that imposes one is the only place that knows the span. `None` is
     #: `UNTIL_REMOVED` — reported as unretirable, never silently permanent.
     duration: Duration | None = None
+    #: `CONDITION_APPLIED` only. **Which rule** imposed it, where the condition ends
+    #: differently depending on what applied it (0083). p. 191's Unconscious and p. 183's
+    #: Invisible both need this: neither entry says when the condition ends, so the ending
+    #: belongs to the cause and a ruling has to name which one it means.
+    caused_by: str | None = None
     #: `CONDITION_APPLIED` only. Who imposed it, where the condition's own text turns on
     #: that (#192): p. 182 gives Grappled's Disadvantage "on attack rolls against any target
     #: other than the grappler", and Frightened's "while the source of fear is within line of
@@ -624,6 +634,7 @@ def condition_applied(
     source_id: str | None = None,
     grapple: Grapple | None = None,
     when: When | None = None,
+    caused_by: str | None = None,
 ) -> Effect:
     """A condition imposed by the ruling that caused it (#119).
 
@@ -645,6 +656,7 @@ def condition_applied(
         source_id=source_id,
         grapple=grapple,
         when=when,
+        caused_by=caused_by,
     )
 
 
@@ -1084,8 +1096,29 @@ class HealingDice:
             )
 
 
+@dataclass(frozen=True)
+class HidingTotal:
+    """p. 183's check total, recorded as the DC to find the hider — filled by the engine.
+
+    "Make note of your check's total, which is the DC for a creature to find you with a
+    Wisdom (Perception) check."
+
+    Declared rather than supplied, for `DamageDice`'s reason one step along: a resolver
+    returning `Effect(amount=17)` would be a caller supplying a **result**, which R4 exists
+    to make impossible — and it could not know the number, because the roll has not happened
+    when the proposal is built.
+
+    **Not [#216](https://github.com/eddiefiggie/srd-rules-engine/issues/216).** That gap is a
+    magnitude derived from a *sibling effect's settled damage*, which nothing can express.
+    This derives from the test's own total, which `adjudicate` holds two lines before it
+    builds the branch.
+    """
+
+    target_id: str
+
+
 #: What a proposal may put in a branch: a stated effect, or dice for the engine to roll.
-Declared = Effect | DamageDice | HealingDice
+Declared = Effect | DamageDice | HealingDice | HidingTotal
 
 
 @dataclass(frozen=True)
@@ -1155,7 +1188,7 @@ def _refuse_undecidable_conditional(branch_name: str, branch: Sequence[Declared]
         # Healing carries no predicate and settles no damage, so it neither satisfies a
         # `when` nor can hold one. Falling through to the attribute reads below would raise
         # on a type that has none of them.
-        if isinstance(declared, HealingDice):
+        if isinstance(declared, HealingDice | HidingTotal):
             continue
         if declared.kind is EffectKind.DAMAGE:
             damaged.add(declared.target_id)
@@ -1546,7 +1579,10 @@ class Adjudicator:
             (*proposal.always, *proposal.on_failure) if auto_failed else _branch(proposal, result)
         )
         effects = _roll_declared(
-            branch, seed=seed, critical=result.critical if result is not None else Critical.NONE
+            branch,
+            seed=seed,
+            critical=result.critical if result is not None else Critical.NONE,
+            total=result.total if result is not None else None,
         )
         # The effects that go into the Ruling are the ones `_apply` hands back, not the
         # ones it was given: damage is rolled before a target is consulted, so only the
@@ -1910,7 +1946,11 @@ def _branch(proposal: Proposal, result: D20Result | None) -> Sequence[Declared]:
 
 
 def _roll_declared(
-    branch: Sequence[Declared], *, seed: int, critical: Critical = Critical.NONE
+    branch: Sequence[Declared],
+    *,
+    seed: int,
+    critical: Critical = Critical.NONE,
+    total: int | None = None,
 ) -> tuple[Effect, ...]:
     """Turn a branch into settled effects, rolling any dice the resolver declared.
 
@@ -1930,6 +1970,28 @@ def _roll_declared(
     for declared in branch:
         if isinstance(declared, Effect):
             settled.append(declared)
+            continue
+        if isinstance(declared, HidingTotal):
+            # p. 183 makes the DC the roll itself. `total` is the D20Result's, which
+            # `adjudicate` has in hand — so the engine supplies the number and no caller
+            # can (R4).
+            if total is None:
+                raise ValueError(
+                    "a HidingTotal was declared in a branch with no D20 Test to take a "
+                    "total from. p. 183's DC *is* the check, so a testless proposal has "
+                    "nothing to record"
+                )
+            settled.append(
+                Effect(
+                    kind=EffectKind.HIDDEN,
+                    target_id=declared.target_id,
+                    amount=total,
+                    description=(
+                        f"hidden with a check total of {total}, which p. 183 makes the DC "
+                        "for a creature to find them with a Wisdom (Perception) check"
+                    ),
+                )
+            )
             continue
         if isinstance(declared, HealingDice):
             # No doubling: p. 179 doubles "the attack's damage dice", and a Hit Point Die
@@ -2050,6 +2112,10 @@ def _apply(
         landed.append(effect)
         if effect.kind is EffectKind.HEALING:
             state = state.with_healing(effect.target_id, effect.amount)
+        elif effect.kind is EffectKind.HIDDEN:
+            state = state.with_hidden(effect.target_id, effect.amount)
+        elif effect.kind is EffectKind.HIDING_BROKEN:
+            state = state.with_hiding_broken(effect.target_id, effect.description)
         elif effect.kind is EffectKind.FIRST_AID_GIVEN:
             state = state.with_first_aid(effect.target_id)
         elif effect.kind is EffectKind.POISON_DELIVERED:
@@ -2076,6 +2142,7 @@ def _apply(
                 duration=effect.duration,
                 source_id=effect.source_id,
                 grapple=effect.grapple,
+                caused_by=effect.caused_by,
             )
             # p. 191: "you drop whatever you're holding". Derived by the engine rather than
             # left to the resolver that applied the condition, for the reason implication is

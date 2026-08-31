@@ -693,6 +693,32 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "nothing here reduces one",
         r"Regain All HP\.\s*You regain all lost Hit Points and all spent Hit Point Dice",
     ),
+    # --- p. 183's Hide (#432) ----------------------------------------------------------
+    (
+        183,
+        "the DC is the document's, the skill is named rather than suggested, and BOTH "
+        "conditions must hold — obscurement or Three-Quarters/Total Cover, AND out of any "
+        "enemy's line of sight. Half Cover is not among the degrees named",
+        r"you must succeed on a DC 15 Dexterity \(Stealth\) check while you.re Heavily "
+        r"Obscured or behind Three-Quarters Cover or Total Cover, and you must be out of any "
+        r"enemy.s line of sight",
+    ),
+    (
+        183,
+        "the check's TOTAL becomes the DC to find the hider, which is why the engine fills "
+        "the number from the roll it just made rather than a resolver supplying one (R4)",
+        r"Make note of your check.s total, which is the DC for a creature to find you with a "
+        r"Wisdom \(Perception\) check",
+    ),
+    (
+        183,
+        "and the four endings, of which the engine observes two — an attack roll and a "
+        "Verbal spell. Being found is a Perception check against the stored DC; a sound "
+        "louder than a whisper is a narrative fact a caller states",
+        r"You stop being hidden immediately after any of the following occurs: you make a "
+        r"sound louder than a whisper, an enemy finds you, you make an attack roll, or you "
+        r"cast a spell with a Verbal component",
+    ),
     # --- p. 184's Knocking Out a Creature (#428) ---------------------------------------
     (
         184,
