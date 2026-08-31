@@ -475,10 +475,22 @@ CLAIMED_ON_TEXT_OUTSIDE_THE_ENTRY = {
 #: `bloodied` and `temporary-hit-points` sat here because nothing resolved them, not because
 #: 0033 said anything about them — so building p. 18's five clauses and p. 177's derived read
 #: is what removes them, and removing them in that same change is the pairing `AGENTS.md`
-#: requires. The set is down to one, which is thin: a counter-direction with a single member
-#: is one deletion from vacuous, and the next shape built out of it should be replaced rather
-#: than merely removed.
-NOT_CLAIMED_AND_NOT_BECAUSE_OF_THIS_RULE = ("occupied-space",)
+#: requires.
+#:
+#: **`occupied-space` left in #337, and the note that survived #414 said what to do about
+#: it**: "a counter-direction with a single member is one deletion from vacuous, and the next
+#: shape built out of it should be **replaced** rather than merely removed." It was down to
+#: one, and 0084 built it. So three go in rather than none.
+#:
+#: The three are the best members this set has had, because their reason is the furthest
+#: possible from 0033's. Each is a glossary entry that **defers its own content**: p. 179's
+#: Curses says "the effect that confers a curse defines what the curse does", p. 186's
+#: Possession says "a possessing effect defines how the possession operates", and p. 183's
+#: Illusions says "such an effect defines what the illusion does". They are unclaimed because
+#: the effects that would define them are spells, and there are no spells (#21) — which is a
+#: reason about *antecedents* rather than about whether an entry states a mechanic, and so is
+#: untouched by anything 0033 decides.
+NOT_CLAIMED_AND_NOT_BECAUSE_OF_THIS_RULE = ("curses", "possession", "illusions")
 
 
 def test_a_definitional_glossary_body_does_not_decide_whether_a_shape_is_claimed(
