@@ -231,7 +231,8 @@ KINDS: dict[str, tuple[str, bool]] = {
     # already holds, and names no change of its own (0085, #453).
     "Target": ("vocabulary", False),
     "Telepathy": ("sense", False),
-    "Teleportation": ("effect", False),
+    # p. 190 entire but the two caller-stated sentences (#444, unblocked by 0084).
+    "Teleportation": ("effect", True),
     "Temporary Hit Points": ("effect", True),
     "Tremorsense": ("sense", False),
     "Truesight": ("sense", False),

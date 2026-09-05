@@ -736,22 +736,55 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "and everything underwater resists Fire, which `Defences` can already express",
         r"Fire Resistance Anything underwater has Resistance to Fire damage",
     ),
-    # --- p. 190's Teleportation: asserted although unbuilt, so #444 does not re-read ----
+    # --- p. 190's Teleportation (#444), built once 0084 gave a creature a space ---------
+    (
+        190,
+        "a teleport arrives instantly and traces NO line — the contrast with a walk and a "
+        "push, whose lines `line_is_blocked` reads; `with_teleport` asks only about the "
+        "arrival (#444)",
+        r"If you teleport, you disappear and reappear elsewhere instantly, without moving "
+        r"through the intervening space",
+    ),
     (
         190,
         "a teleport expends NO movement and NEVER provokes an Opportunity Attack — both "
         "behavioural contrasts against `TurnLoop.move`, which spends a speed and offers the "
-        "provocation (#444)",
+        "provocation; 'unless a rule tells you otherwise' has no rule in this engine to "
+        "tell it (#444)",
         r"This transportation doesn.t expend movement unless a rule tells you otherwise, and "
         r"teleportation never provokes Opportunity Attacks",
     ),
     (
         190,
-        "and its destination rule is blocked on #337: 'occupied' and 'nearest unoccupied "
-        "space' are questions about EXTENT, and every creature in core.position is a point",
+        "equipment travels with the creature, which holds by construction: it is a field on "
+        "the creature and the creature is what moves",
+        r"When you teleport, all the equipment you.re wearing and carrying teleports with you",
+    ),
+    (
+        190,
+        "a touched creature stays behind unless the effect says otherwise — touching is not "
+        "a fact this engine holds, so the default applies and a passenger is the effect's "
+        "own second effect (R32)",
+        r"If you.re touching another creature when you teleport, that creature doesn.t "
+        r"teleport with you unless the teleportation effect says otherwise",
+    ),
+    (
+        190,
+        "and its destination rule, which 0084's `is_unoccupied` answers: a taken destination "
+        "diverts to the NEAREST unoccupied space, and 'of your choice' is the caller's — "
+        "`with_teleport` checks the stated landing against `teleport_destinations` rather "
+        "than trusting it or picking one",
         r"If the destination space of your teleportation is occupied by another creature or "
         r"blocked by a solid obstacle, you instead appear in the nearest unoccupied space of "
         r"your choice",
+    ),
+    (
+        190,
+        "whether the destination must be seen is the effect's to say — `can_see` relates two "
+        "creatures rather than a creature and a point, and there are no spells (#21) whose "
+        "descriptions could say it (R32)",
+        r"The description of a teleportation effect tells you if you must see the "
+        r"teleportation.s destination",
     ),
     # --- p. 187's Simultaneous Effects (#442) ------------------------------------------
     (

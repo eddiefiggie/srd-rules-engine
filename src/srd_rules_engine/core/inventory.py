@@ -113,6 +113,12 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # grid. p. 185's object clause is unbuilt and disclosed (#451).
         "occupied-space": "core.state.EncounterState.occupants_of",
         "unoccupied-space": "core.state.EncounterState.is_unoccupied",
+        # p. 190 (#444): no movement spent, no Opportunity Attack, no line traced, and the
+        # destination rule 0084 unblocked — a taken destination diverts to the nearest
+        # unoccupied space, and the choice among them is the caller's and is checked. The
+        # touching clause and "must see the destination" are the effect's to state; there
+        # are no spells (#21), so nothing in this engine causes one.
+        "teleportation": "core.state.EncounterState.with_teleport",
         "underwater-combat-penalties": "core.combat._impeded_underwater",
         "simultaneous-effects": "loop.turn.TurnLoop._ordered",
         "surprise": "core.combat._initiative_advantage",
