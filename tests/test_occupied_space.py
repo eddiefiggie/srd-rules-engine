@@ -19,10 +19,8 @@ from __future__ import annotations
 
 from fractions import Fraction
 
-import pytest
-
-from srd_rules_engine.core.position import Position, space_contains
-from srd_rules_engine.core.size import SPACE_FEET, Size
+from srd_rules_engine.core.position import Position, space_contains, within
+from srd_rules_engine.core.size import SPACE_FEET, Size, range_slack
 from srd_rules_engine.core.state import Combatant, EncounterState
 
 ABILITIES = {"str": 10, "dex": 10, "con": 10, "int": 10, "wis": 10, "cha": 10}
@@ -205,23 +203,28 @@ def test_the_object_half_of_p185_is_not_asked() -> None:
     assert walled.is_unoccupied(Position(0, 0, 0)), "the wall is not an occupant"
 
 
-# --- What extent deliberately does not change ------------------------------------------------
+# --- What extent changes, and what it still does not --------------------------------------
 
 
-def test_extent_does_not_move_the_range_bound() -> None:
-    """The clause 0084 turns on. p. 14 calls a space "the area that it effectively controls",
-    and the document says nothing about measuring between two extents without a grid — which
-    this project declines as a default. So a Gargantuan creature is as far away as its point
-    is, and reading its edge as nearer would be an inference (R31).
+def test_extent_moves_the_range_bound_as_the_grid_measures_it() -> None:
+    """0084 clause 7 said extent does not move range, and pinned it here. 0086 reverses that
+    for range — p. 13 measures a range "from a square adjacent to one of them" to "the space
+    of the other one" — and this is the same pin turned round: a Gargantuan creature's edge
+    DOES change what 25 feet reaches, by the 7½ feet its space exceeds one square.
 
-    Written as a pin rather than as an aspiration: if range ever becomes extent-aware, this
-    test should be the thing that fails and makes someone say so."""
-    from srd_rules_engine.core.position import within
-
+    What does not move is occupancy, and it is asserted beside the reversal so the two cannot
+    be confused: the point 30 feet away is still outside the Gargantuan creature's space, and a
+    Medium creature standing there is exactly as far as its point, as it was before 0086."""
     here, far = Position(0, 0, 0), Position(30, 0, 0)
 
     assert not within(here, far, 25), "25 feet does not reach a point 30 feet away"
-    assert not within(here, far, 25), "and a Gargantuan creature's edge does not change that"
-
-    with pytest.raises(TypeError):
-        within(here, far, 25, Size.GARGANTUAN)  # type: ignore[call-arg]
+    assert within(here, far, 25, slack=range_slack(Size.GARGANTUAN)), (
+        "but it reaches a Gargantuan creature standing there: its space begins 10 feet from "
+        "its point, and p. 13 counts from a square adjacent to that space"
+    )
+    assert not within(here, far, 25, slack=range_slack(Size.MEDIUM)), (
+        "a Medium creature is as far as its point, exactly as before 0086"
+    )
+    assert not space_contains(far, Size.GARGANTUAN.space_feet, here), (
+        "and occupancy is untouched: 30 feet away is outside a 20-foot space"
+    )

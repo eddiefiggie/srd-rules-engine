@@ -81,6 +81,7 @@ from srd_rules_engine.core.position import (
     slow_feet_taken,
     space_contains,
     squared_distance,
+    within,
 )
 from srd_rules_engine.core.sight import (
     Lighting,
@@ -99,6 +100,7 @@ from srd_rules_engine.core.size import (
     carrying_capacity,
     dehydrated,
     one_size_larger_for_carrying,
+    range_slack,
     undernourished,
 )
 from srd_rules_engine.core.skills import SKILL_ABILITY, PerceptionCheck, Skill
@@ -376,7 +378,14 @@ def _out_of_range(creature: Combatant, grappler: Combatant) -> bool:
         return False
     if creature.position is None or grappler.position is None:
         return False
-    return distance_feet(creature.position, grappler.position) > grapple.range_feet
+    # p. 13's measure (0086): the two spaces bring the pair nearer than their points, so a
+    # Huge grappler holds a Medium creature from further off than its point would say.
+    return not within(
+        creature.position,
+        grappler.position,
+        grapple.range_feet,
+        slack=range_slack(creature.size, grappler.size),
+    )
 
 
 def grapples_released(state: EncounterState) -> EncounterState:
@@ -1698,7 +1707,11 @@ class EncounterState:
                 ),
             )
 
-        away = distance_feet(observer.position, target.position)
+        # p. 13's measure (0086): a sense's range runs from the observer's space to the
+        # target's, so both extents come off the distance before the range is asked.
+        away = distance_feet(
+            observer.position, target.position, slack=range_slack(observer.size, target.size)
+        )
         between = blocking(observer.position, target.position, self.obstructions)
         blocked = bool(between)
         senses = observer.senses
@@ -1905,7 +1918,11 @@ class EncounterState:
             )
 
         away = (
-            distance_feet(observer.position, target.position)
+            distance_feet(
+                observer.position,
+                target.position,
+                slack=range_slack(observer.size, target.size),
+            )
             if observer.position is not None
             else 0
         )

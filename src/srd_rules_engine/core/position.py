@@ -239,25 +239,49 @@ def squared_distance(a: Position, b: Position) -> int:
     return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2
 
 
-def distance_feet(a: Position, b: Position) -> int:
+def distance_feet(a: Position, b: Position, *, slack: Fraction = Fraction(0)) -> int:
     """Straight-line distance in whole feet, rounded down.
 
     For the record, never for a comparison — `within` answers those exactly. A rounded
     distance that decided an outcome would put the boundary in the wrong place at exactly
     the range where it matters.
+
+    `slack` is what two things' spaces bring them nearer than their points (p. 13, 0086;
+    `size.range_slack`), taken off before the rounding: the largest whole number of feet
+    that, plus the slack, still fits inside the straight line. Zero at the least — two
+    creatures whose spaces overlap are not a negative distance apart.
     """
-    return math.isqrt(squared_distance(a, b))
+    exact = squared_distance(a, b)
+    feet = math.isqrt(exact)
+    if slack == 0:
+        return feet
+    # The largest n with (n + slack)² <= exact. Start where the plain distance leaves off
+    # and step down; the slack is a multiple of 2½ feet, so at most one step is needed.
+    n = max(0, feet - math.ceil(slack))
+    while (n + 1 + slack) * (n + 1 + slack) <= exact:
+        n += 1
+    return n
 
 
-def within(a: Position, b: Position, feet: int) -> bool:
+def within(a: Position, b: Position, feet: int, *, slack: Fraction = Fraction(0)) -> bool:
     """Whether `b` is within `feet` of `a`, decided without a square root.
 
     Exact where a rounded distance is not: two points 5.9 feet apart are not within 5
     feet, and `distance_feet` would call them 5.
+
+    **`slack` is how a creature's space enters a range** (p. 13, 0086). The grid measures a
+    range from a square adjacent to one thing to the space of the other, so a creature that
+    fills more than one square is nearer than its point by the excess — `size.range_slack`
+    sums it for both ends. The comparison stays exact: `Fraction` squares against an integer.
+    A point, an object and a Medium creature add nothing, so every range test that held
+    before 0086 holds unchanged for them.
     """
     if feet < 0:
         raise ValueError("a range is not negative")
-    return squared_distance(a, b) <= feet * feet
+    if slack < 0:
+        raise ValueError("a space makes nothing further away than its point")
+    limit = feet + slack
+    return squared_distance(a, b) <= limit * limit
 
 
 def movement_cost(

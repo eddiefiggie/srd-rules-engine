@@ -58,7 +58,7 @@ from srd_rules_engine.core.equipment import (
 from srd_rules_engine.core.forced_movement import push_distances
 from srd_rules_engine.core.position import MovementMode, distance_feet, within
 from srd_rules_engine.core.sight import LightLevel, Senses
-from srd_rules_engine.core.size import CarryingCapacity, Size
+from srd_rules_engine.core.size import CarryingCapacity, Size, range_slack
 from srd_rules_engine.core.skills import Skill
 from srd_rules_engine.core.spellcasting import (
     RITUAL_EXTRA_MINUTES,
@@ -1619,7 +1619,9 @@ def _draw_and_use(state: EncounterState, actor: Combatant) -> tuple[LegalAction,
     equippable: list[tuple[Item, str]] = [
         (c.item, str(Carriage.STOWED)) for c in actor.equipment if c.carriage is Carriage.STOWED
     ]
-    reachable = reachable_objects(state.detached_objects, actor.position, actor.reach)
+    reachable = reachable_objects(
+        state.detached_objects, actor.position, actor.reach, slack=range_slack(actor.size)
+    )
     equippable.extend((obj.item, "detached") for obj in reachable or ())
 
     for item, source in equippable:
@@ -1688,7 +1690,9 @@ def _interaction_options(
         elif carried.carriage is Carriage.HELD:
             options.append((VERB_STOW, carried.item, str(Carriage.HELD)))
             options.append((VERB_DROP, carried.item, str(Carriage.HELD)))
-    reachable = reachable_objects(state.detached_objects, actor.position, actor.reach)
+    reachable = reachable_objects(
+        state.detached_objects, actor.position, actor.reach, slack=range_slack(actor.size)
+    )
     options.extend((VERB_EQUIP, obj.item, "detached") for obj in reachable or ())
     return tuple(options)
 
@@ -1865,7 +1869,9 @@ def _swaps(
                 )
             )
 
-    reachable = reachable_objects(state.detached_objects, actor.position, actor.reach)
+    reachable = reachable_objects(
+        state.detached_objects, actor.position, actor.reach, slack=range_slack(actor.size)
+    )
     for obj in reachable or ():
         offered.append(
             LegalAction(
@@ -1920,9 +1926,18 @@ def _cleave_attacks(state: EncounterState, actor: Combatant) -> tuple[LegalActio
             # `within` rather than `distance_feet`, whose own docstring says it is "for the
             # record, never for a comparison": it rounds down, so two creatures 5.9 feet
             # apart would read as 5 and a swing the document forbids would be offered.
-            if not within(first.position, target.position, CLEAVE_SPREAD_FEET):
+            # p. 13's measure (0086), at both distances: the spread from the first target's
+            # space to the second's, and the reach from the wielder's space to it.
+            if not within(
+                first.position,
+                target.position,
+                CLEAVE_SPREAD_FEET,
+                slack=range_slack(first.size, target.size),
+            ):
                 continue
-            if not within(actor.position, target.position, reach):
+            if not within(
+                actor.position, target.position, reach, slack=range_slack(actor.size, target.size)
+            ):
                 continue
             offered.append(
                 LegalAction(
@@ -2203,7 +2218,14 @@ def situation(state: EncounterState, actor_id: str) -> Situation:
         senses=actor.senses,
         reachable_objects=(
             None
-            if (reachable := reachable_objects(state.detached_objects, actor.position, actor.reach))
+            if (
+                reachable := reachable_objects(
+                    state.detached_objects,
+                    actor.position,
+                    actor.reach,
+                    slack=range_slack(actor.size),
+                )
+            )
             is None
             else tuple(obj.item.id for obj in reachable)
         ),
