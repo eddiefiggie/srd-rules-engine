@@ -690,6 +690,99 @@ def test_two_ids_resolving_to_one_symbol_are_one_shape(inventory: Inventory) -> 
     )
 
 
+# --- 0085: a target is a role in a mechanic, not a mechanic (#453) ------------------------
+
+#: 0085 clause 6: the `targeting` kind's other glossary members. Each constrains or shapes
+#: WHAT may be targeted and stays a shape; `target` was filed among them by family
+#: resemblance. Named so the guard pins the counter-direction — a test that only asserted
+#: `target` had moved would be satisfied by moving the whole family to vocabulary, which is
+#: the deflation failure mirroring the double count 0085 option 1 refuses.
+THE_TARGETING_MECHANICS_THAT_STAY: dict[str, str] = {
+    "cover": "p. 179 gives three degrees, and Total Cover refuses targeting outright",
+    "area-of-effect": "p. 177's shapes decide what an effect reaches",
+    "reach": "p. 186's five-foot default, and p. 90's rule that says otherwise",
+    "occupied-space": "p. 185: where a creature may not end a move (0084)",
+    "unoccupied-space": "p. 191: where a teleport may land (0084)",
+}
+
+
+def test_a_role_in_a_mechanic_is_vocabulary_and_the_mechanics_around_it_are_not(
+    inventory: Inventory,
+) -> None:
+    """0085, pinned in both directions.
+
+    `target` is vocabulary because p. 190 defines a role — the creature or object at the
+    receiving end of an attack roll, a forced save or a spell's effect — and each of those
+    routes is a shape of its own. The entry names no mechanical change to state the engine
+    holds, which is 0013's criterion and the one that files `creature`.
+
+    **The counter-direction is the point.** `cover`, `area-of-effect`, `reach` and the two
+    space entries share the `targeting` kind and each is a mechanic that constrains what may
+    be targeted. A guard that only asserted `target` had moved would be satisfied by moving
+    the family with it, so the five that stay are asserted here too, with their kind.
+    """
+    assert inventory.by_id("target") is None, (
+        "`target` is back in `shapes`. 0085 files it as vocabulary: p. 190 defines a role in "
+        "three mechanics the inventory already holds and states no consequence of its own, "
+        "so there is nothing to claim. Re-read the record before moving it back."
+    )
+    assert "Target" in inventory.vocabulary, (
+        "`target` is in neither `shapes` nor `vocabulary`. Silent omission is the exact "
+        "failure R17 names — an entry set aside stays visible, with its reason."
+    )
+
+    for sid, mechanism in THE_TARGETING_MECHANICS_THAT_STAY.items():
+        shape = inventory.by_id(sid)
+        assert shape is not None, (
+            f"`{sid}` is no longer a shape. 0085 clause 6 moves `target` alone: {mechanism}, "
+            "so it constrains what may be targeted rather than naming the role, and stays."
+        )
+        assert shape.kind == "targeting", (
+            f"`{sid}` is filed as `{shape.kind}`, not `targeting`. 0085 clause 6 says the kind "
+            "keeps its meaning when `target` leaves it; if this moved, the kind means "
+            "something else now and the record is wrong about it."
+        )
+
+
+def test_the_absence_targets_declassification_rests_on_is_asserted_with_its_controls() -> None:
+    """0085 clause 4, and 0034 clause 3 behind it: a declassification resting on an absence
+    must assert the absence. Presence, not truth — the verifier needs the PDF and CI has no
+    copy.
+
+    **Both controls are checked by name, because the row asserts zero.** An `exactly 0` row is
+    the one shape of assertion a sweep that read nothing passes. The first control proves the
+    sweep reads the noun; the second proves the phrasing family matches where the document
+    uses it for a state it does hold — without it, a zero could mean the pattern matches
+    nothing rather than that `target` never takes the form.
+
+    The p. 190 clause is checked too, with the heading that follows the entry: it is what
+    pins the entry as one sentence rather than as the first sentence of several.
+    """
+    verifier = (REPO_ROOT / "scripts" / "verify_d20_rules.py").read_text(encoding="utf-8")
+    assert "another phenomenon\\. Telepathy" in verifier, (
+        "the p. 190 clause no longer pins Target's entry as ENTIRE. 0085 clause 1 rests on "
+        "the entry being one sentence followed by the next heading; a pattern that stops at "
+        "the sentence would stay green if a revision added a consequence after it."
+    )
+    assert "(?:is|becomes|counts as) a target" in verifier, (
+        "the absence row is gone. 0085 clause 4 rests on it: without an asserted zero there "
+        "is nothing to go red when the document starts stating target-ness as a state."
+    )
+    assert "an `exactly 0` row is the one shape of assertion a sweep that read" in verifier, (
+        "the first control was removed. A zero row alone cannot tell an absence from a sweep "
+        "that read nothing, which is the case the issue's own count fell into."
+    )
+    assert "is Bloodied" in verifier and "second CONTROL" in verifier, (
+        "the second control was removed. Without it a zero could mean the phrasing family "
+        "matches nothing, rather than that `target` never takes a form the document uses."
+    )
+    assert "To target something with a spell, a caster must have a clear path" in verifier, (
+        "p. 106's clear-path sentence is no longer asserted. `spell_reaches` rests on it and "
+        "quoted it unasserted until 0085 — the #371 shape — so this is what stops it going "
+        "back to being a quotation."
+    )
+
+
 def test_every_claimed_symbol_resolves(inventory: Inventory) -> None:
     """R17's other direction, and it had no guard until #252.
 

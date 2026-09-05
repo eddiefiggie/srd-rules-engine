@@ -1039,14 +1039,6 @@
    "implemented": true
   },
   {
-   "id": "target",
-   "name": "Target",
-   "tag": null,
-   "reference": "Rules Glossary, p. 190",
-   "kind": "targeting",
-   "implemented": false
-  },
-  {
    "id": "telepathy",
    "name": "Telepathy",
    "tag": null,
@@ -1883,6 +1875,13 @@
    "tag": null,
    "reference": "Rules Glossary, p. 188",
    "reason": "Defines a term the rules use; it names no mechanical change the engine resolves."
+  },
+  {
+   "id": "target",
+   "name": "Target",
+   "tag": null,
+   "reference": "Rules Glossary, p. 190",
+   "reason": "Not a separate shape: p. 190 defines a role, not a mechanic. A target is the creature or object at the receiving end of an attack roll, a forced saving throw or a spell's effect, and each of those three routes is inventoried on its own — `attack-roll`, `saving-throw`, `area-of-effect` and the spell shapes. The entry names no mechanical change to state the engine holds, which is 0013's criterion and the one that files `creature`. Heavy use is not evidence either way: the document uses 'target' 1,214 times and 'creature' 1,950, and never states target-ness as a state something is in — 'is a target', 'becomes a target' and 'counts as a target' occur nowhere, where a held state reads 'has the X condition' or 'is Bloodied'. p. 106's Targets section is the spell's, not the term's: its two consequences are claimed under `cover` and `area-of-effect`. Decision 0085."
   },
   {
    "id": "weapon",

@@ -227,7 +227,9 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Surprise": ("effect", True),
     "Swimming": ("movement", True),
     "Swim Speed": ("movement", True),
-    "Target": ("targeting", False),
+    # Not `targeting`: p. 190 defines the receiving end of three mechanics the inventory
+    # already holds, and names no change of its own (0085, #453).
+    "Target": ("vocabulary", False),
     "Telepathy": ("sense", False),
     "Teleportation": ("effect", False),
     "Temporary Hit Points": ("effect", True),
@@ -277,6 +279,20 @@ VOCABULARY_REASONS: dict[str, str] = {
         "counted twice in the numerator and the denominator both. Heavy use is not evidence "
         "either way: the document uses 'save' 1544 times and 'saving throw' 636, and use "
         "of a synonym is use of the thing it names. Decision 0035."
+    ),
+    "Target": (
+        "Not a separate shape: p. 190 defines a role, not a mechanic. A target is the "
+        "creature or object at the receiving end of an attack roll, a forced saving throw "
+        "or a spell's effect, and each of those three routes is inventoried on its own — "
+        "`attack-roll`, `saving-throw`, `area-of-effect` and the spell shapes. The entry "
+        "names no mechanical change to state the engine holds, which is 0013's criterion "
+        "and the one that files `creature`. Heavy use is not evidence either way: the "
+        "document uses 'target' 1,214 times and 'creature' 1,950, and never states "
+        "target-ness as a state something is in — 'is a target', 'becomes a target' and "
+        "'counts as a target' occur nowhere, where a held state reads 'has the X "
+        "condition' or 'is Bloodied'. p. 106's Targets section is the spell's, not the "
+        "term's: its two consequences are claimed under `cover` and `area-of-effect`. "
+        "Decision 0085."
     ),
 }
 

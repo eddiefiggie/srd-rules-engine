@@ -45,7 +45,7 @@ COVERAGE_CLAIM = re.compile(
 # "**76 of 211 effect shapes.**" — the same figure in the milestone table
 MILESTONE_CLAIM = re.compile(r"\*\*(?P<resolved>\d+) of (?P<total>\d+) effect shapes\.\*\*")
 
-SPELLED = {19: "Nineteen", 20: "Twenty", 21: "Twenty-one", 22: "Twenty-two"}
+SPELLED = {19: "Nineteen", 20: "Twenty", 21: "Twenty-one", 22: "Twenty-two", 23: "Twenty-three"}
 
 # The milestone row, from which every figure is checked.
 MILESTONE_ROW = re.compile(r"^\| \*\*v1\.0 — mechanics\*\* \|.*$", re.MULTILINE)
