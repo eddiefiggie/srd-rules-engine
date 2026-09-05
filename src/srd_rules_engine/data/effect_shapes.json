@@ -1052,7 +1052,7 @@
    "tag": null,
    "reference": "Rules Glossary, p. 190",
    "kind": "effect",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "temporary-hit-points",

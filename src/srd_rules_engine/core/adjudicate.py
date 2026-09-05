@@ -261,6 +261,19 @@ class EffectKind(StrEnum):
     #: of its speeds**", and a shove uses none of those. It also spends none of the moved
     #: creature's allowance, because it is not the creature moving.
     MOVED_BY_FORCE = "moved-by-force"
+    #: A creature that disappeared and reappeared elsewhere (p. 190, #444).
+    #:
+    #: Its own kind beside `MOVED_BY_FORCE` rather than a flag on it, because the two differ
+    #: in what they ask of the destination. A push lands on the lattice point nearest the ray
+    #: (0055) and asks nothing about who is standing there; a teleport asks exactly that —
+    #: p. 190 diverts to "the nearest unoccupied space of your choice" when the destination
+    #: is taken — and traces no line at all, "without moving through the intervening space".
+    #: They share what they do not do: neither spends the creature's movement, and neither
+    #: provokes p. 185's attack, which `TurnLoop.move` alone offers.
+    #:
+    #: `position` is where the effect aimed; `landing` is the teleporter's choice when that
+    #: was taken, checked by `EncounterState.with_teleport` against the nearest free points.
+    TELEPORTED = "teleported"
     #: Movement spent on something other than travel (p. 186, 0057). `amount` is the feet.
     #:
     #: The counterpart of `MOVED_BY_FORCE`, and the two together are why neither is a
@@ -469,6 +482,11 @@ _SOURCE_BEARING_KINDS: Final = frozenset({EffectKind.CONDITION_APPLIED, EffectKi
 
 _WEAPON_BEARING_KINDS: Final = frozenset({EffectKind.ACTION_SPENT, EffectKind.CLEAVE_OPENED})
 
+#: The two kinds that put a creature somewhere. Named for `CONDITION_KINDS`' reason: the
+#: constructor and the reader agree on which effects carry a destination, and a membership
+#: test written twice drifts.
+_POSITION_BEARING_KINDS: Final = frozenset({EffectKind.MOVED_BY_FORCE, EffectKind.TELEPORTED})
+
 
 @dataclass(frozen=True)
 class Effect:
@@ -531,8 +549,13 @@ class Effect:
     #: number — so it travels with the application rather than being recomputed later, which
     #: is 0052 clause 4 read from the other end.
     grapple: Grapple | None = None
-    #: Where a forced move put the creature (0055). Set only beside `MOVED_BY_FORCE`.
+    #: Where a forced move put the creature (0055), or where a teleport aimed (p. 190).
+    #: Set only beside `MOVED_BY_FORCE` and `TELEPORTED`.
     position: Position | None = None
+    #: `TELEPORTED` only, and only when `position` was taken: the nearest unoccupied space
+    #: the teleporter chose (p. 190, #444). `None` means the creature appears at `position`.
+    #: A choice the state checks rather than trusts — see `EncounterState.with_teleport`.
+    landing: Position | None = None
     #: The casting a `LONG_CAST_BEGUN` records (p. 105, #250).
     long_cast: LongCast | None = None
     #: `ACTION_SPENT` only: which of the three the act cost (p. 176-177).
@@ -642,6 +665,20 @@ class Effect:
                 "of fear — or to p. 90's Cleave, which measures its second swing from the "
                 "creature that was hit. A condition ending acquires neither on its way out"
             )
+        if (self.kind in _POSITION_BEARING_KINDS) != (self.position is not None):
+            names = "names" if self.kind in _POSITION_BEARING_KINDS else "names no"
+            raise ValueError(
+                f"a {self.kind} effect {names} destination. "
+                "Only a forced move and a teleport put a creature somewhere, so "
+                "a position riding on any other kind would be a place no transition reads, "
+                "and one of those two without a position has nowhere to apply"
+            )
+        if self.landing is not None and self.kind is not EffectKind.TELEPORTED:
+            raise ValueError(
+                f"a {self.kind} effect carries no landing. p. 190's choice among the nearest "
+                "unoccupied spaces belongs to a teleport whose destination was taken, and "
+                "nothing else is diverted anywhere"
+            )
 
 
 def condition_applied(
@@ -710,6 +747,30 @@ def moved_by_force(target_id: str, to: Position, *, feet: int, description: str)
         amount=feet,
         description=description,
         position=to,
+    )
+
+
+def teleported(
+    target_id: str, to: Position, *, landing: Position | None = None, description: str
+) -> Effect:
+    """A creature that disappears and reappears at `to` (p. 190, #444).
+
+    `amount` is 0 rather than the distance, deliberately: p. 190 makes a teleport cover no
+    intervening space, so a distance would be the record saying the creature travelled. A
+    reader who wants the displacement has both positions.
+
+    `landing` is the teleporter's choice among the nearest unoccupied spaces when `to` is
+    taken, and `EncounterState.with_teleport` refuses one that is not — or one offered when
+    `to` was free. The choice is carried rather than resolved here because the resolver has
+    no state to check it against; the state does, at the moment it applies.
+    """
+    return Effect(
+        kind=EffectKind.TELEPORTED,
+        target_id=target_id,
+        amount=0,
+        description=description,
+        position=to,
+        landing=landing,
     )
 
 
@@ -2237,6 +2298,9 @@ def _apply(
         elif effect.kind is EffectKind.MOVED_BY_FORCE:
             assert effect.position is not None  # the constructor requires one
             state = state.with_forced_movement(effect.target_id, effect.position)
+        elif effect.kind is EffectKind.TELEPORTED:
+            assert effect.position is not None  # the constructor requires one
+            state = state.with_teleport(effect.target_id, effect.position, landing=effect.landing)
         elif effect.kind is EffectKind.DISENGAGED:
             state = state.with_disengage(effect.target_id)
         elif effect.kind is EffectKind.SPELL_SLOT_EXPENDED:

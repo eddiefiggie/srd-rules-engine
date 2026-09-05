@@ -68,7 +68,7 @@ from srd_rules_engine.core.equipment import (
     free_hands,
     items_in,
 )
-from srd_rules_engine.core.obstructions import Obstruction, blocking, line_is_blocked
+from srd_rules_engine.core.obstructions import Cover, Obstruction, blocking, line_is_blocked
 from srd_rules_engine.core.pending_rolls import PendingAdvantage, is_live
 from srd_rules_engine.core.position import (
     DEFAULT_REACH_FEET,
@@ -544,6 +544,15 @@ class ForcedSave:
                 "between the two the rule names, and nothing else"
             )
         return replace(self, ability=ability)
+
+
+#: How far `teleport_destinations` looks for a free point before refusing (p. 190, #444).
+#: Every push and pull the document names is 60 feet or less, and a destination "occupied by
+#: another creature" is free again a few feet away; a scene with nothing free inside this is
+#: a scene the ruleset has walled off, and naming a place further out would be the engine
+#: choosing where a creature appears. A bound rather than an unbounded sweep, because the
+#: sweep is cubic in it.
+TELEPORT_SEARCH_FEET: Final = 32
 
 
 @dataclass(frozen=True)
@@ -2128,6 +2137,165 @@ class EncounterState:
                 "which is the honest result rather than a placed creature"
             )
         return self._evolve(combatants=self._replacing(replace(target, position=to)))
+
+    def teleport_destinations(self, combatant_id: str, to: Position) -> tuple[Position, ...]:
+        """Where a teleport aimed at `to` may land (p. 190, #444). A read (R19).
+
+        > If the destination space of your teleportation is occupied by another creature or
+        > blocked by a solid obstacle, you instead appear in the **nearest unoccupied space of
+        > your choice**.
+
+        `(to,)` when the destination is free. Otherwise **every** free point at the least
+        distance from it, in coordinate order — "of your choice" is the teleporter's, so the
+        engine enumerates the choice and picks nothing (R4's shape, without a die). The set is
+        what `with_teleport` checks a stated landing against.
+
+        **The destination is a point, and the question asked is the one 0084 built.** p. 191's
+        `is_unoccupied` is this engine's meaning of "unoccupied space": whether the point lies
+        in another creature's control area. Reading "destination space" as the *arriving*
+        creature's whole extent would be the extent-against-extent question 0084 clause 7
+        declined, and it would leave a Gargantuan creature no destination near anyone. So a
+        Large creature may land three feet from a Medium one and their spaces overlap — which
+        is a state p. 14 contemplates and 0084 clause 8 keeps representable.
+
+        **"Solid" is a barrier that gives cover.** `Obstruction` is this engine's obstacle,
+        and a box whose degree is `Cover.NONE` is smoke (p. 181) — a thing a body passes into.
+        Anything that covers is something a body cannot appear inside. That is a convention
+        for reading the engine's own type against the document's word, stated as one; the
+        document supplies no definition of *solid*.
+
+        **Nearest is straight-line, in three dimensions, and the space above a barrier counts.**
+        Distance is `squared_distance`, the measure every range test uses, so no grid enters.
+        A creature's control area is a column (`space_contains` ignores `z`), so the nearest
+        free points around an occupant are in its plane; a low box may have its nearest free
+        point on top, and the engine offers it, because nothing here models what holds a
+        creature up — Falling (p. 182) is an effect a ruleset applies.
+
+        **The search is bounded, and the bound is a refusal rather than an answer.** Cubes of
+        growing half-width are swept, and a minimum found inside a cube of half-width `r` is
+        global once it is no further than `r` — any point outside the cube is further than
+        that. A scene with no free point within `TELEPORT_SEARCH_FEET` is refused, because the
+        alternative is an engine that places a creature somewhere the rule did not say.
+        """
+        self.combatant(combatant_id)  # a creature not in this encounter is a KeyError
+        if self._teleport_blockage(combatant_id, to) is None:
+            return (to,)
+
+        radius = 1
+        while radius <= TELEPORT_SEARCH_FEET:
+            best: int | None = None
+            found: list[Position] = []
+            for dx in range(-radius, radius + 1):
+                for dy in range(-radius, radius + 1):
+                    for dz in range(-radius, radius + 1):
+                        point = Position(to.x + dx, to.y + dy, to.z + dz)
+                        gap = dx * dx + dy * dy + dz * dz
+                        if best is not None and gap > best:
+                            continue
+                        if self._teleport_blockage(combatant_id, point) is not None:
+                            continue
+                        if best is None or gap < best:
+                            best, found = gap, [point]
+                        else:
+                            found.append(point)
+            if best is not None and best <= radius * radius:
+                return tuple(sorted(found, key=lambda p: (p.x, p.y, p.z)))
+            radius *= 2
+        raise ValueError(
+            f"no unoccupied space within {TELEPORT_SEARCH_FEET} feet of "
+            f"({to.x}, {to.y}, {to.z}). p. 190 puts the creature in the nearest one and "
+            "this engine found none it could name, which is a refusal rather than a place"
+        )
+
+    def _teleport_blockage(self, combatant_id: str, point: Position) -> str | None:
+        """Why p. 190 will not let this creature appear at `point`, or `None` if it may.
+
+        Two reasons and the document names both: another creature's space, and a solid
+        obstacle. The creature's *own* space is not asked — "occupied by **another** creature"
+        — so a short hop within it is a destination like any other.
+        """
+        for other in self.occupants_of(point):
+            if other.id != combatant_id:
+                return f"occupied by {other.name}"
+        for barrier in self.obstructions:
+            if barrier.degree is not Cover.NONE and barrier.contains(point):
+                return "blocked by a solid obstacle"
+        return None
+
+    def with_teleport(
+        self, combatant_id: str, to: Position, *, landing: Position | None = None
+    ) -> EncounterState:
+        """Disappear and reappear at `to` (p. 190, #444).
+
+        > If you teleport, you disappear and reappear elsewhere instantly, without moving
+        > through the intervening space. This transportation doesn't expend movement unless a
+        > rule tells you otherwise, and teleportation never provokes Opportunity Attacks.
+
+        **Nothing is spent, nothing is provoked, and no line is traced.** `with_movement`
+        charges a speed and `TurnLoop.move` offers p. 185's attack; neither happens here, and
+        the only site that ever consults `core.reactions.provocations` is that phase. "Without
+        moving through the intervening space" is why there is no obstruction test between the
+        origin and the destination — the contrast with both a walk and a push, whose lines
+        `line_is_blocked` reads. What is asked is where the creature *arrives*.
+
+        **The creature at 0 Hit Points is not refused**, where `with_movement` refuses it
+        (0072). A teleport is something an effect does *to* a creature — p. 190 is written from
+        the teleported creature's side, and an unconscious body carried by another's spell is
+        the ordinary case rather than the exception.
+
+        **`landing` is the teleporter's choice when the destination is taken**, and only then.
+        p. 190 diverts to "the nearest unoccupied space of your choice": the choice is stated
+        by the caller and **checked** against `teleport_destinations`, so a landing that is
+        free but not nearest is refused, and a landing offered when the destination was free
+        is refused too — there was nothing to be diverted from, and accepting it would let a
+        caller move a creature further than the rule did.
+
+        **"All the equipment you're wearing and carrying teleports with you"** holds by
+        construction: equipment is a field on the creature, and the creature is what moves.
+
+        Two sentences are the caller's to state, and are disclosed rather than modelled.
+        *"If you're touching another creature when you teleport, that creature doesn't
+        teleport with you unless the teleportation effect says otherwise"* — touching is not a
+        fact this engine holds, so the default applies and an effect that carries a passenger
+        teleports it with a second effect. *"The description of a teleportation effect tells
+        you if you must see the teleportation's destination"* — `can_see` relates two
+        creatures, not a creature and a point, and there are no spells (#21) whose
+        descriptions could say. "Unless a rule tells you otherwise" on the movement cost is
+        the same shape: no rule in this engine tells otherwise, so none is charged.
+        """
+        target = self.combatant(combatant_id)
+        if target.position is None:
+            raise ValueError(
+                f"{target.name} has no position, so there is nowhere to disappear from. An "
+                "encounter that tracks no positions cannot answer a question about where a "
+                "creature reappears, which is the honest result rather than a placed creature"
+            )
+        blockage = self._teleport_blockage(combatant_id, to)
+        if blockage is None:
+            if landing is not None:
+                raise ValueError(
+                    f"({to.x}, {to.y}, {to.z}) is unoccupied, so {target.name} appears there. "
+                    "p. 190 offers a choice of landing only when the destination is taken, "
+                    "and a landing stated for a free destination would move the creature "
+                    "somewhere the rule did not"
+                )
+            return self._evolve(combatants=self._replacing(replace(target, position=to)))
+
+        nearest = self.teleport_destinations(combatant_id, to)
+        offered = ", ".join(f"({p.x}, {p.y}, {p.z})" for p in nearest)
+        if landing is None:
+            raise ValueError(
+                f"({to.x}, {to.y}, {to.z}) is {blockage}, so p. 190 puts {target.name} in the "
+                f"nearest unoccupied space of its choice, and the choice is the caller's: "
+                f"{offered}"
+            )
+        if landing not in nearest:
+            raise ValueError(
+                f"({landing.x}, {landing.y}, {landing.z}) is not one of the nearest unoccupied "
+                f"spaces to ({to.x}, {to.y}, {to.z}), which is {blockage}. p. 190 lets "
+                f"{target.name} choose among the nearest, not among the unoccupied: {offered}"
+            )
+        return self._evolve(combatants=self._replacing(replace(target, position=landing)))
 
     def with_action_spent(
         self, combatant_id: str, action: ActionKind, *, weapon_id: str | None = None
