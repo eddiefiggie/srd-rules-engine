@@ -1939,6 +1939,66 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         "reads as 3 rather than looking like an off-by-one (0034 Evidence)",
         r"After the hovering weapon attacks for the fourth time",
     ),
+    # --- A target is a role, not a mechanic (#453, 0085) --------------------------------
+    # 0085 files `target` as vocabulary because p. 190's entry defines the receiving end of
+    # three mechanics and states no consequence of its own. The first clause pins the entry
+    # ENTIRE — one sentence, followed by the next heading — so a revision that gave it a
+    # second sentence goes red here rather than leaving the entry filed on a reading nobody
+    # re-ran. The absence it also rests on is in DOCUMENT_CLAUSES below.
+    (
+        190,
+        "Target's whole entry is one sentence naming what a target IS — the creature or "
+        "object at the receiving end of an attack roll, a forced save or a spell's effect — "
+        "and it is followed by the next heading, so there is no second sentence stating a "
+        "consequence (0085 clause 1)",
+        r"A target is the creature or object targeted by an attack roll, forced to make a "
+        r"saving throw by an effect, or selected to receive the effects of a spell or "
+        r"another phenomenon\. Telepathy",
+    ),
+    # p. 106's Targets section is the strongest reading against 0085, under 0033 clause 1:
+    # a shape's content is what the document states about the term anywhere. These five
+    # clauses pin what it states, so the record's reading — every rule here is the SPELL's,
+    # and the two with consequences are claimed under `cover` and `area-of-effect` — is
+    # checkable against the sentences rather than against a paraphrase. The first was
+    # quoted in `spell_reaches`'s docstring and asserted nowhere, which is the #371 shape.
+    (
+        106,
+        "a spell needs a clear path to its target, which is p. 179's Total Cover refusal "
+        "from the spell's side — the sentence `spell_reaches` rests on, and the consequence "
+        "`cover` is claimed for (0085 clause 5)",
+        r"To target something with a spell, a caster must have a clear path to it, so it "
+        r"can.t be behind Total Cover",
+    ),
+    (
+        106,
+        "a spell that targets a creature of your choice may target the caster — a rule "
+        "about the spell's choice, which needs a spell with a target clause (#21)",
+        r"If a spell targets a creature of your choice, you can choose yourself unless the "
+        r"creature must be Hostile or specifically a creature other than you",
+    ),
+    (
+        106,
+        "an area of effect decides what a spell targets — the consequence `area-of-effect` "
+        "is claimed for, stated from the spell's side",
+        r"The area determines what the spell targets",
+    ),
+    (
+        106,
+        "the one sentence in the document about BEING targeted says the target does not "
+        "know it happened — no state changes, which is why it is not a consequence 0085 "
+        "could claim or hold",
+        r"Unless a spell has a perceptible effect, a creature doesn.t know it was targeted "
+        r"by the spell",
+    ),
+    (
+        106,
+        "an invalid target gets nothing and the slot is spent anyway — `core.casting` ties "
+        "expenditure to the casting rather than to the outcome (p. 104), so the half that "
+        "is a mechanic already holds; the half that needs a spell's own target clause is #21",
+        r"If you cast a spell on someone or something that can.t be affected by it, nothing "
+        r"happens to that target, but if you used a spell slot to cast the spell, the slot "
+        r"is still expended",
+    ),
     # --- One thing under two names (#230, 0035) ----------------------------------------
     # 0035 files `save` as vocabulary because p. 187 states outright that it and `saving
     # throw` name one thing. Unlike 0034, the evidence here is a PRESENCE — two printed
@@ -2525,6 +2585,42 @@ DOCUMENT_CLAUSES: tuple[tuple[str, str, str, int], ...] = (
         r"picking it up",
         "exactly",
         1,
+    ),
+    # --- The absence 0085 rests on, and the two controls that prove the instrument ------
+    # `target` is used 1,214 times, so no count of the term can state an absence the way
+    # `weapon attack` at 3 did. What CAN be counted is the form the document uses to state a
+    # held state — "has the X condition" (313 times), "is Bloodied" (10) — and whether the
+    # term ever takes it. It never does. That is the narrow claim: target-ness is never
+    # stated as a state something is in or becomes, which is the form 0013's criterion asks
+    # for. It is NOT a claim that no effect branches on the role — Levitate's "If you are
+    # the target" (p. 144) and the Rod of Absorption's "If you are targeted by a spell"
+    # (p. 241) do, and 0085 clause 3 reads them as the effect's own branch, exactly as
+    # `creature` is branched on twenty times ("is a creature") and is vocabulary.
+    (
+        "the document never states target-ness as a state: 'is a target', 'becomes a "
+        "target' and 'counts as a target' occur nowhere — so nothing gates on it the way a "
+        "held state is gated on, and `target` is vocabulary (0085 clause 4)",
+        r"\b(?:is|becomes|counts as) a target\b",
+        "exactly",
+        0,
+    ),
+    (
+        "'target' itself is used throughout. This is a CONTROL, not a rule the engine "
+        "depends on: an `exactly 0` row is the one shape of assertion a sweep that read "
+        "NOTHING passes, so this row proves the sweep reads the noun at all — 1,214 "
+        "occurrences in this edition, and a partial extraction would still clear the floor",
+        r"\btarget\b",
+        "at least",
+        1000,
+    ),
+    (
+        "and the phrasing family is one the document uses for a state it does hold. This "
+        "is the second CONTROL: 'is Bloodied' is p. 177's held state in exactly the form the "
+        "row above says 'target' never takes, so the instrument finds the form where it "
+        "exists and its zero above is an absence rather than a pattern that matches nothing",
+        r"\bis Bloodied\b",
+        "at least",
+        5,
     ),
 )
 
