@@ -2032,6 +2032,51 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"happens to that target, but if you used a spell slot to cast the spell, the slot "
         r"is still expended",
     ),
+    # --- p. 14's Moving around Other Creatures: asserted although unbuilt (#451, #456) --
+    # Built on 0084's reads and set aside: reach is point-to-point, so every melee position
+    # against a Huge creature is inside its space, and these four sentences read that as
+    # forbidden, doubled and Prone. #456 holds the reach question; these hold the text.
+    (
+        14,
+        "who may be passed through: an ally, an Incapacitated creature, a Tiny one, or one "
+        "two sizes larger or smaller — four permissions, so a Large creature may not enter "
+        "reach of a Huge one at all while reach is point-to-point (#456)",
+        r"During your move, you can pass through the space of an ally, a creature that has "
+        r"the Incapacitated condition .see .Rules Glossary.., a Tiny creature, or a creature "
+        r"that is two sizes larger or smaller than you",
+    ),
+    (
+        14,
+        "whose space is Difficult Terrain: TWO exemptions here, not four — an Incapacitated "
+        "enemy may be crossed and would cost double to cross",
+        r"Another creature.s space is Difficult Terrain for you unless that creature is "
+        r"Tiny or your ally",
+    ),
+    (
+        14,
+        "where a move may not end: no exception at all, so an ally's space may be crossed "
+        "and may not be stopped in — and, read against point-to-point reach, nowhere in "
+        "reach of a Huge creature may be stopped in either, which is the collision (#456)",
+        r"You can.t willingly end a move in a space occupied by another creature",
+    ),
+    (
+        14,
+        "and the Prone for ending a turn in a space with someone — 'somehow', because the "
+        "sentence before forbids doing it by moving, so it is a push, a teleport or a "
+        "placement, and an end-of-turn obligation rather than a movement refusal",
+        r"If you somehow end a turn in a space with another creature, you have the Prone "
+        r"condition .see .Rules Glossary.. unless you are Tiny or are of a larger size than "
+        r"the other creature",
+    ),
+    (
+        176,
+        "what an ally is: four disjuncts and every one a designation somebody states, which "
+        "is why the design set aside on #456 holds a stated side and infers nothing (#434 "
+        "needs the same fact)",
+        r"A creature is your ally if it is a member of your adventuring party, your friend, "
+        r"on your side in combat, or a creature that the rules or the GM designates as your "
+        r"ally",
+    ),
     # --- One thing under two names (#230, 0035) ----------------------------------------
     # 0035 files `save` as vocabulary because p. 187 states outright that it and `saving
     # throw` name one thing. Unlike 0034, the evidence here is a PRESENCE — two printed
