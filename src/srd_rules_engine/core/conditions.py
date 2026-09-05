@@ -46,6 +46,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
+from fractions import Fraction
 from types import MappingProxyType
 from typing import Final
 
@@ -593,6 +594,7 @@ class Conditions:
         attacker: Position | None,
         target: Position | None,
         attacker_sees_you: bool = False,
+        slack: Fraction = Fraction(0),
     ) -> Advantage:
         """What an attack against this creature has, given where the attacker stands.
 
@@ -625,7 +627,8 @@ class Conditions:
 
         if self.has(Condition.PRONE):
             if attacker is not None and target is not None:
-                if within(attacker, target, ADJACENT_FEET):
+                # p. 13's measure (0086): `slack` is what the two spaces bring them nearer.
+                if within(attacker, target, ADJACENT_FEET, slack=slack):
                     advantage = True
                 else:
                     disadvantage = True

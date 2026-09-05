@@ -74,12 +74,14 @@ shape twice before — a disclosure accurate about *that* something is missing a
 from __future__ import annotations
 
 from dataclasses import dataclass
+from fractions import Fraction
 
 from srd_rules_engine.core.actions import ActionKind
 from srd_rules_engine.core.equipment import Carriage, Weapon, items_in
 from srd_rules_engine.core.position import Position, within
 from srd_rules_engine.core.rules import Verification, VerificationMethod, VerificationState
 from srd_rules_engine.core.sight import Visibility
+from srd_rules_engine.core.size import range_slack
 from srd_rules_engine.core.state import Combatant, EncounterState
 
 #: p. 185's sight clause, for a pair the document does not answer for. Not a gap in this
@@ -143,7 +145,7 @@ def _reaches(reactor: Combatant) -> frozenset[int]:
     return frozenset({reactor.reach} | {w.reach_in_use(reactor.reach) for w in weapons})
 
 
-def _left_reach(reactor: Combatant, frm: Position, to: Position) -> bool:
+def _left_reach(reactor: Combatant, frm: Position, to: Position, *, slack: Fraction) -> bool:
     """p. 185: the mover *leaves* the reach, so being outside it all along is not a trigger.
 
     Asked once per reach the reactor has, because leaving *a* reach it could attack at is
@@ -152,7 +154,8 @@ def _left_reach(reactor: Combatant, frm: Position, to: Position) -> bool:
     if reactor.position is None:
         return False
     return any(
-        within(reactor.position, frm, reach) and not within(reactor.position, to, reach)
+        within(reactor.position, frm, reach, slack=slack)
+        and not within(reactor.position, to, reach, slack=slack)
         for reach in _reaches(reactor)
     )
 
@@ -186,7 +189,9 @@ def provocations(
             continue
         if not reactor.actions.available(ActionKind.REACTION, reactor.conditions):
             continue
-        if not _left_reach(reactor, frm, to):
+        # p. 13's measure (0086): the mover's space and the reactor's both shorten the reach,
+        # so a Huge creature walking away from a Medium one leaves its reach later.
+        if not _left_reach(reactor, frm, to, slack=range_slack(reactor.size, mover.size)):
             continue
 
         sight = state.can_see(reactor.id, mover_id)

@@ -134,7 +134,7 @@ from srd_rules_engine.core.rules import (
     VerificationState,
 )
 from srd_rules_engine.core.sight import Visibility
-from srd_rules_engine.core.size import Size
+from srd_rules_engine.core.size import Size, range_slack
 from srd_rules_engine.core.state import Combatant, EncounterState, ForcedSave
 from srd_rules_engine.core.topple import (
     TOPPLE_RULE_ID,
@@ -182,7 +182,12 @@ def _hit_is_automatically_critical(actor: Combatant, target: Combatant) -> bool:
         return False
     if actor.position is None or target.position is None:
         return False
-    return within(actor.position, target.position, AUTO_CRITICAL_FEET)
+    return within(
+        actor.position,
+        target.position,
+        AUTO_CRITICAL_FEET,
+        slack=range_slack(actor.size, target.size),
+    )
 
 
 #: p. 13: "they make a **Dexterity check** that determines their place in the Initiative
@@ -469,6 +474,7 @@ def attack_resolver() -> Resolver:
             attacker=actor.position,
             target=target.position,
             attacker_sees_you=actor_sees_target,
+            slack=range_slack(actor.size, target.size),
         )
         # p. 181: while Dodging, attacks against you have Disadvantage. It reaches the same
         # pair of flags as everything else, so it cancels against Advantage rather than
@@ -1683,6 +1689,9 @@ def _out_of_range(
     """
     if actor.position is None or target.position is None:
         return False
+    # p. 13 measures a range from one space's edge to the other's (0086): a Medium attacker
+    # is in reach of a Huge creature from ten feet away, five of them the giant's own.
+    slack = range_slack(actor.size, target.size)
 
     # p. 90's range belongs to the *throw*, so a Melee weapon that carries one is still
     # bounded by reach when it is swung (#284). Asking the weapon alone would let a Dagger
@@ -1692,7 +1701,7 @@ def _out_of_range(
         # the bound is a fact about this weapon in this creature's hands rather than about
         # the creature alone (#316). Asking `actor.reach` directly gave a Glaive 5 feet.
         reach = weapon.reach_in_use(actor.reach)
-        if not within(actor.position, target.position, reach):
+        if not within(actor.position, target.position, reach, slack=slack):
             raise ValueError(
                 f"{target.name} is {distance_feet(actor.position, target.position)} feet "
                 f"away and {actor.name} has a reach of {reach} feet with {weapon.id}"
@@ -1700,12 +1709,12 @@ def _out_of_range(
         return False
 
     assert weapon.long_range is not None
-    if not within(actor.position, target.position, weapon.long_range):
+    if not within(actor.position, target.position, weapon.long_range, slack=slack):
         raise ValueError(
             f"{target.name} is beyond the long range of {weapon.id} "
             f"({weapon.long_range} feet), and no attack may be made at all (p. 90)"
         )
-    return not within(actor.position, target.position, weapon.normal_range)
+    return not within(actor.position, target.position, weapon.normal_range, slack=slack)
 
 
 def _vex_sap_and_slow(

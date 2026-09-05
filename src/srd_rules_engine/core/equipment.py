@@ -70,6 +70,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from fractions import Fraction
 from typing import Final
 
 from srd_rules_engine.core.damage import DamageType
@@ -711,6 +712,8 @@ def reachable_objects(
     objects: tuple[DetachedObject, ...],
     actor_position: Position | None,
     reach: int,
+    *,
+    slack: Fraction = Fraction(0),
 ) -> tuple[DetachedObject, ...] | None:
     """Which detached objects are within `reach`, or `None` if that cannot be answered.
 
@@ -732,7 +735,8 @@ def reachable_objects(
     return tuple(
         obj
         for obj in objects
-        if obj.position is not None and within(actor_position, obj.position, reach)
+        # `slack` is the actor's own space (p. 13, 0086): an object is a point and adds none.
+        if obj.position is not None and within(actor_position, obj.position, reach, slack=slack)
     )
 
 

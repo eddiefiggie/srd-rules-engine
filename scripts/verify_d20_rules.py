@@ -2032,6 +2032,38 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"happens to that target, but if you used a spell slot to cast the spell, the slot "
         r"is still expended",
     ),
+    # --- p. 13's grid measure, which decides how a range meets a space (#456, 0086) -------
+    (
+        13,
+        "a range between two things is counted from a square ADJACENT to one of them into "
+        "the SPACE of the other — the document's one measuring rule, and it runs from edge "
+        "to edge, which is why a creature that fills more than one square is nearer than its "
+        "point (0086 clause 1)",
+        r"To determine the range on a grid between two things.whether creatures or "
+        r"objects.\s*count squares from a square adjacent to one of them and stop counting "
+        r"in the space of the other one",
+    ),
+    (
+        13,
+        "by the shortest route, which on a grid is a diagonal counted as one square; the "
+        "straight line 0014 chose already departs from that, and 0086 adds no second "
+        "departure",
+        r"Count by the shortest route",
+    ),
+    (
+        13,
+        "a square is five feet, so the one square a range stops in is the 5 that a Medium "
+        "creature's point already carries — the excess 0086 takes off is what a space has "
+        "beyond that square",
+        r"Squares\. Each square represents 5 feet",
+    ),
+    (
+        15,
+        "a 5-foot reach attacks targets within 5 feet — 'targets', which p. 13 measures to "
+        "the space of, so a Medium creature reaches a Huge one from ten feet away",
+        r"A creature has a 5-foot reach and can thus attack targets within 5 feet when "
+        r"making a melee attack",
+    ),
     # --- p. 14's Moving around Other Creatures: asserted although unbuilt (#451, #456) --
     # Built on 0084's reads and set aside: reach is point-to-point, so every melee position
     # against a Huge creature is inside its space, and these four sentences read that as
