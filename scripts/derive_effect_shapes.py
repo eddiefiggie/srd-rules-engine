@@ -184,7 +184,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     "Hover": ("movement", True),
     "Illusions": ("effect", False),
     "Immunity": ("effect", False),
-    "Improvised Weapons": ("equipment", False),
+    "Improvised Weapons": ("equipment", True),
     "Initiative": ("test", True),
     "Jumping": ("movement", True),
     "Knocking Out a Creature": ("effect", True),

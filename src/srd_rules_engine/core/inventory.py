@@ -266,6 +266,10 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # reach, the melee ability modifier survives the throw, and the weapon detaches
         # unplaced whether it hits or misses.
         "weapon-thrown": "core.read_surface._throwable",
+        # p. 183, all four rules (#264, 0076; #390, 0090): a use rather than an object, 1d4
+        # of the ruleset's type, no Proficiency Bonus, and the throw at 20/60 — Dexterity by
+        # p. 15, since the object lacks the Thrown property that would keep Strength.
+        "improvised-weapons": "core.combat.improvised_attack_resolver",
         # p. 257, #289. One Action buys several rolls; the composition is the ruleset's.
         "multiattack": "core.state.EncounterState.attacks_remaining",
         # p. 90, #271. One shot per action used, which only bites once one action buys

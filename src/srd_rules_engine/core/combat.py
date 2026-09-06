@@ -108,6 +108,8 @@ from srd_rules_engine.core.read_surface import (
     ATTACK_EQUIP,
     IMPROVISED_DAMAGE_DICE,
     IMPROVISED_DAMAGE_SIDES,
+    IMPROVISED_THROWN_LONG_FEET,
+    IMPROVISED_THROWN_NORMAL_FEET,
     PUSH_MASTERY_FEET,
     VERB_EQUIP,
     VERB_STOW,
@@ -117,6 +119,7 @@ from srd_rules_engine.core.read_surface import (
     bonus_attack_declared,
     cleave_attack_declared,
     improvised_attack_declared,
+    improvised_throw_declared,
     interaction_declared,
     nick_attack_declared,
     opportunity_attack_declared,
@@ -1182,21 +1185,25 @@ def unarmed_strike_resolver() -> Resolver:
 #: document hands to a person (#264).
 IMPROVISED_VERIFICATION: Final = Verification(
     state=VerificationState.VERIFIED,
-    reference="SRD v5.2.1, Rules Glossary: Improvised Weapons p. 183",
+    reference=(
+        "SRD v5.2.1, Rules Glossary: Improvised Weapons p. 183; Playing the Game: Attack "
+        "Rolls p. 15 (Strength for a melee attack, Dexterity for a ranged one, and the "
+        "Finesse-or-Thrown exception an improvised weapon lacks)"
+    ),
     date="2026-08-30",
     method=VerificationMethod.ASSERTED,
 )
 
 
 def improvised_attack_resolver() -> Resolver:
-    """p. 183's Improvised Weapons, as a melee swing (#264, 0076).
+    """p. 183's Improvised Weapons: the swing (#264, 0076) and the throw (#390, 0090).
 
     > An improvised weapon is an object wielded as a makeshift weapon... A Simple or Martial
     > weapon also counts as an improvised weapon **if it's wielded in a way contrary to its
     > design**.
 
     **A use rather than an object**, which is why this is its own resolver reached by its own
-    key rather than a flag on `attack_resolver`. Nothing here asks whether the item "is" an
+    keys rather than a flag on `attack_resolver`. Nothing here asks whether the item "is" an
     improvised weapon: p. 183 says no object is one, and a longbow swung as a club is the
     document's own example of a perfectly ordinary weapon being used improvisedly.
 
@@ -1211,15 +1218,22 @@ def improvised_attack_resolver() -> Resolver:
     Immunity as though somebody had ruled on it. The read surface offers no attack with an
     object whose type nobody has stated, and this refuses one that arrives anyway (0062).
 
-    **The ability modifier stays on both rolls.** p. 183 alters the dice and removes the
-    Proficiency Bonus from the attack roll, and says nothing about the ability modifier — so
-    the general rule applies rather than an exception being read into a sentence that does not
-    make one. Strength, because this is a melee attack and nothing about a table leg is
-    Finesse.
+    **The ability modifier stays on both rolls, and which one is p. 15's general rule.**
+    p. 183 alters the dice and removes the Proficiency Bonus from the attack roll, and says
+    nothing about the ability modifier — so p. 15 applies: Strength for a melee attack,
+    Dexterity for a ranged one. p. 15's exception is for "weapons that have the Finesse or
+    Thrown property", and an improvised weapon is one precisely because the object lacks
+    Thrown — so a thrown chair is Dexterity where a thrown Dagger keeps its Strength (0090).
 
-    **Thrown is not here.** p. 183 gives a thrown improvised weapon 20/60, which needs the
-    throw path to carry an improvised mode
-    ([#390](https://github.com/eddiefiggie/srd-rules-engine/issues/390)).
+    **The throw is bounded by p. 183's 20/60 the way p. 90 bounds a Thrown weapon**: refused
+    beyond the long range, Disadvantage beyond the normal one, both measured from each
+    space's edge (0086). The object leaves the hand whether the throw hits or misses, and
+    lands nowhere the document states (0041 clause 4). The swing is bounded by p. 190's five
+    feet, which the read surface has always bounded it by and this refuses beyond (0062).
+
+    **Not here, and filed:** the Advantage and Disadvantage that conditions, Dodging and
+    p. 16's water put on every weapon attack reach neither the swing nor the throw
+    ([#464](https://github.com/eddiefiggie/srd-rules-engine/issues/464)).
     """
 
     def resolve(
@@ -1229,12 +1243,14 @@ def improvised_attack_resolver() -> Resolver:
         facts: Mapping[str, Resolution],
     ) -> Proposal:
         actor = state.combatant(declaration.actor_id)
-        declared = improvised_attack_declared(declaration.intent.action_key)
+        key = declaration.intent.action_key
+        thrown = improvised_throw_declared(key)
+        declared = thrown or improvised_attack_declared(key)
         if declared is None:
             raise ValueError(
-                "this declaration is not an improvised attack: p. 183's swing is offered "
-                "under its own action key, and one carrying neither an object nor a target "
-                "has nothing to swing"
+                "this declaration is not an improvised attack: p. 183's swing and throw are "
+                "offered under their own action keys, and one carrying neither an object "
+                "nor a target has nothing to swing"
             )
         item_id, target_id = declared
 
@@ -1259,7 +1275,13 @@ def improvised_attack_resolver() -> Resolver:
         # p. 15's +2 or +5, read after the Total Cover refusal because Total is not a bonus —
         # it is a prohibition, and an attack that cannot be made has no target number to move.
         cover = _cover_from(state, actor, target)
-        strength = actor.modifier("str")
+        beyond_normal = _improvised_out_of_range(actor, target, thrown=thrown is not None)
+        # p. 15: "The ability modifier used for a melee attack is Strength, and the ability
+        # modifier used for a ranged attack is Dexterity." The exception is for weapons with
+        # Finesse or Thrown, and a table leg has neither.
+        ability = "dex" if thrown is not None else "str"
+        modifier = actor.modifier(ability)
+        verb = "threw" if thrown is not None else "swung"
 
         return Proposal(
             always=(
@@ -1278,17 +1300,36 @@ def improvised_attack_resolver() -> Resolver:
                     ActionKind.ACTION,
                     description="the Action spent on the Attack (p. 176, p. 177)",
                 ),
+                # The object leaves the hand whether or not the throw hits, for the reason
+                # `attack_resolver` gives p. 90's Thrown weapon the same effect: p. 128 treats
+                # a hit and a miss alike as the weapon being elsewhere. Where is stated by
+                # nothing (0041 clause 4), so it arrives among the unplaced objects.
+                *(
+                    (
+                        object_detached(
+                            actor.id,
+                            item_id,
+                            description=f"{actor.name} throws {item_id}: p. 183",
+                        ),
+                    )
+                    if thrown is not None
+                    else ()
+                ),
             ),
             test=D20Test(
                 kind=TestKind.ATTACK,
                 target=target.effective_armour_class + cover.bonus,
                 target_basis=_ac_basis(target, cover),
-                ability="str",
+                ability=ability,
                 critical_on_hit=_hit_is_automatically_critical(actor, target),
                 # p. 183: "**Don't add your Proficiency Bonus** to attack rolls with an
                 # improvised weapon." Not a proficiency the wielder happens to lack — a
                 # prohibition, so there is no branch here for a creature that has one.
-                modifiers=(Modifier(source="ability:str", value=strength),),
+                modifiers=(Modifier(source=f"ability:{ability}", value=modifier),),
+                # p. 90: "When attacking a target beyond normal range, you have Disadvantage
+                # on the attack roll." p. 183 gives the throw a normal range in p. 90's
+                # terms, so p. 90's consequence follows.
+                has_disadvantage=beyond_normal,
             ),
             on_success=(
                 DamageDice(
@@ -1296,23 +1337,60 @@ def improvised_attack_resolver() -> Resolver:
                     count=IMPROVISED_DAMAGE_DICE,
                     sides=IMPROVISED_DAMAGE_SIDES,
                     damage_type=damage_type,
-                    modifier=strength,
+                    modifier=modifier,
                     source=item_id,
                 ),
             ),
             citations=("srd:rules-glossary/improvised-weapons",),
             may_claim=(
-                f"that {actor.name} swung {item_id} at {target.name} as a makeshift weapon",
+                f"that {actor.name} {verb} {item_id} at {target.name} as a makeshift weapon",
             ),
             may_not_claim=(
                 "that the object is a weapon, or that it has become one; p. 183 makes this "
                 "a way of using an object rather than a kind of object",
                 f"that the damage was any type but {damage_type.value} — the ruleset chose "
                 "it, as p. 183 says a person must",
+                *(
+                    (
+                        f"where {item_id} landed, or that it can be picked up — it left "
+                        f"{actor.name}'s hand and no rule says where it fell (0041)",
+                    )
+                    if thrown is not None
+                    else ()
+                ),
             ),
         )
 
     return resolve
+
+
+def _improvised_out_of_range(actor: Combatant, target: Combatant, *, thrown: bool) -> bool:
+    """Whether an improvised throw is beyond p. 183's normal range, refusing one beyond its
+    long range — and refusing a swing beyond p. 190's five feet (#390, 0090).
+
+    `_out_of_range`'s shape for an attack with no `Weapon` to read: the swing's reach is
+    p. 190's five feet rather than the wielder's (0076 clause 6), and the throw's two ranges
+    are p. 183's rather than an object's. Both measured from each space's edge (0086). An
+    encounter tracking no positions cannot answer and says so rather than assuming.
+    """
+    if actor.position is None or target.position is None:
+        return False
+    slack = range_slack(actor.size, target.size)
+    if not thrown:
+        if not within(actor.position, target.position, UNARMED_REACH_FEET, slack=slack):
+            raise ValueError(
+                f"{target.name} is {distance_feet(actor.position, target.position)} feet "
+                f"away, and an improvised weapon is swung from {UNARMED_REACH_FEET} feet "
+                "(p. 190, 0076 clause 6)"
+            )
+        return False
+    if not within(actor.position, target.position, IMPROVISED_THROWN_LONG_FEET, slack=slack):
+        raise ValueError(
+            f"{target.name} is beyond the long range of a thrown improvised weapon "
+            f"({IMPROVISED_THROWN_LONG_FEET} feet), and no attack may be made at all "
+            "(p. 90, p. 183)"
+        )
+    return not within(actor.position, target.position, IMPROVISED_THROWN_NORMAL_FEET, slack=slack)
 
 
 def _after_equipping(state: EncounterState, before: tuple[Effect, ...]) -> EncounterState:
@@ -1475,20 +1553,15 @@ def _weapon_and_target(
                 )
             if thrown is not None and not carried.item.thrown:
                 # p. 183: throwing a Melee weapon that lacks Thrown makes it an improvised
-                # weapon. Refused rather than resolved as an ordinary throw, which would
-                # silently keep the weapon's dice.
-                #
-                # **Half this refusal's reason has lapsed** (#264, 0076). The damage type has
-                # a home now — `Item.improvised_damage_type` — so it is no longer a judgement
-                # the engine may not invent. What remains is the *range*: p. 183 gives a
-                # thrown improvised weapon 20/60 and nothing consumes those numbers, so the
-                # throw stands on
-                # [#390](https://github.com/eddiefiggie/srd-rules-engine/issues/390)
-                # rather than on #264.
+                # weapon — 1d4 of the ruleset's type, no Proficiency Bonus, 20/60, Dexterity
+                # — which `improvised_attack_resolver` resolves under its own key (#390,
+                # 0090). Refused here rather than resolved as an ordinary throw, which would
+                # silently keep the weapon's dice, its bonus and its ability.
                 raise ValueError(
                     f"{weapon_id!r} does not have the Thrown property, and p. 183 makes "
-                    "throwing one an improvised weapon whose damage type is the GM's to "
-                    "choose. The engine has no way to supply that, so no throw is offered"
+                    "throwing one an improvised weapon. That throw is offered under "
+                    "`improvised-throw`, with p. 183's dice and range, and never under this "
+                    "key"
                 )
             if opportunity is not None and not carried.item.melee:
                 # p. 185 grants "one **melee** attack". `reaction_options` offers melee

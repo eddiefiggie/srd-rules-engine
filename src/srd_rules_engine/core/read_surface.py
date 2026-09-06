@@ -729,9 +729,16 @@ IMPROVISED_DAMAGE_DICE: Final = 1
 IMPROVISED_DAMAGE_SIDES: Final = 4
 
 #: p. 183: "If you throw the weapon, it has a normal range of 20 feet and a long range of 60
-#: feet." Not built — see `improvised_attacks` (#390).
+#: feet." Read by `improvised_attacks` for the offer and by `improvised_attack_resolver` for
+#: the refusal beyond long range and the Disadvantage beyond normal (#390, 0090).
 IMPROVISED_THROWN_NORMAL_FEET: Final = 20
 IMPROVISED_THROWN_LONG_FEET: Final = 60
+
+#: p. 183's throw, under its own key (#390, 0090). Its own prefix rather than `attack-throw`
+#: for the reason the swing has its own: the two differ in dice, in the Proficiency Bonus,
+#: and in the ability — and rather than the swing because the two differ in range and in
+#: what they leave behind.
+IMPROVISED_THROW: Final = "improvised-throw"
 
 
 def improvised_attack_key(item_id: str, target_id: str) -> str:
@@ -747,6 +754,21 @@ def improvised_attack_declared(action_key: str | None) -> tuple[str, str] | None
     if action_key is None or not action_key.startswith(f"{IMPROVISED_ATTACK}:"):
         return None
     item_id, _, target_id = action_key[len(IMPROVISED_ATTACK) + 1 :].rpartition(":")
+    if not item_id or not target_id:
+        return None
+    return item_id, target_id
+
+
+def improvised_throw_key(item_id: str, target_id: str) -> str:
+    """The key one improvised throw is offered under (p. 183, #390)."""
+    return f"{IMPROVISED_THROW}:{item_id}:{target_id}"
+
+
+def improvised_throw_declared(action_key: str | None) -> tuple[str, str] | None:
+    """The object and the target an improvised-throw key names, or `None` if it is not one."""
+    if action_key is None or not action_key.startswith(f"{IMPROVISED_THROW}:"):
+        return None
+    item_id, _, target_id = action_key[len(IMPROVISED_THROW) + 1 :].rpartition(":")
     if not item_id or not target_id:
         return None
     return item_id, target_id
@@ -1505,38 +1527,67 @@ def improvised_attacks(state: EncounterState, actor: Combatant) -> tuple[LegalAc
     and a table leg is not a Reach weapon. Using `actor.reach` would grant a Glaive-holder ten
     feet of frying pan.
 
-    **The thrown half is not here.** p. 183 gives a thrown improvised weapon 20/60, and
-    offering it needs the throw path to carry an improvised mode — filed as
-    [#390](https://github.com/eddiefiggie/srd-rules-engine/issues/390) rather than half-built,
-    because a throw offered without its range is the kind of partial rule this engine refuses
-    elsewhere.
+    **And the throw, under its own key** (#390, 0090). p. 183: "If you throw the weapon, it has
+    a normal range of 20 feet and a long range of 60 feet." Bounded by the long range, as
+    `_throwable` bounds a Thrown weapon, and measured from each space's edge (0086). A Melee
+    weapon that lacks Thrown is p. 183's own example of an improvised throw, so a club with a
+    stated improvised type is offered here and never as `attack-throw`.
+
+    **Held only, both ways.** p. 90's "you can draw that weapon as part of the attack" belongs
+    to the Thrown property, and an improvised weapon is one precisely because it lacks it —
+    a stowed rock is equipped first (p. 177) and thrown after.
     """
     offered: list[LegalAction] = []
     for carried in items_in(actor.equipment, Carriage.HELD):
         damage_type = carried.improvised_damage_type
         if damage_type is None:
             continue
+        common = {
+            "object": carried.id,
+            "damage": f"{IMPROVISED_DAMAGE_DICE}d{IMPROVISED_DAMAGE_SIDES}",
+            "damage_type": str(damage_type),
+            # p. 183: "Don't add your Proficiency Bonus to attack rolls with an improvised
+            # weapon." Reported so the agent can weigh the swing.
+            "proficiency_bonus_applies": False,
+        }
         for target in state.combatants:
             if target.id == actor.id or target.is_down:
                 continue
-            if not _within(actor, target, UNARMED_REACH_FEET):
-                continue
-            offered.append(
-                LegalAction(
-                    key=improvised_attack_key(carried.id, target.id),
-                    label=f"Improvised attack on {target.name} with {carried.id}",
-                    detail={
-                        "target": target.id,
-                        "object": carried.id,
-                        "armour_class": target.effective_armour_class,
-                        "damage": f"{IMPROVISED_DAMAGE_DICE}d{IMPROVISED_DAMAGE_SIDES}",
-                        "damage_type": str(damage_type),
-                        # p. 183: "Don't add your Proficiency Bonus to attack rolls with an
-                        # improvised weapon." Reported so the agent can weigh the swing.
-                        "proficiency_bonus_applies": False,
-                    },
+            if _within(actor, target, UNARMED_REACH_FEET):
+                offered.append(
+                    LegalAction(
+                        key=improvised_attack_key(carried.id, target.id),
+                        label=f"Improvised attack on {target.name} with {carried.id}",
+                        detail={
+                            "target": target.id,
+                            "armour_class": target.effective_armour_class,
+                            **common,
+                        },
+                    )
                 )
-            )
+            if _within(actor, target, IMPROVISED_THROWN_LONG_FEET):
+                offered.append(
+                    LegalAction(
+                        key=improvised_throw_key(carried.id, target.id),
+                        label=f"Throw {carried.id} at {target.name}",
+                        detail={
+                            "target": target.id,
+                            "armour_class": target.effective_armour_class,
+                            **common,
+                            "thrown": True,
+                            # p. 15: a ranged attack is Dexterity, and the Thrown property's
+                            # exception belongs to weapons that have it — this one does not.
+                            "ability": "dex",
+                            # p. 90: Disadvantage beyond normal range, reported so the agent
+                            # can weigh the throw.
+                            "beyond_normal_range": not _within(
+                                actor, target, IMPROVISED_THROWN_NORMAL_FEET
+                            ),
+                            # 0041 clause 4: it leaves the hand and no rule says where it lands.
+                            "lands": "unplaced",
+                        },
+                    )
+                )
     return tuple(offered)
 
 
@@ -1557,9 +1608,8 @@ def _throwable(state: EncounterState, actor: Combatant) -> tuple[LegalAction, ..
     swung and sixty when thrown.
 
     **A Melee weapon that lacks Thrown is not offered here.** p. 183 makes throwing one an
-    improvised weapon, which #264 built as a melee swing — the damage type has a home now, and
-    what this still needs is p. 183's 20/60 range for a thrown improvised weapon
-    ([#390](https://github.com/eddiefiggie/srd-rules-engine/issues/390)).
+    improvised weapon, and `improvised_attacks` offers that throw under its own key, with
+    p. 183's 20/60 range and no Proficiency Bonus (#390, 0090).
     """
     offered: list[LegalAction] = []
     for carried in actor.equipment:
@@ -2064,14 +2114,18 @@ def _within_weapon_range(
     """
     if actor.position is None or target.position is None:
         return True
-    distance = distance_feet(actor.position, target.position)
+    # p. 13 measures a range from one space's edge to the other's (0086 clause 4). This site
+    # stayed point-to-point through 0086 — its test exercised `_out_of_range`, the resolver's
+    # bound, and not the offer — so a Medium fighter could hit a Huge giant from ten feet and
+    # was never offered the swing (0090). The offer and the resolver read one measure now.
+    slack = range_slack(actor.size, target.size)
     if (thrown or not weapon.melee) and weapon.long_range is not None:
-        return bool(distance <= weapon.long_range)
+        return within(actor.position, target.position, weapon.long_range, slack=slack)
     # p. 90's Reach property adds to the wielder's reach "when you attack with it", so the
     # bound belongs to this weapon in this creature's hands (#316). Reading `actor.reach`
     # alone withheld the offer entirely, which is the direction that matters here: an attack
     # the rules permit was never presented, so nothing downstream could have caught it.
-    return bool(distance <= weapon.reach_in_use(actor.reach))
+    return within(actor.position, target.position, weapon.reach_in_use(actor.reach), slack=slack)
 
 
 def _attack_detail(actor: Combatant, weapon: Weapon, target: Combatant) -> dict[str, object]:
@@ -2089,9 +2143,15 @@ def _attack_detail(actor: Combatant, weapon: Weapon, target: Combatant) -> dict[
         # Reach weapon's offer would contradict the offer itself.
         detail["reach"] = weapon.reach_in_use(actor.reach)
         # p. 90: "When attacking a target beyond normal range, you have Disadvantage on the
-        # attack roll." Reported so the agent can weigh the shot it is being offered.
+        # attack roll." Reported so the agent can weigh the shot it is being offered, and
+        # measured as the resolver measures it — from each space's edge (0086).
         if weapon.normal_range is not None:
-            detail["beyond_normal_range"] = distance > weapon.normal_range
+            detail["beyond_normal_range"] = not within(
+                actor.position,
+                target.position,
+                weapon.normal_range,
+                slack=range_slack(actor.size, target.size),
+            )
     return detail
 
 
