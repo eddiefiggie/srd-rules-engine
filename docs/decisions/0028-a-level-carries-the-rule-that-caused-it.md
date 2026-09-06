@@ -186,3 +186,9 @@ removal needed it.
 _Updated 2026-08-25 as [#183](https://github.com/eddiefiggie/srd-rules-engine/issues/183) and
 [#185](https://github.com/eddiefiggie/srd-rules-engine/issues/185) landed. This record shipped
 saying "Decided, not built"._
+
+_2026-09-06._ Clause 3 built "can't be removed" and nothing built "until": the lock was a
+constant over rules, so a dehydration level was unremovable forever. [0089](0089-a-lock-lifts-on-the-day-the-requirement-is-met.md) adds the
+per-creature lift — `Hazards.exhaustion_unlocked`, set at a day's end when the creature meets
+the table's row and closed by the next level of that rule — and `with_long_rest` reads it.
+Clause 4's order is unchanged and now runs over levels the lift admits.

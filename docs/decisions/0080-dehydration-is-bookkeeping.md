@@ -115,9 +115,9 @@ The `dehydration` shape is **claimed**; `malnutrition` was not until 0088 built 
 `scripts/verify_d20_rules.py` carried p. 185 from #399 — asserted while the starvation half was
 unbuilt, so whoever took #401 did not re-read it and could not quietly disagree with it.
 
-_2026-09-06._ Row 7b is built. What p. 185 still states and nothing does is the **unlock** —
+_2026-09-06._ Row 7b is built. What p. 185 still stated and nothing did was the **unlock** —
 "until the creature eats the full amount of food required for a day" — and p. 181's twin; both
-are [#461](https://github.com/eddiefiggie/srd-rules-engine/issues/461).
+were [#461](https://github.com/eddiefiggie/srd-rules-engine/issues/461), and [0089](0089-a-lock-lifts-on-the-day-the-requirement-is-met.md) built them the same day.
 
 _Updated 2026-08-31 ([#404](https://github.com/eddiefiggie/srd-rules-engine/issues/404)).
 Clause 7 was one row saying `**Not built.**` over #399, which closed the day before with the
