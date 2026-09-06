@@ -50,6 +50,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
+from fractions import Fraction
 from types import MappingProxyType
 from typing import Final
 
@@ -632,8 +633,12 @@ def spell_reaches(
     spell_range: SpellRange,
     reach_feet: int,
     obstructions: Sequence[Obstruction] = (),
+    caster_slack: Fraction = Fraction(0),
 ) -> bool:
     """Whether a spell of this range may originate there, from a caster standing here.
+
+    `caster_slack` is the caster's own space (p. 13, 0086): a range runs from the edge of
+    the caster's space, and the origin is a point, so only the caster's extent shortens it.
 
     Two independent tests, both from the document, and a spell must pass both:
 
@@ -651,9 +656,9 @@ def spell_reaches(
     if spell_range.form is RangeForm.SELF:
         return origin == caster
     if spell_range.form is RangeForm.TOUCH:
-        return within(caster, origin, reach_feet)
+        return within(caster, origin, reach_feet, slack=caster_slack)
     assert spell_range.feet is not None  # __post_init__ refuses one without
-    return within(caster, origin, spell_range.feet)
+    return within(caster, origin, spell_range.feet, slack=caster_slack)
 
 
 #: Why a spell's components cannot be provided, or `None` when they can (p. 105, #245).

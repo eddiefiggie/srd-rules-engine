@@ -89,6 +89,27 @@ class Size(StrEnum):
         """
         return SPACE_FEET[self]
 
+    @property
+    def range_excess(self) -> Fraction:
+        """What this creature's space adds to a range measured to it (p. 13, 0086).
+
+        p. 13's grid measures range "from a square adjacent to one of them" to "the space of
+        the other one", so a range runs from one space's edge to the other's, and a creature
+        that fills more than one square is nearer than its point. In feet along a straight
+        line, that is the half-width of its space beyond a single square's 2½ feet:
+
+        | Size | Half-width | Excess |
+        |---|---|---|
+        | Tiny, Small, Medium | 1¼, 2½, 2½ | 0 |
+        | Large | 5 | 2½ |
+        | Huge | 7½ | 5 |
+        | Gargantuan | 10 | 7½ |
+
+        Tiny is zero rather than negative: on the grid four Tiny creatures share one square
+        and each is counted as occupying it, so nothing is further away for being small.
+        """
+        return max(Fraction(0), self.space_feet / 2 - Fraction(5, 2))
+
     def categories_above(self, other: Size) -> int:
         """How many categories larger this size is than `other`, negative if smaller.
 
@@ -158,6 +179,17 @@ DRAG_LIFT_PUSH_MULTIPLIER: Final[dict[Size, float]] = {
     Size.HUGE: 120.0,
     Size.GARGANTUAN: 240.0,
 }
+
+
+def range_slack(*sizes: Size | None) -> Fraction:
+    """How much nearer two things are than their points, for a range test (p. 13, 0086).
+
+    The sum of each thing's `range_excess`. A point, an object, or a creature nobody sized
+    contributes nothing: an unknown size is unknown rather than Medium (0051), and a range
+    that reached further on a guess would land attacks the rules may not grant, where one
+    that reached no further only withholds (0030 clause 1).
+    """
+    return sum((size.range_excess for size in sizes if size is not None), Fraction(0))
 
 
 @dataclass(frozen=True)

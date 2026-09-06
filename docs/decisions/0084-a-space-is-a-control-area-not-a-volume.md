@@ -121,7 +121,7 @@ seen, the change is small and the risk was in the framing.
 | 4 — centred, as a convention | **Built.** `core.position.space_contains`, and stated as a convention in its docstring |
 | 5 — a square, not a cube | **Built**, and asserted with a creature overhead |
 | 6 — the boundary is inclusive | **Built**, and asserted at the midpoint two Medium creatures share |
-| 7 — extent does not move range | **Built** by not building it, and pinned by a test that fails if it changes |
+| 7 — extent does not move range | **Reversed for range by [0086](0086-a-range-runs-from-the-edge-of-a-space.md)** on 2026-09-04: p. 13 measures a range from a square adjacent to one thing into the space of the other, a sentence this record had not read. The pin fired as intended and was turned round rather than deleted. Occupancy — clauses 1 to 6, 8 and 9 — is untouched |
 | 8 — overlap is representable | **Built.** `occupants_of` returns every creature, not the first |
 | 9 — p. 185's object clause unasked | **Not built**, and disclosed on `is_unoccupied` ([#451](https://github.com/eddiefiggie/srd-rules-engine/issues/451)) |
 
