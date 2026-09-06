@@ -764,7 +764,7 @@
    "tag": "Hazard",
    "reference": "Rules Glossary, p. 185",
    "kind": "hazard",
-   "implemented": false
+   "implemented": true
   },
   {
    "id": "occupied-space",

@@ -533,6 +533,13 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"day.s end\.\s*A creature that eats nothing for 5 days automatically gains 1 "
         r"Exhaustion level at the end of the fifth day",
     ),
+    (
+        185,
+        "and the run does not latch: a level at the end of EACH subsequent day without food, "
+        "which is why `Hazards.days_without_food` keeps counting past five rather than "
+        "firing once (#401, 0088)",
+        r"as well as an additional level at the end of each subsequent day without food",
+    ),
     # --- Armour training (#367) ----------------------------------------------------------
     (
         177,

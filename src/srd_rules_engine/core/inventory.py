@@ -307,9 +307,14 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         "grappling": "core.grappling.escape_resolver",
         # p. 181, #315, 0080. Dehydration is bookkeeping — a level at a day's end with no die
         # — so it is a state transition rather than a resolver, and the named symbol says so.
-        # `malnutrition` is NOT here: p. 185 compels a DC 10 Constitution save and the
-        # occasion that could produce a ruling on the campaign axis does not exist (#399).
         "dehydration": "core.state.EncounterState.with_day_ended",
+        # p. 185, two rules under one entry (0080 clause 7). The save for eating too little
+        # is a ruling, compelled by the day's end and rolled through the one door (0081); the
+        # run of days without food is bookkeeping in `with_day_ended`, a level outright from
+        # the fifth day on (#401, 0088). Claimed against the resolver because a shape is
+        # claimed against what resolves it, and claimed only now that both halves exist — a
+        # shape claimed at half is the overstatement R17's inventory exists to prevent.
+        "malnutrition": "core.hazards.malnutrition_resolver",
         # p. 185, #382, 0072. The whole sentence: the trigger in `core.reactions`, the offer
         # and the Reaction spent in `loop.turn.TurnLoop.move`, the attack itself through the
         # one adjudication entry point.

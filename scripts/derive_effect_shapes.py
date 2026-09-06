@@ -91,7 +91,7 @@ KINDS: dict[str, tuple[str, bool]] = {
     # axis does not exist (#399). They stopped sharing a flag when they stopped sharing a
     # blocker.
     "Dehydration": ("hazard", True),
-    "Malnutrition": ("hazard", False),
+    "Malnutrition": ("hazard", True),
     **{n: ("targeting", True) for n in ("Cone", "Cube", "Cylinder", "Emanation", "Line", "Sphere")},
     **{n: ("attitude", True) for n in ("Friendly", "Hostile", "Indifferent")},
     "Attack": ("action", True),

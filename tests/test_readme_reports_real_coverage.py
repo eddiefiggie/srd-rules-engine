@@ -185,13 +185,14 @@ def test_the_senses_and_light_slice_is_the_one_the_row_names() -> None:
     # with the Perception check (#138), then Bright Light once #228 found its mechanic on
     # p. 11 rather than in its glossary entry, then Dehydration — the fourth of the five
     # hazards (#315, 0080), then all three attitudes at once with the first core fact type
-    # (#142), and then Injury poison — the one of p. 197's four whose exposure the engine can
-    # observe (#141) — so it is 15 of 23. That is the point rather than an inconvenience: the
-    # wrong figure was wrong *because* it described this set instead of the one the row
-    # names, and it stays wrong now for a second reason. Asserting the count keeps the slice
-    # real rather than merely absent.
+    # (#142), then Injury poison — the one of p. 197's four whose exposure the engine can
+    # observe (#141) — and then Malnutrition, the last of the five hazards, once its second
+    # sentence was counted (#401, 0088) — so it is 16 of 23. That is the point rather than an
+    # inconvenience: the wrong figure was wrong *because* it described this set instead of
+    # the one the row names, and it stays wrong now for a second reason. Asserting the count
+    # keeps the slice real rather than merely absent.
     resolved, total = _slice(("sense", "environment", "hazard", "affliction", "attitude"))
-    assert (resolved, total) == (15, 23)
+    assert (resolved, total) == (16, 23)
 
     row = MILESTONE_ROW.search(_readme())
     assert row is not None
