@@ -31,6 +31,7 @@ from srd_rules_engine.core.ledger import Ledger
 from srd_rules_engine.core.rules import load_ruleset
 from srd_rules_engine.core.size import Size, undernourished
 from srd_rules_engine.core.state import (
+    DEHYDRATION_RULE_ID,
     MALNUTRITION_RULE_ID,
     STARVATION_DAYS,
     Combatant,
@@ -189,7 +190,11 @@ def test_the_count_is_the_engines_and_lives_with_the_other_hazards() -> None:
     and it is not one of p. 179's fifteen conditions."""
     assert Hazards().days_without_food == 0
     state = _days(_state(), NOTHING, NOTHING)
-    assert state.combatant("pc").hazards == Hazards(days_without_food=2)
+    # Two days of a full day's water lift dehydration's lock as they pass (0089), which is the
+    # other thing the engine writes here; the count is the field under test.
+    assert state.combatant("pc").hazards == Hazards(
+        days_without_food=2, exhaustion_unlocked=frozenset({DEHYDRATION_RULE_ID})
+    )
     assert Condition.EXHAUSTION not in state.combatant("pc").conditions.held
 
 

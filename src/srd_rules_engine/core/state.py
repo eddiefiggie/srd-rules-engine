@@ -95,7 +95,9 @@ from srd_rules_engine.core.sight import (
     obscurement_at,
 )
 from srd_rules_engine.core.size import (
+    FOOD_PER_DAY,
     HAULING_SPEED_CAP_FEET,
+    WATER_PER_DAY,
     CarryingCapacity,
     Size,
     carried_without_extra_cost,
@@ -225,6 +227,21 @@ class Hazards:
     #: would not change what the rule does: a day the caller does not describe neither
     #: advances the count nor resets it (0080 clause 3).
     days_without_food: int = 0
+    #: The locked Exhaustion rules whose lock this creature has lifted (0089, #461).
+    #:
+    #: p. 181: dehydration's levels "can't be removed **until** the creature drinks the full
+    #: amount of water required for a day"; p. 185 says the same for food. 0028 clause 3 built
+    #: the "can't be removed" half as `LOCKED_EXHAUSTION_RULES`, a constant over rules. This
+    #: is the "until" half, and it is per creature: a rule id is here while the creature has
+    #: met that rule's requirement on a day's end since it last gained one of that rule's
+    #: levels. `with_day_ended` adds it; `with_exhaustion` takes it away again when a new
+    #: level of the rule arrives, because a creature that is thirsty again holds levels
+    #: dehydration caused and has not drunk its fill since.
+    #:
+    #: The engine's, like `days_without_food`, and for the same reason: it is arithmetic
+    #: over the water and food the caller states, and a caller that set it would be choosing
+    #: when a level becomes removable.
+    exhaustion_unlocked: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -3403,12 +3420,41 @@ class EncounterState:
                 f"would reach {len(held) + levels}. p. 181 says a creature dies at "
                 f"{MAX_EXHAUSTION}, so nothing above it is a state the document describes"
             )
+        # pp. 181 and 185: a new level of a locked rule is a creature that is thirsty or
+        # hungry *again*, and "until the creature drinks the full amount" has not happened
+        # since — so a lock the creature had lifted closes over every level of that rule
+        # (0089 clause 3). Here rather than at the two day's-end sites, because the save's
+        # failure gains its level through this method too.
+        hazards = target.hazards
+        if rule_id in LOCKED_EXHAUSTION_RULES:
+            hazards = replace(hazards, exhaustion_unlocked=hazards.exhaustion_unlocked - {rule_id})
         return self._evolve(
             combatants=self._replacing(
                 replace(
                     target,
                     conditions=replace(
                         target.conditions, exhaustion_levels=held + (rule_id,) * levels
+                    ),
+                    hazards=hazards,
+                )
+            )
+        )
+
+    def _with_lock_lifted(self, combatant_id: str, rule_id: str) -> EncounterState:
+        """Record that this creature met a locked rule's daily requirement (0089 clause 2).
+
+        Recorded whether or not the creature holds a level of that rule: the flag says a
+        full day's worth was consumed since the last such level, and a creature holding none
+        simply has nothing for it to unlock. The next level of the rule closes it again.
+        """
+        target = self.combatant(combatant_id)
+        return self._evolve(
+            combatants=self._replacing(
+                replace(
+                    target,
+                    hazards=replace(
+                        target.hazards,
+                        exhaustion_unlocked=target.hazards.exhaustion_unlocked | {rule_id},
                     ),
                 )
             )
@@ -3509,6 +3555,10 @@ class EncounterState:
             assert size is not None  # refused above
             if dehydrated(size, water[combatant_id]):
                 state = state.with_exhaustion(combatant_id, DEHYDRATION_RULE_ID)
+            # p. 181's "until": "the full amount of water required for a day", which is the
+            # table's row and not half of it (0089). The lift is bookkeeping like the level.
+            if water[combatant_id] >= WATER_PER_DAY[size]:
+                state = state._with_lock_lifted(combatant_id, DEHYDRATION_RULE_ID)
 
         # p. 185 is two rules (0080 clause 7), and they split on one word: a creature that
         # **eats but** consumes less than half owes a save, and a creature that eats
@@ -3533,6 +3583,12 @@ class EncounterState:
             # run that carries on past death adds nothing more, rather than being refused.
             if run >= STARVATION_DAYS and len(hungry.conditions.exhaustion_levels) < MAX_EXHAUSTION:
                 state = state.with_exhaustion(combatant_id, MALNUTRITION_RULE_ID)
+            # p. 185's "until the creature eats the full amount of food required for a
+            # day" — the table's row, read the way p. 181's is (0089).
+            size = hungry.size
+            assert size is not None  # refused above
+            if eaten[combatant_id] >= FOOD_PER_DAY[size]:
+                state = state._with_lock_lifted(combatant_id, MALNUTRITION_RULE_ID)
 
         # p. 185's Malnutrition **compels a save rather than inflicting a level** (#399,
         # 0081), which is the whole difference from p. 181. Compelled here and rolled by
@@ -3625,7 +3681,14 @@ class EncounterState:
             temporary_hit_points=0,
         )
         held = restored.conditions.exhaustion_levels
-        removable = [i for i, rule in enumerate(held) if rule not in LOCKED_EXHAUSTION_RULES]
+        # 0028 clause 3's lock, and 0089's "until": a locked rule's levels are candidates
+        # again once this creature has met the rule's daily requirement since it last
+        # gained one of them.
+        removable = [
+            i
+            for i, rule in enumerate(held)
+            if rule not in LOCKED_EXHAUSTION_RULES or rule in restored.hazards.exhaustion_unlocked
+        ]
         if removable:
             # 0028 clause 4: most recently gained first, and that is a convention rather
             # than a rule the document supplies.

@@ -148,6 +148,6 @@ count, the shape claim, the absence of a die, and the field's home.
 | 7 — negative food refused | **Built** |
 | 8 — the shape claimed | **Built.** `ENGINE_SHAPES`, the generator's `KINDS`, and the data file |
 
-The unlock is not this record's and is [#461](https://github.com/eddiefiggie/srd-rules-engine/issues/461).
+The unlock is not this record's; it was [#461](https://github.com/eddiefiggie/srd-rules-engine/issues/461) and is built by [0089](0089-a-lock-lifts-on-the-day-the-requirement-is-met.md).
 
 _Written 2026-09-06 against SRD v5.2.1._
