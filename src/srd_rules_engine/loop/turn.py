@@ -54,6 +54,7 @@ from srd_rules_engine.core import (
     CONCENTRATION_RULE_ID,
     DEATH_SAVE_RULE_ID,
     HIT_DIE_RULE_ID,
+    SHARED_SPACE_RULE_ID,
     SUFFOCATION_RULE_ID,
     Adjudicator,
     Declaration,
@@ -961,8 +962,9 @@ class TurnLoop:
     def end_turn_obligations(self, state: EncounterState, actor_id: str) -> tuple[Obligation, ...]:
         """Every obligation the **end** of this creature's turn incurs, read off state.
 
-        Save-ends, and Suffocation. The death save is not here and never was: p. 17 puts it
-        at the turn's start, which is `start_turn_obligations`.
+        Save-ends, Suffocation, and p. 14's Prone for a creature that "somehow" ends its turn
+        in a space with another (0087). The death save is not here and never was: p. 17 puts
+        it at the turn's start, which is `start_turn_obligations`.
 
         **Save-ends is enumerated first, and that is no longer the order it resolves in.**
         A creature that is suffocating and holds a save-ends condition owes both, and p. 187
@@ -989,6 +991,24 @@ class TurnLoop:
                     actor_id=actor_id,
                     rule_id=SUFFOCATION_RULE_ID,
                     label="gains an Exhaustion level, ending its turn without breath (p. 189)",
+                )
+            )
+
+        # p. 14: "If you somehow end a turn in a space with another creature, you have the
+        # Prone condition unless you are Tiny or are of a larger size than the other
+        # creature." Read off state exactly as Suffocation is — the "somehow" is the
+        # document's own acknowledgement that the sentence before forbade arriving here by
+        # moving, so what is left is a push, a teleport or a placement, none of which is
+        # this creature's declaration.
+        if (
+            state.owes_prone_for_shared_space(actor_id)
+            and (actor_id, SHARED_SPACE_RULE_ID) not in state.discharged
+        ):
+            owed.append(
+                Obligation(
+                    actor_id=actor_id,
+                    rule_id=SHARED_SPACE_RULE_ID,
+                    label="falls Prone, ending its turn in a space with another creature (p. 14)",
                 )
             )
 

@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 from srd_rules_engine.core import (
+    UNARMED_STRIKE_ID,
     Adjudicator,
     Combatant,
     Condition,
@@ -33,6 +34,7 @@ from srd_rules_engine.core.conditions import Conditions, Grapple
 from srd_rules_engine.core.equipment import Carriage, Carried, Item
 from srd_rules_engine.core.position import Position
 from srd_rules_engine.core.read_surface import (
+    attack_key,
     grapple_key,
     shove_prone_key,
     shove_push_key,
@@ -86,7 +88,11 @@ def ogre(**overrides: object) -> Combatant:
         "armour_class": 11,
         "abilities": {"str": 19, "dex": 8, "con": 16},
         "proficiency_bonus": 2,
-        "position": Position(0, 0, 0),
+        # Seven feet from the hero: outside a Large creature's space, which reaches five
+        # feet from its point and would otherwise put the hero *in* it — Prone at the end of
+        # every turn (p. 14, 0087) — and inside p. 190's reach, which 0086 measures from the
+        # space's edge: five feet plus a Large creature's 2½ of excess.
+        "position": Position(7, 0, 0),
         "size": Size.LARGE,
         "hands": 2,
     }
@@ -154,8 +160,27 @@ def test_neither_is_offered_when_a_size_was_never_stated() -> None:
     unsized = offered_keys(encounter(hero(size=None), ogre()))
     assert grapple_key("ogre") not in unsized
 
-    unsized_target = offered_keys(encounter(hero(), ogre(size=None)))
+    # At five feet, not seven: an unsized creature has no space to be near (0051), and 0086
+    # gives its reach no excess either — so seven feet would be out of reach for a reason
+    # that has nothing to do with the size p. 190 compares.
+    unsized_target = offered_keys(encounter(hero(), ogre(size=None, position=Position(5, 0, 0))))
     assert grapple_key("ogre") not in unsized_target
+
+
+def test_the_strike_reaches_a_large_creature_from_where_a_medium_one_is_out_of_reach() -> None:
+    """p. 190's five feet are measured from the edge of each space (p. 13, 0086 clause 4),
+    and the read surface's three unarmed sites were the ones 0086 missed (#451, 0087): a
+    Medium creature could grapple a Large one only from inside its space, which is the
+    position p. 14 refuses to walk into. Seven feet is in reach of a Large creature — five
+    plus its 2½ of excess — and out of reach of a Medium one."""
+    large = offered_keys(encounter(hero(), ogre(position=Position(7, 0, 0))))
+    assert grapple_key("ogre") in large
+    assert shove_prone_key("ogre") in large
+    assert attack_key(UNARMED_STRIKE_ID, "ogre") in large
+
+    medium = offered_keys(encounter(hero(), ogre(size=Size.MEDIUM, position=Position(7, 0, 0))))
+    assert grapple_key("ogre") not in medium
+    assert attack_key(UNARMED_STRIKE_ID, "ogre") not in medium
 
 
 def test_the_dc_is_eight_plus_strength_and_proficiency_unconditionally() -> None:

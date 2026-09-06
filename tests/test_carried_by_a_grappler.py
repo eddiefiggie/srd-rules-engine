@@ -62,11 +62,18 @@ def creature(cid: str, **overrides: object) -> Combatant:
 def held(
     *, passenger_size: Size | None = Size.MEDIUM, grappler_size: Size | None = Size.LARGE
 ) -> EncounterState:
-    """An ogre at the origin with a captive five feet away, both able to walk."""
+    """An ogre at the origin with a captive seven feet away, both able to walk.
+
+    Seven and not five: a Large creature's space reaches five feet from its point and the
+    boundary is inclusive (0084 clause 6), so a captive at five would be *in* the ogre's
+    space — Difficult Terrain to leave, and Prone at the end of its turn (p. 14, 0087). Seven
+    is outside the space and inside p. 182's range from a Large grappler, which 0086 measures
+    from the edge of its space: five feet plus its 2½ of excess.
+    """
     grappler = creature("ogre", size=grappler_size)
     passenger = creature(
         "pc",
-        position=Position(5, 0, 0),
+        position=Position(7, 0, 0),
         conditions=grappled_by("ogre"),
         size=passenger_size,
     )
@@ -144,7 +151,7 @@ def test_the_passenger_is_translated_by_the_same_displacement() -> None:
     after = held().with_movement("ogre", Position(0, 10, 0), carrying=("pc",))
 
     assert after.combatant("ogre").position == Position(0, 10, 0)
-    assert after.combatant("pc").position == Position(5, 10, 0), "five feet away, still"
+    assert after.combatant("pc").position == Position(7, 10, 0), "seven feet away, still"
 
 
 def test_the_grappler_pays_the_extra_and_the_passenger_pays_nothing() -> None:
@@ -159,7 +166,7 @@ def test_a_free_passenger_costs_the_grappler_nothing_extra() -> None:
         "ogre", Position(0, 10, 0), carrying=("pc",)
     )
     assert after.combatant("ogre").movement_used == 10
-    assert after.combatant("pc").position == Position(5, 10, 0), "carried all the same"
+    assert after.combatant("pc").position == Position(7, 10, 0), "carried all the same"
 
 
 def test_leaving_the_passenger_behind_costs_nothing_and_moves_nobody() -> None:
@@ -168,7 +175,7 @@ def test_leaving_the_passenger_behind_costs_nothing_and_moves_nobody() -> None:
     after = held().with_movement("ogre", Position(0, 10, 0))
 
     assert after.combatant("ogre").movement_used == 10
-    assert after.combatant("pc").position == Position(5, 0, 0)
+    assert after.combatant("pc").position == Position(7, 0, 0)
 
 
 def test_two_passengers_each_charge_their_own_foot() -> None:
@@ -176,7 +183,7 @@ def test_two_passengers_each_charge_their_own_foot() -> None:
     state = EncounterState.new(
         [
             creature("ogre", size=Size.LARGE),
-            creature("pc", position=Position(5, 0, 0), conditions=grappled_by("ogre")),
+            creature("pc", position=Position(7, 0, 0), conditions=grappled_by("ogre")),
             third,
         ]
     ).with_initiative({"ogre": 20, "pc": 5, "kobold": 1})
@@ -243,7 +250,7 @@ def test_a_frightened_passenger_may_be_carried_toward_what_it_fears() -> None:
     not willing. The refusal is on the mover, and the mover is the grappler."""
     scary = creature("terror", position=Position(0, 40, 0))
     afraid = replace(
-        creature("pc", position=Position(5, 0, 0)),
+        creature("pc", position=Position(7, 0, 0)),
         conditions=Conditions(
             applied=frozenset({Condition.GRAPPLED, Condition.FRIGHTENED}),
             sources={
@@ -262,10 +269,10 @@ def test_a_frightened_passenger_may_be_carried_toward_what_it_fears() -> None:
     walkable = replace(state.combatant("pc"), conditions=only_frightened())
     on_its_own = EncounterState.new([walkable, scary]).with_initiative({"pc": 20, "terror": 1})
     with pytest.raises(ValueError, match="Frightened"):
-        on_its_own.with_movement("pc", Position(5, 10, 0))
+        on_its_own.with_movement("pc", Position(7, 10, 0))
 
     after = state.with_movement("ogre", Position(0, 10, 0), carrying=("pc",))
-    assert after.combatant("pc").position == Position(5, 10, 0)
+    assert after.combatant("pc").position == Position(7, 10, 0)
 
 
 def test_carrying_keeps_a_ranged_grapple_alive_where_walking_off_would_end_it() -> None:

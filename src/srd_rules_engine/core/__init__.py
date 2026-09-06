@@ -198,6 +198,12 @@ from srd_rules_engine.core.memory_port import (
     is_extension,
     resolve,
 )
+from srd_rules_engine.core.moving_around import (
+    MOVING_AROUND_VERIFICATION,
+    SHARED_SPACE_RULE_ID,
+    shared_space_resolver,
+    shared_space_rule,
+)
 from srd_rules_engine.core.perception import (
     PERCEPTION_RULE_ID,
     PERCEPTION_VERIFICATION,
@@ -374,6 +380,7 @@ __all__ = [
     "MAX_SAFE_INTEGER",
     "MINUTES_PER_DAY",
     "MINUTES_PER_HOUR",
+    "MOVING_AROUND_VERIFICATION",
     "OPPORTUNITY_ATTACK",
     "PERCEPTION_RULE_ID",
     "PERCEPTION_VERIFICATION",
@@ -382,6 +389,7 @@ __all__ = [
     "REPLACEMENT_OFFSET",
     "SAVE_ENDS_PREFIX",
     "SAVE_ENDS_VERIFICATION",
+    "SHARED_SPACE_RULE_ID",
     "SHORT_REST_VERIFICATION",
     "SHOVE_RULE_ID",
     "SIGHT_UNSTATED",
@@ -578,6 +586,8 @@ __all__ = [
     "save_ends_rule_id",
     "save_ends_rules",
     "session_report",
+    "shared_space_resolver",
+    "shared_space_rule",
     "shove_prone_key",
     "shove_resolver",
     "shove_save_resolver",

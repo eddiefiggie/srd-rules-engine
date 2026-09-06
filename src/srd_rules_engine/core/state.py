@@ -77,7 +77,9 @@ from srd_rules_engine.core.position import (
     SpeedReduction,
     Speeds,
     distance_feet,
+    feet_along,
     movement_cost,
+    segment_in_space,
     slow_feet_taken,
     space_contains,
     squared_distance,
@@ -563,6 +565,36 @@ class ForcedSave:
 #: sweep is cubic in it.
 TELEPORT_SEARCH_FEET: Final = 32
 
+#: p. 14: "a creature that is **two sizes** larger or smaller than you" may be passed through.
+#: The number the comparison is against, named rather than written `>= 2` at the call site —
+#: it is the rule, and a bare literal there reads as a bound somebody chose (#451, 0087).
+PASS_THROUGH_SIZES_APART: Final = 2
+
+
+@dataclass(frozen=True)
+class SpaceCrossed:
+    """One other creature's space that a straight move runs through (p. 14, 0087).
+
+    The interval is along the move — 0 at its origin, 1 at its destination — so the two
+    questions p. 14 asks about a space are both readable off it: whether the move *enters*
+    the space, and how much of the move is inside it (`position.feet_along`).
+    """
+
+    combatant_id: str
+    start: Fraction
+    end: Fraction
+
+    @property
+    def entered(self) -> bool:
+        """Whether the move goes **into** this space, as opposed to starting inside it.
+
+        p. 14's permission is to *pass through*, and a creature that begins its move in
+        another's space — pushed there, or landed there — is leaving rather than passing
+        through. Leaving is not a thing the sentence forbids, and a reading that refused it
+        would hold a creature in a space it may not stay in.
+        """
+        return self.start > 0
+
 
 @dataclass(frozen=True)
 class Combatant:
@@ -798,6 +830,20 @@ class Combatant:
     #: `may_substitute_focus` are: the trait belongs to a species and a stat block, and
     #: neither ships here.
     carries_as_one_size_larger: bool = False
+    #: Whose side this creature is on, as a label the ruleset states (p. 176, 0087).
+    #:
+    #: p. 176: "A creature is your ally if it is a member of your adventuring party, your
+    #: friend, on your side in combat, or a creature that the rules or the GM designates as
+    #: your ally." Four disjuncts and every one a **designation** somebody makes — none is a
+    #: fact the engine could derive from hit points or positions, and inferring one from who
+    #: attacked whom would be the engine reading narrative (R20).
+    #:
+    #: So it is stated: two creatures carrying the same label are allies, and a creature with
+    #: no side is **nobody's** ally. That is the direction 0030 picks for an unanswerable
+    #: qualifier — p. 14 lets an ally's space be passed through and crossed for free, so a
+    #: guessed friendship would grant movement the rules may not, where a withheld one only
+    #: charges what the rules charge everyone else.
+    side: str | None = None
     #: What this creature can cast — **ruleset data, carried by the caster** (0038 clause 1).
     #:
     #: It rides here rather than being handed to `legal_actions`, and that is 0026 clause 1
@@ -2524,6 +2570,151 @@ class EncounterState:
         """
         return not self.occupants_of(point)
 
+    def are_allies(self, combatant_id: str, other_id: str) -> bool:
+        """p. 176's ally, read off two stated sides (0087).
+
+        `True` only when both creatures carry a side and it is the same one. A creature is
+        not its own ally — p. 176 defines the term relative to *you* — and a creature with no
+        side is nobody's, for the reason `Combatant.side` gives: an ally's space costs nothing
+        to cross, so a guessed friendship would grant movement the rules may not.
+        """
+        if combatant_id == other_id:
+            return False
+        mine = self.combatant(combatant_id).side
+        theirs = self.combatant(other_id).side
+        return mine is not None and mine == theirs
+
+    def _shared_width(self, one: Combatant, other: Combatant) -> Fraction | None:
+        """The one square that says whether two creatures share a space (p. 14, 0087).
+
+        Two creatures share a space when either's point is inside the other's — 0084 clause
+        8's overlap, read symmetrically because p. 14's fourth sentence is: "in a space with
+        another creature" is true of both of them or of neither. Both spaces are centred on
+        their own creature's point (0084 clause 4), so the two tests are one test against the
+        **wider** square centred on the other creature. `None` when neither has a space: an
+        unsized creature has none (0051), and two of them share nothing whatever the
+        distance.
+
+        **Not the overlap of the two squares.** Two Medium creatures five feet apart have
+        squares that touch, and a test on the squares would put every pair in ordinary melee
+        reach "in a space with" each other — Prone at the end of every turn. Point-in-space
+        is what 0084 chose, and it is what keeps that pair apart.
+        """
+        widths = [c.size.space_feet for c in (one, other) if c.size is not None]
+        return max(widths) if widths else None
+
+    def shares_space_with(
+        self, combatant_id: str, *, at: Position | None = None
+    ) -> tuple[Combatant, ...]:
+        """Every other creature this one is in a space with, at its point or at `at` (p. 14).
+
+        A read (R19). Symmetric by construction — see `_shared_width` — so the answer is
+        the same whichever of the two is asked. `at` is where the creature *would* stand,
+        which is the question a move's destination asks before the move is made.
+        """
+        actor = self.combatant(combatant_id)
+        point = actor.position if at is None else at
+        if point is None:
+            return ()
+        sharing = []
+        for other in self.combatants:
+            if other.id == combatant_id or other.position is None:
+                continue
+            width = self._shared_width(actor, other)
+            if width is not None and space_contains(other.position, width, point):
+                sharing.append(other)
+        return tuple(sharing)
+
+    def spaces_crossed(
+        self, combatant_id: str, to: Position, *, excluding: tuple[str, ...] = ()
+    ) -> tuple[SpaceCrossed, ...]:
+        """Every other creature's space a straight move from here to `to` runs through (p. 14).
+
+        The path #451 said was the one genuinely new thing, and it is a read (R19): nothing
+        moves. Each entry carries the interval of the move inside that space, so a space the
+        creature *starts* in is listed from 0 — it is left rather than passed through, which
+        `SpaceCrossed.entered` distinguishes — and a space the move only grazes at a corner
+        is not listed at all, because no foot of the move is inside it.
+
+        `excluding` names creatures whose spaces move with this one — p. 182's carried
+        passengers — since a space that travels with the mover is never crossed by it.
+        """
+        actor = self.combatant(combatant_id)
+        if actor.position is None:
+            return ()
+        crossed = []
+        for other in self.combatants:
+            if other.id == combatant_id or other.id in excluding or other.position is None:
+                continue
+            width = self._shared_width(actor, other)
+            if width is None:
+                continue
+            interval = segment_in_space(actor.position, to, other.position, width)
+            if interval is not None:
+                crossed.append(SpaceCrossed(other.id, *interval))
+        return tuple(crossed)
+
+    def may_pass_through(self, combatant_id: str, other_id: str) -> bool:
+        """p. 14's first sentence: whose space this creature may move through (0087).
+
+        > During your move, you can pass through the space of an ally, a creature that has
+        > the Incapacitated condition, a Tiny creature, or a creature that is two sizes
+        > larger or smaller than you.
+
+        Four permissions, and any one suffices. The two that turn on a size need **both**
+        sizes stated: an unstated size is unknown rather than Medium (0051), and a
+        permission made out on a guess would let a creature walk where the rules may not —
+        0030 clause 1's direction, and the one `carried_without_extra_cost` already takes for
+        p. 182's exemption. "Tiny" is the other creature's own size and needs only that one.
+        """
+        other = self.combatant(other_id)
+        if self.are_allies(combatant_id, other_id):
+            return True
+        if Condition.INCAPACITATED in other.conditions.held:
+            return True
+        if other.size is Size.TINY:
+            return True
+        mine = self.combatant(combatant_id).size
+        if mine is None or other.size is None:
+            return False
+        return abs(mine.categories_above(other.size)) >= PASS_THROUGH_SIZES_APART
+
+    def _space_is_difficult_terrain(self, combatant_id: str, other_id: str) -> bool:
+        """p. 14's second sentence, and its exemptions are **two**, not the first sentence's
+        four: "Another creature's space is Difficult Terrain for you unless that creature is
+        Tiny or your ally." An Incapacitated enemy may be crossed and costs double to cross."""
+        other = self.combatant(other_id)
+        return other.size is not Size.TINY and not self.are_allies(combatant_id, other_id)
+
+    def owes_prone_for_shared_space(self, combatant_id: str) -> bool:
+        """p. 14's fourth sentence, read off state at the end of a turn (0087).
+
+        > If you somehow end a turn in a space with another creature, you have the Prone
+        > condition unless you are Tiny or are of a larger size than the other creature.
+
+        Derived and never declared (0023 clause 2): the loop asks this and the ruling that
+        applies the Prone goes through the one door. `True` when at least one creature this
+        one shares a space with makes neither exemption out. A creature already Prone owes
+        nothing — p. 179 says a condition does not stack with itself, so there is no
+        outcome left to produce.
+
+        **An unstated size withholds** (0051, 0030): "of a larger size than the other
+        creature" is a comparison of two sizes, and a Prone applied on a guessed one would be
+        an outcome the rules may not produce. Tiny is the creature's own size and needs only
+        that; the comparison needs both, and a pair missing either contributes nothing.
+        """
+        actor = self.combatant(combatant_id)
+        if Condition.PRONE in actor.conditions.held:
+            return False
+        if actor.size is None or actor.size is Size.TINY:
+            return False
+        for other in self.shares_space_with(combatant_id):
+            if other.size is None:
+                continue
+            if actor.size.categories_above(other.size) <= 0:
+                return True
+        return False
+
     def damage_after_defences(
         self, combatant_id: str, amount: int, damage_type: DamageType | None = None
     ) -> DamageOutcome:
@@ -3877,16 +4068,63 @@ class EncounterState:
             )
 
         passengers = self._passengers(target, carrying)
+        travelling = tuple(p.id for p in passengers)
+
+        # p. 14, *Moving around Other Creatures* (0087). The destination first, because a
+        # move that cannot end is not a move: "You can't willingly end a move in a space
+        # occupied by another creature" — and this sentence names **no** exception, where
+        # the one before it names four. An ally's space may be crossed and may not be
+        # stopped in. Passengers are not asked about: their spaces travel with the mover
+        # (p. 182), and a grappler could otherwise never move at all.
+        for other in self.shares_space_with(combatant_id, at=to):
+            if other.id in travelling:
+                continue
+            raise ValueError(
+                f"{target.name} would end that move in a space with {other.name}, and p. 14 "
+                "says \"You can't willingly end a move in a space occupied by another "
+                'creature". A move a creature declares is one it makes willingly'
+            )
+        crossings = self.spaces_crossed(combatant_id, to, excluding=travelling)
+        for crossing in crossings:
+            if crossing.entered and not self.may_pass_through(combatant_id, crossing.combatant_id):
+                other = self.combatant(crossing.combatant_id)
+                raise ValueError(
+                    f"{target.name} cannot pass through {other.name}'s space. p. 14 permits "
+                    "it for an ally, a creature with the Incapacitated condition, a Tiny "
+                    f"creature, or one two sizes larger or smaller, and {other.name} is none "
+                    "of those"
+                )
+
+        # p. 14's second sentence prices the stretch inside a non-exempt space as Difficult
+        # Terrain, and p. 181 says that "isn't cumulative" — the intervals are merged
+        # before they are measured, so two overlapping spaces are one stretch. What the
+        # caller stated about the ground applies to the rest of the move.
         feet = distance_feet(target.position, to)
+        inside = feet_along(
+            target.position,
+            to,
+            *(
+                (crossing.start, crossing.end)
+                for crossing in crossings
+                if self._space_is_difficult_terrain(combatant_id, crossing.combatant_id)
+            ),
+        )
+        extra_feet = sum(
+            not carried_without_extra_cost(passenger=p.size, grappler=target.size)
+            for p in passengers
+        )
         cost = movement_cost(
-            feet,
+            feet - inside,
             mode=mode,
             difficult_terrain=difficult_terrain,
             speeds=speeds,
-            carrying=sum(
-                not carried_without_extra_cost(passenger=p.size, grappler=target.size)
-                for p in passengers
-            ),
+            carrying=extra_feet,
+        ) + movement_cost(
+            inside,
+            mode=mode,
+            difficult_terrain=True,
+            speeds=speeds,
+            carrying=extra_feet,
         )
         remaining = target.movement_remaining_in(mode)
         assert remaining is not None  # the refusal above covers the modes that answer None

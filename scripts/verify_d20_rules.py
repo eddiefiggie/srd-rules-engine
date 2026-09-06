@@ -2064,15 +2064,17 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
         r"A creature has a 5-foot reach and can thus attack targets within 5 feet when "
         r"making a melee attack",
     ),
-    # --- p. 14's Moving around Other Creatures: asserted although unbuilt (#451, #456) --
-    # Built on 0084's reads and set aside: reach is point-to-point, so every melee position
-    # against a Huge creature is inside its space, and these four sentences read that as
-    # forbidden, doubled and Prone. #456 holds the reach question; these hold the text.
+    # --- p. 14's Moving around Other Creatures (#451, 0087) ---------------------------------
+    # Asserted by #457 while the rule was set aside — reach was point-to-point, so every melee
+    # position against a Huge creature was inside its space, and these four sentences read
+    # that as forbidden, doubled and Prone — and built by 0087 once 0086 measured reach from
+    # the edge of a space. The notes say what each sentence decides in `core.moving_around`
+    # and `EncounterState.with_movement`.
     (
         14,
         "who may be passed through: an ally, an Incapacitated creature, a Tiny one, or one "
-        "two sizes larger or smaller — four permissions, so a Large creature may not enter "
-        "reach of a Huge one at all while reach is point-to-point (#456)",
+        "two sizes larger or smaller — four permissions, any one of which opens the passage, "
+        "and the two that turn on a size need both sizes stated (`may_pass_through`)",
         r"During your move, you can pass through the space of an ally, a creature that has "
         r"the Incapacitated condition .see .Rules Glossary.., a Tiny creature, or a creature "
         r"that is two sizes larger or smaller than you",
@@ -2087,15 +2089,16 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     (
         14,
         "where a move may not end: no exception at all, so an ally's space may be crossed "
-        "and may not be stopped in — and, read against point-to-point reach, nowhere in "
-        "reach of a Huge creature may be stopped in either, which is the collision (#456)",
+        "and may not be stopped in — the collision #456 found is gone now that 0086 puts "
+        "in-reach positions outside every space, and the refusal is in `with_movement`",
         r"You can.t willingly end a move in a space occupied by another creature",
     ),
     (
         14,
         "and the Prone for ending a turn in a space with someone — 'somehow', because the "
         "sentence before forbids doing it by moving, so it is a push, a teleport or a "
-        "placement, and an end-of-turn obligation rather than a movement refusal",
+        "placement, and an end-of-turn obligation rather than a movement refusal "
+        "(`end_turn_obligations`, resolved by `shared_space_resolver`)",
         r"If you somehow end a turn in a space with another creature, you have the Prone "
         r"condition .see .Rules Glossary.. unless you are Tiny or are of a larger size than "
         r"the other creature",
@@ -2103,7 +2106,7 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     (
         176,
         "what an ally is: four disjuncts and every one a designation somebody states, which "
-        "is why the design set aside on #456 holds a stated side and infers nothing (#434 "
+        "is why `Combatant.side` is a stated label and `are_allies` infers nothing (#434 "
         "needs the same fact)",
         r"A creature is your ally if it is a member of your adventuring party, your friend, "
         r"on your side in combat, or a creature that the rules or the GM designates as your "
