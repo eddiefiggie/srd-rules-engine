@@ -2313,13 +2313,18 @@ class EncounterState:
     def _teleport_blockage(self, combatant_id: str, point: Position) -> str | None:
         """Why p. 190 will not let this creature appear at `point`, or `None` if it may.
 
-        Two reasons and the document names both: another creature's space, and a solid
-        obstacle. The creature's *own* space is not asked — "occupied by **another** creature"
-        — so a short hop within it is a destination like any other.
+        Two reasons and the document names both: an occupied space, and a solid obstacle.
+        The creature's *own* space is not asked — "occupied by **another** creature" — so a
+        short hop within it is a destination like any other. A space "completely filled by
+        objects" is occupied in p. 185's other sense (0092), and is asked before the obstacle
+        because it is the word the sentence uses; a heap of crates that gives no cover
+        diverts on this clause and not on the next.
         """
         for other in self.occupants_of(point):
             if other.id != combatant_id:
                 return f"occupied by {other.name}"
+        if self.filled_by_objects(point):
+            return "occupied, completely filled by objects"
         for barrier in self.obstructions:
             if barrier.degree is not Cover.NONE and barrier.contains(point):
                 return "blocked by a solid obstacle"
@@ -2576,12 +2581,11 @@ class EncounterState:
         p. 185: "A space is occupied **if a creature is in it** or if it is completely filled
         by objects." p. 191 states the negative in the same terms.
 
-        **Objects are not asked about**, and that is a gap rather than an omission: p. 185's
-        second clause needs an object that fills a space, and this engine's objects are
-        equipment a creature carries. `Obstruction` is the nearest thing and is a barrier
-        rather than an occupant — a wall gives Total Cover and a line of effect stops at it,
-        which are different questions from whether a creature may stand there. Disclosed on
-        `is_unoccupied`.
+        **Creatures only, by name.** p. 185's second clause — "completely filled by objects"
+        — is `filled_by_objects`, and `is_unoccupied` reads both (0092). They stay apart
+        because every consumer names which it means: p. 14 refuses ending a move in a space
+        "occupied by another **creature**", and p. 190 says "another creature" too before
+        naming an obstacle separately.
 
         A creature whose size nobody stated occupies nothing, which is 0051's reading: an
         unstated size is unknown rather than Medium, and inventing a space for it would put a
@@ -2595,20 +2599,32 @@ class EncounterState:
             and space_contains(other.position, other.size.space_feet, point)
         )
 
+    def filled_by_objects(self, point: Position) -> bool:
+        """p. 185's second clause: whether `point` lies in a space "completely filled by
+        objects" (0092, #459). A read (R19).
+
+        An `Obstruction` whose placer stated `fills_space` is the objects; nothing is inferred
+        from a box's cover or its size, because "completely" is a judgement the document
+        hands to a person. So a Total Cover wall nobody said is full leaves this `False`,
+        which is 0084 clause 9's direction kept for the unstated case: a read reports what
+        the engine was told rather than inventing an obstruction.
+        """
+        return any(box.fills_space and box.contains(point) for box in self.obstructions)
+
     def is_unoccupied(self, point: Position) -> bool:
         """p. 191: "A space is unoccupied if **no creatures are in it** and it isn't
         completely filled by objects."
 
-        **The object half is not asked**, so this answers the creature half only and answers
-        `True` where p. 191 might say `False` — a space filled floor to ceiling with crates
-        reads as free. That direction is the honest one to be wrong in for a *read* (R19): it
-        reports what the engine can see rather than inventing an obstruction, and the caller
-        that placed the crates knows about them.
+        Both halves, since 0092 — the creature half is `occupants_of` and the object half is
+        `filled_by_objects`. Before that this answered the creature half only and answered
+        `True` where p. 191 might say `False`, which was the honest direction for a read
+        that could not see the crates (0084 clause 9); it can see them now, when their placer
+        says they fill the space.
 
         Named as the document names it rather than as `not occupied`, because p. 185 and
         p. 191 are two entries and a reader looking for either should find it.
         """
-        return not self.occupants_of(point)
+        return not self.occupants_of(point) and not self.filled_by_objects(point)
 
     def are_allies(self, combatant_id: str, other_id: str) -> bool:
         """p. 176's ally, read off two stated sides (0087).

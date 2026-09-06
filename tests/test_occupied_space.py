@@ -183,14 +183,13 @@ def test_two_creatures_can_both_occupy_one_point() -> None:
     assert {c.id for c in state.occupants_of(Position(1, 0, 0))} == {"pc", "boar"}
 
 
-def test_the_object_half_of_p185_is_not_asked() -> None:
-    """p. 185's second clause — "completely filled by objects" — needs an object that fills a
-    space, and this engine's objects are equipment a creature carries. `Obstruction` is a
-    barrier rather than an occupant: it gives Total Cover and stops a line of effect, which
-    are different questions from whether a creature may stand there.
-
-    So this answers `True` where p. 191 might say `False`, which is the honest direction for a
-    read (R19) — it reports what the engine can see rather than inventing an obstruction."""
+def test_a_barrier_nobody_said_fills_the_space_is_not_an_occupant() -> None:
+    """p. 185's second clause — "completely filled by objects" — is a fact the placer states
+    (`Obstruction.fills_space`, 0092), never one read off a barrier's cover. So a Total Cover
+    wall nobody said is full leaves the space unoccupied, which was the whole answer before
+    0092 and is the unstated case's answer still: a read reports what the engine was told
+    rather than inventing an obstruction (R19). `tests/test_filled_by_objects.py` is the
+    other half."""
     from dataclasses import replace
 
     from srd_rules_engine.core.obstructions import Obstruction

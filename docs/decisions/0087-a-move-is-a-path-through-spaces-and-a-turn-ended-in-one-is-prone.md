@@ -223,6 +223,6 @@ collect the new module, which is indivisible and why the per-assertion proofs ex
 | 9 — the shape row | **Built.** `PLAYING_SHAPES`, `IMPLEMENTED_SECTION_SHAPES`, the data file, `ENGINE_SHAPES` |
 | 10 — p. 190's reach from the edge | **Built.** `read_surface._within` takes `range_slack` |
 
-p. 185's object clause is not this record's and is [#459](https://github.com/eddiefiggie/srd-rules-engine/issues/459).
+p. 185's object clause is not this record's; it was [#459](https://github.com/eddiefiggie/srd-rules-engine/issues/459) and is built by [0092](0092-an-object-fills-a-space-because-its-placer-said-so.md), which leaves clause 5's creature-only refusal as it is.
 
 _Written 2026-09-06 against SRD v5.2.1._
