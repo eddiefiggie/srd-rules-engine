@@ -1679,6 +1679,14 @@
    "implemented": true
   },
   {
+   "id": "moving-around-other-creatures",
+   "name": "Moving around Other Creatures",
+   "tag": null,
+   "reference": "Playing the Game, p. 14 (Moving around Other Creatures)",
+   "kind": "movement",
+   "implemented": true
+  },
+  {
    "id": "controlled-mount",
    "name": "Controlled Mount Sharing Your Initiative",
    "tag": null,

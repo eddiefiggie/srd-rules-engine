@@ -364,6 +364,10 @@ IMPLEMENTED_SECTION_SHAPES: frozenset[str] = frozenset(
         "mastery-vex",
         "mastery-sap",
         "split-movement",
+        # p. 14's four sentences (#451, 0087): the passage, its price, the destination, and
+        # the Prone the turn's end derives. Unblocked by 0086, which put every melee position
+        # against a big creature outside its space.
+        "moving-around-other-creatures",
         "weapon-range",
         "spell-slot",
         "regain-spell-slots",
@@ -1701,8 +1705,12 @@ PLAYING_PAGES = range(4, 18)
 #: so the decline ratio is high by design: Difficulty Class, Armor Class, Initiative, Range,
 #: Reach, Opportunity Attacks, Difficult Terrain, Breaking Objects, Death Saving Throws,
 #: Stabilizing, Dropping Prone, Creature Size, and the Temporary Hit Points rules are all
-#: Glossary entries already. Moving around Other Creatures composes `Occupied Space` and
-#: `Difficult Terrain`; Ranged Attacks in Close Combat is `Disadvantage`.
+#: Glossary entries already. Ranged Attacks in Close Combat is `Disadvantage`.
+#:
+#: Moving around Other Creatures was declined here as composing `Occupied Space` and
+#: `Difficult Terrain`, and it does not: neither Glossary entry says whose space may be
+#: passed through, that a move may not end in one, or that a turn ended in one is Prone.
+#: Those are four sentences of mechanism stated nowhere else, so it is a row (#451, 0087).
 #:
 #: What is left is genuinely absent everywhere else — the roll-resolution overrides, the
 #: two stacking rules, the damage application order, and the mounted and underwater combat
@@ -1732,6 +1740,14 @@ PLAYING_SHAPES: tuple[tuple[str, str, str, str, int, str], ...] = (
         "Breaking Up Your Move",
         14,
         r"movement before and after any action",
+    ),
+    (
+        "moving-around-other-creatures",
+        "Moving around Other Creatures",
+        "movement",
+        "Moving around Other Creatures",
+        14,
+        r"you can pass through the space of an ally",
     ),
     (
         "controlled-mount",

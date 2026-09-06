@@ -2035,10 +2035,17 @@ def _light_bonus_attacks(state: EncounterState, actor: Combatant) -> tuple[Legal
 
 def _within(actor: Combatant, target: Combatant, feet: int) -> bool:
     """Whether the target is within that many feet, offering the attack when it cannot be
-    measured — refusing on an unmeasurable distance would invent one (0030 clause 1)."""
+    measured — refusing on an unmeasurable distance would invent one (0030 clause 1).
+
+    Measured from the edge of each space (p. 13, 0086 clause 4), as every other range is.
+    Its three sites are p. 190's five feet — the Unarmed Strike, its Grapple and Shove, and
+    the reaction menu's unarmed reach — and 0086's change missed them: a Medium creature could
+    grapple a Large one only from inside its space, which is the position p. 14 refuses to
+    walk into and #451's build found first (0087).
+    """
     if actor.position is None or target.position is None:
         return True
-    return bool(distance_feet(actor.position, target.position) <= feet)
+    return within(actor.position, target.position, feet, slack=range_slack(actor.size, target.size))
 
 
 def _within_weapon_range(

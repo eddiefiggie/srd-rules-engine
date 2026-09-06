@@ -123,9 +123,18 @@ seen, the change is small and the risk was in the framing.
 | 6 — the boundary is inclusive | **Built**, and asserted at the midpoint two Medium creatures share |
 | 7 — extent does not move range | **Reversed for range by [0086](0086-a-range-runs-from-the-edge-of-a-space.md)** on 2026-09-04: p. 13 measures a range from a square adjacent to one thing into the space of the other, a sentence this record had not read. The pin fired as intended and was turned round rather than deleted. Occupancy — clauses 1 to 6, 8 and 9 — is untouched |
 | 8 — overlap is representable | **Built.** `occupants_of` returns every creature, not the first |
-| 9 — p. 185's object clause unasked | **Not built**, and disclosed on `is_unoccupied` ([#451](https://github.com/eddiefiggie/srd-rules-engine/issues/451)) |
+| 9 — p. 185's object clause unasked | **Not built**, and disclosed on `is_unoccupied` ([#459](https://github.com/eddiefiggie/srd-rules-engine/issues/459), split out of #451 when the rest of that issue shipped) |
 
 ### Evidence
 
 Four corruption proofs, each red on the assertion written for it. Two clauses of p. 14 and
 both space entries in `scripts/verify_d20_rules.py`.
+
+_2026-09-06._ The Consequences bullet that filed p. 14's *Moving around Other Creatures* as
+[#451](https://github.com/eddiefiggie/srd-rules-engine/issues/451) is done:
+[0087](0087-a-move-is-a-path-through-spaces-and-a-turn-ended-in-one-is-prone.md) built all
+four sentences on this record's reads, once
+[0086](0086-a-range-runs-from-the-edge-of-a-space.md) had put every melee position against a
+big creature outside its space. Clause 8's overlap is what its fourth sentence asks about.
+The object clause in row 9 did not move and is
+[#459](https://github.com/eddiefiggie/srd-rules-engine/issues/459).

@@ -379,6 +379,77 @@ def space_contains(centre: Position, width: Fraction, point: Position) -> bool:
     return abs(Fraction(point.x - centre.x)) <= half and abs(Fraction(point.y - centre.y)) <= half
 
 
+#: A parameter interval along a straight move: 0 is where it starts, 1 is where it ends.
+Interval = tuple[Fraction, Fraction]
+
+
+def segment_in_space(
+    start: Position, end: Position, centre: Position, width: Fraction
+) -> Interval | None:
+    """The stretch of a straight move that lies inside a creature's space (p. 14, 0087).
+
+    p. 14's *Moving around Other Creatures* is about the spaces a move **passes through**,
+    and `with_movement` moves a creature from one point to another without enumerating
+    them. This is the enumeration: the interval of the move — 0 at `start`, 1 at `end` —
+    that falls inside the square `space_contains` describes, so one geometry answers both
+    of p. 14's questions about it. Whether the move *enters* the space is whether the
+    interval starts after 0, and how much of the move is in it is `feet_along`.
+
+    **The square is `space_contains`'s and no other** — centred on the creature's point,
+    closed at the boundary, `x` and `y` only — clipped exactly with `Fraction`, so the edge
+    falls where that function puts it. A reading that inspected a different square here
+    would let a creature stand somewhere it could not walk to.
+
+    `None` for a move that misses the square and for one that touches it at a single point:
+    a corner grazed is no feet moved inside and no space entered. A move of no length is
+    also `None` — it passes through nothing, and where it *ends* is the destination's
+    question, asked separately.
+    """
+    if squared_distance(start, end) == 0:
+        return None
+    half = width / 2
+    low, high = Fraction(0), Fraction(1)
+    for s, e, c in ((start.x, end.x, centre.x), (start.y, end.y, centre.y)):
+        delta = e - s
+        if delta == 0:
+            # Parallel to this pair of faces: inside them for the whole move or none of it.
+            if abs(Fraction(s - c)) > half:
+                return None
+            continue
+        entering = (c - half - s) / delta
+        leaving = (c + half - s) / delta
+        low = max(low, min(entering, leaving))
+        high = min(high, max(entering, leaving))
+        if low >= high:
+            return None
+    return (low, high)
+
+
+def feet_along(start: Position, end: Position, *intervals: Interval) -> int:
+    """How many whole feet of a straight move fall inside these intervals (p. 14, p. 181).
+
+    The intervals are **merged before they are measured**, which is how p. 181's "isn't
+    cumulative; either a space is Difficult Terrain or it isn't" holds by construction: a
+    stretch of the move inside two creatures' spaces at once is counted once, because the
+    union of two overlapping intervals is one interval.
+
+    Rounded down once, over the merged total, with `distance_feet`'s arithmetic: the largest
+    whole number of feet that fits inside the fraction of the straight line the intervals
+    cover. Flooring each interval separately would price two half-feet as nothing.
+    """
+    covered = Fraction(0)
+    reach = Fraction(-1)
+    for low, high in sorted(intervals):
+        if high <= reach:
+            continue
+        covered += high - max(low, reach)
+        reach = high
+    if covered <= 0:
+        return 0
+    exact = squared_distance(start, end)
+    return math.isqrt(exact * covered.numerator**2 // covered.denominator**2)
+
+
 def high_jump_feet(strength_modifier: int, *, running: bool = True) -> int:
     """How far a creature leaps vertically (p. 183).
 

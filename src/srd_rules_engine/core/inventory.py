@@ -110,9 +110,16 @@ ENGINE_SHAPES: MappingProxyType[str, str] = MappingProxyType(
         # pp. 185 and 191 (0084). A creature now has an extent, and it answers occupancy
         # and deliberately nothing else — p. 14 calls a space what a creature *controls*,
         # and the document says nothing about measuring between two extents without a
-        # grid. p. 185's object clause is unbuilt and disclosed (#451).
+        # grid. p. 185's object clause is unbuilt and disclosed (#459).
         "occupied-space": "core.state.EncounterState.occupants_of",
         "unoccupied-space": "core.state.EncounterState.is_unoccupied",
+        # p. 14 (#451, 0087), once 0086 put every melee position against a big creature
+        # outside its space. Three of the four sentences are refusals and a price in
+        # `with_movement` — the passage, the destination, and the Difficult Terrain for the
+        # stretch inside another's space; the fourth is the one ruling, a Prone the turn's
+        # end derives and the one door applies. Claimed against that resolver because a
+        # shape is claimed against what resolves it, and the other three produce nothing.
+        "moving-around-other-creatures": "core.moving_around.shared_space_resolver",
         # p. 190 (#444): no movement spent, no Opportunity Attack, no line traced, and the
         # destination rule 0084 unblocked — a taken destination diverts to the nearest
         # unoccupied space, and the choice among them is the caller's and is checked. The
