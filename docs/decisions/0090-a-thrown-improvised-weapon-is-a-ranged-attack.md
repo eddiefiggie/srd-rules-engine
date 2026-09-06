@@ -129,7 +129,9 @@ swing's absence of one visible.
 - **Filed, and not this record's:** the Advantage and Disadvantage that conditions, Dodging
   and p. 16's water put on every weapon attack reach neither improvised use
   ([#464](https://github.com/eddiefiggie/srd-rules-engine/issues/464)). It predates the
-  throw and is the swing's gap as much as the throw's.
+  throw and is the swing's gap as much as the throw's. _2026-09-06:_ built by
+  [0091](0091-an-attack-rolls-circumstances-are-composed-once.md), which composes the
+  creatures' half once for all three attack-roll resolvers and reads p. 16 on both uses.
 
 ## Evidence
 

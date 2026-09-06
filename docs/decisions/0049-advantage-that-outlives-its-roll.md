@@ -140,3 +140,9 @@ and [#319](https://github.com/eddiefiggie/srd-rules-engine/issues/319).
 | 5 — `When` gains a subject | **Built.** `Effect.when_subject_id`, read by `_holds` and by `_refuse_undecidable_conditional` ([#318](https://github.com/eddiefiggie/srd-rules-engine/issues/318)) |
 | 6 — a departed clock leaves the token live | **Built.** `is_live` returns True when the expiring creature is not in the order ([#319](https://github.com/eddiefiggie/srd-rules-engine/issues/319)) |
 | 7 — `TurnBoundary` is a vocabulary | **Built.** A `StrEnum` with two members ([#319](https://github.com/eddiefiggie/srd-rules-engine/issues/319)) |
+
+_2026-09-06._ Clauses 2 and 4 reached one resolver until
+[0091](0091-an-attack-rolls-circumstances-are-composed-once.md): a token was spent by a
+weapon's attack roll and sat through a punch or a thrown chair, though p. 90 says "your
+**next** attack roll". The composition is `core.combat._circumstances` now, and all three
+attack-roll resolvers read it and spend what it holds.
