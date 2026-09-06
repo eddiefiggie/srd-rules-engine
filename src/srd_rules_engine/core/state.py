@@ -153,6 +153,12 @@ MALNUTRITION_RULE_ID: Final = "malnutrition"
 #: forced save in this engine computes its DC when the trigger fires (0036 clause 4).
 MALNUTRITION_SAVE_DC: Final = 10
 
+#: p. 185: "A creature that eats nothing for **5 days** automatically gains 1 Exhaustion level
+#: at the end of the fifth day as well as an additional level at the end of each subsequent
+#: day without food." The day the run reaches, named rather than written `>= 5` where it is
+#: compared — it is the rule, and a bare literal reads as a bound somebody chose (#401, 0088).
+STARVATION_DAYS: Final = 5
+
 #: 0028 clause 3. A level from one of these is **invisible** to the general removal rule
 #: rather than subtracted from it: a creature holding only these finishes a Long Rest and
 #: loses nothing, which is what pp. 181 and 185 say. Removing one and re-applying the lock
@@ -202,6 +208,23 @@ class Hazards:
     #: p. 189. Set when a creature "runs out of breath or is choking" — both narrative facts
     #: this engine cannot observe, so a caller says so, as it does for `burning`.
     suffocating: bool = False
+    #: p. 185's run of days without food, as a count (#401, 0088).
+    #:
+    #: **The engine's, not the caller's.** `burning` and `suffocating` are set by a caller
+    #: because they are narrative facts; this is arithmetic over facts the caller already
+    #: states — how much each creature ate on each day that ended — and
+    #: `EncounterState.with_day_ended` advances it or resets it. A caller that set it would
+    #: be choosing when a creature starves.
+    #:
+    #: **A hazard rather than a condition**, for the reason the other two are: hunger is not
+    #: one of p. 179's fifteen. And a hazard rather than an encounter field, because it is a
+    #: fact about one creature that outlives any encounter — exactly what `Hazards` holds.
+    #:
+    #: Zero is a creature that ate on the last day anybody said anything about, or that
+    #: nobody has said anything about. The two are not distinguished, and the distinction
+    #: would not change what the rule does: a day the caller does not describe neither
+    #: advances the count nor resets it (0080 clause 3).
+    days_without_food: int = 0
 
 
 @dataclass(frozen=True)
@@ -3433,10 +3456,10 @@ class EncounterState:
 
         **Deterministic bookkeeping, and no die** (R1, R4). p. 181 attaches no saving throw:
         the level is gained outright, so this is a state transition rather than an
-        adjudication. Malnutrition is the opposite case and is deliberately not here — p. 185
-        compels a DC 10 Constitution save, which needs an occasion that can produce a *ruling*
-        on the campaign axis. That occasion does not exist and is
-        [#399](https://github.com/eddiefiggie/srd-rules-engine/issues/399).
+        adjudication. p. 185's Malnutrition is two rules (0080 clause 7): the save for eating
+        too little is **compelled** here and rolled by `TurnLoop.end_day` (0081), and the
+        run of days without food is counted here and gains its level outright, like p. 181's
+        (0088). The count is `Hazards.days_without_food`.
 
         **A creature named without a stated size is refused**, not skipped. p. 181's
         requirement is read from a size table, so a sizeless creature has no requirement to
@@ -3473,6 +3496,12 @@ class EncounterState:
                 f"{', '.join(unsized)} has no stated size, and p. 185 reads a day's food from "
                 "the Food Needs per Day table"
             )
+        negative = [cid for cid in sorted(eaten) if eaten[cid] < 0]
+        if negative:
+            raise ValueError(
+                f"{', '.join(negative)} ate a negative amount of food. A day's food is what "
+                "was eaten, and nothing was un-eaten"
+            )
 
         state = self
         for combatant_id in sorted(water):
@@ -3480,6 +3509,30 @@ class EncounterState:
             assert size is not None  # refused above
             if dehydrated(size, water[combatant_id]):
                 state = state.with_exhaustion(combatant_id, DEHYDRATION_RULE_ID)
+
+        # p. 185 is two rules (0080 clause 7), and they split on one word: a creature that
+        # **eats but** consumes less than half owes a save, and a creature that eats
+        # **nothing** joins a run of days that p. 185's second sentence counts. The run is
+        # bookkeeping like p. 181's — a level outright, no die — and it is the engine's
+        # arithmetic over the food the caller states, never a fact the caller sets (0088).
+        #
+        # A single mouthful breaks the run: "eats nothing" is the condition, so any food at
+        # all resets the count to zero, even a quarter-pound that also compels the save. And
+        # the run does not latch — "each subsequent day without food" is a level every day
+        # from the fifth on, so the count keeps rising rather than firing once.
+        for combatant_id in sorted(eaten):
+            hungry = state.combatant(combatant_id)
+            run = 0 if eaten[combatant_id] > 0 else hungry.hazards.days_without_food + 1
+            state = state._evolve(
+                combatants=state._replacing(
+                    replace(hungry, hazards=replace(hungry.hazards, days_without_food=run))
+                )
+            )
+            # p. 181: "You die if your Exhaustion level is 6." A creature already there has
+            # died of it, and a seventh level is not a state the document describes — so a
+            # run that carries on past death adds nothing more, rather than being refused.
+            if run >= STARVATION_DAYS and len(hungry.conditions.exhaustion_levels) < MAX_EXHAUSTION:
+                state = state.with_exhaustion(combatant_id, MALNUTRITION_RULE_ID)
 
         # p. 185's Malnutrition **compels a save rather than inflicting a level** (#399,
         # 0081), which is the whole difference from p. 181. Compelled here and rolled by

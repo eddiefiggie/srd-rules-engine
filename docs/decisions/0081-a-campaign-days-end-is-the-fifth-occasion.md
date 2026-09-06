@@ -7,7 +7,7 @@
   whose shape this copies and whose sentence it reuses for the fifth time;
   [0080 — Dehydration is bookkeeping](0080-dehydration-is-bookkeeping.md), the other half of
   the same day's end;
-  [0048](0048-a-forced-save-is-one-shape.md), whose `ForcedSave` this is the third thing to
+  [0048](0048-a-forced-save-is-one-mechanism.md), whose `ForcedSave` this is the third thing to
   compel;
   [0072 — movement is a phase the loop drives](0072-movement-is-a-phase-the-loop-drives.md),
   the fourth occasion and the first non-turn one
@@ -107,8 +107,10 @@ organised around. `end_day` holding both is what makes that visible in one place
 | 5 — `EncounterState` is the container | **Built**, in the sense that nothing changed |
 | 6 — the DC on the debt | **Built** |
 
-p. 185's starvation clause is **not built** and is #401. `scripts/verify_d20_rules.py` carries
-p. 185 whole, including that sentence, so whoever takes it does not re-read the page.
+p. 185's starvation clause was **not built** and was #401; [0088](0088-a-run-of-days-without-food-is-a-hazard-the-creature-carries.md)
+built it on 2026-09-06 as bookkeeping in `with_day_ended`, which is why `end_day` produces
+no ruling for it. `scripts/verify_d20_rules.py` carried p. 185 whole, including that
+sentence, so whoever took it did not re-read the page.
 
 ### Evidence
 

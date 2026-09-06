@@ -109,11 +109,15 @@ record's.
 | 5 — `Fraction` | **Built.** `core.size.WATER_PER_DAY` |
 | 6 — the table's home | **Built**, and re-exported from `core.hazards` |
 | 7a — Malnutrition's save | **Built** 2026-08-30. `TurnLoop.end_day` compels p. 185's DC 10 Constitution save through the one entry point ([0081](0081-a-campaign-days-end-is-the-fifth-occasion.md)) |
-| 7b — Malnutrition's starvation | **Not built.** p. 185's second rule grants an Exhaustion level automatically after five days with nothing, and consecutive days without food are counted by nothing ([#401](https://github.com/eddiefiggie/srd-rules-engine/issues/401)) |
+| 7b — Malnutrition's starvation | **Built** 2026-09-06 by [0088](0088-a-run-of-days-without-food-is-a-hazard-the-creature-carries.md): `Hazards.days_without_food` is counted at each day's end and a level is gained outright from the fifth day on |
 
-The `dehydration` shape is **claimed**; `malnutrition` is not. `scripts/verify_d20_rules.py`
-carries 300 clauses, including p. 185's — asserted although the starvation half is unbuilt, so
-whoever takes #401 does not re-read it and cannot quietly disagree with it.
+The `dehydration` shape is **claimed**; `malnutrition` was not until 0088 built row 7b.
+`scripts/verify_d20_rules.py` carried p. 185 from #399 — asserted while the starvation half was
+unbuilt, so whoever took #401 did not re-read it and could not quietly disagree with it.
+
+_2026-09-06._ Row 7b is built. What p. 185 still states and nothing does is the **unlock** —
+"until the creature eats the full amount of food required for a day" — and p. 181's twin; both
+are [#461](https://github.com/eddiefiggie/srd-rules-engine/issues/461).
 
 _Updated 2026-08-31 ([#404](https://github.com/eddiefiggie/srd-rules-engine/issues/404)).
 Clause 7 was one row saying `**Not built.**` over #399, which closed the day before with the
