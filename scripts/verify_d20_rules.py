@@ -614,10 +614,27 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     ),
     (
         183,
-        "a thrown improvised weapon is 20/60 — asserted so the number is read rather than "
-        "recalled when #390 builds the throw",
+        "a thrown improvised weapon is 20/60 — asserted before the throw was built, and read "
+        "by the offer and the resolver since #390 (0090)",
         r"If you throw the weapon, it has a normal range of 20 feet and a long range of 60 "
         r"feet",
+    ),
+    # --- p. 15's ability modifier for an attack (#390, 0090) ------------------------------
+    # The general rule both improvised resolvers rest on. 0076 built the swing as Strength
+    # "because this is a melee attack" and never asserted the sentence that says so; the
+    # throw is Dexterity by the same sentence's other half.
+    (
+        15,
+        "a melee attack uses Strength and a ranged one Dexterity, so a thrown improvised "
+        "weapon — a ranged attack — is Dexterity (0090 clause 1)",
+        r"ability modifier used for a melee (weapon )?attack is Strength, and the ability "
+        r"modifier used for a ranged (weapon )?attack is Dexterity",
+    ),
+    (
+        15,
+        "and the exception is for weapons THAT HAVE Finesse or Thrown — an improvised weapon "
+        "is one because the object lacks Thrown, so the exception cannot reach it",
+        r"Weapons that have the Finesse or Thrown property break this rule",
     ),
     # --- Initiative (#385) --------------------------------------------------------------
     (

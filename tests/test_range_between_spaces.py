@@ -32,7 +32,7 @@ from srd_rules_engine.core.equipment import (
 from srd_rules_engine.core.grappling import ended_by_circumstance
 from srd_rules_engine.core.position import Position, distance_feet, within
 from srd_rules_engine.core.reactions import provocations
-from srd_rules_engine.core.read_surface import cleave_attack_key, read
+from srd_rules_engine.core.read_surface import attack_key, cleave_attack_key, read
 from srd_rules_engine.core.sight import Lighting, LightLevel, Senses, Visibility
 from srd_rules_engine.core.size import SPACE_FEET, Size, range_slack
 from srd_rules_engine.core.spellcasting import RangeForm, SpellRange, spell_reaches
@@ -145,6 +145,21 @@ def test_a_melee_attack_reaches_a_huge_creature_from_ten_feet_and_a_medium_one_d
     assert not _out_of_range(SPEAR, attacker, _creature("giant", TEN, size=Size.HUGE))
     with pytest.raises(ValueError, match="10 feet away"):
         _out_of_range(SPEAR, attacker, _creature("foe", TEN, size=Size.MEDIUM))
+
+
+def test_the_read_surface_offers_the_melee_attack_the_resolver_would_allow() -> None:
+    """The offer and the resolver read one measure (0090). `_within_weapon_range` stayed
+    point-to-point through 0086 because the test above exercises `_out_of_range`, so a Medium
+    fighter could hit a Huge giant from ten feet and was never offered the swing — a menu
+    that withheld what the rules permit, which nothing downstream could catch."""
+    attacker = _armed("pc", ORIGIN, Size.MEDIUM)
+    giant = EncounterState.new([attacker, _creature("giant", TEN, size=Size.HUGE)])
+    giant = giant.with_initiative({"pc": 20, "giant": 5})
+    foe = EncounterState.new([attacker, _creature("foe", TEN, size=Size.MEDIUM)])
+    foe = foe.with_initiative({"pc": 20, "foe": 5})
+
+    assert attack_key(SPEAR.id, "giant") in {a.key for a in read(giant, "pc").actions}
+    assert attack_key(SPEAR.id, "foe") not in {a.key for a in read(foe, "pc").actions}
 
 
 def test_the_attackers_own_space_counts_too() -> None:

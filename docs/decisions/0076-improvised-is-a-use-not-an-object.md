@@ -7,7 +7,7 @@
   whose clause 5 decided this shape;
   [0075 — ties are a person's](0075-ties-are-a-persons-and-initiative-is-a-dexterity-check.md),
   the same question one build earlier and with a different answer;
-  [0039 — equipment is what a creature carries](0039-equipment-is-what-a-creature-carries.md),
+  [0039 — equipment is what a creature carries](0039-equipment-is-what-a-creature-holds-wears-and-carries.md),
   clause 2, whose test `Item.improvised_damage_type` has to pass
 
 ## Context
@@ -126,7 +126,7 @@ object, while this is a person's ruling about what happens when it is swung.
 | 5 — the ability modifier stays | **Built** |
 | 6 — five feet | **Built** |
 | 7 — Weapon Equivalents stated, not modelled | **Built**, in the sense that the decision is to hold no mechanism |
-| 8 — the thrown 20/60 | **Not built.** [#390](https://github.com/eddiefiggie/srd-rules-engine/issues/390) |
+| 8 — the thrown 20/60 | **Built** 2026-09-06 by [0090](0090-a-thrown-improvised-weapon-is-a-ranged-attack.md): its own key, Dexterity by p. 15, refused beyond sixty and Disadvantage beyond twenty |
 
 `scripts/verify_d20_rules.py` carries 291 clauses, up from 287; all four of p. 183's rules are
 asserted including the one clause 8 defers, and the whole file was re-run against the document.
@@ -148,3 +148,9 @@ Seven corruption proofs, each red on the assertion written for it.
 The fifth is the one that matters: it corrupts the engine into treating improvised-ness as a
 property of *objects that are not weapons*, which is the modelling this record exists to
 reject, and it goes red on the document's own example.
+
+_2026-09-06._ Row 8 is built. The sixth proof above — the normal range changed to 30, red on
+`test_the_thrown_range_is_read_and_has_no_consumer_yet` — is superseded: that test is gone,
+and [0090](0090-a-thrown-improvised-weapon-is-a-ranged-attack.md)'s proofs go red on the
+consumer. Clause 5's "Strength, because this is a melee attack" rested on p. 15 without
+asserting it; 0090 asserts both halves of the sentence, and the throw is the other half.
