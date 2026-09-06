@@ -748,9 +748,18 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     # --- p. 16's Underwater Combat: asserted although unbuilt, so #446 does not re-read -
     (
         16,
-        "the melee clause turns on a Swim Speed and exempts PIERCING weapons, and the ranged "
-        "clause AUTOMATICALLY MISSES beyond normal range — which is neither Disadvantage nor "
-        "a refusal, and is #224's unbuilt shape (#446)",
+        "the melee clause turns on a Swim Speed and exempts PIERCING weapons — quoted in "
+        "`_impeded_underwater`'s docstring since #446 and asserted only by 0091, which "
+        "rests the improvised swing on it; the pattern is the sentence as recalled, and a "
+        "run by somebody holding the document is what confirms it (#464)",
+        r"When making a melee attack roll with a weapon underwater, a creature that lacks a "
+        r"Swim Speed has Disadvantage on the attack roll unless the weapon deals Piercing "
+        r"damage",
+    ),
+    (
+        16,
+        "and the ranged clause AUTOMATICALLY MISSES beyond normal range — which is neither "
+        "Disadvantage nor a refusal, and is #224's unbuilt shape (#446)",
         r"A ranged attack roll with a weapon underwater automatically misses a target beyond "
         r"the weapon.s normal range, and the attack roll has Disadvantage against a target "
         r"within normal range",

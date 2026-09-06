@@ -41,7 +41,7 @@ landed, which is what an unguarded prose claim beside working code does.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import Final
 
 from srd_rules_engine.core.actions import ActionKind
@@ -258,7 +258,9 @@ def initiative_order(state: EncounterState, *, seed: int) -> Mapping[str, int]:
     }
 
 
-def _impeded_underwater(state: EncounterState, actor: Combatant, weapon: Weapon) -> bool:
+def _impeded_underwater(
+    state: EncounterState, actor: Combatant, *, melee: bool, damage_type: DamageType | None
+) -> bool:
     """p. 16's Impeded Weapons, the half that is Disadvantage (#446).
 
     > When making a **melee** attack roll with a weapon underwater, a creature that **lacks a
@@ -273,11 +275,18 @@ def _impeded_underwater(state: EncounterState, actor: Combatant, weapon: Weapon)
     A Swim Speed exempts a creature entirely from the melee clause and **not** from the
     ranged one: p. 16 attaches the speed to the first sentence only, and carrying it across
     would be a rule the document does not state, in the direction that helps the swimmer.
+
+    **Two facts of the attack rather than a `Weapon`, since #464.** An improvised weapon is
+    "an object wielded as a makeshift weapon" (p. 183) and p. 16 speaks of "a weapon", so
+    the clause reaches the swing and the throw — and the type it reads is the one the
+    ruleset stated for the improvised use, which is what the attack deals. The Unarmed
+    Strike is not asked: p. 177 counts "a weapon or an Unarmed Strike" as two things, and
+    p. 16 names only the first (0091).
     """
     if not state.underwater:
         return False
-    if weapon.melee:
-        if weapon.damage_type is DamageType.PIERCING:
+    if melee:
+        if damage_type is DamageType.PIERCING:
             return False
         return actor.speeds.swim is None
     # Ranged, within normal range — beyond it is the automatic miss, decided by the caller
@@ -366,6 +375,132 @@ def _poison_delivery(
     )
 
 
+@dataclass(frozen=True, slots=True)
+class _Circumstances:
+    """What every attack roll has from the two creatures and the tokens between them (0091).
+
+    The half of an attack's Advantage and Disadvantage that does not depend on what is in
+    the attacker's hand: the attacker's conditions, the defender's, p. 181's Dodge, and
+    p. 90's Vex and Sap. The weapon's own contributions — Heavy, a ranged weapon's normal
+    range, p. 16's water — are the caller's, and it ORs them in beside these.
+
+    **One composition for three resolvers.** `attack_resolver` composed this inline, and
+    neither the Unarmed Strike nor either improvised use consulted any of it: a Blinded
+    creature punched without Disadvantage, and a Paralyzed one was not hit with Advantage by
+    a frying pan ([#464](https://github.com/eddiefiggie/srd-rules-engine/issues/464)). Each
+    is a rule the document states for "attack rolls", not for attacks with a weapon, and
+    the plainest kind of gap: a built mechanic with a built antecedent that one resolver did
+    not read. A block three resolvers must agree on is a block that lives in one place.
+    """
+
+    advantage: bool
+    disadvantage: bool
+    #: p. 90's tokens in scope, which the roll spends whether it hits or misses (0049).
+    pending: tuple[PendingAdvantage, ...]
+
+    def spent(self) -> tuple[Effect, ...]:
+        """The tokens consumed by making this roll, for the proposal's `always`.
+
+        p. 90: "your **next** attack roll", so a token in scope is spent by this roll
+        whether it hits or misses (0049). In `always` for exactly that reason — either
+        branch would keep it alive through half the outcomes.
+        """
+        return tuple(
+            advantage_spent(
+                token,
+                description=(
+                    f"{token.rule_id}: the {token.state} it granted is spent on this "
+                    "attack roll (p. 90)"
+                ),
+            )
+            for token in self.pending
+        )
+
+
+def _circumstances(state: EncounterState, actor: Combatant, target: Combatant) -> _Circumstances:
+    """Compose what the two creatures and the tokens between them put on the roll (0091).
+
+    Every source reaches the same pair of flags, so p. 8's cancellation rule resolves them
+    exactly as it resolves any other pair of circumstances rather than through a second
+    mechanism — a creature holding a Sap penalty and attacking a Paralyzed target rolls
+    straight, which is the document's own answer and not a special case anybody had to
+    write.
+    """
+    # p. 184's exception to Invisible, asked in both directions (#193). Each needs
+    # CERTAINTY to move away from the answer that cannot manufacture an outcome, so an
+    # UNSTATED view leaves both where 0030 clause 1 puts them.
+    target_blind_to_actor = state.can_see(target.id, actor.id).verdict is Visibility.CANNOT_SEE
+    actor_sees_target = state.can_see(actor.id, target.id).verdict is Visibility.CAN_SEE
+
+    attacker_state = actor.conditions.own_attack_rolls(
+        target_id=target.id,
+        # p. 182's qualifier, askable since #192 stored the source of fear.
+        fear_in_sight=state.fear_in_sight(actor.id),
+        target_blind_to_you=target_blind_to_actor,
+    )
+    defender_state = target.conditions.attack_rolls_against(
+        attacker=actor.position,
+        target=target.position,
+        attacker_sees_you=actor_sees_target,
+        slack=range_slack(actor.size, target.size),
+    )
+    # p. 181: while Dodging, attacks against you have Disadvantage. It reaches the same
+    # pair of flags as everything else, so it cancels against Advantage rather than
+    # accumulating beside it.
+    dodging = target.is_dodging
+
+    # p. 90's Vex and Sap, granted by an earlier roll and spent by this one (0049). They
+    # reach the same pair of flags as every other circumstance, so p. 8's cancellation
+    # rule resolves them rather than a second mechanism — a creature holding a Sap
+    # penalty and attacking a target it has Vex on rolls straight, which is the document's
+    # own answer and not a special case anybody had to write.
+    pending = state.pending_advantage_for(actor.id, target.id)
+    pending_advantage_held = any(t.state is Advantage.ADVANTAGE for t in pending)
+    pending_disadvantage_held = any(t.state is Advantage.DISADVANTAGE for t in pending)
+
+    return _Circumstances(
+        advantage=(
+            attacker_state is Advantage.ADVANTAGE
+            or defender_state is Advantage.ADVANTAGE
+            or pending_advantage_held
+        ),
+        disadvantage=(
+            attacker_state is Advantage.DISADVANTAGE
+            or defender_state is Advantage.DISADVANTAGE
+            or dodging
+            or pending_disadvantage_held
+        ),
+        pending=pending,
+    )
+
+
+def _missed_by_the_water(
+    proposal: Proposal, actor: Combatant, target: Combatant, *, description: str
+) -> Proposal:
+    """p. 16's automatic miss, settled without a roll (#446, and #224's kind).
+
+    Built by replacement rather than as a second construction, so the swap effects, the
+    action charge, a thrown object leaving the hand and every other cost of having attacked
+    stay exactly what an ordinary attack pays — the shot **was** taken, and p. 16 misses it
+    rather than forbidding it.
+    """
+    return replace(
+        proposal,
+        test=None,
+        on_success=(),
+        on_failure=(),
+        on_natural_20=(),
+        on_natural_1=(),
+        outcome=(automatically_failed(actor.id, description=description),),
+        may_claim=(f"that {actor.name} loosed the shot and the water stopped it",),
+        may_not_claim=(
+            "that anything was rolled — p. 16 settles this without a die",
+            f"that {target.name} was touched by it in any way",
+            "that a better shot would have carried; p. 16 misses outright",
+        ),
+    )
+
+
 def attack_resolver() -> Resolver:
     """The resolver for an attack, whichever weapon the creature swung (0040 clause 4).
 
@@ -450,39 +585,18 @@ def attack_resolver() -> Resolver:
         # p. 16's Impeded Weapons (#446). Two clauses, and they land in different places: the
         # melee one is Disadvantage, and the ranged one beyond normal range is an
         # **automatic miss** — which is neither Disadvantage nor the refusal p. 90 earns.
-        impeded = _impeded_underwater(state, actor, weapon)
+        impeded = _impeded_underwater(
+            state, actor, melee=weapon.melee, damage_type=weapon.damage_type
+        )
         # p. 16: "A ranged attack roll with a weapon underwater automatically misses a
         # target beyond the weapon's normal range." Decided here and applied at the return,
         # so the attack keeps every cost of having been made — p. 16 misses it, it does not
         # forbid it, and `always` is where those costs live.
         auto_miss_underwater = state.underwater and not weapon.melee and beyond_normal
 
-        # p. 184's exception to Invisible, asked in both directions (#193). Each needs
-        # CERTAINTY to move away from the answer that cannot manufacture an outcome, so an
-        # UNSTATED view leaves both where 0030 clause 1 puts them.
-        target_blind_to_actor = (
-            state.can_see(target_id, declaration.actor_id).verdict is Visibility.CANNOT_SEE
-        )
-        actor_sees_target = (
-            state.can_see(declaration.actor_id, target_id).verdict is Visibility.CAN_SEE
-        )
-
-        attacker_state = actor.conditions.own_attack_rolls(
-            target_id=target_id,
-            # p. 182's qualifier, askable since #192 stored the source of fear.
-            fear_in_sight=state.fear_in_sight(declaration.actor_id),
-            target_blind_to_you=target_blind_to_actor,
-        )
-        defender_state = target.conditions.attack_rolls_against(
-            attacker=actor.position,
-            target=target.position,
-            attacker_sees_you=actor_sees_target,
-            slack=range_slack(actor.size, target.size),
-        )
-        # p. 181: while Dodging, attacks against you have Disadvantage. It reaches the same
-        # pair of flags as everything else, so it cancels against Advantage rather than
-        # accumulating beside it.
-        dodging = target.is_dodging
+        # Conditions on both sides, Dodge, and p. 90's tokens — the half every attack roll
+        # shares, composed once for the three resolvers that make one (0091).
+        circumstances = _circumstances(state, actor, target)
 
         modifiers = [Modifier(source=f"ability:{weapon.ability}", value=ability)]
         # p. 89: "Anyone can wield a weapon, but **you** must have proficiency with it to add
@@ -494,15 +608,6 @@ def attack_resolver() -> Resolver:
             modifiers.append(Modifier(source="proficiency", value=actor.proficiency_bonus))
         if weapon.bonus:
             modifiers.append(Modifier(source=f"{weapon.id} bonus", value=weapon.bonus))
-
-        # p. 90's Vex and Sap, granted by an earlier roll and spent by this one (0049). They
-        # reach the same pair of flags as every other circumstance, so p. 8's cancellation
-        # rule resolves them rather than a second mechanism — a creature holding a Sap
-        # penalty and attacking a target it has Vex on rolls straight, which is the document's
-        # own answer and not a special case anybody had to write.
-        pending = state.pending_advantage_for(declaration.actor_id, target_id)
-        pending_advantage_held = any(t.state is Advantage.ADVANTAGE for t in pending)
-        pending_disadvantage_held = any(t.state is Advantage.DISADVANTAGE for t in pending)
 
         proposal = Proposal(
             # p. 176: "On your turn, you can take one action." p. 177 makes an attack one:
@@ -544,19 +649,8 @@ def attack_resolver() -> Resolver:
                     if is_cleave
                     else ()
                 ),
-                # p. 90: "your **next** attack roll", so a token in scope is spent by this
-                # roll whether it hits or misses (0049). In `always` for exactly that reason —
-                # either branch would keep it alive through half the outcomes.
-                *(
-                    advantage_spent(
-                        token,
-                        description=(
-                            f"{token.rule_id}: the {token.state} it granted is spent on this "
-                            "attack roll (p. 90)"
-                        ),
-                    )
-                    for token in pending
-                ),
+                # p. 90's tokens, spent by the roll whether it hits or misses (0049).
+                *circumstances.spent(),
                 # p. 177's allowance is drawn on when a swap actually happens, and only then.
                 # p. 191's Unconscious detaches an item too and must not spend it (0043
                 # clause 3).
@@ -741,19 +835,12 @@ def attack_resolver() -> Resolver:
                     # p. 16, and it does not stack with the others — the d20 takes a single
                     # flag, which is the cancellation rule holding by construction.
                     or impeded
-                    or attacker_state is Advantage.DISADVANTAGE
-                    or defender_state is Advantage.DISADVANTAGE
-                    or dodging
-                    or pending_disadvantage_held
+                    or circumstances.disadvantage
                 ),
                 # Conditions on either side reach the same pair of flags, so the
                 # cancellation rule (p. 8) resolves them exactly as it resolves any other
                 # pair of circumstances rather than through a second mechanism.
-                has_advantage=(
-                    attacker_state is Advantage.ADVANTAGE
-                    or defender_state is Advantage.ADVANTAGE
-                    or pending_advantage_held
-                ),
+                has_advantage=circumstances.advantage,
             ),
             on_success=(
                 DamageDice(
@@ -845,32 +932,14 @@ def attack_resolver() -> Resolver:
         )
         if not auto_miss_underwater:
             return proposal
-        # p. 16 settles it without a roll (#446, and #224's kind). Built by replacement
-        # rather than as a second construction, so the swap effects, the action charge and
-        # every other cost of having attacked stay exactly what an ordinary attack pays —
-        # the shot **was** taken, and p. 16 misses it rather than forbidding it.
-        return replace(
+        # p. 16 settles it without a roll (#446, and #224's kind).
+        return _missed_by_the_water(
             proposal,
-            test=None,
-            on_success=(),
-            on_failure=(),
-            on_natural_20=(),
-            on_natural_1=(),
-            outcome=(
-                automatically_failed(
-                    actor.id,
-                    description=(
-                        f"{weapon.id} was fired underwater at a target beyond its normal "
-                        f"range of {weapon.normal_range} feet, and p. 16 misses "
-                        "automatically"
-                    ),
-                ),
-            ),
-            may_claim=(f"that {actor.name} loosed the shot and the water stopped it",),
-            may_not_claim=(
-                "that anything was rolled — p. 16 settles this without a die",
-                f"that {target.name} was touched by it in any way",
-                "that a better shot would have carried; p. 16 misses outright",
+            actor,
+            target,
+            description=(
+                f"{weapon.id} was fired underwater at a target beyond its normal "
+                f"range of {weapon.normal_range} feet, and p. 16 misses automatically"
             ),
         )
 
@@ -1091,6 +1160,13 @@ def unarmed_strike_resolver() -> Resolver:
     — "Your bonus to the roll equals your Strength modifier **plus your Proficiency Bonus**" —
     with no proficiency to have. So this is a second bonus rule beside the weapon path rather
     than a case of it, which is why it has its own resolver instead of a flag on that one.
+
+    **What the two creatures put on the roll reaches it, since #464.** Conditions on either
+    side, p. 181's Dodge and p. 90's Vex and Sap are stated for attack rolls, and this is
+    one; none of them was read here until 0091. **p. 16's water is not asked**, because the
+    Impeded Weapons clause is for "a weapon" and p. 177 counts "a weapon or an Unarmed
+    Strike" as two things — so a punch underwater rolls as it does on land, which is what
+    the document says and not an omission.
     """
 
     def resolve(
@@ -1112,6 +1188,7 @@ def unarmed_strike_resolver() -> Resolver:
         # p. 15's +2 or +5, read after the Total Cover refusal because Total is not a bonus —
         # it is a prohibition, and an attack that cannot be made has no target number to move.
         cover = _cover_from(state, actor, target)
+        circumstances = _circumstances(state, actor, target)
 
         strength = actor.modifier("str")
         # p. 190: "Bludgeoning damage equal to 1 plus your Strength modifier." Floored at 0,
@@ -1137,6 +1214,8 @@ def unarmed_strike_resolver() -> Resolver:
                     ActionKind.ACTION,
                     description="the Action spent on the Attack (p. 176, p. 177)",
                 ),
+                # p. 90's tokens, spent by the roll whether it hits or misses (0049).
+                *circumstances.spent(),
             ),
             test=D20Test(
                 kind=TestKind.ATTACK,
@@ -1150,6 +1229,8 @@ def unarmed_strike_resolver() -> Resolver:
                     # Unconditional (p. 190), unlike a weapon's.
                     Modifier(source="proficiency", value=actor.proficiency_bonus),
                 ),
+                has_advantage=circumstances.advantage,
+                has_disadvantage=circumstances.disadvantage,
             ),
             on_success=(
                 Effect(
@@ -1231,9 +1312,12 @@ def improvised_attack_resolver() -> Resolver:
     lands nowhere the document states (0041 clause 4). The swing is bounded by p. 190's five
     feet, which the read surface has always bounded it by and this refuses beyond (0062).
 
-    **Not here, and filed:** the Advantage and Disadvantage that conditions, Dodging and
-    p. 16's water put on every weapon attack reach neither the swing nor the throw
-    ([#464](https://github.com/eddiefiggie/srd-rules-engine/issues/464)).
+    **What the two creatures put on the roll reaches both uses, since #464.** Conditions on
+    either side, p. 181's Dodge and p. 90's Vex and Sap are composed once for every attack
+    roll (`_circumstances`), and p. 16's water reads the improvised weapon as the weapon it
+    is wielded as: the swing is impeded unless the ruleset's type is Piercing or the wielder
+    swims, and the throw misses outright beyond twenty feet and has Disadvantage within
+    (0091).
     """
 
     def resolve(
@@ -1276,6 +1360,13 @@ def improvised_attack_resolver() -> Resolver:
         # it is a prohibition, and an attack that cannot be made has no target number to move.
         cover = _cover_from(state, actor, target)
         beyond_normal = _improvised_out_of_range(actor, target, thrown=thrown is not None)
+        circumstances = _circumstances(state, actor, target)
+        # p. 16's Impeded Weapons (#446), reaching the makeshift weapon as it reaches any
+        # other: "a weapon" is what p. 183 says the object is wielded as. The melee clause
+        # reads the type the ruleset stated for this use, and the ranged clause bounds the
+        # throw by p. 183's normal range as it bounds a Thrown weapon by p. 90's (0091).
+        impeded = _impeded_underwater(state, actor, melee=thrown is None, damage_type=damage_type)
+        auto_miss_underwater = state.underwater and thrown is not None and beyond_normal
         # p. 15: "The ability modifier used for a melee attack is Strength, and the ability
         # modifier used for a ranged attack is Dexterity." The exception is for weapons with
         # Finesse or Thrown, and a table leg has neither.
@@ -1283,7 +1374,7 @@ def improvised_attack_resolver() -> Resolver:
         modifier = actor.modifier(ability)
         verb = "threw" if thrown is not None else "swung"
 
-        return Proposal(
+        proposal = Proposal(
             always=(
                 # p. 183: "You stop being hidden immediately after any of the following
                 # occurs: ... you make an attack roll." Made, not landed — so it rides in
@@ -1315,6 +1406,8 @@ def improvised_attack_resolver() -> Resolver:
                     if thrown is not None
                     else ()
                 ),
+                # p. 90's tokens, spent by the roll whether it hits or misses (0049).
+                *circumstances.spent(),
             ),
             test=D20Test(
                 kind=TestKind.ATTACK,
@@ -1328,8 +1421,11 @@ def improvised_attack_resolver() -> Resolver:
                 modifiers=(Modifier(source=f"ability:{ability}", value=modifier),),
                 # p. 90: "When attacking a target beyond normal range, you have Disadvantage
                 # on the attack roll." p. 183 gives the throw a normal range in p. 90's
-                # terms, so p. 90's consequence follows.
-                has_disadvantage=beyond_normal,
+                # terms, so p. 90's consequence follows. One flag for it, p. 16's water and
+                # everything the two creatures bring, which is p. 8's cancellation rule
+                # holding by construction.
+                has_disadvantage=beyond_normal or impeded or circumstances.disadvantage,
+                has_advantage=circumstances.advantage,
             ),
             on_success=(
                 DamageDice(
@@ -1358,6 +1454,20 @@ def improvised_attack_resolver() -> Resolver:
                     if thrown is not None
                     else ()
                 ),
+            ),
+        )
+        if not auto_miss_underwater:
+            return proposal
+        # p. 16 settles it without a roll, and the object has still left the hand: the
+        # detachment rides in `always`, which the replacement keeps.
+        return _missed_by_the_water(
+            proposal,
+            actor,
+            target,
+            description=(
+                f"{item_id} was thrown underwater at a target beyond an improvised weapon's "
+                f"normal range of {IMPROVISED_THROWN_NORMAL_FEET} feet, and p. 16 misses "
+                "automatically"
             ),
         )
 
