@@ -7,7 +7,7 @@ so that an LLM agent running a game holds *interpretation* while the code holds 
 authority**. The agent decides **that** a rule applies and **which** one. It can never decide
 **how it turns out**.
 
-**Current build:** `09122026.1` — **an object fills a space because its placer said so.** [#459](https://github.com/eddiefiggie/srd-rules-engine/issues/459) was p. 185's second clause — *"A space is occupied if a creature is in it or if it is completely filled by objects"* — which [0084](docs/decisions/0084-a-space-is-a-control-area-not-a-volume.md) left unasked because the engine had no object that fills a space: its objects were equipment, and an `Obstruction` is a barrier, which gives cover and stops a line of effect and answers neither entry. The clause is `Obstruction.fills_space` now, **stated by the placer** as a barrier's cover and its sight are stated, because *"completely"* is a judgement the document hands to a person and supplies no fraction to measure — and it is independent of cover in both directions, since a low wall covers and fills nothing while a heap of sacks fills and covers nobody, which is the distinction p. 190 draws in one sentence between a space *"occupied"* and one *"blocked by a solid obstacle"*. `is_unoccupied` reads both halves; the teleport diverts from a filled space under the word *occupied* and says so; a wall nobody said is full is still not an occupant. **p. 14's move is left alone**, on purpose: its refusal is for a space occupied by another *creature*, and a rule that stopped a walk at crates while walking through walls would be half an answer in the direction that looks whole. Coverage does not move. [0092](docs/decisions/0092-an-object-fills-a-space-because-its-placer-said-so.md). Eight corruption proofs. 146 of 210, 14 clauses. 384 clauses verified against the document. 2476 tests.
+**Current build:** `09122026.2` — **a readied spell is cast, and what waits is its effect.** [#436](https://github.com/eddiefiggie/srd-rules-engine/issues/436) was the last gate but one, and it reported that p. 186 *"spends its slot at the start, which is the reverse of what [0065](docs/decisions/0065-a-long-cast-spends-its-slot-on-completion.md) decided"*. **It is not, and the sentence that settles it is in the same paragraph as the one that raised the alarm**: *"To be readied, a spell must have a casting time of an action."* `LongCast` is reachable only through `CastingTime.MINUTES`, so the two vocabularies are **disjoint by the document’s own admission rule** and no spell is ever describable as both — there is no axis on which one reverses the other. The timing conflict dissolves the same way: *"you cast it as normal"* means the casting **completes**, which is exactly when 0065 spends the slot, so **both spend on completion** and the gate’s table had compared the start of the *wait* against the completion of the *casting*. Two clocks, not two rules. **What is genuinely new is that the effect is suspended and the casting is not** — a casting that has finished and has paid, whose effect has not happened, which is `LongCast` reversed on both counts. **The second framing to go was the halves**: p. 186 has the readier choose *the action* they will take and the Magic action is one of the choices, so there is no non-spell half to ship alone — there is Ready, and a case of it that carries three clauses more. It ships with that case **refused, with its reason** ([#468](https://github.com/eddiefiggie/srd-rules-engine/issues/468)), and `ready` stays unclaimed until the held energy lands ([#469](https://github.com/eddiefiggie/srd-rules-engine/issues/469)). One blocker had already dissolved unnoticed: *"dissipates without taking effect"* was filed as [#224](https://github.com/eddiefiggie/srd-rules-engine/issues/224)’s unbuilt shape and #224 closed days ago. Coverage does not move. [0093](docs/decisions/0093-a-readied-spell-is-cast-and-what-waits-is-its-effect.md). No corruption proofs: the record adds no code. 146 of 210, 14 clauses. 384 clauses verified against the document. 2476 tests.
 
 ---
 
@@ -274,12 +274,15 @@ from the records themselves by `scripts/render_record_index.py` — a hand-writt
 - [0090 — A thrown improvised weapon is a ranged attack, and p. 15 decides the rest](docs/decisions/0090-a-thrown-improvised-weapon-is-a-ranged-attack.md) — settles [#390](https://github.com/eddiefiggie/srd-rules-engine/issues/390)
 - [0091 — An attack roll's circumstances are composed once, for every resolver that makes one](docs/decisions/0091-an-attack-rolls-circumstances-are-composed-once.md) — settles [#464](https://github.com/eddiefiggie/srd-rules-engine/issues/464)
 - [0092 — An object fills a space because its placer said so](docs/decisions/0092-an-object-fills-a-space-because-its-placer-said-so.md) — settles [#459](https://github.com/eddiefiggie/srd-rules-engine/issues/459)
+- [0093 — A readied spell is cast, and what waits is its effect](docs/decisions/0093-a-readied-spell-is-cast-and-what-waits-is-its-effect.md) — settles [#436](https://github.com/eddiefiggie/srd-rules-engine/issues/436)
 <!-- /record-index -->
 
-**Next up:** [#250](https://github.com/eddiefiggie/srd-rules-engine/issues/250) — longer casting times, where the Magic action is taken each
-turn and a break refunds nothing because nothing was spent. Then [#253](https://github.com/eddiefiggie/srd-rules-engine/issues/253), the
-Magic action's feature-and-item half. [#246](https://github.com/eddiefiggie/srd-rules-engine/issues/246) and [#247](https://github.com/eddiefiggie/srd-rules-engine/issues/247) stay blocked on
-subsystems that do not exist, and are disclosed rather than skipped.
+**Next up:** [#468](https://github.com/eddiefiggie/srd-rules-engine/issues/468) — p. 186's Ready, where the
+caller states the trigger, the response is an action or a move, and readying the Magic action refuses
+with its reason until [#469](https://github.com/eddiefiggie/srd-rules-engine/issues/469) builds the held
+energy. Then [#253](https://github.com/eddiefiggie/srd-rules-engine/issues/253), the
+Magic action's feature-and-item half. [#246](https://github.com/eddiefiggie/srd-rules-engine/issues/246) stays blocked on a
+subsystem that does not exist, and is disclosed rather than skipped.
 
 ## Development
 
@@ -329,4 +332,4 @@ verification state, and the loader refuses anything `unverified` — a seed is n
 > work — `gate`-labelled ones block implementation). The requirements artifact is
 > `docs/plans/2026-08-19-001-feat-srd-rules-engine-plan.md`.
 
-_Last updated: 2026-09-12 — build `09122026.1`._
+_Last updated: 2026-09-12 — build `09122026.2`._
