@@ -735,8 +735,8 @@ CLAUSES: tuple[tuple[int, str, str], ...] = (
     (
         185,
         "a space is occupied if a creature is in it OR if it is completely filled by objects "
-        "— and the second clause is unbuilt, because this engine's objects are equipment "
-        "rather than occupants (0084 clause 9, #451)",
+        "— the first clause is `occupants_of` (0084) and the second `filled_by_objects`, an "
+        "`Obstruction` whose placer said it fills the space (0092, #459)",
         r"A space is occupied if a creature is in it or if it is completely filled by objects",
     ),
     (

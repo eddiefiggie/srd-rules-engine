@@ -155,6 +155,25 @@ class Obstruction(Box):
     #: not.
     blocks_sight: bool | None = None
 
+    #: Whether the objects this box stands for **completely fill** it, so that the space is
+    #: occupied in p. 185's second sense (0092, #459):
+    #:
+    #: > A space is occupied if a creature is in it **or if it is completely filled by
+    #: > objects**.
+    #:
+    #: **Stated, never measured**, for the reason `degree` is: the document hands
+    #: "completely" to a person and supplies no fraction to measure it by, so whoever places
+    #: the crates says whether they fill the space. Defaults to `False`, which is what every
+    #: obstruction meant before this field existed — a barrier rather than an occupant
+    #: (0084 clause 9). A wall gives Total Cover and stops a line of effect, and neither of
+    #: those is the question p. 191 asks; a box nobody said is full is not full.
+    #:
+    #: Independent of `degree`, because the document keeps the two apart: p. 190 diverts a
+    #: teleport from a space "occupied by another creature **or** blocked by a solid
+    #: obstacle", two clauses, and a heap of loose crates can fill a space while covering
+    #: only half of whoever stands behind it.
+    fills_space: bool = False
+
     def blocks(self, start: Position, end: Position) -> bool:
         """Whether the segment from `start` to `end` passes through this box.
 

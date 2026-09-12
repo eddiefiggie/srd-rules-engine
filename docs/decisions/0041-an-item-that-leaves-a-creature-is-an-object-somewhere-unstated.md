@@ -176,7 +176,10 @@ printed across three pages, and all of it is buildable now — what waits is one
   describes a scene where nobody has dropped anything and is the right answer for one.
 - **Nothing here models an object's own space.** p. 185 says a space is occupied if it "is
   **completely filled by objects**", and a sword on the floor does not fill one. The engine
-  stores where an object is and draws no conclusion about what that blocks.
+  stores where an object is and draws no conclusion about what that blocks. _2026-09-06:_
+  an object that does fill a space is an `Obstruction` whose placer says so
+  ([0092](0092-an-object-fills-a-space-because-its-placer-said-so.md)); a detached item
+  still fills nothing.
 
 **Follow-on effects.**
 
