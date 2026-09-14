@@ -39,8 +39,12 @@ class TurnBoundary(StrEnum):
     """Which end of a turn a span is measured to.
 
     A vocabulary rather than a boolean, because the two are mutually exclusive and a
-    `bool` at a call site reads as neither (0019). `Duration` needs no such thing — every
-    span it counts ends at `END` — so this lives here with the one mechanism that needs both.
+    `bool` at a call site reads as neither — 0039's rejected option 3, where a closed
+    vocabulary refuses by construction the states a boolean can express and the rules give
+    no meaning to. This cited 0019 until #472, copied from 0049 clause 7; 0019 is about the
+    inventory's `kind` axis and says nothing about booleans. `Duration` needs no such thing —
+    every span it counts ends at `END` — so this lives here with the one mechanism that
+    needs both.
     """
 
     #: "before the **start** of your next turn" (p. 90, Sap).
