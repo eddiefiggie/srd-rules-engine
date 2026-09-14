@@ -48,6 +48,11 @@ origin: https://github.com/eddiefiggie/srd-rules-engine/issues/475
   prose rather than a mechanic, or if the console script would need a dependency (R33).
 - **Tail ownership:** One PR for U1–U5. The recorded live run is #403's own acceptance and
   stays there (KTD3).
+- **Where it can be built:** only on a machine holding `/path/to/SRD_CC_v5.2.1.pdf` with
+  `pymupdf` installed. U1–U3 state no number until its page is read, and the stop condition
+  above refuses a build that cannot open the page. The session that wrote this plan could
+  not: its network policy denied the document's download hosts and PyPI, which is why the
+  plan landed on its own.
 
 ---
 
@@ -69,9 +74,15 @@ session without a consumer constructing everything by hand.
 **Finding 2 — the six creatures are statistics only, and `Statistics` has no consumer.**
 `core.bestiary.Statistics` carries armour class, hit points, hit dice, speeds, abilities,
 challenge rating and proficiency bonus, every entry `traits_modelled: false`, and nothing in
-`src/` outside `bestiary.py` reads the type. A `Combatant` needs `hands`, `equipment`,
-`weapon_proficiencies` and `is_player_character` on top of what `Statistics` holds. The
-conversion is new, and it is where a creature's attack has to enter.
+`src/` outside `bestiary.py` reads the type. A `Combatant` needs `equipment`,
+`weapon_proficiencies` and `is_player_character` on top of what `Statistics` holds — and
+**not** `hands`: `Combatant.__post_init__` says *"`hands is None` is not a violation: no SRD
+rule states how many hands a creature has, so an unstated count cannot be exceeded (R31)"*,
+and `can_attack_with` reads `free_hands == 0` rather than `not free_hands` for the same
+reason. A Wolf is built with `hands=None` and a Bite with `hands_when_held=0`; the fixture's
+`FIXTURE_FANGS` says `hands_when_held=1` on a creature given two hands, which is the invented
+shape and not the one to copy. The conversion is new, and it is where a creature's attack
+has to enter.
 
 **Finding 3 — an attack is a `Weapon` the creature holds, and the fixture already models a
 natural weapon that way.** Since 0040, `attack_resolver()` closes over nothing and reads the
@@ -220,7 +231,8 @@ description; a second player character (a non-goal); any adapter beyond the cons
 - **Requirements:** R4, R31, R32.
 - **Files:** `core/playable.py`, `scripts/verify_d20_rules.py`.
 - **Test scenarios:** a Wolf built from the published bestiary carries its statistics
-  unchanged and holds its Bite; the Bite's to-hit is derived from the same ability and
+  unchanged, has no stated hand count, and holds its Bite with no hand committed; the
+  Bite's to-hit is derived from the same ability and
   proficiency bonus the stat block prints, and the test asserts the printed number against the
   derived one so a transcription error goes red; the creature is proficient with it (p. 89); it
   is not a player character, so it dies at 0 (p. 17).
