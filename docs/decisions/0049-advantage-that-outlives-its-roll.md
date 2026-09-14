@@ -110,7 +110,7 @@ can no longer arrive. Withdrawing a granted benefit because its clock left the f
 the engine deciding an outcome the document does not decide, so it errs toward honouring what
 was granted.
 
-**7. `TurnBoundary` is a vocabulary, not a boolean** (0019). Two mutually exclusive states,
+**7. `TurnBoundary` is a vocabulary, not a boolean** ([0039](0039-equipment-is-what-a-creature-holds-wears-and-carries.md) option 3; this said 0019 until [#472](https://github.com/eddiefiggie/srd-rules-engine/issues/472), and 0019 contains no such rule). Two mutually exclusive states,
 and a `bool` at a call site reads as neither. It lives with the one mechanism that needs both;
 `Duration` needs no such thing, because every span it counts ends at `END`.
 
